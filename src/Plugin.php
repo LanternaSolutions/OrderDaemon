@@ -7,6 +7,7 @@ use OrderDaemon\CompletionManager\Admin\Admin;
 use OrderDaemon\CompletionManager\Admin\InsightDashboard;
 use OrderDaemon\CompletionManager\API\AuditLogEndpoint;
 use OrderDaemon\CompletionManager\API\RuleBuilderApiController;
+use OrderDaemon\CompletionManager\API\WebhookController;
 use OrderDaemon\CompletionManager\Core\Core;
 use OrderDaemon\CompletionManager\Core\ManualStatusTracker;
 
@@ -255,6 +256,10 @@ final class Plugin {
 
 		$rule_builder_api = new RuleBuilderApiController();
 		$rule_builder_api->register_routes();
+
+		// Register webhook endpoints for universal event system
+		$webhook_controller = new WebhookController();
+		$webhook_controller->register_routes();
 	}
 
 

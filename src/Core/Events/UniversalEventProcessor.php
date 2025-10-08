@@ -3,24 +3,19 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core\Events;
 
-use OrderDaemon\CompletionManager\Core\Executor;
+use OrderDaemon\CompletionManager\Includes\AuditTrailLogger;
+use OrderDaemon\CompletionManager\Core\RuleComponents\RuleComponentRegistry;
+use OrderDaemon\CompletionManager\Core\Evaluator;
 
 /**
  * Universal Event Processor
  * 
- * Handles Action Scheduler processing of universal events through the rule engine.
- * This is the bridge between the universal event system and the existing rule
- * processing infrastructure, enabling event-driven automation.
- * 
- * Processing Flow:
- * 1. Deserialize UniversalEvent from Action Scheduler
- * 2. Resolve entity relationships (load WC_Order, WC_Subscription, etc.)
- * 3. Create EvaluationContext with event + entities + customer data
- * 4. Execute rule evaluation via existing Executor
- * 5. Log results to audit trail with universal event metadata
+ * Processes universal events through the rule engine. This class serves as
+ * the bridge between the webhook system and the existing rule evaluation
+ * framework, enabling event-driven automation workflows.
  * 
  * @package OrderDaemon\CompletionManager\Core\Events
- * @since   2.2.0
+ * @since   1.1.0
  */
 class UniversalEventProcessor
 {
@@ -30,6 +25,37 @@ class UniversalEventProcessor
      * @var UniversalEventProcessor|null
      */
     private static ?UniversalEventProcessor $instance = null;
+
+    /**
+     * Rule component registry
+     * 
+     * @var RuleComponentRegistry
+     */
+    private RuleComponentRegistry $registry;
+
+    /**
+     * Rule evaluator
+     * 
+     * @var Evaluator
+     */
+    private Evaluator $evaluator;
+
+    /**
+     * Audit trail logger
+     * 
+     * @var AuditTrailLogger
+     */
+    private AuditTrailLogger $logger;
+
+    /**
+     * Constructor
+     */
+    private function __construct()
+    {
+        $this->logger = new AuditTrailLogger();
+        $this->registry = new RuleComponentRegistry();
+        $this->evaluator = new Evaluator();
+    }
 
     /**
      * Get singleton instance
@@ -45,508 +71,469 @@ class UniversalEventProcessor
     }
 
     /**
-     * Process universal event from Action Scheduler
+     * Process a universal event through the rule engine
      * 
-     * This is the main entry point for universal event processing.
-     * Called by Action Scheduler with serialized event data.
-     * 
-     * @param array $event_data Serialized UniversalEvent data
-     * @return bool Success status
+     * @param array $event_data Serialized universal event data
+     * @return bool True if event was processed successfully
      */
     public function processEvent(array $event_data): bool
     {
         $start_time = microtime(true);
-        $process_id = $event_data['process_id'] ?? 'odcm_universal_' . uniqid();
+        $process_id = 'odcm_universal_' . uniqid();
 
         try {
-            // Deserialize UniversalEvent
-            $event = $this->deserializeEvent($event_data);
-            if (!$event || !$event->isValid()) {
-                error_log('ODCM Universal Event Processor: Invalid event data');
+            // Validate event data
+            if (!$this->validateEventData($event_data)) {
+                $this->logError('Invalid event data structure', $event_data, $process_id);
                 return false;
             }
 
-            // Check idempotency to prevent duplicate processing
-            if ($this->isAlreadyProcessed($event)) {
-                error_log('ODCM Universal Event Processor: Event already processed (idempotency): ' . $event->idempotencyKey);
-                return true; // Return true since it was already processed successfully
-            }
+            // Create UniversalEvent object from data
+            $universal_event = new UniversalEvent($event_data);
 
             // Create evaluation context
-            $context = $this->createEvaluationContext($event);
-            if (!$context) {
-                error_log('ODCM Universal Event Processor: Failed to create evaluation context');
-                return false;
+            $context = new EvaluationContext($universal_event);
+
+            // Log event reception at debug level
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logEventReception($context, $process_id);
             }
 
-            // Execute rule processing
-            $result = $this->executeRuleProcessing($context, $process_id);
+            // Check for idempotency
+            if ($this->isDuplicateEvent($universal_event)) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDuplicateEvent($universal_event, $process_id);
+                }
+                return true; // Not an error, just already processed
+            }
 
-            // Mark as processed for idempotency
-            $this->markAsProcessed($event);
+            // Process through rule engine
+            $result = $this->processUniversalEventRules($context, $process_id);
 
-            // Log processing completion
+            // Log processing result
             $execution_time = microtime(true) - $start_time;
-            $this->logProcessingResult($event, $result, $execution_time, $process_id);
+            $this->logProcessingResult($context, $result, $execution_time, $process_id);
 
             return $result;
 
         } catch (\Throwable $e) {
             $execution_time = microtime(true) - $start_time;
-            $this->logProcessingError($event_data, $e, $execution_time, $process_id);
+            $this->logProcessingError($e, $event_data, $execution_time, $process_id);
             return false;
         }
     }
 
     /**
-     * Deserialize event data into UniversalEvent object
+     * Validate event data structure
      * 
-     * @param array $event_data
-     * @return UniversalEvent|null
+     * @param array $event_data Event data to validate
+     * @return bool True if valid
      */
-    private function deserializeEvent(array $event_data): ?UniversalEvent
+    private function validateEventData(array $event_data): bool
     {
-        try {
-            // Remove process_id from event data before deserializing
-            $clean_data = $event_data;
-            unset($clean_data['process_id']);
-
-            return UniversalEvent::fromArray($clean_data);
-        } catch (\Throwable $e) {
-            error_log('ODCM Universal Event Processor: Deserialization error: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Create evaluation context from universal event
-     * 
-     * @param UniversalEvent $event
-     * @return EvaluationContext|null
-     */
-    private function createEvaluationContext(UniversalEvent $event): ?EvaluationContext
-    {
-        try {
-            $order = null;
-            $subscription = null;
-            $customer = null;
-
-            // Load WooCommerce order if available
-            if ($event->primaryObjectType === 'order' && $event->primaryObjectID) {
-                $order = wc_get_order($event->primaryObjectID);
-                if (!$order) {
-                    error_log('ODCM Universal Event Processor: Order not found: ' . $event->primaryObjectID);
-                }
-            } elseif ($event->secondaryObjectType === 'order' && $event->secondaryObjectID) {
-                $order = wc_get_order($event->secondaryObjectID);
-            }
-
-            // Load WooCommerce subscription if available
-            if ($event->primaryObjectType === 'subscription' && $event->primaryObjectID) {
-                $subscription = $this->loadSubscription($event->primaryObjectID);
-                if (!$subscription) {
-                    error_log('ODCM Universal Event Processor: Subscription not found: ' . $event->primaryObjectID);
-                }
-            } elseif ($event->secondaryObjectType === 'subscription' && $event->secondaryObjectID) {
-                $subscription = $this->loadSubscription($event->secondaryObjectID);
-            }
-
-            // Load customer/user
-            if ($event->primaryObjectType === 'customer' && $event->primaryObjectID) {
-                $customer = get_user_by('id', $event->primaryObjectID);
-            } elseif ($order && $order->get_customer_id()) {
-                $customer = get_user_by('id', $order->get_customer_id());
-            } elseif ($subscription && method_exists($subscription, 'get_customer_id')) {
-                $customer = get_user_by('id', $subscription->get_customer_id());
-            }
-
-            // Create gateway metadata
-            $gateway_metadata = $this->createGatewayMetadata($event, $order, $subscription);
-
-            return new EvaluationContext(
-                $event,
-                $order,
-                $subscription,
-                $customer,
-                $gateway_metadata
-            );
-
-        } catch (\Throwable $e) {
-            error_log('ODCM Universal Event Processor: Context creation error: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Execute rule processing through existing Executor
-     * 
-     * @param EvaluationContext $context
-     * @param string $process_id
-     * @return bool
-     */
-    private function executeRuleProcessing(EvaluationContext $context, string $process_id): bool
-    {
-        try {
-            // Get Executor instance
-            $executor = Executor::instance();
-
-            // Process through universal event method
-            return $executor->process_universal_event($context, $process_id);
-
-        } catch (\Throwable $e) {
-            error_log('ODCM Universal Event Processor: Rule execution error: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Check if event has already been processed (idempotency)
-     * 
-     * @param UniversalEvent $event
-     * @return bool
-     */
-    private function isAlreadyProcessed(UniversalEvent $event): bool
-    {
-        $key = 'odcm_processed_' . md5($event->idempotencyKey);
-        return get_transient($key) !== false;
-    }
-
-    /**
-     * Mark event as processed for idempotency
-     * 
-     * @param UniversalEvent $event
-     * @return void
-     */
-    private function markAsProcessed(UniversalEvent $event): void
-    {
-        $key = 'odcm_processed_' . md5($event->idempotencyKey);
-        // Store for 24 hours to prevent duplicate processing
-        set_transient($key, time(), 24 * HOUR_IN_SECONDS);
-    }
-
-    /**
-     * Load WooCommerce subscription
-     * 
-     * @param int $subscription_id
-     * @return object|null
-     */
-    private function loadSubscription(int $subscription_id): ?object
-    {
-        // Check if WooCommerce Subscriptions is active
-        if (!function_exists('wcs_get_subscription')) {
-            return null;
-        }
-
-        try {
-            $subscription = wcs_get_subscription($subscription_id);
-            return $subscription ?: null;
-        } catch (\Throwable $e) {
-            error_log('ODCM Universal Event Processor: Subscription load error: ' . $e->getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Create gateway metadata for context
-     * 
-     * @param UniversalEvent $event
-     * @param object|null $order
-     * @param object|null $subscription
-     * @return array
-     */
-    private function createGatewayMetadata(UniversalEvent $event, ?object $order, ?object $subscription): array
-    {
-        $metadata = [
-            'gateway' => $event->sourceGateway,
-            'channel' => $event->channel,
-            'transaction_id' => $event->transactionID,
-            'event_type' => $event->eventType,
-            'status' => $event->status,
-            'reason' => $event->reason,
-            'amount' => $event->amount,
-            'currency' => $event->currency,
-            'occurred_at' => $event->occurredAt,
-            'received_at' => $event->receivedAt,
+        // Required fields for UniversalEvent
+        $required_fields = [
+            'eventType',
+            'sourceGateway',
+            'channel',
+            'primaryObjectType',
+            'occurredAt',
+            'receivedAt',
+            'idempotencyKey'
         ];
 
-        // Add order-specific gateway data
-        if ($order) {
-            $metadata['order_payment_method'] = $order->get_payment_method();
-            $metadata['order_payment_method_title'] = $order->get_payment_method_title();
-            $metadata['order_transaction_id'] = $order->get_transaction_id();
+        foreach ($required_fields as $field) {
+            if (!isset($event_data[$field])) {
+                return false;
+            }
         }
 
-        // Add subscription-specific gateway data
-        if ($subscription && method_exists($subscription, 'get_payment_method')) {
-            $metadata['subscription_payment_method'] = $subscription->get_payment_method();
-            $metadata['subscription_payment_method_title'] = $subscription->get_payment_method_title();
+        // Validate event type format
+        if (!is_string($event_data['eventType']) || empty($event_data['eventType'])) {
+            return false;
         }
 
-        return $metadata;
+        // Validate idempotency key
+        if (!is_string($event_data['idempotencyKey']) || empty($event_data['idempotencyKey'])) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
-     * Log successful processing result
+     * Check if this event has already been processed (idempotency check)
      * 
-     * @param UniversalEvent $event
-     * @param bool $result
-     * @param float $execution_time
-     * @param string $process_id
+     * @param UniversalEvent $event Universal event
+     * @return bool True if duplicate
+     */
+    private function isDuplicateEvent(UniversalEvent $event): bool
+    {
+        global $wpdb;
+
+        // Check for existing log entries with the same idempotency key
+        $existing = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
+             WHERE event_type = 'universal_event_processing' 
+             AND JSON_EXTRACT(payload, '$.idempotency_key') = %s
+             AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)",
+            $event->idempotencyKey
+        ));
+
+        return (int) $existing > 0;
+    }
+
+    /**
+     * Log event reception for debugging
+     * 
+     * @param EvaluationContext $context Evaluation context
+     * @param string $process_id Process ID
      * @return void
      */
-    private function logProcessingResult(UniversalEvent $event, bool $result, float $execution_time, string $process_id): void
+    private function logEventReception(EvaluationContext $context, string $process_id): void
     {
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log(sprintf(
-                'ODCM Universal Event Processor: %s processing %s event %s (%.3fs)',
-                $result ? 'Successfully' : 'Failed',
-                $event->sourceGateway ?? 'system',
-                $event->eventType,
-                $execution_time
-            ));
-        }
-
-        // Log to audit trail if available
-        if (function_exists('odcm_log_custom_event')) {
-            $status = $result ? 'success' : 'error';
-            $summary = sprintf(
-                'Universal event processed: %s %s',
-                $event->sourceGateway ?? 'system',
-                $event->eventType
-            );
-
-            $details = [
+        $event = $context->event;
+        
+        \odcm_log_custom_event(
+            sprintf('Universal event received: %s from %s', $event->eventType, $event->sourceGateway ?? 'unknown'),
+            [
                 'event_type' => $event->eventType,
                 'source_gateway' => $event->sourceGateway,
                 'channel' => $event->channel,
-                'transaction_id' => $event->transactionID,
                 'primary_object_type' => $event->primaryObjectType,
                 'primary_object_id' => $event->primaryObjectID,
-                'secondary_object_type' => $event->secondaryObjectType,
-                'secondary_object_id' => $event->secondaryObjectID,
+                'transaction_id' => $event->transactionID,
+                'amount' => $event->amount,
+                'currency' => $event->currency,
                 'idempotency_key' => $event->idempotencyKey,
-                'execution_time' => $execution_time,
-                'processing_result' => $result,
-            ];
+                'has_order' => $context->order !== null,
+                'has_subscription' => $context->subscription !== null,
+                'customer_id' => $context->getCustomerId(),
+            ],
+            $context->getOrderId(),
+            'info',
+            'universal_event_reception',
+            false,
+            $process_id
+        );
+    }
 
-            odcm_log_custom_event(
-                $summary,
-                $details,
-                $event->primaryObjectType === 'order' ? $event->primaryObjectID : null,
-                $status,
-                'universal_event_processing',
-                false,
-                $process_id
-            );
-        }
+    /**
+     * Log duplicate event detection
+     * 
+     * @param UniversalEvent $event Universal event
+     * @param string $process_id Process ID
+     * @return void
+     */
+    private function logDuplicateEvent(UniversalEvent $event, string $process_id): void
+    {
+        \odcm_log_custom_event(
+            sprintf('Duplicate universal event detected: %s (idempotency key: %s)', $event->eventType, $event->idempotencyKey),
+            [
+                'event_type' => $event->eventType,
+                'source_gateway' => $event->sourceGateway,
+                'idempotency_key' => $event->idempotencyKey,
+                'duplicate_detection' => true,
+            ],
+            null,
+            'info',
+            'universal_event_duplicate',
+            false,
+            $process_id
+        );
+    }
+
+    /**
+     * Log processing result
+     * 
+     * @param EvaluationContext $context Evaluation context
+     * @param bool $result Processing result
+     * @param float $execution_time Execution time in seconds
+     * @param string $process_id Process ID
+     * @return void
+     */
+    private function logProcessingResult(EvaluationContext $context, bool $result, float $execution_time, string $process_id): void
+    {
+        $event = $context->event;
+        $status = $result ? 'success' : 'info';
+        $message = $result 
+            ? sprintf('Universal event processed successfully: %s from %s', $event->eventType, $event->sourceGateway ?? 'unknown')
+            : sprintf('Universal event processed with no matching rules: %s from %s', $event->eventType, $event->sourceGateway ?? 'unknown');
+
+        \odcm_log_custom_event(
+            $message,
+            [
+                'event_type' => $event->eventType,
+                'source_gateway' => $event->sourceGateway,
+                'channel' => $event->channel,
+                'primary_object_type' => $event->primaryObjectType,
+                'primary_object_id' => $event->primaryObjectID,
+                'transaction_id' => $event->transactionID,
+                'amount' => $event->amount,
+                'currency' => $event->currency,
+                'idempotency_key' => $event->idempotencyKey,
+                'processing_result' => $result,
+                'execution_time_ms' => round($execution_time * 1000, 2),
+                'has_order' => $context->order !== null,
+                'has_subscription' => $context->subscription !== null,
+                'customer_id' => $context->getCustomerId(),
+            ],
+            $context->getOrderId(),
+            $status,
+            'universal_event_processing',
+            false,
+            $process_id
+        );
     }
 
     /**
      * Log processing error
      * 
-     * @param array $event_data
-     * @param \Throwable $error
-     * @param float $execution_time
-     * @param string $process_id
+     * @param \Throwable $error Error that occurred
+     * @param array $event_data Original event data
+     * @param float $execution_time Execution time in seconds
+     * @param string $process_id Process ID
      * @return void
      */
-    private function logProcessingError(array $event_data, \Throwable $error, float $execution_time, string $process_id): void
+    private function logProcessingError(\Throwable $error, array $event_data, float $execution_time, string $process_id): void
     {
-        error_log(sprintf(
-            'ODCM Universal Event Processor Error: %s (%.3fs) - Data: %s',
-            $error->getMessage(),
-            $execution_time,
-            json_encode($event_data)
-        ));
-
-        // Log to audit trail if available
-        if (function_exists('odcm_log_custom_event')) {
-            $summary = 'Universal event processing failed: ' . $error->getMessage();
-
-            $details = array_merge($event_data, [
+        \odcm_log_custom_event(
+            sprintf('Universal event processing failed: %s', $error->getMessage()),
+            [
+                'event_type' => $event_data['eventType'] ?? 'unknown',
+                'source_gateway' => $event_data['sourceGateway'] ?? 'unknown',
+                'idempotency_key' => $event_data['idempotencyKey'] ?? 'unknown',
                 'error_message' => $error->getMessage(),
                 'error_file' => $error->getFile(),
                 'error_line' => $error->getLine(),
-                'execution_time' => $execution_time,
-            ]);
+                'execution_time_ms' => round($execution_time * 1000, 2),
+                'event_data_summary' => [
+                    'event_type' => $event_data['eventType'] ?? null,
+                    'source_gateway' => $event_data['sourceGateway'] ?? null,
+                    'primary_object_type' => $event_data['primaryObjectType'] ?? null,
+                    'primary_object_id' => $event_data['primaryObjectID'] ?? null,
+                ],
+            ],
+            null,
+            'error',
+            'universal_event_processing_error',
+            false,
+            $process_id
+        );
+    }
 
-            odcm_log_custom_event(
-                $summary,
-                $details,
-                null,
+    /**
+     * Log general error
+     * 
+     * @param string $message Error message
+     * @param array $context Error context
+     * @param string $process_id Process ID
+     * @return void
+     */
+    private function logError(string $message, array $context, string $process_id): void
+    {
+        \odcm_log_custom_event(
+            'Universal event processor error: ' . $message,
+            array_merge($context, [
+                'component' => 'universal_event_processor',
+                'error_type' => 'validation_error',
+            ]),
+            null,
+            'error',
+            'universal_event_processor_error',
+            false,
+            $process_id
+        );
+    }
+
+    /**
+     * Get processing statistics
+     * 
+     * @param int $hours Number of hours to look back (default: 24)
+     * @return array Processing statistics
+     */
+    public function getProcessingStats(int $hours = 24): array
+    {
+        global $wpdb;
+
+        $since = date('Y-m-d H:i:s', strtotime("-{$hours} hours"));
+
+        // Get total events processed
+        $total_events = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
+             WHERE event_type = 'universal_event_processing' 
+             AND timestamp >= %s",
+            $since
+        ));
+
+        // Get successful events
+        $successful_events = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
+             WHERE event_type = 'universal_event_processing' 
+             AND status = 'success'
+             AND timestamp >= %s",
+            $since
+        ));
+
+        // Get failed events
+        $failed_events = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
+             WHERE event_type IN ('universal_event_processing_error', 'universal_event_processor_error')
+             AND timestamp >= %s",
+            $since
+        ));
+
+        // Get duplicate events
+        $duplicate_events = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
+             WHERE event_type = 'universal_event_duplicate'
+             AND timestamp >= %s",
+            $since
+        ));
+
+        // Get events by gateway
+        $events_by_gateway = $wpdb->get_results($wpdb->prepare(
+            "SELECT JSON_EXTRACT(payload, '$.source_gateway') as gateway, COUNT(*) as count
+             FROM {$wpdb->prefix}odcm_audit_log 
+             WHERE event_type = 'universal_event_processing'
+             AND timestamp >= %s
+             GROUP BY gateway
+             ORDER BY count DESC",
+            $since
+        ), ARRAY_A);
+
+        return [
+            'period_hours' => $hours,
+            'total_events' => (int) $total_events,
+            'successful_events' => (int) $successful_events,
+            'failed_events' => (int) $failed_events,
+            'duplicate_events' => (int) $duplicate_events,
+            'success_rate' => $total_events > 0 ? round(($successful_events / $total_events) * 100, 2) : 0,
+            'events_by_gateway' => $events_by_gateway ?: [],
+        ];
+    }
+
+    /**
+     * Process universal event through rule engine
+     * 
+     * Simplified rule processing that evaluates rules against universal events
+     * and executes matching actions. Replaces the legacy Executor functionality.
+     * 
+     * @param EvaluationContext $context Universal event context
+     * @param string $process_id Process ID for correlation
+     * @return bool True if any rule matched and executed
+     */
+    private function processUniversalEventRules(EvaluationContext $context, string $process_id): bool
+    {
+        // Check if post type exists
+        if (!post_type_exists('odcm_order_rule')) {
+            return false;
+        }
+
+        // Get active rules
+        $rules_query = new \WP_Query([
+            'post_type'      => 'odcm_order_rule',
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+            'orderby'        => 'menu_order',
+            'order'          => 'ASC',
+        ]);
+
+        if (!$rules_query->have_posts()) {
+            return false;
+        }
+
+        // Process rules with First Match Wins logic
+        foreach ($rules_query->posts as $rule) {
+            // Load rule JSON data
+            $json = get_post_meta((int)$rule->ID, '_odcm_rule_data', true);
+            $rule_data = is_string($json) ? json_decode($json, true) : null;
+            
+            if (!is_array($rule_data)) {
+                continue;
+            }
+
+            // Evaluate rule against universal event context
+            $trace = $this->evaluator->evaluateRuleAgainstUniversalEvent($context, $rule_data, $this->registry);
+
+            if ($trace['matched']) {
+                // Execute primary action
+                if (isset($rule_data['primaryAction']['id'])) {
+                    $this->executeUniversalEventAction($context, $rule_data['primaryAction']);
+                }
+
+                // Execute secondary actions
+                if (!empty($rule_data['secondaryActions']) && is_array($rule_data['secondaryActions'])) {
+                    foreach ($rule_data['secondaryActions'] as $actionDef) {
+                        if (isset($actionDef['id'])) {
+                            $this->executeUniversalEventAction($context, $actionDef);
+                        }
+                    }
+                }
+
+                // First Match Wins - stop processing
+                return true;
+            }
+        }
+
+        return false; // No rules matched
+    }
+
+    /**
+     * Execute action component for universal event context
+     * 
+     * @param EvaluationContext $context Universal event context
+     * @param array $actionDef Action definition
+     * @return void
+     */
+    private function executeUniversalEventAction(EvaluationContext $context, array $actionDef): void
+    {
+        $id = isset($actionDef['id']) && is_string($actionDef['id']) ? $actionDef['id'] : '';
+        if ($id === '') {
+            return;
+        }
+
+        $actions = $this->registry->get_actions();
+        if (!isset($actions[$id])) {
+            return;
+        }
+
+        $component = $actions[$id];
+        $schema = $component->get_settings_schema();
+        $rawSettings = is_array($actionDef['settings'] ?? null) ? $actionDef['settings'] : [];
+        $clean = $this->evaluator->sanitize_by_schema($rawSettings, $schema);
+
+        try {
+            // Execute action with appropriate entity
+            if ($context->order && method_exists($component, 'execute')) {
+                // Standard order-based action
+                $component->execute($context->order, $clean);
+            } elseif (method_exists($component, 'executeUniversalEvent')) {
+                // Universal event-aware action
+                $component->executeUniversalEvent($context, $clean);
+            } else {
+                // Fallback: try with order if available
+                if ($context->order) {
+                    $component->execute($context->order, $clean);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Log action execution error but don't stop processing
+            \odcm_log_custom_event(
+                sprintf('Action execution failed: %s', $e->getMessage()),
+                [
+                    'action_id' => $id,
+                    'action_label' => $component->get_label(),
+                    'error_message' => $e->getMessage(),
+                    'error_file' => $e->getFile(),
+                    'error_line' => $e->getLine(),
+                    'event_type' => $context->event->eventType,
+                    'source_gateway' => $context->event->sourceGateway,
+                ],
+                $context->getOrderId(),
                 'error',
-                'universal_event_processing',
-                false,
-                $process_id
+                'universal_event_action_error'
             );
         }
-    }
-}
-
-/**
- * Evaluation Context
- * 
- * Contains all the data needed for rule evaluation in the universal event system.
- * This includes the event itself, related entities, and contextual metadata.
- * 
- * @package OrderDaemon\CompletionManager\Core\Events
- * @since   2.2.0
- */
-class EvaluationContext
-{
-    /**
-     * The universal event being processed
-     * 
-     * @var UniversalEvent
-     */
-    public readonly UniversalEvent $event;
-
-    /**
-     * Related WooCommerce order (if any)
-     * 
-     * @var object|null
-     */
-    public readonly ?object $order;
-
-    /**
-     * Related WooCommerce subscription (if any)
-     * 
-     * @var object|null
-     */
-    public readonly ?object $subscription;
-
-    /**
-     * Related WordPress user/customer (if any)
-     * 
-     * @var \WP_User|null
-     */
-    public readonly ?\WP_User $customer;
-
-    /**
-     * Gateway and processing metadata
-     * 
-     * @var array
-     */
-    public readonly array $gateway_metadata;
-
-    /**
-     * Constructor
-     * 
-     * @param UniversalEvent $event
-     * @param object|null $order
-     * @param object|null $subscription
-     * @param \WP_User|null $customer
-     * @param array $gateway_metadata
-     */
-    public function __construct(
-        UniversalEvent $event,
-        ?object $order = null,
-        ?object $subscription = null,
-        ?\WP_User $customer = null,
-        array $gateway_metadata = []
-    ) {
-        $this->event = $event;
-        $this->order = $order;
-        $this->subscription = $subscription;
-        $this->customer = $customer;
-        $this->gateway_metadata = $gateway_metadata;
-    }
-
-    /**
-     * Get order ID (primary or secondary)
-     * 
-     * @return int|null
-     */
-    public function getOrderId(): ?int
-    {
-        if ($this->order) {
-            return $this->order->get_id();
-        }
-
-        if ($this->event->primaryObjectType === 'order') {
-            return $this->event->primaryObjectID;
-        }
-
-        if ($this->event->secondaryObjectType === 'order') {
-            return $this->event->secondaryObjectID;
-        }
-
-        return null;
-    }
-
-    /**
-     * Get subscription ID (primary or secondary)
-     * 
-     * @return int|null
-     */
-    public function getSubscriptionId(): ?int
-    {
-        if ($this->subscription && method_exists($this->subscription, 'get_id')) {
-            return $this->subscription->get_id();
-        }
-
-        if ($this->event->primaryObjectType === 'subscription') {
-            return $this->event->primaryObjectID;
-        }
-
-        if ($this->event->secondaryObjectType === 'subscription') {
-            return $this->event->secondaryObjectID;
-        }
-
-        return null;
-    }
-
-    /**
-     * Get customer ID
-     * 
-     * @return int|null
-     */
-    public function getCustomerId(): ?int
-    {
-        if ($this->customer) {
-            return $this->customer->ID;
-        }
-
-        if ($this->order && $this->order->get_customer_id()) {
-            return $this->order->get_customer_id();
-        }
-
-        if ($this->subscription && method_exists($this->subscription, 'get_customer_id')) {
-            return $this->subscription->get_customer_id();
-        }
-
-        return null;
-    }
-
-    /**
-     * Check if this is a subscription-related event
-     * 
-     * @return bool
-     */
-    public function isSubscriptionEvent(): bool
-    {
-        return strpos($this->event->eventType, 'subscription_') === 0 || 
-               strpos($this->event->eventType, 'renewal_') === 0 ||
-               $this->subscription !== null;
-    }
-
-    /**
-     * Check if this is a payment-related event
-     * 
-     * @return bool
-     */
-    public function isPaymentEvent(): bool
-    {
-        return strpos($this->event->eventType, 'payment_') === 0;
-    }
-
-    /**
-     * Check if this is a dispute-related event
-     * 
-     * @return bool
-     */
-    public function isDisputeEvent(): bool
-    {
-        return strpos($this->event->eventType, 'dispute_') === 0;
     }
 }

@@ -6,6 +6,8 @@ namespace OrderDaemon\CompletionManager\Core;
 use WC_Order;
 use OrderDaemon\CompletionManager\Core\Logging\ProcessLogger;
 use OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer;
+use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
+use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
 
 /**
  * Manual Status Tracker - Chain of Custody Logging
@@ -123,6 +125,17 @@ class ManualStatusTracker
         // Determine the appropriate event type and context (kept for compatibility)
         $event_type = $is_automatic_workflow ? 'automatic_workflow_transition' : 'manual_status_change';
         $context = $is_automatic_workflow ? 'automatic_workflow' : 'manual_status_change';
+
+        // Generate UniversalEvent for manual status changes
+        if ($source === 'manual' && !$is_automatic_workflow) {
+            try {
+                $universal_event = self::synthesize_manual_status_change_event($order, $from, $to, $user_id, $bypassed_automation);
+                self::process_universal_event_from_hook($universal_event);
+                odcm_log_message("Manual status change for order #{$order_id} ({$from} → {$to}) processed as universal event", 'info');
+            } catch (\Throwable $e) {
+                odcm_log_message('Manual status change universal event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
+            }
+        }
 
         // Narrative-based single process entry for status change
         $pl = new ProcessLogger(new ComponentSanitizer());
@@ -360,5 +373,112 @@ class ManualStatusTracker
         $pl->start('admin_action', [ 'order_id' => $order_id, 'actor_user_id' => $current_user->ID, 'summary' => 'Manual automation trigger' ]);
         $pl->add_component('info', 'Manual trigger invoked', [ 'message' => sprintf('User %s triggered automation for order #%d (%s)', $user_context['user_display_name'], $order_id, $trigger_context) ]);
         $pl->finish('success', sprintf('Manual automation trigger for Order #%d', $order_id));
+    }
+
+    /**
+     * Synthesize manual status change event from WooCommerce order data
+     *
+     * @param \WC_Order $order WooCommerce order object
+     * @param string $from_status Previous status
+     * @param string $to_status New status
+     * @param int $user_id User ID who made the change
+     * @param bool $bypassed_automation Whether automation was bypassed
+     * @return UniversalEvent
+     */
+    private static function synthesize_manual_status_change_event(\WC_Order $order, string $from_status, string $to_status, int $user_id, bool $bypassed_automation): UniversalEvent
+    {
+        return new UniversalEvent([
+            'eventType' => 'manual_status_change',
+            'sourceGateway' => self::normalize_gateway_name($order->get_payment_method()),
+            'channel' => 'manual',
+            'primaryObjectType' => 'order',
+            'primaryObjectID' => $order->get_id(),
+            'transactionID' => $order->get_transaction_id(),
+            'status' => $to_status,
+            'amount' => (float) $order->get_total(),
+            'currency' => $order->get_currency(),
+            'reason' => $bypassed_automation ? 'automation_bypassed' : 'manual_intervention',
+            'occurredAt' => current_time('c'),
+            'rawData' => [
+                'from_status' => $from_status,
+                'to_status' => $to_status,
+                'user_id' => $user_id,
+                'bypassed_automation' => $bypassed_automation,
+                'source' => 'manual',
+                'user_display_name' => self::get_user_display_name($user_id)
+            ]
+        ]);
+    }
+
+    /**
+     * Normalize gateway name to standard format
+     *
+     * @param string $payment_method WooCommerce payment method ID
+     * @return string Normalized gateway name
+     */
+    private static function normalize_gateway_name(string $payment_method): string
+    {
+        $gateway_mapping = [
+            'paypal' => 'paypal',
+            'ppcp-gateway' => 'paypal',
+            'ppcp-credit-card-gateway' => 'paypal',
+            'stripe' => 'stripe',
+            'stripe_cc' => 'stripe',
+            'stripe_sepa' => 'stripe',
+            'bacs' => 'bank_transfer',
+            'cheque' => 'check',
+            'cod' => 'cash_on_delivery',
+        ];
+
+        return $gateway_mapping[$payment_method] ?? $payment_method;
+    }
+
+    /**
+     * Get user display name for a given user ID
+     *
+     * @param int $user_id User ID
+     * @return string User display name
+     */
+    private static function get_user_display_name(int $user_id): string
+    {
+        if ($user_id <= 0) {
+            return 'system';
+        }
+
+        $user = get_user_by('id', $user_id);
+        if (!$user) {
+            return 'unknown_user_' . $user_id;
+        }
+
+        return $user->display_name ?: $user->user_login;
+    }
+
+    /**
+     * Process universal event from hook through the universal event pipeline
+     *
+     * @param UniversalEvent $event Universal event to process
+     * @return void
+     */
+    private static function process_universal_event_from_hook(UniversalEvent $event): void
+    {
+        try {
+            // Schedule universal event processing through Action Scheduler
+            if (function_exists('as_enqueue_async_action')) {
+                as_enqueue_async_action(
+                    'odcm_process_lifecycle_event',
+                    ['event' => $event->toArray()],
+                    'odcm-universal-events'
+                );
+            } else {
+                // Fallback: process directly if Action Scheduler not available
+                $processor = UniversalEventProcessor::instance();
+                $processor->processEvent($event->toArray());
+            }
+        } catch (\Throwable $e) {
+            // Log error but don't let it break the manual status change process
+            odcm_log_message('Universal event processing failed: ' . $e->getMessage(), 'error');
+            odcm_log_message('Universal event processing error details: ' . $e->getFile() . ':' . $e->getLine(), 'error');
+            // Continue execution without throwing the exception
+        }
     }
 }

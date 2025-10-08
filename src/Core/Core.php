@@ -53,7 +53,7 @@ class Core
 
         // NOTE: The 'odcm_process_order_check' hook is handled by the global function
         // odcm_handle_order_check_processing() in actions.php, which properly handles
-        // both array and integer arguments and delegates to the Executor class.
+        // both array and integer arguments and delegates to the UniversalEventProcessor class.
         // We don't need to register a duplicate handler here.
 
         // AUTOMATIC TRIGGER HOOKS: Register WooCommerce hooks for automatic order processing
@@ -93,6 +93,10 @@ class Core
         // This ensures that completion rules are checked whenever ANY order status changes
         // Uses lower priority (15) to run after specific status hooks and includes deduplication
         add_action('woocommerce_order_status_changed', [$this, 'handle_general_order_status_change'], 15, 4);
+
+        // ORDER LIFECYCLE HOOKS: Register order creation and lifecycle events
+        add_action('woocommerce_new_order', [$this, 'handle_new_order'], 10, 2);
+        add_action('woocommerce_checkout_order_processed', [$this, 'handle_checkout_order_processed'], 10, 3);
 
         // SUBSCRIPTION HOOKS: Register WooCommerce Subscriptions hooks if available
         if (function_exists('wcs_get_subscription')) {
@@ -423,6 +427,10 @@ class Core
         } catch (\Throwable $e) {
             // Log error but don't let it break the payment process
             odcm_log_message('Payment complete event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
+            
+            // Fallback: still schedule traditional processing
+            $this->schedule_completion_check($order_id);
+            return;
         }
 
         // Always schedule traditional order check for backward compatibility
@@ -504,6 +512,17 @@ class Core
             }
         } catch (\Throwable $e) {
             odcm_log_message('Failed to mark specific status processed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
+        }
+
+        // Generate UniversalEvent for status change
+        try {
+            if ($order instanceof \WC_Order) {
+                $universal_event = $this->synthesize_status_change_event($order, 'unknown', $status_slug);
+                $this->process_universal_event_from_hook($universal_event);
+                odcm_log_message("Order #{$order_id} status change to '{$status_slug}' processed as universal event", 'info');
+            }
+        } catch (\Throwable $e) {
+            odcm_log_message('Status change universal event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
         }
 
         // Narrative log with ProcessLogger
@@ -665,6 +684,17 @@ class Core
             $pl->add_component('dedup', 'Dedup checks', [ 'specific_hook' => (bool) ($this->has_specific_status_processed($order_id, $to_slug, 30) ?? false) ], 'info');
         } catch (\Throwable $e) {
             // ignore
+        }
+
+        // Generate UniversalEvent for general status change
+        try {
+            if ($order instanceof \WC_Order) {
+                $universal_event = $this->synthesize_status_change_event($order, $from_slug, $to_slug);
+                $this->process_universal_event_from_hook($universal_event);
+                odcm_log_message("Order #{$order_id} general status change ({$from_slug} → {$to_slug}) processed as universal event", 'info');
+            }
+        } catch (\Throwable $e) {
+            odcm_log_message('General status change universal event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
         }
 
         try {
@@ -1240,5 +1270,130 @@ class Core
         $this->process_universal_event_from_hook($universal_event);
 
         odcm_log_message("Subscription #{$subscription->get_id()} renewal payment completed, processed as universal event", 'info');
+    }
+
+    /**
+     * Handle new order creation events
+     *
+     * @param int $order_id The ID of the newly created order
+     * @param \WC_Order|null $order The order object (if available)
+     * @return void
+     */
+    public function handle_new_order(int $order_id, $order = null): void
+    {
+        if ($order_id <= 0) {
+            return;
+        }
+
+        // Load order if not provided
+        if (!$order instanceof \WC_Order) {
+            $order = wc_get_order($order_id);
+        }
+
+        if (!$order instanceof \WC_Order) {
+            return;
+        }
+
+        try {
+            // Generate UniversalEvent for order creation
+            $universal_event = $this->synthesize_order_created_event($order);
+
+            // Process through universal event pipeline
+            $this->process_universal_event_from_hook($universal_event);
+
+            odcm_log_message("New order #{$order_id} created, processed as universal event", 'info');
+        } catch (\Throwable $e) {
+            // Log error but don't let it break the order creation process
+            odcm_log_message('Order creation event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
+        }
+
+        // Schedule traditional order check for backward compatibility
+        $this->schedule_completion_check($order_id);
+    }
+
+    /**
+     * Handle checkout order processed events
+     *
+     * @param int $order_id The ID of the processed order
+     * @param array $posted_data Posted checkout data
+     * @param \WC_Order $order The order object
+     * @return void
+     */
+    public function handle_checkout_order_processed(int $order_id, array $posted_data, \WC_Order $order): void
+    {
+        if ($order_id <= 0 || !$order instanceof \WC_Order) {
+            return;
+        }
+
+        try {
+            // Generate UniversalEvent for checkout completion
+            $universal_event = $this->synthesize_checkout_processed_event($order, $posted_data);
+
+            // Process through universal event pipeline
+            $this->process_universal_event_from_hook($universal_event);
+
+            odcm_log_message("Checkout processed for order #{$order_id}, processed as universal event", 'info');
+        } catch (\Throwable $e) {
+            // Log error but don't let it break the checkout process
+            odcm_log_message('Checkout processed event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * Synthesize order created event from WooCommerce order data
+     *
+     * @param \WC_Order $order WooCommerce order object
+     * @return UniversalEvent
+     */
+    private function synthesize_order_created_event(\WC_Order $order): UniversalEvent
+    {
+        return new UniversalEvent([
+            'eventType' => 'order_created',
+            'sourceGateway' => $this->normalize_gateway_name($order->get_payment_method()),
+            'channel' => 'system',
+            'primaryObjectType' => 'order',
+            'primaryObjectID' => $order->get_id(),
+            'transactionID' => $order->get_transaction_id(),
+            'status' => $order->get_status(),
+            'amount' => (float) $order->get_total(),
+            'currency' => $order->get_currency(),
+            'occurredAt' => current_time('c'),
+            'rawData' => [
+                'order_status' => $order->get_status(),
+                'payment_method' => $order->get_payment_method(),
+                'customer_id' => $order->get_customer_id(),
+                'source' => $this->determine_change_source()
+            ]
+        ]);
+    }
+
+    /**
+     * Synthesize checkout processed event from WooCommerce order data
+     *
+     * @param \WC_Order $order WooCommerce order object
+     * @param array $posted_data Posted checkout data
+     * @return UniversalEvent
+     */
+    private function synthesize_checkout_processed_event(\WC_Order $order, array $posted_data): UniversalEvent
+    {
+        return new UniversalEvent([
+            'eventType' => 'checkout_processed',
+            'sourceGateway' => $this->normalize_gateway_name($order->get_payment_method()),
+            'channel' => 'system',
+            'primaryObjectType' => 'order',
+            'primaryObjectID' => $order->get_id(),
+            'transactionID' => $order->get_transaction_id(),
+            'status' => $order->get_status(),
+            'amount' => (float) $order->get_total(),
+            'currency' => $order->get_currency(),
+            'occurredAt' => current_time('c'),
+            'rawData' => [
+                'order_status' => $order->get_status(),
+                'payment_method' => $order->get_payment_method(),
+                'customer_id' => $order->get_customer_id(),
+                'checkout_type' => 'standard',
+                'source' => $this->determine_change_source()
+            ]
+        ]);
     }
 }
