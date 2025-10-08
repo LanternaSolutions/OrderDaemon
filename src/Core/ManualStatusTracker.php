@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\Core;
 
 use WC_Order;
-use OrderDaemon\CompletionManager\Core\Logging\ProcessLogger;
 use OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
@@ -137,13 +136,37 @@ class ManualStatusTracker
             }
         }
 
-        // Narrative-based single process entry for status change
-        $pl = new ProcessLogger(new ComponentSanitizer());
-        $pl->start('manual_status_change', [ 'order_id' => $order_id, 'actor_user_id' => ($source === 'manual' ? $user_id : null), 'source' => $source ]);
-        $status_key = $pl->add_component('status_changed', 'Status changed', [ 'from' => $from, 'to' => $to ]);
+        // Log status change using Universal Events system
+        $sanitizer = new ComponentSanitizer();
+        
+        // Prepare sanitized payload components
+        $payload_components = [];
+        
+        // Add status change component
+        $status_data = $sanitizer->sanitize('status_changed', ['from' => $from, 'to' => $to]);
+        $payload_components[] = [
+            'key' => 'status-change-' . wp_generate_uuid4(),
+            'kind' => 'status_changed',
+            'ts' => odcm_iso8601_now(),
+            'label' => 'Status changed',
+            'level' => 'info',
+            'data' => $status_data,
+        ];
+        
+        // Add workflow info if automatic
         if ($is_automatic_workflow) {
-            $pl->add_component('info', 'Automatic workflow transition', [ 'message' => 'Standard WooCommerce workflow transition detected' ], 'info');
+            $info_data = $sanitizer->sanitize('info', ['message' => 'Standard WooCommerce workflow transition detected']);
+            $payload_components[] = [
+                'key' => 'workflow-info-' . wp_generate_uuid4(),
+                'kind' => 'info',
+                'ts' => odcm_iso8601_now(),
+                'label' => 'Automatic workflow transition',
+                'level' => 'info',
+                'data' => $info_data,
+            ];
         }
+        
+        // Add attribution context if available
         if (is_array($attr)) {
             $src_plugin = is_array($attr['source_plugin'] ?? null) ? $attr['source_plugin'] : [];
             $plugin_compact = [
@@ -156,19 +179,42 @@ class ManualStatusTracker
                 'name' => isset($ext['name']) ? sanitize_key((string) $ext['name']) : null,
                 'confidence' => isset($ext['confidence']) ? (float) $ext['confidence'] : null,
             ] : null;
-            $pl->add_deferred_context($status_key, [
-                'attribution' => [
-                    'source' => $source,
-                    'request_type' => $request_type ?: null,
-                    'user_logged_in' => (bool) ($attr['user_context']['is_logged_in'] ?? false),
-                    'source_plugin' => $plugin_compact,
-                    'external_service' => $ext_compact,
-                ]
-            ]);
+            
+            $attribution_data = [
+                'source' => $source,
+                'request_type' => $request_type ?: null,
+                'user_logged_in' => (bool) ($attr['user_context']['is_logged_in'] ?? false),
+                'source_plugin' => $plugin_compact,
+                'external_service' => $ext_compact,
+            ];
+            
+            $payload_components[] = [
+                'key' => 'attribution-' . wp_generate_uuid4(),
+                'kind' => 'info',
+                'ts' => odcm_iso8601_now(),
+                'label' => 'Attribution context',
+                'level' => 'info',
+                'data' => ['attribution' => $attribution_data],
+            ];
         }
+        
+        // Add automation bypass warning if applicable
         if ($bypassed_automation) {
-            $pl->add_component('warning', 'Automation bypass context', [ 'code' => 'bypassed_automation', 'message' => 'This change may have bypassed auto rules' ], 'warning');
+            $warning_data = $sanitizer->sanitize('warning', [
+                'code' => 'bypassed_automation',
+                'message' => 'This change may have bypassed auto rules'
+            ]);
+            $payload_components[] = [
+                'key' => 'bypass-warning-' . wp_generate_uuid4(),
+                'kind' => 'warning',
+                'ts' => odcm_iso8601_now(),
+                'label' => 'Automation bypass context',
+                'level' => 'warning',
+                'data' => $warning_data,
+            ];
         }
+        
+        // Generate final summary
         $final_summary = sprintf(
             'Order #%d status %s changed from "%s" to "%s" by %s.',
             $order_id,
@@ -177,7 +223,27 @@ class ManualStatusTracker
             $to,
             $user_display_name
         );
-        $pl->finish('success', $final_summary);
+        
+        // Log using Universal Events system
+        odcm_log_custom_event(
+            $final_summary,
+            [
+                'type' => $event_type,
+                'correlation_id' => 'odcm:status_change:' . $order_id . ':' . wp_generate_uuid4(),
+                'order_id' => $order_id,
+                'actor' => [
+                    'id' => $source === 'manual' ? $user_id : null,
+                    'role' => null,
+                    'name' => $user_display_name
+                ],
+                'started_at' => odcm_iso8601_now(),
+                'finished_at' => odcm_iso8601_now(),
+                'payload_components' => $payload_components,
+            ],
+            $order_id,
+            'success',
+            $event_type
+        );
 
         // Only add order notes for truly manual changes, not automatic workflow transitions
         if (!$is_automatic_workflow && $source === 'manual') {
@@ -368,11 +434,47 @@ class ManualStatusTracker
         $current_user = wp_get_current_user();
         $user_context = self::get_user_context();
 
-        // Narrative-based process log for manual trigger
-        $pl = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger(new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer());
-        $pl->start('admin_action', [ 'order_id' => $order_id, 'actor_user_id' => $current_user->ID, 'summary' => 'Manual automation trigger' ]);
-        $pl->add_component('info', 'Manual trigger invoked', [ 'message' => sprintf('User %s triggered automation for order #%d (%s)', $user_context['user_display_name'], $order_id, $trigger_context) ]);
-        $pl->finish('success', sprintf('Manual automation trigger for Order #%d', $order_id));
+        // Log manual trigger using Universal Events system
+        $sanitizer = new ComponentSanitizer();
+        
+        $trigger_message = sprintf('User %s triggered automation for order #%d (%s)', 
+            $user_context['user_display_name'], $order_id, $trigger_context);
+        
+        $info_data = $sanitizer->sanitize('info', ['message' => $trigger_message]);
+        
+        $payload_components = [
+            [
+                'key' => 'manual-trigger-' . wp_generate_uuid4(),
+                'kind' => 'info',
+                'ts' => odcm_iso8601_now(),
+                'label' => 'Manual trigger invoked',
+                'level' => 'info',
+                'data' => $info_data,
+            ]
+        ];
+        
+        $summary = sprintf('Manual automation trigger for Order #%d', $order_id);
+        
+        // Log using Universal Events system
+        odcm_log_custom_event(
+            $summary,
+            [
+                'type' => 'admin_action',
+                'correlation_id' => 'odcm:manual_trigger:' . $order_id . ':' . wp_generate_uuid4(),
+                'order_id' => $order_id,
+                'actor' => [
+                    'id' => $current_user->ID,
+                    'role' => null,
+                    'name' => $user_context['user_display_name']
+                ],
+                'started_at' => odcm_iso8601_now(),
+                'finished_at' => odcm_iso8601_now(),
+                'payload_components' => $payload_components,
+            ],
+            $order_id,
+            'success',
+            'admin_action'
+        );
     }
 
     /**

@@ -33,7 +33,7 @@ class PayPalAdapter extends AbstractGatewayAdapter
     private const WEBHOOK_VERIFY_URL = 'https://api.paypal.com/v1/notifications/verify-webhook-signature';
 
     /**
-     * Supported event types
+     * Supported event types - Comprehensive PayPal IPN and webhook coverage
      * 
      * @var array
      */
@@ -43,8 +43,10 @@ class PayPalAdapter extends AbstractGatewayAdapter
         'payment_completed',
         'payment_denied',
         'payment_pending',
+        'payment_failed',
         'payment_refunded',
         'payment_reversed',
+        'payment_voided',
         
         // Subscription events
         'subscription_created',
@@ -52,6 +54,16 @@ class PayPalAdapter extends AbstractGatewayAdapter
         'subscription_cancelled',
         'subscription_suspended',
         'subscription_reactivated',
+        'subscription_completed',
+        'subscription_expired',
+        
+        // Recurring payment events
+        'recurring_payment',
+        'recurring_payment_profile_created',
+        'recurring_payment_failed',
+        'recurring_payment_skipped',
+        'recurring_payment_suspended',
+        'recurring_payment_cancelled',
         
         // Renewal events
         'renewal_payment_processing',
@@ -66,6 +78,21 @@ class PayPalAdapter extends AbstractGatewayAdapter
         // Dispute events
         'dispute_opened',
         'dispute_resolved',
+        'dispute_won',
+        'dispute_lost',
+        
+        // Express checkout events
+        'express_checkout_created',
+        'express_checkout_completed',
+        
+        // Mass payment events
+        'mass_payment_completed',
+        'mass_payment_failed',
+        
+        // Authorization events
+        'authorization_created',
+        'authorization_voided',
+        'authorization_expired',
     ];
 
     /**
@@ -339,7 +366,7 @@ class PayPalAdapter extends AbstractGatewayAdapter
     }
 
     /**
-     * Map PayPal IPN event type to universal event type
+     * Map PayPal IPN event types to universal event types
      * 
      * @param array $payload IPN payload
      * @return string|null Universal event type
@@ -349,7 +376,7 @@ class PayPalAdapter extends AbstractGatewayAdapter
         $txn_type = $payload['txn_type'] ?? '';
         $payment_status = $payload['payment_status'] ?? '';
 
-        // Subscription events
+        // Subscription events (subscr_*)
         if (strpos($txn_type, 'subscr_') === 0) {
             switch ($txn_type) {
                 case 'subscr_signup':
@@ -362,10 +389,72 @@ class PayPalAdapter extends AbstractGatewayAdapter
                     return 'subscription_cancelled';
                 case 'subscr_eot':
                     return 'subscription_completed';
+                case 'subscr_modify':
+                    return 'subscription_modified';
             }
         }
 
-        // Payment events
+        // Recurring payment profile events (recurring_payment_*)
+        if (strpos($txn_type, 'recurring_payment') === 0) {
+            switch ($txn_type) {
+                case 'recurring_payment_profile_created':
+                    return 'recurring_payment_profile_created';
+                case 'recurring_payment':
+                    return $payment_status === 'Completed' ? 'recurring_payment' : 'recurring_payment_failed';
+                case 'recurring_payment_skipped':
+                    return 'recurring_payment_skipped';
+                case 'recurring_payment_failed':
+                    return 'recurring_payment_failed';
+                case 'recurring_payment_profile_cancel':
+                    return 'recurring_payment_cancelled';
+                case 'recurring_payment_suspended':
+                    return 'recurring_payment_suspended';
+                case 'recurring_payment_suspended_due_to_max_failed_payment':
+                    return 'recurring_payment_suspended';
+            }
+        }
+
+        // Express checkout events
+        switch ($txn_type) {
+            case 'express_checkout':
+                return 'express_checkout_completed';
+            case 'web_accept':
+                return $payment_status === 'Completed' ? 'payment_completed' : 'payment_pending';
+            case 'send_money':
+                return 'payment_completed';
+            case 'cart':
+                return 'payment_completed';
+        }
+
+        // Mass payment events
+        if (strpos($txn_type, 'masspay') === 0) {
+            return $payment_status === 'Completed' ? 'mass_payment_completed' : 'mass_payment_failed';
+        }
+
+        // Authorization and capture events
+        switch ($txn_type) {
+            case 'authorization':
+                return 'authorization_created';
+            case 'capture':
+                return 'payment_completed';
+            case 'void':
+                return 'authorization_voided';
+        }
+
+        // Dispute and chargeback events
+        switch ($txn_type) {
+            case 'new_case':
+                return 'dispute_opened';
+            case 'adjustment':
+                // Check reason code to determine if it's a dispute resolution
+                $reason_code = $payload['reason_code'] ?? '';
+                if (in_array($reason_code, ['chargeback', 'chargeback_reimbursement', 'chargeback_settlement'], true)) {
+                    return 'dispute_resolved';
+                }
+                return 'payment_adjustment';
+        }
+
+        // Payment status-based mapping (fallback for unknown txn_types)
         switch ($payment_status) {
             case 'Completed':
                 return 'payment_completed';
@@ -378,6 +467,21 @@ class PayPalAdapter extends AbstractGatewayAdapter
                 return 'payment_refunded';
             case 'Reversed':
                 return 'payment_reversed';
+            case 'Canceled_Reversal':
+                return 'payment_reversal_cancelled';
+            case 'Voided':
+                return 'payment_voided';
+            case 'Expired':
+                return 'authorization_expired';
+        }
+
+        // If we can't map it, log for future enhancement
+        if (!empty($txn_type) || !empty($payment_status)) {
+            $this->log('Unmapped PayPal IPN event type', [
+                'txn_type' => $txn_type,
+                'payment_status' => $payment_status,
+                'payload_keys' => array_keys($payload)
+            ]);
         }
 
         return null;

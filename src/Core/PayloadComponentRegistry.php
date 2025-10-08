@@ -43,7 +43,7 @@ declare(strict_types=1);
  * - Preservation of existing AuditTrailListTable functionality
  *
  * @package OrderDaemon\CompletionManager\Core
- * @since   1.3.0
+ * @since   1.0.0
  * @author  OrderDaemon Development Team
  * @link    https://docs.OrderDaemon.com/completion-manager/payload-rendering-system
  */
@@ -251,6 +251,45 @@ function odcm_get_payload_component_types(): array
             'type'  => 'warning'
         ],
     ],
+
+        // PayPal Events (Universal Event gateway-specific rendering)
+        'paypal_event' => [
+            'id'             => 'paypal_event',
+            'label'          => __('PayPal Event', 'order-daemon'),
+            'renderer_class' => 'PayPalEventRenderer',
+            'css_class'      => 'odcm-component--paypal',
+            'icon'           => 'dashicons-money-alt',
+            'status_pill'    => [
+                'label' => __('PayPal', 'order-daemon'),
+                'type'  => 'gateway'
+            ],
+        ],
+
+        // Stripe Events (Universal Event gateway-specific rendering)
+        'stripe_event' => [
+            'id'             => 'stripe_event',
+            'label'          => __('Stripe Event', 'order-daemon'),
+            'renderer_class' => 'StripeEventRenderer',
+            'css_class'      => 'odcm-component--stripe',
+            'icon'           => 'dashicons-money-alt',
+            'status_pill'    => [
+                'label' => __('Stripe', 'order-daemon'),
+                'type'  => 'gateway'
+            ],
+        ],
+
+        // Subscription Events (WooCommerce Subscriptions lifecycle rendering)
+        'subscription_event' => [
+            'id'             => 'subscription_event',
+            'label'          => __('Subscription Event', 'order-daemon'),
+            'renderer_class' => 'SubscriptionEventRenderer',
+            'css_class'      => 'odcm-component--subscription',
+            'icon'           => 'dashicons-update',
+            'status_pill'    => [
+                'label' => __('Subscription', 'order-daemon'),
+                'type'  => 'subscription'
+            ],
+        ],
 
         // Outbound communications (distinct renderers)
         'http_webhook' => [
