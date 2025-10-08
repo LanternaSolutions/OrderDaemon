@@ -43,7 +43,15 @@ update_version_and_commit() {
     sed -E "${SED_INPLACE[@]}" \
         "s/(define\([[:space:]]*'ODCM_VERSION',[[:space:]]*')[0-9]+\.[0-9]+\.[0-9]+(')/\1$new_version\2/g" "$file_name"
 
-    git add "$file_name"
+    # Replace common placeholders used before release
+    # Matches: @since next
+    while IFS= read -r -d '' file; do
+        sed -E "${SED_INPLACE[@]}" \
+            -e "s/@since([[:space:]]+)next/@since\1$new_version/g" \
+            "$file"
+    done < <(find . -type f -name "*.php" -print0)
+
+    git add -A
     git commit --allow-empty -m "$new_version"
 
     tag="v$new_version"
