@@ -13,7 +13,7 @@ use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
  * payments and subscription lifecycle events.
  * 
  * @package OrderDaemon\CompletionManager\Core\Events\Adapters
- * @since   next
+ * @since   1.1.1
  */
 class PayPalAdapter extends AbstractGatewayAdapter
 {

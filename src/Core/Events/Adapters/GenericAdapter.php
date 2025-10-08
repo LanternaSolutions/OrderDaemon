@@ -13,7 +13,7 @@ use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
  * specific adapters.
  * 
  * @package OrderDaemon\CompletionManager\Core\Events\Adapters
- * @since   next
+ * @since   1.1.1
  */
 class GenericAdapter extends AbstractGatewayAdapter
 {

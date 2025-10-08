@@ -19,7 +19,7 @@ use WP_Error;
  * processing through the universal event system.
  * 
  * @package OrderDaemon\CompletionManager\API
- * @since   next
+ * @since   1.1.1
  */
 class WebhookController extends WP_REST_Controller
 {

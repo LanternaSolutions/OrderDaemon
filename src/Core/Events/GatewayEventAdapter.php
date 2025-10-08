@@ -12,7 +12,7 @@ namespace OrderDaemon\CompletionManager\Core\Events;
  * requirements of their respective payment gateways.
  * 
  * @package OrderDaemon\CompletionManager\Core\Events
- * @since   next
+ * @since   1.1.1
  */
 interface GatewayEventAdapter
 {

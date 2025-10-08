@@ -14,7 +14,7 @@ use WC_Order;
  * details, and customer context in a consistent manner.
  * 
  * @package OrderDaemon\CompletionManager\Core\Events
- * @since   next
+ * @since   1.1.1
  */
 class EvaluationContext
 {

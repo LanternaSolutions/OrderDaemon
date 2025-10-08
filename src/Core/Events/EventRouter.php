@@ -14,7 +14,7 @@ use OrderDaemon\CompletionManager\Core\Events\Adapters\GenericAdapter;
  * fallback handling for unknown gateways.
  * 
  * @package OrderDaemon\CompletionManager\Core\Events
- * @since   next
+ * @since   1.1.1
  */
 class EventRouter
 {

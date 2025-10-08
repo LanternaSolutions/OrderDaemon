@@ -13,7 +13,7 @@ use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
  * resolution, metadata extraction, and utility methods for event processing.
  * 
  * @package OrderDaemon\CompletionManager\Core\Events\Adapters
- * @since   next
+ * @since   1.1.1
  */
 abstract class AbstractGatewayAdapter implements GatewayEventAdapter
 {

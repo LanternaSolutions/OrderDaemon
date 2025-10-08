@@ -10,7 +10,7 @@ namespace OrderDaemon\CompletionManager\API;
  * and event scenarios. All generated payloads are marked as test events.
  * 
  * @package OrderDaemon\CompletionManager\API
- * @since   next
+ * @since   1.1.1
  */
 class WebhookTestPayloads
 {

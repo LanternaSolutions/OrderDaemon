@@ -43,7 +43,7 @@ use RuntimeException;
  * - Cross-gateway subscription unification
  *
  * @package OrderDaemon\CompletionManager\View\PayloadRenderer
- * @since   next
+ * @since   1.1.1
  */
 class SubscriptionEventRenderer extends PayloadComponentRenderer
 {

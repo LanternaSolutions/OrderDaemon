@@ -13,7 +13,7 @@ use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
  * disputes, refunds, and customer lifecycle events.
  * 
  * @package OrderDaemon\CompletionManager\Core\Events\Adapters
- * @since   next
+ * @since   1.1.1
  */
 class StripeAdapter extends AbstractGatewayAdapter
 {

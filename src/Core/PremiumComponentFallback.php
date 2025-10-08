@@ -14,7 +14,7 @@ namespace OrderDaemon\CompletionManager\Core;
  * premium rules, preventing errors and maintaining system stability.
  * 
  * @package OrderDaemon\CompletionManager\Core
- * @since   next
+ * @since   1.1.1
  */
 class PremiumComponentFallback
 {

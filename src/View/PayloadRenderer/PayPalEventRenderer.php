@@ -43,7 +43,7 @@ use RuntimeException;
  * - Subscription lifecycle context
  *
  * @package OrderDaemon\CompletionManager\View\PayloadRenderer
- * @since   next
+ * @since   1.1.1
  */
 class PayPalEventRenderer extends PayloadComponentRenderer
 {
