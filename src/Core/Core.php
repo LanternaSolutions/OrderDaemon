@@ -379,11 +379,38 @@ class Core
         $user_display_name = $current_user->display_name ?: $current_user->user_login;
 
         // Narrative-based single process entry for admin reprocess action
-        $pl = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger(new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer());
-        $pl->start('admin_action', [ 'order_id' => null, 'actor_user_id' => get_current_user_id(), 'summary' => 'Admin requested reprocess' ]);
-        $pl->add_component('info', 'Reprocess orders requested', [ 'message' => sprintf('%s requested reprocessing of %d orders', $user_display_name, $count) ]);
-        $pl->add_component('metrics', 'Orders scheduled', [ 'name' => 'orders_scheduled', 'value' => (float)$count ]);
-        $pl->finish('success', sprintf('Admin requested reprocessing of %d orders', $count));
+        // Log admin reprocess action using Universal Events system
+        $sanitizer = new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer();
+        
+        $payload_components = [
+            [
+                'key' => 'admin-reprocess-' . wp_generate_uuid4(),
+                'kind' => 'info',
+                'ts' => odcm_iso8601_now(),
+                'label' => 'Admin requested reprocess',
+                'level' => 'info',
+                'data' => $sanitizer->sanitize('info', ['message' => 'Admin requested reprocess of all orders']),
+            ]
+        ];
+        
+        odcm_log_custom_event(
+            'Admin requested reprocess of all orders',
+            [
+                'type' => 'admin_action',
+                'correlation_id' => 'odcm:admin_reprocess:' . wp_generate_uuid4(),
+                'actor' => [
+                    'id' => get_current_user_id(),
+                    'role' => null,
+                    'name' => wp_get_current_user()->display_name ?: wp_get_current_user()->user_login
+                ],
+                'started_at' => odcm_iso8601_now(),
+                'finished_at' => odcm_iso8601_now(),
+                'payload_components' => $payload_components,
+            ],
+            null,
+            'info',
+            'admin_action'
+        );
     }
 
     /**
@@ -525,11 +552,24 @@ class Core
             odcm_log_message('Status change universal event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
         }
 
-        // Narrative log with ProcessLogger
+        // Log status change using Universal Events system
         try {
-            $pl = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger(new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer());
-            $pl->start('status_change_processing', [ 'order_id' => $order_id, 'via' => 'specific', 'source' => $source ]);
-            $status_key = $pl->add_component('status_changed', 'Status changed', [ 'from' => 'unknown', 'to' => $status_slug ]);
+            $sanitizer = new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer();
+            
+            $payload_components = [];
+            
+            // Add status change component
+            $status_data = $sanitizer->sanitize('status_changed', ['from' => 'unknown', 'to' => $status_slug]);
+            $payload_components[] = [
+                'key' => 'status-change-' . wp_generate_uuid4(),
+                'kind' => 'status_changed',
+                'ts' => odcm_iso8601_now(),
+                'label' => 'Status changed',
+                'level' => 'info',
+                'data' => $status_data,
+            ];
+            
+            // Add attribution context if available
             if (is_array($attr)) {
                 $src_plugin = is_array($attr['source_plugin'] ?? null) ? $attr['source_plugin'] : [];
                 $plugin_compact = [
@@ -542,16 +582,42 @@ class Core
                     'name' => isset($ext['name']) ? sanitize_key((string) $ext['name']) : null,
                     'confidence' => isset($ext['confidence']) ? (float) $ext['confidence'] : null,
                 ] : null;
-                $pl->add_deferred_context($status_key, [
-                    'attribution' => [
-                        'source' => $source,
-                        'request_type' => isset($request_type) && $request_type !== '' ? $request_type : null,
-                        'user_logged_in' => (bool) ($attr['user_context']['is_logged_in'] ?? false),
-                        'source_plugin' => $plugin_compact,
-                        'external_service' => $ext_compact,
-                    ]
-                ]);
+                
+                $attribution_data = [
+                    'source' => $source,
+                    'request_type' => isset($request_type) && $request_type !== '' ? $request_type : null,
+                    'user_logged_in' => (bool) ($attr['user_context']['is_logged_in'] ?? false),
+                    'source_plugin' => $plugin_compact,
+                    'external_service' => $ext_compact,
+                ];
+                
+                $payload_components[] = [
+                    'key' => 'attribution-' . wp_generate_uuid4(),
+                    'kind' => 'info',
+                    'ts' => odcm_iso8601_now(),
+                    'label' => 'Attribution context',
+                    'level' => 'info',
+                    'data' => ['attribution' => $attribution_data],
+                ];
             }
+            
+            $summary = sprintf('Order #%d status changed to "%s"; scheduled via specific hook', $order_id, $status_slug);
+            
+            odcm_log_custom_event(
+                $summary,
+                [
+                    'type' => 'status_change_processing',
+                    'correlation_id' => 'odcm:status_change:' . $order_id . ':' . wp_generate_uuid4(),
+                    'order_id' => $order_id,
+                    'actor' => ['id' => null, 'role' => null, 'name' => 'system'],
+                    'started_at' => odcm_iso8601_now(),
+                    'finished_at' => odcm_iso8601_now(),
+                    'payload_components' => $payload_components,
+                ],
+                $order_id,
+                'info',
+                'status_change_processing'
+            );
         } catch (\Throwable $e) {
             // Non-fatal
         }
