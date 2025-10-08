@@ -49,7 +49,7 @@ update_version_and_commit() {
         sed -E "${SED_INPLACE[@]}" \
             -e "s/@since([[:space:]]+)next/@since\1$new_version/g" \
             "$file"
-    done < <(find . -type f \( -name "*.php" -o -name "*.js" \) -print0)
+    done < <(find . -type f \( -name "*.php" -o -name "*.js" -o -name "*.css" \) -print0)
 
     git add -A
     git commit --allow-empty -m "$new_version"
