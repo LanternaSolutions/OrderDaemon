@@ -5,6 +5,8 @@ namespace OrderDaemon\CompletionManager\Core;
 
 use WC_Order;
 use WC_Order_Refund;
+use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
+use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
 
 /**
  * Refund & Deletion Diagnostics (observation-only).
@@ -513,7 +515,19 @@ final class RefundDeletionDiagnostics
                 return;
             }
             $order     = wc_get_order($order_id);
+            $refund    = wc_get_order($refund_id);
             $context   = $this->capture_refund_context($refund_id, $order instanceof WC_Order ? $order : null);
+
+            // Generate UniversalEvent for refund
+            try {
+                if ($order instanceof WC_Order && $refund instanceof WC_Order_Refund) {
+                    $universal_event = $this->synthesize_refund_event($order, $refund, 'order_refunded');
+                    $this->process_universal_event_from_hook($universal_event);
+                    odcm_log_message("Order #{$order_id} refunded (Refund #{$refund_id}), processed as universal event", 'info');
+                }
+            } catch (\Throwable $e) {
+                odcm_log_message('Refund universal event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
+            }
 
             // Build canonical narrative envelope and log directly
             if (function_exists('odcm_log_registered_event')) {
@@ -1521,5 +1535,131 @@ final class RefundDeletionDiagnostics
             return in_array($v, ['1', 'true', 'yes', 'on'], true);
         }
         return $default;
+    }
+
+    /**
+     * Synthesize refund event from WooCommerce order and refund data
+     *
+     * @param \WC_Order $order WooCommerce order object
+     * @param \WC_Order_Refund $refund WooCommerce refund object
+     * @param string $event_type Event type
+     * @return UniversalEvent
+     */
+    private function synthesize_refund_event(\WC_Order $order, \WC_Order_Refund $refund, string $event_type): UniversalEvent
+    {
+        return new UniversalEvent([
+            'eventType' => $event_type,
+            'sourceGateway' => $this->normalize_gateway_name($order->get_payment_method()),
+            'channel' => 'system',
+            'primaryObjectType' => 'refund',
+            'primaryObjectID' => $refund->get_id(),
+            'secondaryObjectType' => 'order',
+            'secondaryObjectID' => $order->get_id(),
+            'transactionID' => $order->get_transaction_id(),
+            'status' => 'refunded',
+            'amount' => (float) $refund->get_amount(),
+            'currency' => $order->get_currency(),
+            'reason' => $refund->get_reason(),
+            'occurredAt' => current_time('c'),
+            'rawData' => [
+                'refund_reason' => $refund->get_reason(),
+                'refunded_by' => get_post_meta($refund->get_id(), '_refund_user_id', true),
+                'order_status' => $order->get_status(),
+                'source' => $this->determine_change_source()
+            ]
+        ]);
+    }
+
+    /**
+     * Normalize gateway name to standard format
+     *
+     * @param string $payment_method WooCommerce payment method ID
+     * @return string Normalized gateway name
+     */
+    private function normalize_gateway_name(string $payment_method): string
+    {
+        $gateway_mapping = [
+            'paypal' => 'paypal',
+            'ppcp-gateway' => 'paypal',
+            'ppcp-credit-card-gateway' => 'paypal',
+            'stripe' => 'stripe',
+            'stripe_cc' => 'stripe',
+            'stripe_sepa' => 'stripe',
+            'bacs' => 'bank_transfer',
+            'cheque' => 'check',
+            'cod' => 'cash_on_delivery',
+        ];
+
+        return $gateway_mapping[$payment_method] ?? $payment_method;
+    }
+
+    /**
+     * Determine the source of the change
+     *
+     * @return string Change source
+     */
+    private function determine_change_source(): string
+    {
+        try {
+            if (class_exists('OrderDaemon\\CompletionManager\\Core\\AttributionTracker')) {
+                $attr = \OrderDaemon\CompletionManager\Core\AttributionTracker::instance()->capture_context();
+                $request_type = is_array($attr) ? sanitize_key((string)($attr['request_type'] ?? '')) : '';
+                $external_service_name = (is_array($attr) && isset($attr['external_service']['name'])) ? sanitize_key((string)$attr['external_service']['name']) : null;
+
+                if (is_user_logged_in()) {
+                    return 'manual';
+                } elseif ($request_type === 'webhook' || !empty($external_service_name)) {
+                    return 'webhook';
+                } elseif ($request_type === 'rest' || $request_type === 'ajax') {
+                    return 'api';
+                } elseif (in_array($request_type, ['action_scheduler','cron','cli','wp_cli'], true)) {
+                    return 'scheduled';
+                } else {
+                    return 'system';
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fall back to basic detection
+        }
+
+        // Basic fallback detection
+        if (is_user_logged_in()) {
+            return 'manual';
+        } elseif (wp_doing_ajax()) {
+            return 'api';
+        } elseif (wp_doing_cron()) {
+            return 'scheduled';
+        } else {
+            return 'system';
+        }
+    }
+
+    /**
+     * Process universal event from hook through the universal event pipeline
+     *
+     * @param UniversalEvent $event Universal event to process
+     * @return void
+     */
+    private function process_universal_event_from_hook(UniversalEvent $event): void
+    {
+        try {
+            // Schedule universal event processing through Action Scheduler
+            if (function_exists('as_enqueue_async_action')) {
+                as_enqueue_async_action(
+                    'odcm_process_lifecycle_event',
+                    ['event' => $event->toArray()],
+                    'odcm-universal-events'
+                );
+            } else {
+                // Fallback: process directly if Action Scheduler not available
+                $processor = UniversalEventProcessor::instance();
+                $processor->processEvent($event->toArray());
+            }
+        } catch (\Throwable $e) {
+            // Log error but don't let it break the refund process
+            odcm_log_message('Universal event processing failed: ' . $e->getMessage(), 'error');
+            odcm_log_message('Universal event processing error details: ' . $e->getFile() . ':' . $e->getLine(), 'error');
+            // Continue execution without throwing the exception
+        }
     }
 }

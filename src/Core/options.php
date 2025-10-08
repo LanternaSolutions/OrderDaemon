@@ -206,7 +206,7 @@ $registry->register_trigger([
 // 1. Identify the order/customer property to check
 // 2. Choose appropriate capability level (free vs premium)
 // 3. Register the condition here
-// 4. Implement the evaluation logic in the Executor class
+// 4. Implement the evaluation logic in the UniversalEventProcessor class
 // 5. Create render callback for condition-specific settings
 
 /**
@@ -311,7 +311,7 @@ $registry->register_condition([
 // 1. Identify the specific task to perform
 // 2. Choose appropriate capability level (free vs premium)
 // 3. Register the action here
-// 4. Implement the execution logic in the Executor class
+// 4. Implement the execution logic in the UniversalEventProcessor class
 // 5. Create render callback for action-specific settings
 // 6. Add proper error handling and logging
 
@@ -368,8 +368,8 @@ if (function_exists('do_action')) {
 //
 // NEXT STEPS FOR PRODUCTION:
 // 1. Replace placeholder render callbacks with actual MetaBox methods
-// 2. Implement condition evaluation logic in the Executor class
-// 3. Implement action execution logic in the Executor class
+// 2. Implement condition evaluation logic in the UniversalEventProcessor class
+// 3. Implement action execution logic in the UniversalEventProcessor class
 // 4. Add comprehensive unit tests for all registered options
 // 5. Create user documentation for each option type
 //

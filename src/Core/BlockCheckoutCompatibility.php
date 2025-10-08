@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\Core;
 
 use WC_Order;
+use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
+use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
 
 /**
  * Block Checkout Compatibility layer (observation-only).
@@ -56,6 +58,16 @@ final class BlockCheckoutCompatibility
         }
 
         $checkout_context = $this->capture_block_checkout_context($order);
+        
+        // Generate UniversalEvent for block checkout
+        try {
+            $universal_event = $this->synthesize_block_checkout_event($order, $checkout_context);
+            $this->process_universal_event_from_hook($universal_event);
+            odcm_log_message("Block checkout processed for order #{$order_id}, processed as universal event", 'info');
+        } catch (\Throwable $e) {
+            odcm_log_message('Block checkout universal event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
+        }
+        
         $this->schedule_checkout_observation($order_id, $checkout_context);
         $this->log_block_checkout_event($order, $checkout_context);
     }
@@ -581,5 +593,128 @@ final class BlockCheckoutCompatibility
             'log_category' => 'core',
             'is_test'     => false,
         ]);
+    }
+
+    /**
+     * Synthesize block checkout event from WooCommerce order data
+     *
+     * @param \WC_Order $order WooCommerce order object
+     * @param array $checkout_context Captured checkout context
+     * @return UniversalEvent
+     */
+    private function synthesize_block_checkout_event(\WC_Order $order, array $checkout_context): UniversalEvent
+    {
+        return new UniversalEvent([
+            'eventType' => 'block_checkout_processed',
+            'sourceGateway' => $this->normalize_gateway_name($order->get_payment_method()),
+            'channel' => 'system',
+            'primaryObjectType' => 'order',
+            'primaryObjectID' => $order->get_id(),
+            'transactionID' => $order->get_transaction_id(),
+            'status' => $order->get_status(),
+            'amount' => (float) $order->get_total(),
+            'currency' => $order->get_currency(),
+            'occurredAt' => current_time('c'),
+            'rawData' => [
+                'checkout_type' => 'woocommerce_blocks',
+                'order_status' => $order->get_status(),
+                'payment_method' => $order->get_payment_method(),
+                'customer_id' => $order->get_customer_id(),
+                'requires_shipping' => $checkout_context['shipping_analysis']['requires_shipping'] ?? false,
+                'total_items' => $checkout_context['cart_analysis']['total_items'] ?? 0,
+                'source' => $this->determine_change_source()
+            ]
+        ]);
+    }
+
+    /**
+     * Normalize gateway name to standard format
+     *
+     * @param string $payment_method WooCommerce payment method ID
+     * @return string Normalized gateway name
+     */
+    private function normalize_gateway_name(string $payment_method): string
+    {
+        $gateway_mapping = [
+            'paypal' => 'paypal',
+            'ppcp-gateway' => 'paypal',
+            'ppcp-credit-card-gateway' => 'paypal',
+            'stripe' => 'stripe',
+            'stripe_cc' => 'stripe',
+            'stripe_sepa' => 'stripe',
+            'bacs' => 'bank_transfer',
+            'cheque' => 'check',
+            'cod' => 'cash_on_delivery',
+        ];
+
+        return $gateway_mapping[$payment_method] ?? $payment_method;
+    }
+
+    /**
+     * Determine the source of the change
+     *
+     * @return string Change source
+     */
+    private function determine_change_source(): string
+    {
+        try {
+            if (class_exists('OrderDaemon\\CompletionManager\\Core\\AttributionTracker')) {
+                $attr = \OrderDaemon\CompletionManager\Core\AttributionTracker::instance()->capture_context();
+                $request_type = is_array($attr) ? sanitize_key((string)($attr['request_type'] ?? '')) : '';
+                $external_service_name = (is_array($attr) && isset($attr['external_service']['name'])) ? sanitize_key((string)$attr['external_service']['name']) : null;
+
+                if (is_user_logged_in()) {
+                    return 'manual';
+                } elseif ($request_type === 'webhook' || !empty($external_service_name)) {
+                    return 'webhook';
+                } elseif ($request_type === 'rest' || $request_type === 'ajax') {
+                    return 'api';
+                } elseif (in_array($request_type, ['action_scheduler','cron','cli','wp_cli'], true)) {
+                    return 'scheduled';
+                } else {
+                    return 'system';
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fall back to basic detection
+        }
+
+        // Basic fallback detection for block checkout
+        if (did_action('woocommerce_store_api_init') > 0) {
+            return 'api';
+        } elseif (is_user_logged_in()) {
+            return 'manual';
+        } else {
+            return 'system';
+        }
+    }
+
+    /**
+     * Process universal event from hook through the universal event pipeline
+     *
+     * @param UniversalEvent $event Universal event to process
+     * @return void
+     */
+    private function process_universal_event_from_hook(UniversalEvent $event): void
+    {
+        try {
+            // Schedule universal event processing through Action Scheduler
+            if (function_exists('as_enqueue_async_action')) {
+                as_enqueue_async_action(
+                    'odcm_process_lifecycle_event',
+                    ['event' => $event->toArray()],
+                    'odcm-universal-events'
+                );
+            } else {
+                // Fallback: process directly if Action Scheduler not available
+                $processor = UniversalEventProcessor::instance();
+                $processor->processEvent($event->toArray());
+            }
+        } catch (\Throwable $e) {
+            // Log error but don't let it break the block checkout process
+            odcm_log_message('Universal event processing failed: ' . $e->getMessage(), 'error');
+            odcm_log_message('Universal event processing error details: ' . $e->getFile() . ':' . $e->getLine(), 'error');
+            // Continue execution without throwing the exception
+        }
     }
 }

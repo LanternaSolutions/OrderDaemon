@@ -4,83 +4,77 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\Core\Events;
 
 use WC_Order;
-use WP_User;
 
 /**
- * Evaluation Context
- *
- * Encapsulates all the entities and metadata needed for evaluating rules
- * against universal events. This context provides a unified interface
- * for accessing orders, subscriptions, customers, and event data during
- * rule evaluation.
- *
+ * Evaluation Context for Universal Events
+ * 
+ * Provides a unified context object that contains all relevant entities
+ * and data needed for rule evaluation against universal events. This
+ * allows rules to access event data, order information, subscription
+ * details, and customer context in a consistent manner.
+ * 
  * @package OrderDaemon\CompletionManager\Core\Events
- * @since   2.2.0
+ * @since   next
  */
 class EvaluationContext
 {
     /**
-     * The universal event that triggered the evaluation
-     *
+     * The universal event being processed
+     * 
      * @var UniversalEvent
      */
     public UniversalEvent $event;
 
     /**
-     * The WooCommerce order associated with the event (if any)
-     *
+     * The WooCommerce order (if available)
+     * 
      * @var WC_Order|null
      */
     public ?WC_Order $order = null;
 
     /**
-     * The WooCommerce subscription associated with the event (if any)
-     *
-     * @var \WC_Subscription|null
+     * The WooCommerce subscription (if available and WC Subscriptions is active)
+     * 
+     * @var object|null
      */
-    public $subscription = null;
+    public ?object $subscription = null;
 
     /**
-     * The WordPress user/customer associated with the event (if any)
-     *
-     * @var WP_User|null
+     * Customer/user context
+     * 
+     * @var array
      */
-    public ?WP_User $customer = null;
+    public array $customer = [];
 
     /**
-     * Additional gateway-specific metadata
-     *
+     * Gateway-specific metadata
+     * 
      * @var array
      */
     public array $gateway_metadata = [];
 
     /**
-     * Create a new evaluation context
-     *
-     * @param UniversalEvent $event The universal event
-     * @param WC_Order|null $order Associated order
-     * @param mixed $subscription Associated subscription (WC_Subscription if available)
-     * @param WP_User|null $customer Associated customer
-     * @param array $gateway_metadata Additional gateway metadata
+     * Additional context data
+     * 
+     * @var array
      */
-    public function __construct(
-        UniversalEvent $event,
-        ?WC_Order $order = null,
-                       $subscription = null,
-        ?WP_User $customer = null,
-        array $gateway_metadata = []
-    ) {
+    public array $additional_context = [];
+
+    /**
+     * Constructor
+     * 
+     * @param UniversalEvent $event The universal event
+     */
+    public function __construct(UniversalEvent $event)
+    {
         $this->event = $event;
-        $this->order = $order;
-        $this->subscription = $subscription;
-        $this->customer = $customer;
-        $this->gateway_metadata = $gateway_metadata;
+        $this->resolveEntities();
     }
 
     /**
      * Get the order ID from the context
-     *
-     * @return int|null
+     * 
+     * @return int|null Order ID if available
      */
     public function getOrderId(): ?int
     {
@@ -88,13 +82,13 @@ class EvaluationContext
             return $this->order->get_id();
         }
 
-        // Try to get order ID from event
+        // Try to get from event
         if ($this->event->primaryObjectType === 'order' && $this->event->primaryObjectID) {
-            return $this->event->primaryObjectID;
+            return is_numeric($this->event->primaryObjectID) ? (int) $this->event->primaryObjectID : null;
         }
 
         if ($this->event->secondaryObjectType === 'order' && $this->event->secondaryObjectID) {
-            return $this->event->secondaryObjectID;
+            return is_numeric($this->event->secondaryObjectID) ? (int) $this->event->secondaryObjectID : null;
         }
 
         return null;
@@ -102,16 +96,16 @@ class EvaluationContext
 
     /**
      * Get the subscription ID from the context
-     *
-     * @return int|null
+     * 
+     * @return int|string|null Subscription ID if available
      */
-    public function getSubscriptionId(): ?int
+    public function getSubscriptionId()
     {
         if ($this->subscription && method_exists($this->subscription, 'get_id')) {
             return $this->subscription->get_id();
         }
 
-        // Try to get subscription ID from event
+        // Try to get from event
         if ($this->event->primaryObjectType === 'subscription' && $this->event->primaryObjectID) {
             return $this->event->primaryObjectID;
         }
@@ -125,216 +119,301 @@ class EvaluationContext
 
     /**
      * Get the customer ID from the context
-     *
-     * @return int|null
+     * 
+     * @return int|null Customer ID if available
      */
     public function getCustomerId(): ?int
     {
-        if ($this->customer) {
-            return $this->customer->ID;
+        // Try from customer context first
+        if (!empty($this->customer['id'])) {
+            return (int) $this->customer['id'];
         }
 
-        // Try to get customer from order
-        if ($this->order) {
-            $customer_id = $this->order->get_customer_id();
-            return $customer_id > 0 ? $customer_id : null;
+        // Try from order
+        if ($this->order && $this->order->get_customer_id()) {
+            return $this->order->get_customer_id();
         }
 
-        // Try to get customer from subscription
+        // Try from subscription
         if ($this->subscription && method_exists($this->subscription, 'get_customer_id')) {
-            $customer_id = $this->subscription->get_customer_id();
-            return $customer_id > 0 ? $customer_id : null;
+            return $this->subscription->get_customer_id();
         }
 
-        // Try to get customer ID from event
+        // Try from event
         if ($this->event->primaryObjectType === 'customer' && $this->event->primaryObjectID) {
-            return $this->event->primaryObjectID;
+            return is_numeric($this->event->primaryObjectID) ? (int) $this->event->primaryObjectID : null;
         }
 
         if ($this->event->secondaryObjectType === 'customer' && $this->event->secondaryObjectID) {
-            return $this->event->secondaryObjectID;
+            return is_numeric($this->event->secondaryObjectID) ? (int) $this->event->secondaryObjectID : null;
         }
 
         return null;
     }
 
     /**
-     * Check if the context has a valid order
-     *
-     * @return bool
+     * Check if this is a subscription-related event
+     * 
+     * @return bool True if subscription-related
      */
-    public function hasOrder(): bool
+    public function isSubscriptionEvent(): bool
     {
-        return $this->order !== null && $this->order instanceof WC_Order;
+        return $this->event->primaryObjectType === 'subscription' ||
+               $this->event->secondaryObjectType === 'subscription' ||
+               $this->subscription !== null ||
+               in_array($this->event->eventType, [
+                   'subscription_created',
+                   'subscription_approved',
+                   'subscription_cancelled',
+                   'subscription_suspended',
+                   'subscription_reactivated',
+                   'subscription_completed',
+                   'renewal_payment_processing',
+                   'renewal_payment_completed',
+                   'renewal_payment_failed',
+                   'renewal_payment_pending',
+                   'trial_started',
+                   'trial_ended'
+               ]);
     }
 
     /**
-     * Check if the context has a valid subscription
-     *
-     * @return bool
+     * Check if this is a payment-related event
+     * 
+     * @return bool True if payment-related
      */
-    public function hasSubscription(): bool
+    public function isPaymentEvent(): bool
     {
-        return $this->subscription !== null &&
-            (class_exists('WC_Subscription') && $this->subscription instanceof \WC_Subscription);
+        return in_array($this->event->eventType, [
+            'payment_created',
+            'payment_completed',
+            'payment_denied',
+            'payment_pending',
+            'payment_refunded',
+            'payment_reversed',
+            'renewal_payment_processing',
+            'renewal_payment_completed',
+            'renewal_payment_failed',
+            'renewal_payment_pending'
+        ]);
     }
 
     /**
-     * Check if the context has a valid customer
-     *
-     * @return bool
+     * Check if this is a dispute-related event
+     * 
+     * @return bool True if dispute-related
      */
-    public function hasCustomer(): bool
+    public function isDisputeEvent(): bool
     {
-        return $this->customer !== null && $this->customer instanceof WP_User;
+        return in_array($this->event->eventType, [
+            'dispute_opened',
+            'dispute_resolved',
+            'dispute_won',
+            'dispute_lost'
+        ]);
     }
 
     /**
-     * Get gateway metadata value by key
-     *
-     * @param string $key Metadata key
-     * @param mixed $default Default value if key not found
-     * @return mixed
+     * Get event amount in a specific currency
+     * 
+     * @param string|null $target_currency Target currency (null for event currency)
+     * @return float|null Amount in target currency
      */
-    public function getGatewayMetadata(string $key, $default = null)
+    public function getEventAmount(?string $target_currency = null): ?float
     {
-        return $this->gateway_metadata[$key] ?? $default;
+        if ($this->event->amount === null) {
+            return null;
+        }
+
+        // If no target currency specified or same as event currency, return as-is
+        if ($target_currency === null || $target_currency === $this->event->currency) {
+            return $this->event->amount;
+        }
+
+        // TODO: Implement currency conversion
+        // For now, return the original amount
+        return $this->event->amount;
     }
 
     /**
-     * Set gateway metadata value
-     *
-     * @param string $key Metadata key
-     * @param mixed $value Metadata value
+     * Get a summary of the context for logging
+     * 
+     * @return array Context summary
+     */
+    public function getSummary(): array
+    {
+        return [
+            'event_type' => $this->event->eventType,
+            'source_gateway' => $this->event->sourceGateway,
+            'channel' => $this->event->channel,
+            'primary_object_type' => $this->event->primaryObjectType,
+            'primary_object_id' => $this->event->primaryObjectID,
+            'secondary_object_type' => $this->event->secondaryObjectType,
+            'secondary_object_id' => $this->event->secondaryObjectID,
+            'has_order' => $this->order !== null,
+            'has_subscription' => $this->subscription !== null,
+            'customer_id' => $this->getCustomerId(),
+            'amount' => $this->event->amount,
+            'currency' => $this->event->currency,
+            'transaction_id' => $this->event->transactionID,
+        ];
+    }
+
+    /**
+     * Convert context to array for serialization
+     * 
+     * @return array Context data
+     */
+    public function toArray(): array
+    {
+        return [
+            'event' => $this->event->toArray(),
+            'order_id' => $this->getOrderId(),
+            'subscription_id' => $this->getSubscriptionId(),
+            'customer_id' => $this->getCustomerId(),
+            'customer' => $this->customer,
+            'gateway_metadata' => $this->gateway_metadata,
+            'additional_context' => $this->additional_context,
+            'summary' => $this->getSummary(),
+        ];
+    }
+
+    /**
+     * Resolve entities based on event data
+     * 
      * @return void
      */
-    public function setGatewayMetadata(string $key, $value): void
+    private function resolveEntities(): void
     {
-        $this->gateway_metadata[$key] = $value;
-    }
-
-    /**
-     * Get all gateway metadata
-     *
-     * @return array
-     */
-    public function getAllGatewayMetadata(): array
-    {
-        return $this->gateway_metadata;
-    }
-
-    /**
-     * Create context from a universal event with entity resolution
-     *
-     * @param UniversalEvent $event The universal event
-     * @return self
-     */
-    public static function fromEvent(UniversalEvent $event): self
-    {
-        $order = null;
-        $subscription = null;
-        $customer = null;
-
         // Resolve order
         $order_id = null;
-        if ($event->primaryObjectType === 'order' && $event->primaryObjectID) {
-            $order_id = $event->primaryObjectID;
-        } elseif ($event->secondaryObjectType === 'order' && $event->secondaryObjectID) {
-            $order_id = $event->secondaryObjectID;
+        if ($this->event->primaryObjectType === 'order' && $this->event->primaryObjectID) {
+            $order_id = is_numeric($this->event->primaryObjectID) ? (int) $this->event->primaryObjectID : null;
+        } elseif ($this->event->secondaryObjectType === 'order' && $this->event->secondaryObjectID) {
+            $order_id = is_numeric($this->event->secondaryObjectID) ? (int) $this->event->secondaryObjectID : null;
         }
 
         if ($order_id && function_exists('wc_get_order')) {
             $order = wc_get_order($order_id);
-            if (!$order || !$order instanceof WC_Order) {
-                $order = null;
+            if ($order && is_a($order, 'WC_Order')) {
+                $this->order = $order;
             }
         }
 
         // Resolve subscription
         $subscription_id = null;
-        if ($event->primaryObjectType === 'subscription' && $event->primaryObjectID) {
-            $subscription_id = $event->primaryObjectID;
-        } elseif ($event->secondaryObjectType === 'subscription' && $event->secondaryObjectID) {
-            $subscription_id = $event->secondaryObjectID;
+        if ($this->event->primaryObjectType === 'subscription' && $this->event->primaryObjectID) {
+            $subscription_id = $this->event->primaryObjectID;
+        } elseif ($this->event->secondaryObjectType === 'subscription' && $this->event->secondaryObjectID) {
+            $subscription_id = $this->event->secondaryObjectID;
         }
 
         if ($subscription_id && function_exists('wcs_get_subscription')) {
             try {
                 $subscription = wcs_get_subscription($subscription_id);
-                if (!$subscription || !class_exists('WC_Subscription') || !$subscription instanceof \WC_Subscription) {
-                    $subscription = null;
+                if ($subscription) {
+                    $this->subscription = $subscription;
                 }
             } catch (\Throwable $e) {
-                $subscription = null;
+                // Subscription not found or WC Subscriptions not active
+                $this->subscription = null;
             }
         }
 
-        // Resolve customer
-        $customer_id = null;
-        if ($event->primaryObjectType === 'customer' && $event->primaryObjectID) {
-            $customer_id = $event->primaryObjectID;
-        } elseif ($event->secondaryObjectType === 'customer' && $event->secondaryObjectID) {
-            $customer_id = $event->secondaryObjectID;
-        } elseif ($order) {
-            $customer_id = $order->get_customer_id();
-        } elseif ($subscription && method_exists($subscription, 'get_customer_id')) {
-            $customer_id = $subscription->get_customer_id();
-        }
-
-        if ($customer_id && $customer_id > 0) {
-            $customer = get_user_by('id', $customer_id);
-            if (!$customer || !$customer instanceof WP_User) {
-                $customer = null;
-            }
-        }
-
-        // Extract gateway metadata from raw event data
-        $gateway_metadata = [];
-        if (is_array($event->rawData)) {
-            $gateway_metadata = [
-                'raw_event_data' => $event->rawData,
-                'transaction_id' => $event->transactionID,
-                'amount' => $event->amount,
-                'currency' => $event->currency,
-                'status' => $event->status,
-                'reason' => $event->reason,
-                'occurred_at' => $event->occurredAt,
-                'received_at' => $event->receivedAt,
+        // Resolve customer context
+        $customer_id = $this->getCustomerId();
+        if ($customer_id) {
+            $this->customer = [
+                'id' => $customer_id,
+                'user' => get_user_by('id', $customer_id),
             ];
+
+            // Add customer metadata if available
+            if ($this->customer['user']) {
+                $this->customer['email'] = $this->customer['user']->user_email;
+                $this->customer['display_name'] = $this->customer['user']->display_name;
+                $this->customer['roles'] = $this->customer['user']->roles ?? [];
+            }
         }
 
-        return new self($event, $order, $subscription, $customer, $gateway_metadata);
-    }
-
-    /**
-     * Convert context to array for debugging/logging
-     *
-     * @return array
-     */
-    public function toArray(): array
-    {
-        return [
-            'event' => [
-                'type' => $this->event->eventType,
+        // Extract gateway metadata from event
+        if (!empty($this->event->rawData)) {
+            $this->gateway_metadata = [
                 'gateway' => $this->event->sourceGateway,
                 'channel' => $this->event->channel,
                 'transaction_id' => $this->event->transactionID,
-                'amount' => $this->event->amount,
-                'currency' => $this->event->currency,
-                'status' => $this->event->status,
-            ],
-            'entities' => [
-                'order_id' => $this->getOrderId(),
-                'subscription_id' => $this->getSubscriptionId(),
-                'customer_id' => $this->getCustomerId(),
-            ],
-            'has_entities' => [
-                'order' => $this->hasOrder(),
-                'subscription' => $this->hasSubscription(),
-                'customer' => $this->hasCustomer(),
-            ],
-            'gateway_metadata_keys' => array_keys($this->gateway_metadata),
-        ];
+                'raw_data_keys' => array_keys($this->event->rawData),
+                'raw_data_size' => strlen(wp_json_encode($this->event->rawData)),
+            ];
+
+            // Add specific gateway metadata based on source
+            if ($this->event->sourceGateway === 'paypal') {
+                $this->extractPayPalMetadata();
+            }
+        }
+    }
+
+    /**
+     * Extract PayPal-specific metadata
+     * 
+     * @return void
+     */
+    private function extractPayPalMetadata(): void
+    {
+        $raw_data = $this->event->rawData;
+
+        if ($this->event->channel === 'ipn') {
+            $this->gateway_metadata['paypal'] = [
+                'type' => 'ipn',
+                'receiver_email' => $raw_data['receiver_email'] ?? null,
+                'payer_email' => $raw_data['payer_email'] ?? null,
+                'test_ipn' => $raw_data['test_ipn'] ?? null,
+                'txn_type' => $raw_data['txn_type'] ?? null,
+                'payment_type' => $raw_data['payment_type'] ?? null,
+                'pending_reason' => $raw_data['pending_reason'] ?? null,
+            ];
+        } elseif ($this->event->channel === 'webhook') {
+            $this->gateway_metadata['paypal'] = [
+                'type' => 'webhook',
+                'webhook_id' => $raw_data['id'] ?? null,
+                'event_version' => $raw_data['event_version'] ?? null,
+                'resource_type' => isset($raw_data['resource']) ? 'present' : 'missing',
+            ];
+        }
+    }
+
+    /**
+     * Add additional context data
+     * 
+     * @param string $key Context key
+     * @param mixed $value Context value
+     * @return void
+     */
+    public function addContext(string $key, $value): void
+    {
+        $this->additional_context[$key] = $value;
+    }
+
+    /**
+     * Get additional context value
+     * 
+     * @param string $key Context key
+     * @param mixed $default Default value if key not found
+     * @return mixed Context value or default
+     */
+    public function getContext(string $key, $default = null)
+    {
+        return $this->additional_context[$key] ?? $default;
+    }
+
+    /**
+     * Check if context has a specific key
+     * 
+     * @param string $key Context key
+     * @return bool True if key exists
+     */
+    public function hasContext(string $key): bool
+    {
+        return array_key_exists($key, $this->additional_context);
     }
 }
-<?php
