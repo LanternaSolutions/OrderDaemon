@@ -45,8 +45,14 @@ update_version_and_commit() {
 
     git add "$file_name"
     git commit -m "$new_version"
+
     tag="v$new_version"
-    git tag -a "$tag" -m "Release $tag"
+    if [[ "$FORCE" == true ]]; then
+        echo "Forcing tag $tag to point to the new commit."
+        git tag -a -f "$tag" -m "$tag"
+    else
+        git tag -a "$tag" -m "$tag"
+    fi
 }
 
 main() {
