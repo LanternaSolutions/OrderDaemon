@@ -1,0 +1,522 @@
+/**
+ * Order Daemon Design System - Shared Foundation
+ * 
+ * Three-tier design system providing consistent styling across all Order Daemon components.
+ * This file contains the foundational design tokens and semantic variables used by both
+ * the insight dashboard and rule builder components.
+ * 
+ * Three-Tier Architecture:
+ * 1. PRIMITIVES: Raw, context-free values (colors, fonts, spacing)
+ * 2. SEMANTICS: Generic, purpose-driven variables (component blueprints)
+ * 3. COMPONENTS: CSS classes that apply semantic variables with theme overrides
+ * 
+ * @package OrderDaemon\CompletionManager
+ * @since   2.0.1
+ */
+
+/* ==========================================================================
+   1. TIER 1: PRIMITIVE TOKENS -> Full Theme Palette Section
+   ========================================================================== */
+:root {
+  /* --- Greyscale Palette --- */
+  --odcm-theme-white: #ffffff;
+  --odcm-theme-grey-100: #f8f9fa; /* Lightest */
+  --odcm-theme-grey-200: #e9ecef;
+  --odcm-theme-grey-300: #dee2e6;
+  --odcm-theme-grey-400: #ced4da;
+  --odcm-theme-grey-500: #adb5bd;
+  --odcm-theme-grey-600: #6c757d;
+  --odcm-theme-grey-700: #495057;
+  --odcm-theme-grey-800: #343a40;
+  --odcm-theme-grey-900: #2e1f27; /* Darkest */
+
+  /* --- Theme: Red (Used for Error/Critical) --- */
+  --odcm-theme-red-200: #FBEBED;      /* Light background tint */
+  --odcm-theme-red-400: #f7baba;      /* Mid-tone for status pills */
+  --odcm-theme-red-700: #dc3545;      /* Main accent for borders/headers */
+  --odcm-theme-red-900: #90303b;      /* Critical accent */
+
+  /* --- Theme: Blue (Used for Rule Evaluation) --- */
+  --odcm-theme-blue-200: #DEF4FF;
+  --odcm-theme-blue-400: #80bfe6;
+  --odcm-theme-blue-700: #007cba;
+
+  /* --- Theme: Green (Used for Success) --- */
+  --odcm-theme-green-200: #E7F9EB;
+  --odcm-theme-green-400: #94d3a2;
+  --odcm-theme-green-700: #29A847;
+
+  /* --- Theme: Purple (Used for WooCommerce) --- */
+  --odcm-theme-purple-200: #F1ECF9;
+  --odcm-theme-purple-400: #b7a1e0;
+  --odcm-theme-purple-700: #6F42C2;
+
+  /* --- Theme: Yellow (Used for Database) --- */
+  --odcm-theme-yellow-200: #FEFAEF;
+  --odcm-theme-yellow-400: #fecb9a;
+  --odcm-theme-yellow-700: #F4C95D;
+
+  /* --- Theme: Indigo (Used for Performance) --- */
+  --odcm-theme-indigo-200: #F9F7FD;
+  --odcm-theme-indigo-400: #EDE7FA;
+  --odcm-theme-indigo-700: #C1AEEF;
+
+  /* --- Theme: System Info (Reuses Greyscale) --- */
+  --odcm-theme-system-200: var(--odcm-theme-grey-200);
+  --odcm-theme-system-400: var(--odcm-theme-grey-400);
+  --odcm-theme-system-700: var(--odcm-theme-grey-700);
+
+  /* --- Theme: Fallback/Default (Reuses Greyscale) --- */
+  --odcm-theme-default-200: var(--odcm-theme-white); /* No background tint for default */
+  --odcm-theme-default-400: var(--odcm-theme-grey-400);
+  --odcm-theme-default-700: var(--odcm-theme-grey-300); /* Uses border color */
+
+  /* --- Font Sizes --- */
+  --odcm-theme-font-size-xs: 11px;
+  --odcm-theme-font-size-sm: 12px;
+  --odcm-theme-font-size-md: 14px;
+  --odcm-theme-font-size-str: 14px;
+  --odcm-theme-font-weight-str: 500;
+
+  /* --- Spacing --- */
+  --odcm-theme-spacing-xxs: 2px;
+  --odcm-theme-spacing-xs: 4px;
+  --odcm-theme-spacing-sm: 8px;
+  --odcm-theme-spacing-md: 12px;
+  --odcm-theme-spacing-lg: 16px;
+  --odcm-theme-gap-horizontal: 8px;
+  --odcm-theme-gap-vertical: 4px;
+
+  /* --- Compact Form Spacing (for dense interfaces) --- */
+  --odcm-compact-spacing-micro: 3px;
+  --odcm-compact-spacing-tight: 6px;
+
+  /* --- Layout Heights --- */
+  --odcm-theme-wp-admin-bar-height: 32px;
+  --odcm-theme-pane-header-height: 48px;
+  --odcm-theme-mobile-header-height: 56px;
+  --odcm-theme-component-base-max-height: 360px;
+  --odcm-theme-component-max-height: 60vh;
+
+  /* --- Layout Widths --- */
+  --odcm-theme-side-pane-width: 300px;
+
+  /* --- Key-Value Layout Primitives --- */
+  --odcm-theme-key-value-gap: var(--odcm-theme-gap-horizontal);
+  --odcm-theme-key-value-row-gap: var(--odcm-theme-gap-vertical);
+  --odcm-theme-key-border-color: var(--odcm-theme-grey-400);
+  --odcm-theme-value-bg: var(--odcm-theme-grey-200);
+
+  /* --- Border Radius --- */
+  --odcm-theme-border-radius: 3px;
+
+  /* --- Shadows --- */
+  --odcm-theme-shadow: inset 0 0 5px 0 rgba(0, 0, 0, 0.25);
+
+  /* --- Transitions --- */
+  --odcm-theme-transition: 0.15s ease-in-out;
+}
+
+/* ==========================================================================
+   2. TIER 2: SEMANTIC TOKENS (The Component Blueprint)
+   ========================================================================== */
+:root {
+  /* --- Default Component Blueprint --- */
+  --odcm-component-bg: var(--odcm-theme-grey-100);
+  --odcm-component-border-color: var(--odcm-theme-grey-300);
+  --odcm-component-header-border-color: var(--odcm-component-border-color);
+  --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+  --odcm-component-text-color-body: var(--odcm-theme-grey-800);
+  --odcm-component-padding: var(--odcm-theme-spacing-sm);
+  --odcm-component-margin: var(--odcm-theme-spacing-xs);
+  --odcm-component-border-width: 1px;
+  --odcm-component-border-radius: var(--odcm-theme-border-radius);
+  --odcm-component-section-margin: var(--odcm-theme-spacing-xs);
+  --odcm-component-value-bg: var(--odcm-theme-grey-300);
+  --odcm-component-code-border-color: var(--odcm-theme-grey-300);
+  --odcm-component-transition: all 0.3s ease;
+
+  /* --- Tab System Blueprint --- */
+  --odcm-tab-nav-bg: var(--odcm-theme-grey-100);
+  --odcm-tab-nav-border: 1px solid var(--odcm-component-border-color);
+  --odcm-tab-item-padding: var(--odcm-theme-spacing-md) var(--odcm-theme-spacing-lg);
+  --odcm-tab-item-color: var(--odcm-theme-grey-700);
+  --odcm-tab-item-hover-bg: var(--odcm-theme-grey-200);
+  --odcm-tab-item-hover-color: var(--odcm-theme-blue-700);
+  --odcm-tab-item-active-bg: var(--odcm-theme-white);
+  --odcm-tab-item-active-color: var(--odcm-theme-blue-700);
+  --odcm-tab-item-active-border: 2px solid var(--odcm-theme-blue-700);
+
+  /* --- Form Elements Blueprint --- */
+  --odcm-form-input-bg: var(--odcm-theme-white);
+  --odcm-form-input-border: 1px solid var(--odcm-component-border-color);
+  --odcm-form-input-border-focus: 1px solid var(--odcm-theme-blue-700);
+  --odcm-form-input-border-radius: var(--odcm-component-border-radius);
+  --odcm-form-input-padding: var(--odcm-theme-spacing-sm);
+  --odcm-form-label-color: var(--odcm-component-text-color-header);
+  --odcm-form-label-font-weight: var(--odcm-theme-font-weight-str);
+  --odcm-form-label-font-size: var(--odcm-theme-font-size-sm);
+
+  /* --- Key-Value Component Blueprint --- */
+  --odcm-key-value-layout: grid;
+  --odcm-key-value-columns: auto 1fr;
+  --odcm-key-value-gap: var(--odcm-theme-key-value-gap);
+  --odcm-key-value-row-gap: var(--odcm-theme-key-value-row-gap);
+  --odcm-key-padding: var(--odcm-theme-spacing-xs);
+  --odcm-key-bg: var(--odcm-theme-grey-300);
+  --odcm-value-border: 1px solid var(--odcm-theme-grey-300);
+  --odcm-value-padding: var(--odcm-theme-spacing-xs);
+  --odcm-section-title-font-size: var(--odcm-theme-font-size-md);
+  --odcm-section-title-font-weight: var(--odcm-theme-font-weight-str);
+  --odcm-section-margin-bottom: var(--odcm-theme-spacing-xs);
+
+  /* --- Default Status Pill Blueprint --- */
+  --odcm-status-bg: var(--odcm-theme-grey-300);
+  --odcm-status-text-color: var(--odcm-theme-grey-700);
+
+  /* --- Icon Button Blueprint --- */
+  --odcm-icon-button-size: 24px;
+  --odcm-icon-button-padding: 4px;
+  --odcm-icon-button-color: var(--odcm-theme-grey-600);
+  --odcm-icon-button-hover-bg: var(--odcm-theme-grey-300);
+  --odcm-icon-button-hover-color: var(--odcm-theme-blue-700);
+  --odcm-icon-button-focus-outline: 2px solid var(--odcm-theme-blue-700);
+  --odcm-icon-button-focus-offset: 2px;
+  --odcm-icon-button-icon-size: 16px;
+  --odcm-icon-button-transition: all 0.15s ease-in-out;
+}
+
+/* ==========================================================================
+   3. TIER 3: COMPONENT IMPLEMENTATIONS
+   ========================================================================== */
+
+/* Base Icon Button Component - Uses Semantic Tokens */
+.odcm-icon-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--odcm-icon-button-padding);
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-icon-button-transition);
+    color: var(--odcm-icon-button-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--odcm-icon-button-size);
+    min-height: var(--odcm-icon-button-size);
+}
+
+.odcm-icon-button:hover {
+    background-color: var(--odcm-icon-button-hover-bg);
+    color: var(--odcm-icon-button-hover-color);
+}
+
+.odcm-icon-button:focus {
+    outline: var(--odcm-icon-button-focus-outline);
+    outline-offset: var(--odcm-icon-button-focus-offset);
+}
+
+.odcm-icon-button .dashicons {
+    transition: var(--odcm-icon-button-transition);
+    font-size: var(--odcm-icon-button-icon-size);
+    width: var(--odcm-icon-button-icon-size);
+    height: var(--odcm-icon-button-icon-size);
+}
+
+/* Button Styles - Using Three-Tier System */
+.odcm-button {
+    display: inline-block;
+    padding: var(--odcm-theme-spacing-sm) var(--odcm-theme-spacing-md);
+    font-size: var(--odcm-theme-font-size-sm);
+    border-radius: var(--odcm-component-border-radius);
+    background-color: var(--odcm-theme-blue-700);
+    color: var(--odcm-theme-white);
+}
+
+.odcm-button-small {
+    padding: 4px 8px;
+    font-size: var(--odcm-theme-font-size-sm);
+    height: auto;
+    line-height: 1.4;
+}
+
+/* Status Pills - Using Three-Tier System */
+.odcm-status-pill {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: var(--odcm-theme-font-size-sm);
+    border-radius: var(--odcm-component-border-radius);
+    background-color: var(--odcm-status-bg);
+    color: var(--odcm-status-text-color);
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+/* Status variants override the semantic status variables */
+.odcm-status-pill--critical {
+    --odcm-status-bg: var(--odcm-theme-red-900);
+    --odcm-status-text-color: var(--odcm-theme-white);
+}
+
+.odcm-status-pill--error {
+    --odcm-status-bg: var(--odcm-theme-red-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--warning {
+    --odcm-status-bg: var(--odcm-theme-yellow-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--success {
+    --odcm-status-bg: var(--odcm-theme-green-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--notice {
+    --odcm-status-bg: var(--odcm-theme-green-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--info {
+    --odcm-status-bg: var(--odcm-theme-grey-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--debug {
+    --odcm-status-bg: var(--odcm-theme-yellow-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--completed {
+    --odcm-status-bg: var(--odcm-theme-green-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--pending {
+    --odcm-status-bg: var(--odcm-theme-yellow-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--skipped {
+    --odcm-status-bg: var(--odcm-theme-grey-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--woocommerce {
+    --odcm-status-bg: var(--odcm-theme-purple-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+/* ==========================================================================
+   TOAST NOTIFICATION SYSTEM
+   ========================================================================== */
+
+.odcm-toast-container {
+    position: fixed;
+    top: 32px; /* Below WordPress admin bar */
+    right: 20px;
+    z-index: 1000; /* Above content but below WordPress modals */
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-sm);
+    max-width: 400px;
+    pointer-events: none; /* Allow clicks through container */
+}
+
+.odcm-toast {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--odcm-theme-spacing-md);
+    border-radius: var(--odcm-component-border-radius);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: var(--odcm-theme-white);
+    border-left: 4px solid var(--odcm-theme-grey-400);
+    pointer-events: auto; /* Re-enable clicks on toast itself */
+    transition: all 0.3s ease;
+    min-width: 250px;
+    max-width: 400px;
+    width: auto;
+    flex-shrink: 0;
+}
+
+.odcm-toast--error {
+    border-left-color: var(--odcm-theme-red-700);
+    background: var(--odcm-theme-red-200);
+}
+
+.odcm-toast--warning {
+    border-left-color: var(--odcm-theme-yellow-700);
+    background: var(--odcm-theme-yellow-200);
+}
+
+.odcm-toast--success {
+    border-left-color: var(--odcm-theme-green-700);
+    background: var(--odcm-theme-green-200);
+}
+
+.odcm-toast--info {
+    border-left-color: var(--odcm-theme-blue-700);
+    background: var(--odcm-theme-blue-200);
+}
+
+.odcm-toast-content {
+    flex: 1;
+    font-size: var(--odcm-theme-font-size-md);
+    color: var(--odcm-component-text-color-body);
+    line-height: 1.4;
+}
+
+.odcm-toast-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0;
+    margin-left: var(--odcm-theme-spacing-sm);
+    color: var(--odcm-theme-grey-600);
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-icon-button-transition);
+}
+
+.odcm-toast-close:hover {
+    background-color: var(--odcm-theme-grey-300);
+    color: var(--odcm-theme-grey-900);
+}
+
+.odcm-toast-close:focus {
+    outline: 2px solid var(--odcm-theme-blue-700);
+    outline-offset: 2px;
+}
+
+/* ==========================================================================
+   PREMIUM COMPONENT SYSTEM
+   ========================================================================== */
+
+/* Premium Filter Group */
+.odcm-premium-filter-group {
+    position: relative;
+    background: var(--odcm-theme-grey-100);
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    padding: var(--odcm-theme-spacing-md);
+    margin: var(--odcm-theme-spacing-md) 0;
+}
+
+.odcm-premium-badge {
+    position: absolute;
+    top: -8px;
+    right: 8px;
+    background: var(--odcm-theme-blue-700);
+    color: var(--odcm-theme-white);
+    padding: 2px 6px;
+    border-radius: var(--odcm-component-border-radius);
+    font-size: var(--odcm-theme-font-size-xs);
+    font-weight: bold;
+    text-transform: uppercase;
+    z-index: 3;
+}
+
+.odcm-premium-filter-group input:disabled,
+.odcm-premium-filter-group select:disabled,
+.odcm-premium-filter-group button:disabled {
+    background: var(--odcm-theme-grey-200);
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.odcm-premium-filter-group label {
+    color: var(--odcm-theme-grey-500) !important;
+}
+
+/* Premium Notice */
+.odcm-premium-notice-small {
+    padding: var(--odcm-theme-spacing-md);
+    background: var(--odcm-theme-blue-200);
+    border: 1px solid var(--odcm-theme-blue-700);
+    border-radius: var(--odcm-component-border-radius);
+    margin-bottom: var(--odcm-theme-spacing-md);
+}
+
+.odcm-premium-notice-small p {
+    margin: 0 0 var(--odcm-theme-spacing-sm) 0;
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-700);
+}
+
+.odcm-premium-notice-small a {
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-blue-700);
+    text-decoration: none;
+}
+
+/* Premium Component Styling */
+.odcm-premium-component {
+    position: relative;
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.odcm-premium-component::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: var(--odcm-component-border-radius);
+    z-index: 1;
+}
+
+.odcm-premium-overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    color: var(--odcm-theme-white);
+    font-size: var(--odcm-theme-font-size-sm);
+    font-weight: bold;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ========================================================================== */
+
+/* Focus indicators */
+.odcm-component input:focus,
+.odcm-component select:focus,
+.odcm-component textarea:focus,
+.odcm-component button:focus {
+    outline: 2px solid var(--odcm-theme-blue-700);
+    outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .odcm-component,
+    .odcm-icon-button,
+    .odcm-status-pill {
+        transition: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .odcm-component {
+        border-width: 2px;
+    }
+    
+    .odcm-status-pill {
+        border: 1px solid currentColor;
+    }
+}

@@ -1,0 +1,539 @@
+<?php
+declare(strict_types=1);
+
+namespace OrderDaemon\CompletionManager\Core\Events;
+
+/**
+ * Universal Event Object (UEO)
+ * 
+ * Normalizes all lifecycle events (orders, subscriptions, payment gateways) into a 
+ * consistent structure for rule processing and audit logging. This enables unified
+ * handling of events from different sources while maintaining rich contextual data.
+ * 
+ * Event Type Taxonomy Examples:
+ * - payment_created, payment_completed, payment_denied, payment_refunded, payment_reversed
+ * - subscription_created, subscription_approved, subscription_reactivated, subscription_suspended, subscription_cancelled, subscription_completed
+ * - renewal_payment_processing, renewal_payment_pending, renewal_payment_failed, renewal_payment_completed
+ * - trial_started, trial_ended
+ * - dispute_opened, dispute_won, dispute_lost
+ * 
+ * @package OrderDaemon\CompletionManager\Core\Events
+ * @since   2.2.0
+ */
+final class UniversalEvent
+{
+    /**
+     * Normalized event type from taxonomy
+     * 
+     * @var string
+     */
+    public readonly string $eventType;
+
+    /**
+     * Source gateway identifier (paypal, stripe, etc.) or null for system events
+     * 
+     * @var string|null
+     */
+    public readonly ?string $sourceGateway;
+
+    /**
+     * Channel through which the event was received
+     * 
+     * @var string
+     */
+    public readonly string $channel;
+
+    /**
+     * Primary entity type this event is about
+     * 
+     * @var string
+     */
+    public readonly string $primaryObjectType;
+
+    /**
+     * Primary entity ID
+     * 
+     * @var int|string|null
+     */
+    public readonly int|string|null $primaryObjectID;
+
+    /**
+     * Secondary/related entity type (optional)
+     * 
+     * @var string|null
+     */
+    public readonly ?string $secondaryObjectType;
+
+    /**
+     * Secondary/related entity ID (optional)
+     * 
+     * @var int|string|null
+     */
+    public readonly int|string|null $secondaryObjectID;
+
+    /**
+     * Gateway transaction/reference ID
+     * 
+     * @var string|null
+     */
+    public readonly ?string $transactionID;
+
+    /**
+     * Gateway/accounting status (COMPLETED, DENIED, etc.)
+     * 
+     * @var string|null
+     */
+    public readonly ?string $status;
+
+    /**
+     * Reason code or failure description
+     * 
+     * @var string|null
+     */
+    public readonly ?string $reason;
+
+    /**
+     * Transaction amount
+     * 
+     * @var float|null
+     */
+    public readonly ?float $amount;
+
+    /**
+     * Currency code (USD, EUR, etc.)
+     * 
+     * @var string|null
+     */
+    public readonly ?string $currency;
+
+    /**
+     * When the event occurred at the source (ISO8601)
+     * 
+     * @var string
+     */
+    public readonly string $occurredAt;
+
+    /**
+     * When the plugin received/ingested the event (ISO8601)
+     * 
+     * @var string
+     */
+    public readonly string $receivedAt;
+
+    /**
+     * Stable key for deduplication
+     * 
+     * @var string
+     */
+    public readonly string $idempotencyKey;
+
+    /**
+     * Unmodified source payload (sanitized for storage)
+     * 
+     * @var array
+     */
+    public readonly array $rawData;
+
+    /**
+     * Valid event channels
+     */
+    private const VALID_CHANNELS = ['webhook', 'ipn', 'sdk', 'manual', 'system', 'scheduled'];
+
+    /**
+     * Valid primary object types
+     */
+    private const VALID_OBJECT_TYPES = ['order', 'subscription', 'refund', 'authorization', 'membership', 'customer', 'product'];
+
+    /**
+     * Constructor with comprehensive validation
+     * 
+     * @param array $data Event data array
+     * @throws \InvalidArgumentException If required fields are missing or invalid
+     */
+    public function __construct(array $data)
+    {
+        // Validate and set required fields
+        $this->eventType = $this->validateEventType($data['eventType'] ?? '');
+        $this->channel = $this->validateChannel($data['channel'] ?? '');
+        $this->primaryObjectType = $this->validateObjectType($data['primaryObjectType'] ?? '');
+        
+        // Set optional fields with validation
+        $this->sourceGateway = $this->sanitizeString($data['sourceGateway'] ?? null);
+        $this->primaryObjectID = $this->validateObjectID($data['primaryObjectID'] ?? null);
+        $this->secondaryObjectType = $this->validateOptionalObjectType($data['secondaryObjectType'] ?? null);
+        $this->secondaryObjectID = $this->validateObjectID($data['secondaryObjectID'] ?? null);
+        $this->transactionID = $this->sanitizeString($data['transactionID'] ?? null);
+        $this->status = $this->sanitizeString($data['status'] ?? null);
+        $this->reason = $this->sanitizeString($data['reason'] ?? null);
+        $this->amount = $this->validateAmount($data['amount'] ?? null);
+        $this->currency = $this->validateCurrency($data['currency'] ?? null);
+        
+        // Set timestamps
+        $this->occurredAt = $this->validateTimestamp($data['occurredAt'] ?? '');
+        $this->receivedAt = $this->validateTimestamp($data['receivedAt'] ?? current_time('c'));
+        
+        // Set or generate idempotency key
+        $this->idempotencyKey = !empty($data['idempotencyKey']) 
+            ? sanitize_text_field((string) $data['idempotencyKey'])
+            : $this->generateIdempotencyKey();
+            
+        // Sanitize raw data
+        $this->rawData = $this->sanitizeRawData($data['rawData'] ?? []);
+    }
+
+    /**
+     * Convert to array for serialization
+     * 
+     * @return array
+     */
+    public function toArray(): array
+    {
+        return [
+            'eventType' => $this->eventType,
+            'sourceGateway' => $this->sourceGateway,
+            'channel' => $this->channel,
+            'primaryObjectType' => $this->primaryObjectType,
+            'primaryObjectID' => $this->primaryObjectID,
+            'secondaryObjectType' => $this->secondaryObjectType,
+            'secondaryObjectID' => $this->secondaryObjectID,
+            'transactionID' => $this->transactionID,
+            'status' => $this->status,
+            'reason' => $this->reason,
+            'amount' => $this->amount,
+            'currency' => $this->currency,
+            'occurredAt' => $this->occurredAt,
+            'receivedAt' => $this->receivedAt,
+            'idempotencyKey' => $this->idempotencyKey,
+            'rawData' => $this->rawData,
+        ];
+    }
+
+    /**
+     * Create from array (for deserialization)
+     * 
+     * @param array $data Event data array
+     * @return self
+     */
+    public static function fromArray(array $data): self
+    {
+        return new self($data);
+    }
+
+    /**
+     * Validate the event is properly formed
+     * 
+     * @return bool
+     */
+    public function isValid(): bool
+    {
+        try {
+            // Check required fields are present and valid
+            if (empty($this->eventType) || empty($this->channel) || empty($this->primaryObjectType)) {
+                return false;
+            }
+            
+            // Validate timestamps are proper ISO8601
+            if (!$this->isValidISO8601($this->occurredAt) || !$this->isValidISO8601($this->receivedAt)) {
+                return false;
+            }
+            
+            // Validate idempotency key is present
+            if (empty($this->idempotencyKey)) {
+                return false;
+            }
+            
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Generate a stable idempotency key for deduplication
+     * 
+     * @return string
+     */
+    public function generateIdempotencyKey(): string
+    {
+        $components = [
+            $this->sourceGateway ?? 'system',
+            $this->eventType,
+            $this->primaryObjectType,
+            (string) $this->primaryObjectID,
+            $this->transactionID ?? '',
+            $this->occurredAt,
+        ];
+        
+        return 'odcm_event_' . substr(md5(implode('|', $components)), 0, 16);
+    }
+
+    /**
+     * Get a human-readable summary of this event
+     * 
+     * @return string
+     */
+    public function getSummary(): string
+    {
+        $parts = [];
+        
+        // Add gateway context if present
+        if ($this->sourceGateway) {
+            $parts[] = ucfirst($this->sourceGateway);
+        }
+        
+        // Add event type (human readable)
+        $parts[] = $this->humanizeEventType($this->eventType);
+        
+        // Add primary entity context
+        if ($this->primaryObjectID) {
+            $parts[] = "for {$this->primaryObjectType} #{$this->primaryObjectID}";
+        }
+        
+        // Add amount if present
+        if ($this->amount !== null && $this->currency) {
+            $parts[] = "({$this->currency} " . number_format($this->amount, 2) . ")";
+        }
+        
+        return implode(' ', $parts);
+    }
+
+    /**
+     * Validate event type
+     * 
+     * @param string $eventType
+     * @return string
+     * @throws \InvalidArgumentException
+     */
+    private function validateEventType(string $eventType): string
+    {
+        $eventType = sanitize_key($eventType);
+        if (empty($eventType)) {
+            throw new \InvalidArgumentException('Event type is required');
+        }
+        return $eventType;
+    }
+
+    /**
+     * Validate channel
+     * 
+     * @param string $channel
+     * @return string
+     * @throws \InvalidArgumentException
+     */
+    private function validateChannel(string $channel): string
+    {
+        $channel = sanitize_key($channel);
+        if (!in_array($channel, self::VALID_CHANNELS, true)) {
+            throw new \InvalidArgumentException("Invalid channel: {$channel}. Must be one of: " . implode(', ', self::VALID_CHANNELS));
+        }
+        return $channel;
+    }
+
+    /**
+     * Validate object type
+     * 
+     * @param string $objectType
+     * @return string
+     * @throws \InvalidArgumentException
+     */
+    private function validateObjectType(string $objectType): string
+    {
+        $objectType = sanitize_key($objectType);
+        if (!in_array($objectType, self::VALID_OBJECT_TYPES, true)) {
+            throw new \InvalidArgumentException("Invalid object type: {$objectType}. Must be one of: " . implode(', ', self::VALID_OBJECT_TYPES));
+        }
+        return $objectType;
+    }
+
+    /**
+     * Validate optional object type
+     * 
+     * @param string|null $objectType
+     * @return string|null
+     */
+    private function validateOptionalObjectType(?string $objectType): ?string
+    {
+        if ($objectType === null) {
+            return null;
+        }
+        return $this->validateObjectType($objectType);
+    }
+
+    /**
+     * Validate object ID
+     * 
+     * @param mixed $objectID
+     * @return int|string|null
+     */
+    private function validateObjectID($objectID): int|string|null
+    {
+        if ($objectID === null || $objectID === '') {
+            return null;
+        }
+        
+        if (is_numeric($objectID)) {
+            return (int) $objectID;
+        }
+        
+        if (is_string($objectID)) {
+            return sanitize_text_field($objectID);
+        }
+        
+        return null;
+    }
+
+    /**
+     * Validate amount
+     * 
+     * @param mixed $amount
+     * @return float|null
+     */
+    private function validateAmount($amount): ?float
+    {
+        if ($amount === null || $amount === '') {
+            return null;
+        }
+        
+        if (is_numeric($amount)) {
+            return (float) $amount;
+        }
+        
+        return null;
+    }
+
+    /**
+     * Validate currency code
+     * 
+     * @param string|null $currency
+     * @return string|null
+     */
+    private function validateCurrency(?string $currency): ?string
+    {
+        if ($currency === null) {
+            return null;
+        }
+        
+        $currency = strtoupper(sanitize_text_field($currency));
+        
+        // Basic validation - 3 character currency codes
+        if (strlen($currency) === 3 && ctype_alpha($currency)) {
+            return $currency;
+        }
+        
+        return null;
+    }
+
+    /**
+     * Validate timestamp
+     * 
+     * @param string $timestamp
+     * @return string
+     * @throws \InvalidArgumentException
+     */
+    private function validateTimestamp(string $timestamp): string
+    {
+        if (empty($timestamp)) {
+            throw new \InvalidArgumentException('Timestamp is required');
+        }
+        
+        // Try to parse as ISO8601
+        if ($this->isValidISO8601($timestamp)) {
+            return $timestamp;
+        }
+        
+        // Try to convert from Unix timestamp
+        if (is_numeric($timestamp)) {
+            return date('c', (int) $timestamp);
+        }
+        
+        throw new \InvalidArgumentException("Invalid timestamp format: {$timestamp}");
+    }
+
+    /**
+     * Check if string is valid ISO8601 timestamp
+     * 
+     * @param string $timestamp
+     * @return bool
+     */
+    private function isValidISO8601(string $timestamp): bool
+    {
+        try {
+            $date = new \DateTime($timestamp);
+            return $date->format('c') !== false;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Sanitize string field
+     * 
+     * @param string|null $value
+     * @return string|null
+     */
+    private function sanitizeString(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        
+        $sanitized = sanitize_text_field($value);
+        return $sanitized !== '' ? $sanitized : null;
+    }
+
+    /**
+     * Sanitize raw data array
+     * 
+     * @param array $rawData
+     * @return array
+     */
+    private function sanitizeRawData(array $rawData): array
+    {
+        // Recursively sanitize array data
+        return $this->sanitizeArrayRecursive($rawData);
+    }
+
+    /**
+     * Recursively sanitize array data
+     * 
+     * @param array $data
+     * @return array
+     */
+    private function sanitizeArrayRecursive(array $data): array
+    {
+        $sanitized = [];
+        
+        foreach ($data as $key => $value) {
+            $key = sanitize_key((string) $key);
+            
+            if (is_array($value)) {
+                $sanitized[$key] = $this->sanitizeArrayRecursive($value);
+            } elseif (is_string($value)) {
+                $sanitized[$key] = sanitize_text_field($value);
+            } elseif (is_numeric($value)) {
+                $sanitized[$key] = $value;
+            } elseif (is_bool($value)) {
+                $sanitized[$key] = $value;
+            } else {
+                // Convert other types to string and sanitize
+                $sanitized[$key] = sanitize_text_field((string) $value);
+            }
+        }
+        
+        return $sanitized;
+    }
+
+    /**
+     * Convert event type to human readable format
+     * 
+     * @param string $eventType
+     * @return string
+     */
+    private function humanizeEventType(string $eventType): string
+    {
+        // Convert snake_case to Title Case
+        $words = explode('_', $eventType);
+        $words = array_map('ucfirst', $words);
+        return implode(' ', $words);
+    }
+}

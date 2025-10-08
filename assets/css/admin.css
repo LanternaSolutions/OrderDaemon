@@ -1,0 +1,1360 @@
+/**
+ * Admin Styles for Order Daemon
+ * Refactored for improved maintainability and modern CSS best practices
+ */
+
+/* CSS Custom Properties - Design System */
+:root {
+    /* Color Palette */
+    --odcm-color-border: #e5e5e5;
+    --odcm-color-border-light: #f5f5f5;
+    --odcm-color-border-medium: #ccd0d4;
+    --odcm-color-border-dark: #ddd;
+    --odcm-color-border-darker: #ccc;
+    
+    /* Background Colors */
+    --odcm-color-bg-white: #fff;
+    --odcm-color-bg-light: #f9f9f9;
+    --odcm-color-bg-lighter: #f6f7f7;
+    --odcm-color-bg-lightest: #fafafa;
+    --odcm-color-bg-disabled: #f0f0f1;
+    --odcm-color-bg-hover: #f1f1f1;
+    --odcm-color-bg-selected: #f0f7ff;
+    --odcm-color-bg-premium: #eeeeee;
+    --odcm-color-bg-payload-widget: #efe9e9;
+    
+    /* Text Colors */
+    --odcm-color-text-primary: #23282d;
+    --odcm-color-text-secondary: #646970;
+    --odcm-color-text-muted: #666;
+    --odcm-color-text-disabled: #999;
+    --odcm-color-text-link: #0073aa;
+    --odcm-color-text-link-hover: #005177;
+    
+    /* Status Colors */
+    --odcm-color-success: #46b450;
+    --odcm-color-success-bg: #BAE4BE;
+    --odcm-color-notice: #00a0d2;
+    --odcm-color-warning: #ffb900;
+    --odcm-color-warning-bg: #FFEEC0;
+    --odcm-color-error: #dc3232;
+    --odcm-color-error-bg: #F3B3B3;
+    --odcm-color-critical: #90303b;
+    --odcm-color-info-bg: #D5E1E7;
+    --odcm-color-debug-bg: #eee8b1;
+    --odcm-color-debug-text: #333;
+    
+    
+    /* Spacing */
+    --odcm-spacing-xs: 3px;
+    --odcm-spacing-sm: 8px;
+    --odcm-spacing-md: 15px;
+    --odcm-spacing-lg: 20px;
+    --odcm-spacing-xl: 30px;
+    
+    /* Border Radius */
+    --odcm-border-radius: 3px;
+    --odcm-border-radius-large: 4px;
+    
+    /* Typography */
+    --odcm-font-size-small: 11px;
+    --odcm-font-size-xs: 12px;
+    --odcm-font-size-sm: 13px;
+    --odcm-font-size-md: 14px;
+    --odcm-font-size-base: 16px;
+    --odcm-font-weight-normal: 500;
+    --odcm-font-weight-bold: 600;
+    
+    /* Font Families */
+    --odcm-font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    --odcm-font-family-mono: 'Courier New', Courier, monospace;
+    --odcm-font-family-emoji: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", "EmojiSymbols", sans-serif;
+    
+    /* Shadows */
+    --odcm-shadow-light: 0 1px 1px rgba(0, 0, 0, 0.04);
+    --odcm-shadow-medium: 0 1px 2px rgba(0, 0, 0, 0.1);
+    --odcm-shadow-focus: 0 0 0 2px var(--odcm-color-text-link);
+    
+    /* Transitions */
+    --odcm-transition-fast: 0.15s ease-in-out;
+    --odcm-transition-normal: 0.2s ease;
+    --odcm-transition-slow: 0.3s ease;
+}
+
+/* Base Status Badge Class - DRY Principle Implementation */
+.odcm-status-badge {
+    display: inline-block;
+    padding: var(--odcm-spacing-xs) var(--odcm-spacing-sm);
+    border-radius: var(--odcm-border-radius);
+    font-weight: var(--odcm-font-weight-normal);
+    font-size: var(--odcm-font-size-xs);
+}
+
+/* Condition Row Layout */
+.odcm-condition-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--odcm-spacing-lg);
+    margin-bottom: var(--odcm-spacing-lg);
+    background: var(--odcm-color-bg-white);
+    border: 1px solid var(--odcm-color-border);
+    border-radius: var(--odcm-border-radius);
+    padding: 0;
+    box-shadow: var(--odcm-shadow-light);
+}
+
+.odcm-condition-label-col {
+    flex: 1;
+    min-width: 350px;
+    background: var(--odcm-color-bg-white);
+    padding: var(--odcm-spacing-md);
+}
+
+.odcm-condition-settings-col {
+    flex: 2;
+    min-width: 300px;
+    background: var(--odcm-color-bg-light);
+    border-left: 1px solid var(--odcm-color-border);
+    padding: var(--odcm-spacing-md);
+}
+
+/* Settings Panels - Updated for row-based layout */
+.odcm-condition-settings-col .odcm-settings-panel {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+.odcm-condition-settings-col .odcm-settings-panel h4 {
+    margin-top: 0;
+    margin-bottom: var(--odcm-spacing-md);
+    padding-bottom: var(--odcm-spacing-sm);
+    border-bottom: 1px solid var(--odcm-color-border);
+}
+
+/* Hidden panels */
+.odcm-settings-panel[style*="display: none"] {
+    display: none !important;
+}
+
+/* Legacy settings panels (for backward compatibility) */
+.odcm-settings-panel {
+    background: var(--odcm-color-bg-light);
+    border: 1px solid var(--odcm-color-border);
+    border-radius: var(--odcm-border-radius);
+    padding: var(--odcm-spacing-md);
+    margin-bottom: var(--odcm-spacing-md);
+}
+
+.odcm-settings-panel h4 {
+    margin-top: 0;
+    margin-bottom: var(--odcm-spacing-md);
+    padding-bottom: var(--odcm-spacing-sm);
+    border-bottom: 1px solid var(--odcm-color-border);
+}
+
+/* Radio & Checkbox Styling */
+.odcm-radio-group label,
+.odcm-checkbox-group label {
+    display: block;
+    margin: var(--odcm-spacing-sm) 0;
+    padding: var(--odcm-spacing-sm);
+    border-radius: var(--odcm-border-radius);
+    transition: background-color var(--odcm-transition-normal);
+}
+
+.odcm-radio-group label:hover,
+.odcm-checkbox-group label:hover {
+    background-color: var(--odcm-color-bg-lighter);
+}
+
+.odcm-radio-selected,
+.odcm-checkbox-selected {
+    background-color: var(--odcm-color-bg-selected) !important;
+    border-left: var(--odcm-spacing-xs) solid #2271b1;
+}
+
+/* Order Total Options */
+.odcm-order-total-inputs label {
+    display: block;
+    margin: var(--odcm-spacing-sm) 0;
+}
+
+.odcm-order-total-inputs input[type="number"] {
+    width: 80px;
+    margin-left: var(--odcm-spacing-sm);
+}
+
+.odcm-order-total-value {
+    display: inline-block;
+}
+
+/* Product Type Options */
+.odcm-product-type-options,
+.odcm-product-category-options {
+    background: var(--odcm-color-bg-light);
+    border: 1px solid var(--odcm-color-border);
+    border-radius: var(--odcm-border-radius);
+    padding: var(--odcm-spacing-md);
+    margin-top: var(--odcm-spacing-sm);
+}
+
+/* Scrollable Category List Container */
+.odcm-category-list-container {
+    max-height: 300px;
+    overflow-y: auto; /* This enables vertical scrolling when content exceeds the max-height */
+    border: 1px solid var(--odcm-color-border-medium); /* A standard WordPress-style border */
+    padding: var(--odcm-spacing-sm);
+    background-color: var(--odcm-color-bg-lighter); /* A subtle background to differentiate it */
+}
+
+/* Premium Features */
+.odcm-premium-badge {
+    display: inline-block;
+    background: #f0c33c;
+    color: #000;
+    font-size: 11px;
+    line-height: 1.2;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.odcm-premium-option {
+    opacity: 0.75;
+    position: relative;
+    cursor: not-allowed;
+}
+
+.odcm-premium-option:hover {
+    opacity: 0.9;
+}
+/* Meta Box Container */
+.odcm-meta-box-container {
+    margin: 15px 0;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+/* Tabs Navigation */
+.odcm-tabs {
+    position: relative;
+}
+
+.odcm-tab-nav {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-bottom: 1px solid #ccc;
+    background: #f9f9f9;
+}
+
+.odcm-tab-nav li {
+    margin: 0;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-right: 1px solid #e5e5e5;
+    font-weight: 600;
+}
+
+.odcm-tab-nav li:hover {
+    background: #f1f1f1;
+}
+
+.odcm-tab-nav li.odcm-tab-active {
+    background: #fff;
+    border-bottom: 1px solid #fff;
+    margin-bottom: -1px;
+    color: #0073aa;
+}
+
+/* Tab Content */
+.odcm-tab-content {
+    padding: 20px;
+}
+
+.odcm-tab-pane {
+    display: none;
+}
+
+.odcm-tab-pane.odcm-tab-active {
+    display: block;
+}
+
+.odcm-tab-pane h3 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+/* Field Groups */
+.odcm-field-group {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.odcm-field-group label {
+    display: block;
+    margin-bottom: 15px;
+    font-weight: normal;
+}
+
+.odcm-field-group .description {
+    color: #666;
+    font-style: italic;
+    margin: 5px 0 15px 0;
+}
+
+/* Primary Condition Type Selector */
+.odcm-primary-condition-selector .odcm-radio-group {
+    margin: 10px 0;
+}
+
+.odcm-primary-condition-selector .odcm-radio-group label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: normal;
+}
+
+.odcm-primary-condition-selector .odcm-radio-group input[type="radio"] {
+    margin-right: 8px;
+}
+
+/* Product Type Options */
+.odcm-product-type-options {
+    margin-top: 15px;
+    padding: 0;
+}
+
+.odcm-checkbox-group label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: normal;
+}
+
+.odcm-checkbox-group input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.odcm-condition-examples {
+    margin-top: 15px;
+    padding: 10px;
+    background: #f1f1f1;
+    border-left: 4px solid #00a0d2;
+}
+
+.odcm-condition-examples ul {
+    margin: 5px 0 5px 20px;
+    list-style-type: disc;
+}
+
+.odcm-condition-examples li {
+    margin-bottom: 5px;
+}
+
+/* Product Category Options */
+.odcm-product-category-options {
+    margin-top: 15px;
+    padding: 0;
+}
+
+.odcm-category-selector {
+    margin: 0px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 0px;
+    border: 1px solid #e5e5e5;
+    background: #F9F9F9;
+}
+
+.odcm-category-selector label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: normal;
+}
+
+.odcm-category-selector input[type="radio"] {
+    margin-right: 8px;
+}
+
+/* Order Total Condition */
+.odcm-order-total-condition {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #e5e5e5;
+    border-radius: 3px;
+}
+
+.odcm-order-total-inputs label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: normal;
+}
+
+.odcm-order-total-options select {
+    margin-right: 10px;
+    min-width: 120px;
+}
+
+.odcm-order-total-options input[type="number"] {
+    width: 70px;
+    margin-right: 5px;
+}
+
+/* Order Total Value Input Styling */
+.odcm-order-total-value {
+    margin-left: 10px;
+    width: 50px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Ensure radio buttons in order total section are vertically centered */
+.odcm-order-total-options .odcm-radio-group input[type="radio"] {
+    margin-top: 0;
+    align-self: center;
+}
+
+/* Ensure all elements in order total radio labels are properly aligned */
+.odcm-order-total-options .odcm-radio-group label > * {
+    align-self: center;
+}
+
+/* Adjust radio group spacing in order total section */
+.odcm-order-total-options .odcm-radio-group label {
+    margin-bottom: 15px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+/* Ensure currency symbol is properly aligned */
+.odcm-order-total-options .odcm-radio-group label:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+/* Premium Features */
+.odcm-premium-features {
+    margin-top: 30px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #e5e5e5;
+    border-left: 4px solid #00a0d2;
+}
+
+.odcm-premium-features h4 {
+    margin-top: 0;
+    color: #23282d;
+}
+
+/* Premium Feature Container (New Style) */
+.odcm-premium-feature-container {
+    position: relative;
+    margin-bottom: 15px;
+    padding: 15px;
+    background: #f1f1f1;
+    border: 1px solid #e0e0e0;
+    border-radius: 3px;
+    opacity: 0.7;
+}
+
+.odcm-premium-feature-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.odcm-premium-feature-title {
+    font-weight: 600;
+    flex-grow: 1;
+}
+
+.odcm-premium-lock-icon {
+    margin-left: 5px;
+    color: #00a0d2;
+}
+
+.odcm-premium-feature-description {
+    margin-top: 10px;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.odcm-premium-feature {
+    position: relative;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px dotted #e5e5e5;
+    opacity: 0.7;
+}
+
+.odcm-premium-feature:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.odcm-premium-label {
+    display: block;
+    cursor: not-allowed;
+}
+
+.odcm-premium-label input {
+    margin-right: 5px;
+}
+
+.odcm-premium-badge {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    color: #fff;
+    background-color: #00a0d2;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+/* Premium features have descriptions directly below them */
+
+.odcm-premium-cta {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+    font-weight: 600;
+    color: #00a0d2;
+}
+
+/* Two-column layout for primary condition */
+.odcm-primary-condition-container {
+    background: #f9f9f9;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 25px;
+}
+
+.odcm-condition-layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    margin-top: 15px;
+}
+
+.odcm-condition-type-column {
+    flex: 0 0 300px;
+    min-width: 300px;
+}
+
+.odcm-condition-options-column {
+    flex: 1;
+    min-width: 200px;
+    padding: 15px;
+    background: #FFFFFF;
+    border: 1px solid #e5e5e5;
+    border-radius: 3px;
+}
+
+.odcm-condition-options-column .odcm-field-group {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.odcm-product-type-options,
+.odcm-product-category-options {
+    margin-top: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+
+/* Responsive Adjustments */
+@media screen and (max-width: 782px) {
+    .odcm-tab-nav {
+        flex-direction: column;
+    }
+
+    .odcm-tab-nav li {
+        border-right: none;
+        border-bottom: 1px solid #e5e5e5;
+    }
+
+    .odcm-tab-nav li.odcm-tab-active {
+        border-bottom: 1px solid #e5e5e5;
+    }
+
+    .odcm-condition-layout {
+        flex-direction: column;
+    }
+
+    .odcm-condition-type-column {
+        flex: 1;
+        border-right: none;
+        border-bottom: 1px dashed #ddd;
+        padding-right: 0;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+    }
+
+    .odcm-condition-options-column {
+        flex: 1;
+        padding-top: 10px;
+    }
+
+    /* No tooltip adjustments needed */
+}
+
+/* Radio and Checkbox Options with Inline Descriptions */
+.odcm-radio-content,
+.odcm-checkbox-content {
+    display: inline-flex;
+    flex-direction: row;
+    margin-left: 8px;
+}
+
+.odcm-radio-title,
+.odcm-checkbox-title {
+    font-weight: 600;
+}
+
+.odcm-radio-description,
+.odcm-checkbox-description {
+    font-size: 12px;
+    color: #646970;
+    font-style: italic;
+    margin-top: 2px;
+}
+
+/* Vertically center radio buttons and checkboxes with their content */
+.odcm-field-group label,
+.odcm-radio-group label,
+.odcm-checkbox-group label,
+.odcm-order-total-inputs > label,
+.odcm-premium-radio-option label {
+    display: flex !important;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+/* Style for selected radio buttons and checkboxes */
+.odcm-field-group input[type="radio"]:checked + .odcm-radio-content,
+.odcm-radio-group input[type="radio"]:checked + .odcm-radio-content,
+.odcm-field-group input[type="checkbox"]:checked + .odcm-checkbox-content,
+.odcm-checkbox-group input[type="checkbox"]:checked + .odcm-checkbox-content {
+    color: #0073aa;
+}
+
+/* Add blue border around selected radio and checkbox labels - using JS to add class */
+.odcm-field-group label.odcm-radio-selected,
+.odcm-radio-group label.odcm-radio-selected,
+.odcm-checkbox-group label.odcm-checkbox-selected,
+.odcm-order-total-inputs > label.odcm-checkbox-selected,
+.odcm-premium-radio-option label.odcm-radio-selected {
+    border-color: #0073aa;
+    background-color: rgba(0, 115, 170, 0.05);
+    box-shadow: 0 0 0 1px #0073aa;
+}
+
+/* Premium Radio Options */
+.odcm-premium-radio-option {
+    margin-bottom: 15px;
+}
+
+.odcm-premium-label {
+    display: flex;
+    align-items: flex-start;
+    background-color: #f6f7f7;
+    padding: 10px;
+    border-radius: 4px;
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.odcm-premium-label input[type="radio"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    margin-top: 4px;
+}
+
+/* Premium Pill */
+.odcm-premium-pill {
+    display: inline-flex;
+    align-items: center;
+    background-color: #0073aa;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.odcm-premium-pill .dashicons {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+    margin-right: 3px;
+    color: #ffffff;
+}
+
+/* Premium Features */
+.odcm-premium-feature {
+    background-color: #f6f7f7;
+    border: 1px solid #dcdcde;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 15px;
+    opacity: 0.6;
+}
+
+.odcm-premium-feature-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.odcm-premium-feature-title {
+    font-weight: 600;
+    flex-grow: 1;
+}
+
+/* Premium Upgrade Notice */
+.odcm-premium-upgrade-notice {
+    background-color: #f0f6fc;
+    border: 1px solid #c3dcf3;
+    border-radius: 4px;
+    padding: 15px;
+    margin-top: 20px;
+    text-align: center;
+}
+
+.odcm-premium-upgrade-notice p {
+    margin-bottom: 10px;
+    color: #0073aa;
+    font-weight: 500;
+}
+
+.odcm-premium-upgrade-notice .button-primary {
+    background-color: #0073aa;
+    border-color: #0073aa;
+}
+
+/* Tab Styling */
+.odcm-tab-nav {
+    border-bottom: 1px solid #ccd0d4;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+}
+
+.odcm-tab-nav li {
+    margin-right: 10px;
+    cursor: pointer;
+    padding: 10px 15px;
+    border-bottom: 2px solid transparent;
+    font-weight: 500;
+}
+
+.odcm-tab-nav li:hover {
+    background-color: #f6f7f7;
+}
+
+.odcm-tab-nav li.odcm-tab-active {
+    border-bottom-color: #0073aa;
+    color: #0073aa;
+}
+
+.odcm-tab-pane {
+    display: none;
+    padding: 20px 0;
+}
+
+.odcm-tab-pane.odcm-tab-active {
+    display: block;
+}
+
+/* Field Groups */
+.odcm-field-group {
+    margin-bottom: 25px;
+}
+
+.odcm-field-group h4 {
+    margin: 0 0 10px 0;
+    color: #1e1e1e;
+}
+
+.odcm-field-group .description {
+    margin: 5px 0 15px 0;
+    font-style: italic;
+    color: #646970;
+}
+
+/* Toggle Button Styles */
+.odcm-toggle-container {
+    text-align: center;
+}
+
+/* Set a fixed width for the active column */
+.column-active {
+    width: 80px !important;
+}
+
+.odcm-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.odcm-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.odcm-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #fff;
+    transition: .4s;
+    border-radius: 20px;
+    border: 2px solid #ccc;
+}
+
+.odcm-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 12px;
+    width: 12px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .odcm-toggle-slider {
+    background-color: #fff;
+    border-color: #0073aa;
+}
+
+input:focus + .odcm-toggle-slider {
+    box-shadow: 0 0 1px #0073aa;
+}
+
+input:checked + .odcm-toggle-slider:before {
+    transform: translateX(20px);
+    background-color: #0073aa;
+}
+
+.odcm-toggle-switch.loading .odcm-toggle-slider {
+    opacity: 0.7;
+}
+
+.odcm-toggle-switch.loading .odcm-toggle-slider:after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-top: -8px;
+    margin-left: -8px;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: odcm-spinner 0.6s linear infinite;
+}
+
+@keyframes odcm-spinner {
+    to {transform: rotate(360deg);}
+}
+
+
+/* Improve table readability */
+.wp-list-table.odcm-audit-log {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.wp-list-table.odcm-audit-log th,
+.wp-list-table.odcm-audit-log td {
+    padding: 10px;
+}
+
+.wp-list-table.odcm-audit-log th {
+    background-color: #f1f1f1;
+}
+
+.wp-list-table.odcm-audit-log tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+
+
+
+
+/* ODCM Site-Wide Notice Styles */
+/* Fix dismiss button positioning for our custom notices */
+.odcm-site-wide-notice {
+    position: relative !important;
+    padding-right: 38px !important; /* Make room for dismiss button */
+}
+
+.odcm-site-wide-notice .notice-dismiss {
+    position: absolute !important;
+    top: 0 !important;
+    right: 1px !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 9px !important;
+    background: none !important;
+    color: #787c82 !important;
+    cursor: pointer !important;
+    width: 36px !important;
+    height: 36px !important;
+    text-align: center !important;
+}
+
+.odcm-site-wide-notice .notice-dismiss:before {
+    background: none !important;
+    color: #787c82 !important;
+    content: "\f153" !important;
+    display: block !important;
+    font: normal 16px/20px dashicons !important;
+    speak: never !important;
+    height: 20px !important;
+    text-align: center !important;
+    width: 20px !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+}
+
+.odcm-site-wide-notice .notice-dismiss:hover,
+.odcm-site-wide-notice .notice-dismiss:active,
+.odcm-site-wide-notice .notice-dismiss:focus {
+    color: #c00 !important;
+}
+
+.odcm-site-wide-notice .notice-dismiss:focus {
+    box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, 0.8) !important;
+    outline: none !important;
+}
+
+/* Ensure the notice content doesn't overlap with dismiss button */
+.odcm-site-wide-notice p {
+    margin: 0.5em 0 !important;
+    padding: 2px !important;
+}
+
+/* Interactive Audit Log Viewer styles moved to audit-trail.css for better organization */
+
+
+/* Enhanced status labels with visual indicators */
+.odcm-status-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.odcm-status-success:before {
+    content: "✅";
+    font-size: 12px;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", "EmojiSymbols", sans-serif;
+    margin-right: 4px;
+}
+
+.odcm-status-warning:before {
+    content: "⚠️";
+    font-size: 12px;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", "EmojiSymbols", sans-serif;
+}
+
+.odcm-status-error:before {
+    content: "❌";
+    font-size: 12px;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", "EmojiSymbols", sans-serif;
+}
+
+.odcm-status-info:before {
+    content: "ℹ️";
+    font-size: 12px;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", "EmojiSymbols", sans-serif;
+}
+
+.odcm-status-critical:before {
+    content: "🚨";
+    font-size: 12px;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", "EmojiSymbols", sans-serif;
+}
+
+.odcm-status-debug:before {
+    content: "🐛";
+    font-size: 12px;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", "Android Emoji", "EmojiSymbols", sans-serif;
+}
+
+/* Responsive adjustments for mobile */
+@media screen and (max-width: 782px) {
+    .odcm-payload-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .odcm-copy-payload {
+        align-self: flex-end;
+    }
+    
+    tr.odcm-expandable-row:hover {
+        background-color: inherit !important;
+    }
+    
+    .odcm-chevron-toggle {
+        font-size: 16px;
+        margin-right: 10px;
+    }
+}
+
+/* Copy feedback animation */
+.odcm-copy-payload.copied {
+    background-color: #46b450 !important;
+    color: white !important;
+    transition: all 0.3s ease;
+}
+
+/* Syntax highlighting enhancements for Prism.js */
+.odcm-json-payload .language-json {
+    background: transparent !important;
+}
+
+.odcm-json-payload code {
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+/* Accessibility improvements */
+.odcm-chevron-toggle:focus {
+    outline: 2px solid #0073aa;
+    outline-offset: 2px;
+}
+
+/* Loading state for expand all button */
+#odcm-expand-all-toggle.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+#odcm-expand-all-toggle.loading:after {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 8px;
+    border: 2px solid rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    border-top-color: #0073aa;
+    animation: odcm-spinner 0.6s linear infinite;
+}
+
+/* Filter Bar Styles - Enhanced Layout */
+.odcm-filter-bar {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.odcm-filter-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.odcm-filter-item {
+    display: flex;
+    flex-direction: column;
+    min-width: auto;
+    flex-shrink: 0;
+}
+
+.odcm-filter-item label {
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #23282d;
+    white-space: nowrap;
+}
+
+.odcm-filter-item input,
+.odcm-filter-item select {
+    min-width: 120px;
+    max-width: 200px;
+}
+
+/* Compact width for specific filter dropdowns to fit in one row */
+.odcm-filter-item select[name="status"],
+.odcm-filter-item select[name="event_type"], 
+.odcm-filter-item select[name="source"] {
+    min-width: 90px !important;
+    max-width: 120px !important;
+    width: auto !important;
+}
+
+.odcm-filter-actions {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+/* Premium Group Container - Enhanced for Wrapping */
+.odcm-premium-filters-group {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+    background-color: #eeeeee;
+    border: 1px solid #DDDDDD;
+    padding: 8px;
+    border-radius: 4px;
+    width: 100%;
+    flex-basis: 100%;
+}
+
+/* Premium Pill Positioning */
+.odcm-premium-pill-wrapper {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    z-index: 10;
+}
+
+.odcm-premium-badge {
+    display: inline-block;
+    background-color: #007ACC;
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+
+/* Disabled State for Premium Filters */
+.odcm-premium-filters-group input:disabled,
+.odcm-premium-filters-group select:disabled {
+    background-color: #f0f0f1;
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Lighter grey for premium filter labels in free version */
+.odcm-premium-filters-group .odcm-filter-item label {
+    color: #999 !important;
+}
+
+/* Date Range Container */
+.odcm-date-range-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.odcm-date-separator {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+}
+
+/* Date Input Specific Styling - Compact Size */
+.odcm-filter-bar input[type="date"],
+.odcm-date-range-container input[type="date"] {
+    min-width: 140px !important;
+    max-width: 140px !important;
+    width: 140px !important;
+    padding: 1px 4px !important;
+    font-size: 13px !important;
+}
+
+/* Ensure date inputs remain usable on mobile */
+@media screen and (max-width: 782px) {
+    .odcm-filter-bar input[type="date"],
+    .odcm-date-range-container input[type="date"] {
+        min-width: 90px !important;
+        max-width: 130px !important;
+        width: 130px !important;
+        font-size: 14px !important;
+    }
+    
+    .odcm-date-range-container {
+        gap: 4px;
+    }
+    
+    /* Mobile-optimized column widths */
+    .wp-list-table .column-timestamp {
+        width: 20% !important;
+    }
+    
+    .wp-list-table .column-status {
+        width: 15% !important;
+    }
+    
+    .wp-list-table .column-summary {
+        width: 30% !important;
+        min-width: 150px !important;
+    }
+    
+    .wp-list-table .column-order_id {
+        width: 15% !important;
+    }
+    
+    .wp-list-table .column-event_type {
+        width: 20% !important;
+    }
+    
+    .wp-list-table .column-source {
+        display: none !important; /* Hide source column on mobile to save space */
+    }
+}
+
+/*
+ * Final Hover Effect System for Audit Log Table
+ * This system correctly layers hover effects to achieve the desired UI.
+ */
+
+/* 1. Base Row Hover: Apply a blue background to table cells for clickability cue. */
+tr.odcm-expandable-row:hover > td,
+tr.odcm-expandable-row:hover > th {
+    background-color: rgba(0, 115, 170, 0.07) !important;
+    cursor: pointer;
+}
+
+/* 2. Selectable Text Hover: Apply a light grey background ON TOP of the blue row hover. */
+.odcm-cell-content {
+    padding: 2px;
+}
+tr.odcm-expandable-row:hover .odcm-cell-content:hover {
+    background-color: #f0f0f1 !important; /* Light grey background */
+    border-radius: 2px;
+    cursor: text;
+}
+
+/* 3. Status Pill Protection: Ensure status pills ALWAYS keep their original background color. */
+/* This rule is highly specific to override the blue row hover. */
+tr.odcm-expandable-row:hover .odcm-status-success,
+tr.odcm-expandable-row:hover .odcm-status-notice,
+tr.odcm-expandable-row:hover .odcm-status-warning,
+tr.odcm-expandable-row:hover .odcm-status-error,
+tr.odcm-expandable-row:hover .odcm-status-failure,
+tr.odcm-expandable-row:hover .odcm-status-critical,
+tr.odcm-expandable-row:hover .odcm-status-info,
+tr.odcm-expandable-row:hover .odcm-status-debug {
+    background-color: var(--odcm-color-success-bg) !important; /* Re-apply original color */
+}
+/* Re-apply specific colors since the above only sets one */
+tr.odcm-expandable-row:hover .odcm-status-notice { background-color: var(--odcm-color-notice) !important; }
+tr.odcm-expandable-row:hover .odcm-status-warning { background-color: var(--odcm-color-warning-bg) !important; }
+tr.odcm-expandable-row:hover .odcm-status-error { background-color: var(--odcm-color-error-bg) !important; }
+tr.odcm-expandable-row:hover .odcm-status-failure { background-color: var(--odcm-color-error-bg) !important; }
+tr.odcm-expandable-row:hover .odcm-status-critical { background-color: var(--odcm-color-critical) !important; }
+tr.odcm-expandable-row:hover .odcm-status-info { background-color: var(--odcm-color-info-bg) !important; }
+tr.odcm-expandable-row:hover .odcm-status-debug { background-color: var(--odcm-color-debug-bg) !important; }
+
+
+/* 4. Link & Interactive Element Protection: Ensure links and other elements don't get a background color. */
+tr.odcm-expandable-row:hover a,
+tr.odcm-expandable-row:hover .odcm-chevron-toggle {
+    background-color: transparent !important;
+}
+
+/* 5. Link Hover State: Ensure links have their own distinct hover state. */
+tr.odcm-expandable-row a:hover {
+    color: var(--odcm-color-text-link-hover);
+    text-decoration: underline;
+}
+
+/* 6. Details Row Exemption: Details rows should have no hover effects. */
+tr.odcm-log-details-row,
+tr.odcm-log-details-row:hover,
+tr.odcm-log-details-row > td,
+tr.odcm-log-details-row:hover > td {
+    background-color: #fafafa !important;
+    cursor: default;
+}
+
+/* ========================================
+ * PRISM.JS SYNTAX HIGHLIGHTING ENHANCEMENTS
+ * WordPress-Friendly Approach
+ * ======================================== */
+
+/* Ensure Prism.js works properly within our payload containers */
+.odcm-payload-content pre[class*="language-"],
+.odcm-api-section pre[class*="language-"],
+.odcm-error-section pre[class*="language-"] {
+    /* Work with WordPress admin styles, don't override them */
+    font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    /* Let Prism.css handle colors - we just ensure proper structure */
+}
+
+/* Ensure code blocks have proper background within our components */
+.odcm-payload-content pre code,
+.odcm-api-section pre code,
+.odcm-error-section pre code {
+    background: transparent; /* Let parent pre handle background */
+    padding: 0;
+    border: none;
+    font-size: inherit;
+    font-family: inherit;
+}
+
+/* Minimal fallback styling if Prism.js fails to load */
+.odcm-payload-content pre:not([class*="language-"]) code,
+.odcm-api-section pre:not([class*="language-"]) code,
+.odcm-error-section pre:not([class*="language-"]) code {
+    color: #333;
+    background: #f8f8f8;
+    padding: var(--odcm-spacing-sm);
+    border-radius: var(--odcm-border-radius);
+    display: block;
+}
+
+/* Ensure proper spacing for syntax highlighted content */
+.odcm-payload-content .token,
+.odcm-api-section .token,
+.odcm-error-section .token {
+    /* Let Prism.css handle token styling - we just ensure it's not overridden */
+    background: inherit;
+}

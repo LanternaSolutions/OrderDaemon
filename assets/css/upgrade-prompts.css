@@ -1,0 +1,20 @@
+/* Minimal, accessible modal styling for educational prompts */
+.odcm-upgrade-modal { position: fixed; inset: 0; z-index: 100000; }
+.odcm-upgrade-modal__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.35); }
+.odcm-upgrade-modal__dialog { position: relative; max-width: 720px; margin: 8vh auto; background: #fff; border-radius: 6px; box-shadow: 0 12px 32px rgba(0,0,0,0.2); overflow: hidden; }
+.odcm-upgrade-modal__close { position: absolute; top: 8px; right: 8px; background: transparent; border: none; font-size: 20px; cursor: pointer; }
+.odcm-upgrade-modal__header { padding: 16px 20px; border-bottom: 1px solid #e5e5e5; }
+.odcm-upgrade-modal__title { margin: 0; font-size: 18px; }
+.odcm-upgrade-modal__body { padding: 16px 20px; }
+.odcm-upgrade-modal__message { margin: 0 0 12px; font-size: 14px; color: #333; }
+.odcm-upgrade-modal__comparison { margin: 8px 0 12px; }
+.odcm-upgrade-compare { border-collapse: collapse; width: 100%; }
+.odcm-upgrade-compare th, .odcm-upgrade-compare td { border: 1px solid #eee; padding: 8px; text-align: left; font-size: 13px; }
+.odcm-upgrade-compare thead th { background: #fafafa; }
+.odcm-upgrade-modal__links { display: flex; gap: 12px; }
+.odcm-upgrade-modal__footer { padding: 12px 20px; border-top: 1px solid #e5e5e5; display: flex; align-items: center; justify-content: space-between; }
+.odcm-upgrade-modal__dismiss { font-size: 13px; color: #333; }
+.odcm-upgrade-modal__actions .button { margin-left: 8px; }
+
+/* Tooltip improvements for badges */
+.odcm-premium-badge { cursor: help; }

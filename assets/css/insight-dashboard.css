@@ -1,0 +1,2399 @@
+/**
+ * Insight Dashboard CSS - Self-Contained Three-Tier System
+ * 
+ * Modern three-pane dashboard layout with mobile-responsive design.
+ * Contains complete three-tier theming system for full independence.
+ * 
+ * Layout Structure:
+ * - Desktop: CSS Grid with three columns (filters | stream | details)
+ * - Mobile: Single column with slide-out panes
+ * 
+ * Three-Tier Architecture:
+ * 1. PRIMITIVES: Raw, context-free values (colors, fonts, spacing)
+ * 2. SEMANTICS: Generic, purpose-driven variables (component blueprints)
+ * 3. COMPONENTS: CSS classes that apply semantic variables with theme overrides
+ * 
+ * @package OrderDaemon\CompletionManager
+ * @since   2.0.0
+ */
+
+/* ==========================================================================
+   1. TIER 1: PRIMITIVE TOKENS -> Full Theme Palette Section
+   ========================================================================== */
+:root {
+  /* --- Greyscale Palette --- */
+  --odcm-theme-white: #ffffff;
+  --odcm-theme-grey-100: #f8f9fa; /* Lightest */
+  --odcm-theme-grey-200: #e9ecef;
+  --odcm-theme-grey-300: #dee2e6;
+  --odcm-theme-grey-400: #ced4da;
+  --odcm-theme-grey-500: #adb5bd;
+  --odcm-theme-grey-600: #6c757d;
+  --odcm-theme-grey-700: #495057;
+  --odcm-theme-grey-800: #343a40;
+  --odcm-theme-grey-900: #2e1f27; /* Darkest */
+
+  /* --- Theme: Red (Used for Error/Critical) --- */
+  --odcm-theme-red-200: #FBEBED;      /* Light background tint */
+  --odcm-theme-red-400: #f7baba;      /* Mid-tone for status pills */
+  --odcm-theme-red-700: #dc3545;      /* Main accent for borders/headers */
+  --odcm-theme-red-900: #90303b;      /* Critical accent */
+
+  /* --- Theme: Blue (Used for Rule Evaluation) --- */
+  --odcm-theme-blue-200: #DEF4FF;
+  --odcm-theme-blue-400: #80bfe6;
+  --odcm-theme-blue-700: #007cba;
+
+  /* --- Theme: Green (Used for Success) --- */
+  --odcm-theme-green-200: #E7F9EB;
+  --odcm-theme-green-400: #94d3a2;
+  --odcm-theme-green-700: #29A847;
+
+  /* --- Theme: Purple (Used for WooCommerce) --- */
+  --odcm-theme-purple-200: #F1ECF9;
+  --odcm-theme-purple-400: #b7a1e0;
+  --odcm-theme-purple-700: #6F42C2;
+
+  /* --- Theme: Yellow (Used for Database) --- */
+  --odcm-theme-yellow-200: #FEFAEF;
+  --odcm-theme-yellow-400: #fecb9a;
+  --odcm-theme-yellow-700: #F4C95D;
+
+  /* --- Theme: Indigo (Used for Performance) --- */
+  --odcm-theme-indigo-200: #F9F7FD;
+  --odcm-theme-indigo-400: #EDE7FA;
+  --odcm-theme-indigo-700: #C1AEEF;
+
+  /* --- Theme: System Info (Reuses Greyscale) --- */
+  --odcm-theme-system-200: var(--odcm-theme-grey-200);
+  --odcm-theme-system-400: var(--odcm-theme-grey-400);
+  --odcm-theme-system-700: var(--odcm-theme-grey-700);
+
+  /* --- Theme: Fallback/Default (Reuses Greyscale) --- */
+  --odcm-theme-default-200: var(--odcm-theme-white); /* No background tint for default */
+  --odcm-theme-default-400: var(--odcm-theme-grey-400);
+  --odcm-theme-default-700: var(--odcm-theme-grey-300); /* Uses border color */
+
+  /* --- Font Sizes --- */
+  --odcm-theme-font-size-xs: 11px;
+  --odcm-theme-font-size-sm: 12px;
+  --odcm-theme-font-size-md: 14px;
+  --odcm-theme-font-size-str: 14px;
+  --odcm-theme-font-weight-str: 500;
+
+  /* --- Spacing --- */
+  --odcm-theme-spacing-xs: 4px;
+  --odcm-theme-spacing-sm: 8px;
+  --odcm-theme-spacing-md: 12px;
+  --odcm-theme-spacing-lg: 16px;
+  --odcm-theme-gap-horizontal: 8px;
+  --odcm-theme-gap-vertical: 4px;
+
+  /* --- Layout Heights --- */
+  --odcm-theme-wp-admin-bar-height: var(--wp-admin--admin-bar--height, 32px);
+  --odcm-calculated-admin-bar-height: var(--odcm-theme-wp-admin-bar-height);
+  --odcm-calculated-dashboard-height: calc(100vh - var(--odcm-calculated-admin-bar-height));
+  --odcm-theme-pane-header-height: 48px;
+  --odcm-theme-mobile-header-height: 56px;
+  --odcm-theme-component-base-max-height: 360px;
+  --odcm-theme-component-max-height: 60vh;
+
+  /* --- Layout Widths --- */
+  --odcm-theme-side-pane-width: 300px;
+
+  /* --- Key-Value Layout Primitives --- */
+  --odcm-theme-key-value-gap: var(--odcm-theme-gap-horizontal);
+  --odcm-theme-key-value-row-gap: var(--odcm-theme-gap-vertical);
+  --odcm-theme-key-border-color: var(--odcm-theme-grey-400);
+  --odcm-theme-value-bg: var(--odcm-theme-grey-200);
+
+  /* --- Border Radius --- */
+  --odcm-theme-border-radius: 3px;
+
+  /* --- Shadows --- */
+  --odcm-theme-shadow: inset 0 0 5px 0 rgba(0, 0, 0, 0.25);
+
+  /* --- Transitions --- */
+  --odcm-theme-transition: 0.15s ease-in-out;
+}
+
+/* ==========================================================================
+   2. TIER 2: SEMANTIC TOKENS (The Component Blueprint)
+   ========================================================================== */
+:root {
+  /* --- Default Component Blueprint --- */
+  --odcm-component-bg: var(--odcm-theme-grey-100);
+  --odcm-component-border-color: var(--odcm-theme-grey-300);
+  --odcm-component-header-border-color: var(--odcm-component-border-color);
+  --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+  --odcm-component-text-color-body: var(--odcm-theme-grey-800);
+  --odcm-component-padding: var(--odcm-theme-spacing-sm);
+  --odcm-component-margin: var(--odcm-theme-spacing-xs);
+  --odcm-component-border-width: 1px;
+  --odcm-component-border-radius: var(--odcm-theme-border-radius);
+  --odcm-component-section-margin: var(--odcm-theme-spacing-xs);
+  --odcm-component-value-bg: var(--odcm-theme-grey-300);
+  --odcm-component-code-border-color: var(--odcm-theme-grey-300);
+  --odcm-component-transition: all 0.3s ease;
+  --odcm-component-max-height: var(--odcm-component-max-height);
+
+  /* --- Key-Value Component Blueprint --- */
+  --odcm-key-value-layout: grid;
+  --odcm-key-value-columns: auto 1fr;
+  --odcm-key-value-gap: var(--odcm-theme-key-value-gap);
+  --odcm-key-value-row-gap: var(--odcm-theme-key-value-row-gap);
+  --odcm-key-padding: var(--odcm-theme-spacing-xs);
+  --odcm-key-bg: var(--odcm-theme-grey-300);
+  --odcm-value-border: 1px solid var(--odcm-theme-grey-300);
+  --odcm-value-padding: var(--odcm-theme-spacing-xs);
+  --odcm-section-title-font-size: var(--odcm-theme-font-size-md);
+  --odcm-section-title-font-weight: var(--odcm-theme-font-weight-str);
+  --odcm-section-margin-bottom: var(--odcm-theme-spacing-xs);
+
+  /* --- Default Status Pill Blueprint --- */
+  --odcm-status-bg: var(--odcm-theme-grey-300);
+  --odcm-status-text-color: var(--odcm-theme-grey-700);
+
+  /* --- Icon Button Blueprint --- */
+  --odcm-icon-button-size: 24px;
+  --odcm-icon-button-padding: 4px;
+  --odcm-icon-button-color: var(--odcm-theme-grey-600);
+  --odcm-icon-button-hover-bg: var(--odcm-theme-grey-300);
+  --odcm-icon-button-hover-color: var(--odcm-theme-blue-700);
+  --odcm-icon-button-focus-outline: 2px solid var(--odcm-theme-blue-700);
+  --odcm-icon-button-focus-offset: 2px;
+  --odcm-icon-button-icon-size: 16px;
+  --odcm-icon-button-transition: all 0.15s ease-in-out;
+
+  /* --- Layout Calculations --- */
+  --odcm-layout-sticky-top-offset: calc(var(--odcm-theme-wp-admin-bar-height) + var(--odcm-theme-pane-header-height));
+  --odcm-layout-pane-max-height: calc(100vh - var(--odcm-layout-sticky-top-offset));
+  --odcm-layout-unified-header-top: var(--odcm-theme-wp-admin-bar-height);
+  --odcm-layout-pane-content-top: calc(var(--odcm-layout-sticky-top-offset) + 26px);
+}
+
+/* ==========================================================================
+   WORDPRESS-NATIVE LAYOUT INTEGRATION
+   ========================================================================== */
+
+/* WordPress-Native Dashboard Integration */
+/* When our dashboard is active, completely override WordPress admin layout */
+.odcm-is-fullscreen-dashboard #wpbody-content {
+    overflow: hidden !important; /* Prevent scrolling of the main content area */
+    height: var(--odcm-calculated-dashboard-height, calc(100vh - var(--odcm-calculated-admin-bar-height))) !important;
+    min-height: var(--odcm-calculated-dashboard-height, calc(100vh - var(--odcm-calculated-admin-bar-height))) !important;
+    max-height: var(--odcm-calculated-dashboard-height, calc(100vh - var(--odcm-calculated-admin-bar-height))) !important;
+    padding: 0 !important; /* Remove default WordPress padding */
+    margin: 0 !important; /* Remove default WordPress margins */
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important; /* Ensure proper positioning context */
+}
+
+.odcm-is-fullscreen-dashboard .wrap {
+    height: 100% !important; /* Fill available space in #wpbody-content */
+    min-height: 100% !important;
+    max-height: 100% !important;
+    margin: 0 !important; /* Remove WordPress default margins */
+    padding: 0 !important; /* Remove WordPress default padding */
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important; /* Prevent any overflow */
+    position: relative !important;
+}
+
+/* Ensure proper height inheritance from WordPress admin structure */
+.odcm-is-fullscreen-dashboard #wpcontent {
+    height: 100vh !important; /* Full viewport height */
+    min-height: 100vh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+.odcm-is-fullscreen-dashboard #wpbody {
+    flex: 1 !important; /* Take remaining space after admin bar */
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important; /* Allow shrinking */
+    overflow: hidden !important;
+    height: var(--odcm-calculated-dashboard-height, calc(100vh - var(--odcm-calculated-admin-bar-height))) !important;
+}
+
+/* Ensure no spacing between admin sidebar and dashboard */
+.odcm-is-fullscreen-dashboard #wpcontent {
+    padding-left: 0 !important;
+    margin-left: 160px !important; /* Maintain WordPress admin menu spacing */
+}
+
+.odcm-is-fullscreen-dashboard #wpbody {
+    margin-right: 0 !important;
+}
+
+/* Handle collapsed admin menu state */
+.odcm-is-fullscreen-dashboard.folded #wpcontent {
+    margin-left: 36px !important; /* WordPress collapsed menu width */
+}
+
+/* Mobile responsive adjustments */
+@media screen and (max-width: 782px) {
+    .odcm-is-fullscreen-dashboard #wpcontent {
+        margin-left: 0 !important;
+        padding-left: 10px !important;
+    }
+    
+    .odcm-is-fullscreen-dashboard #wpbody-content {
+        padding-left: 10px !important;
+        padding-right: 12px !important;
+    }
+}
+
+/* Ensure WordPress notices don't interfere with height calculations */
+.odcm-is-fullscreen-dashboard .notice,
+.odcm-is-fullscreen-dashboard .updated,
+.odcm-is-fullscreen-dashboard .error {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1000 !important;
+    margin: 0 !important;
+}
+
+/* ==========================================================================
+   DASHBOARD LAYOUT - Unified Header + Content Grid
+   ========================================================================== */
+
+/* Override WordPress admin page spacing for our dashboard */
+.toplevel_page_odcm-insight-dashboard,
+.woocommerce_page_odcm-insight-dashboard {
+    margin: 0;
+    padding: 0;
+}
+
+.odcm-insight-dashboard {
+    height: 100% !important; /* Fill the .wrap container completely */
+    min-height: var(--odcm-calculated-dashboard-height, calc(100vh - var(--odcm-calculated-admin-bar-height))) !important;
+    max-height: 100% !important; /* Prevent overflow */
+    overflow: hidden !important; /* Prevent any scrolling at dashboard level */
+    display: flex !important;
+    flex-direction: column !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0px !important;
+    background: var(--odcm-theme-white) !important;
+    border-bottom: 1px solid var(--odcm-component-border-color) !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure dashboard adapts to dynamic height changes */
+.odcm-insight-dashboard[style*="height"] {
+    min-height: inherit !important;
+    max-height: inherit !important;
+}
+
+/* Hide WordPress admin footer on our dashboard page */
+.toplevel_page_odcm-insight-dashboard #wpfooter,
+.woocommerce_page_odcm-insight-dashboard #wpfooter {
+    display: none !important;
+}
+
+/* Mobile controls - removed in unified approach */
+.odcm-mobile-controls {
+    display: none;
+}
+
+/* Unified Header Bar */
+.odcm-unified-header {
+    position: relative; /* WordPress handles positioning */
+    z-index: 50; /* Above all content panes to ensure shadow visibility */
+    background: var(--odcm-theme-white);
+    border: 1px solid var(--odcm-component-border-color);
+    border-bottom: 2px solid var(--odcm-component-border-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.odcm-unified-header-content {
+    display: grid;
+    grid-template-columns: var(--odcm-theme-side-pane-width) 1fr 0px; /* Default: filter visible, details hidden */
+    transition: grid-template-columns 0.3s ease;
+    gap: 0px; /* No gaps to match content grid */
+}
+
+/* Header grid control based on Alpine.js state classes */
+.odcm-insight-dashboard.filter-pane-visible.details-pane-visible .odcm-unified-header-content {
+    grid-template-columns: var(--odcm-theme-side-pane-width) 1fr var(--odcm-theme-side-pane-width);
+}
+
+.odcm-insight-dashboard.filter-pane-visible:not(.details-pane-visible) .odcm-unified-header-content {
+    grid-template-columns: var(--odcm-theme-side-pane-width) 1fr 0px;
+}
+
+.odcm-insight-dashboard:not(.filter-pane-visible).details-pane-visible .odcm-unified-header-content {
+    grid-template-columns: var(--odcm-theme-side-pane-width) 1fr var(--odcm-theme-side-pane-width);
+}
+
+.odcm-insight-dashboard:not(.filter-pane-visible):not(.details-pane-visible) .odcm-unified-header-content {
+    grid-template-columns: var(--odcm-theme-side-pane-width) 1fr 0px;
+}
+
+/* Detail pane expansion state - header remains unchanged for overlay */
+.odcm-insight-dashboard.detail-pane-expanded .odcm-unified-header-content {
+    /* Keep normal layout - expanded pane is overlay, doesn't affect header grid */
+}
+
+.odcm-unified-header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--odcm-theme-spacing-md);
+    background: var(--odcm-theme-grey-100);
+    border-right: 1px solid var(--odcm-component-border-color);
+    height: var(--odcm-theme-pane-header-height); /* Fixed height instead of min-height */
+    box-sizing: border-box; /* Include padding in height calculation */
+}
+
+
+.odcm-unified-header-section:last-child {
+    border-right: none;
+}
+
+.odcm-unified-header-section h3 {
+    margin: 0;
+    font-size: var(--odcm-theme-font-size-str);
+    font-weight: var(--odcm-theme-font-weight-str);
+    color: var(--odcm-component-text-color-header);
+}
+
+/* ==========================================================================
+   UNIFIED ICON BUTTON SYSTEM - Three-Tier Implementation
+   ========================================================================== */
+
+/* Base Icon Button Component - Uses Semantic Tokens */
+.odcm-icon-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--odcm-icon-button-padding);
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-icon-button-transition);
+    color: var(--odcm-icon-button-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--odcm-icon-button-size);
+    min-height: var(--odcm-icon-button-size);
+}
+
+.odcm-icon-button:hover {
+    background-color: var(--odcm-icon-button-hover-bg);
+    color: var(--odcm-icon-button-hover-color);
+}
+
+.odcm-icon-button:focus {
+    outline: var(--odcm-icon-button-focus-outline);
+    outline-offset: var(--odcm-icon-button-focus-offset);
+}
+
+.odcm-icon-button .dashicons {
+    transition: var(--odcm-icon-button-transition);
+    font-size: var(--odcm-icon-button-icon-size);
+    width: var(--odcm-icon-button-icon-size);
+    height: var(--odcm-icon-button-icon-size);
+}
+
+/* Icon Button Container */
+.odcm-pane-icon-buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Legacy class - now uses base icon button styles */
+.odcm-pane-icon-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--odcm-icon-button-padding);
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-icon-button-transition);
+    color: var(--odcm-icon-button-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--odcm-icon-button-size);
+    min-height: var(--odcm-icon-button-size);
+}
+
+.odcm-pane-icon-button:hover {
+    background-color: var(--odcm-icon-button-hover-bg);
+    color: var(--odcm-icon-button-hover-color);
+}
+
+.odcm-pane-icon-button:focus {
+    outline: var(--odcm-icon-button-focus-outline);
+    outline-offset: var(--odcm-icon-button-focus-offset);
+}
+
+.odcm-pane-icon-button .dashicons {
+    transition: var(--odcm-icon-button-transition);
+    font-size: var(--odcm-icon-button-icon-size);
+    width: var(--odcm-icon-button-icon-size);
+    height: var(--odcm-icon-button-icon-size);
+}
+
+/* Stream header content with documentation link */
+.odcm-stream-header-content {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+}
+
+/* Documentation link - now uses unified icon button styling */
+.odcm-docs-link {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--odcm-icon-button-padding);
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-icon-button-transition);
+    color: var(--odcm-icon-button-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--odcm-icon-button-size);
+    min-height: var(--odcm-icon-button-size);
+    text-decoration: none;
+}
+
+.odcm-docs-link:hover {
+    background-color: var(--odcm-icon-button-hover-bg);
+    color: var(--odcm-icon-button-hover-color);
+}
+
+.odcm-docs-link:focus {
+    outline: var(--odcm-icon-button-focus-outline);
+    outline-offset: var(--odcm-icon-button-focus-offset);
+}
+
+.odcm-docs-link .dashicons {
+    transition: var(--odcm-icon-button-transition);
+    font-size: var(--odcm-icon-button-icon-size);
+    width: var(--odcm-icon-button-icon-size);
+    height: var(--odcm-icon-button-icon-size);
+}
+
+/* Content Grid */
+.odcm-content-grid {
+    display: grid;
+    grid-template-columns: var(--odcm-theme-side-pane-width) 1fr 0px; /* Default: filter visible, details hidden */
+    grid-template-areas: "filters stream details";
+    gap: 0px;
+    transition: grid-template-columns 0.3s ease;
+    position: relative; /* Create positioning context for expanded details pane */
+    flex: 1; /* Take remaining vertical space */
+    min-height: 0; /* Allow grid to shrink */
+}
+
+/* Grid control based on Alpine.js state classes */
+.odcm-insight-dashboard.filter-pane-visible.details-pane-visible .odcm-content-grid {
+    grid-template-columns: var(--odcm-theme-side-pane-width) 1fr var(--odcm-theme-side-pane-width);
+}
+
+.odcm-insight-dashboard.filter-pane-visible:not(.details-pane-visible) .odcm-content-grid {
+    grid-template-columns: var(--odcm-theme-side-pane-width) 1fr 0px;
+}
+
+.odcm-insight-dashboard:not(.filter-pane-visible).details-pane-visible .odcm-content-grid {
+    grid-template-columns: 0px 1fr var(--odcm-theme-side-pane-width);
+}
+
+.odcm-insight-dashboard:not(.filter-pane-visible):not(.details-pane-visible) .odcm-content-grid {
+    grid-template-columns: 0px 1fr 0px;
+}
+
+/* Detail pane expansion state - grid remains unchanged for overlay */
+.odcm-insight-dashboard.detail-pane-expanded .odcm-content-grid {
+    /* Keep normal layout - expanded pane is overlay, doesn't affect content grid */
+}
+
+/* ==========================================================================
+   PANE STRUCTURE - Common Styles
+   ========================================================================== */
+
+.odcm-filter-pane,
+.odcm-log-stream,
+.odcm-detail-pane {
+    background: var(--odcm-theme-white);
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: 0px;
+    display: flex;
+    flex-direction: column;
+    margin-top: 0; /* Ensure no margin offset */
+    border-top: 0; /* Remove top border to align with header */
+}
+
+.odcm-filter-pane {
+    grid-area: filters;
+    border-right: 1px solid var(--odcm-component-border-color);
+    overflow-y: auto; /* Enable internal scrolling */
+    height: 100%; /* Fill available grid space */
+    min-height: 0; /* Allow shrinking below content size */
+}
+
+.odcm-log-stream {
+    grid-area: stream;
+    border-left: 0;
+    border-right: 1px solid var(--odcm-component-border-color);
+    overflow-y: auto; /* Enable internal scrolling */
+    height: 100%; /* Fill available grid space */
+    min-height: 0; /* Allow shrinking below content size */
+    z-index: 5; /* Same level as other panes - grid handles positioning */
+}
+
+.odcm-detail-pane {
+    grid-area: details;
+    border-left: 0px;
+    transition: all 0.3s ease;
+    overflow-y: auto; /* Enable internal scrolling */
+    height: 100%; /* Fill available grid space */
+    min-height: 0; /* Allow shrinking below content size */
+    transform: translateX(0);
+}
+
+/* Details pane overlay expansion - expands leftward from right edge over log stream */
+.odcm-insight-dashboard.detail-pane-expanded .odcm-detail-pane {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 50vw;
+    height: 100%;
+    z-index: 20; /* Above content but below WordPress admin elements */
+    box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+    transform: translateX(0);
+}
+
+.odcm-insight-dashboard:not(.detail-pane-expanded) .odcm-detail-pane {
+    /*transform: translateX(100%);*/
+}
+
+/* Fix: Details pane should be visible when log is selected, not just when expanded */
+.odcm-detail-pane {
+    display: flex; /* Default display as flex container */
+    width: 100%; /* Ensure it takes full grid area width */
+}
+
+/* Filter pane visibility - controlled entirely by grid layout */
+.odcm-filter-pane {
+    width: 100%; /* Ensure it takes full grid area width */
+}
+
+/* ==========================================================================
+   PANE HEADERS - Unified Sticky App Frame
+   ========================================================================== */
+
+/* Common base class for all pane headers */
+.odcm-pane-header,
+.odcm-filter-pane-header,
+.odcm-log-stream-header,
+.odcm-detail-pane-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--odcm-theme-spacing-md);
+    background: var(--odcm-theme-grey-100);
+    border-bottom: 1px solid var(--odcm-component-border-color);
+    flex-shrink: 0;
+    min-height: 36px;
+    position: sticky;
+    z-index: 100; /* Ensure headers stay above content but below modals */
+}
+
+.odcm-filter-pane-header h3,
+.odcm-log-stream-header h3,
+.odcm-detail-pane-header h3 {
+    margin: 0;
+    font-size: var(--odcm-theme-font-size-str);
+    font-weight: var(--odcm-theme-font-weight-str);
+    color: var(--odcm-component-text-color-header);
+}
+
+.odcm-filter-pane-header-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.odcm-detail-pane-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+}
+
+/* Close pane button - now uses unified icon button styling */
+.odcm-close-pane {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--odcm-icon-button-padding);
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-icon-button-transition);
+    color: var(--odcm-icon-button-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--odcm-icon-button-size);
+    min-height: var(--odcm-icon-button-size);
+}
+
+.odcm-close-pane:hover {
+    background-color: var(--odcm-icon-button-hover-bg);
+    color: var(--odcm-icon-button-hover-color);
+}
+
+.odcm-close-pane:focus {
+    outline: var(--odcm-icon-button-focus-outline);
+    outline-offset: var(--odcm-icon-button-focus-offset);
+}
+
+.odcm-close-pane .dashicons {
+    transition: var(--odcm-icon-button-transition);
+    font-size: var(--odcm-icon-button-icon-size);
+    width: var(--odcm-icon-button-icon-size);
+    height: var(--odcm-icon-button-icon-size);
+}
+
+/* ==========================================================================
+   FILTER PANE - Vertical Layout
+   ========================================================================== */
+
+/* Ensure the filter pane content has relative positioning for absolute children */
+.odcm-filter-pane-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.odcm-filter-form {
+    padding: var(--odcm-theme-spacing-md);
+    flex: 1;
+    min-height: 0; /* Allow flex item to shrink below content size */
+}
+
+.odcm-filter-group {
+    margin-bottom: var(--odcm-theme-spacing-md);
+}
+
+.odcm-filter-group:last-child {
+    margin-bottom: 0;
+}
+
+.odcm-filter-group label {
+    display: block;
+    font-weight: var(--odcm-theme-font-weight-str);
+    margin-bottom: var(--odcm-theme-spacing-xs);
+    color: var(--odcm-component-text-color-header);
+    font-size: var(--odcm-theme-font-size-sm);
+}
+
+.odcm-filter-group input,
+.odcm-filter-group select {
+    width: 100%;
+    max-width: none;
+}
+
+/* Premium Filter Group */
+.odcm-premium-filter-group {
+    position: relative;
+    background: var(--odcm-theme-grey-100);
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    padding: var(--odcm-theme-spacing-md);
+    margin: var(--odcm-theme-spacing-md) 0;
+}
+
+.odcm-premium-badge {
+    background: var(--odcm-theme-grey-600); /* Changed from blue to middle grey */
+    color: var(--odcm-theme-white);
+    padding: 2px 6px;
+    border-radius: var(--odcm-component-border-radius);
+    font-size: var(--odcm-theme-font-size-xs);
+    font-weight: bold;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    /* No positioning - let parent context control */
+}
+
+/* Positioning modifier classes for different contexts */
+.odcm-premium-badge--absolute {
+    position: absolute;
+    top: -8px;
+    right: 8px;
+}
+
+.odcm-premium-badge--inline {
+    position: static;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.odcm-premium-filter-group input:disabled,
+.odcm-premium-filter-group select:disabled {
+    background: var(--odcm-theme-grey-200);
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.odcm-premium-filter-group label {
+    color: var(--odcm-theme-grey-500) !important;
+}
+
+/* Date Range */
+.odcm-date-range {
+    display: flex;
+    align-items: center;
+    gap: 6px; /* Reduced gap for tighter layout */
+}
+
+.odcm-date-range input {
+    flex: 1;
+    min-width: 0; /* Allow inputs to shrink below content size */
+    max-width: 110px; /* Constrain maximum width to fit in the side pane */
+    font-size: var(--odcm-theme-font-size-sm); /* Smaller font for compactness */
+}
+
+.odcm-date-range span {
+    font-size: var(--odcm-theme-font-size-xs); /* Smaller separator text */
+    color: var(--odcm-theme-grey-600);
+    white-space: nowrap;
+    flex-shrink: 0; /* Prevent separator from shrinking */
+    padding: 0 2px; /* Minimal padding around separator */
+}
+
+/* Filter Actions */
+.odcm-filter-actions {
+    display: flex;
+    gap: var(--odcm-theme-spacing-sm);
+    margin-top: var(--odcm-theme-spacing-lg);
+    padding-top: var(--odcm-theme-spacing-md);
+    border-top: 1px solid var(--odcm-component-border-color);
+}
+
+.odcm-filter-actions button {
+    flex: 1;
+}
+
+/* ==========================================================================
+   SETTINGS TAB CONTENT
+   ========================================================================== */
+
+/* Settings Accordion Styles */
+.odcm-settings-accordion {
+    margin-bottom: 20px;
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    overflow: hidden;
+    background: var(--odcm-theme-white);
+}
+
+.odcm-settings-accordion:last-child {
+    margin-bottom: 0;
+}
+
+.odcm-settings-accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--odcm-theme-spacing-md);
+    background: var(--odcm-theme-grey-100);
+    border-bottom: 1px solid var(--odcm-component-border-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.odcm-settings-accordion-header:hover {
+    background: var(--odcm-theme-grey-200);
+}
+
+.odcm-settings-accordion-title {
+    flex: 1;
+}
+
+.odcm-settings-accordion-label {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--odcm-component-text-color-header);
+    margin-bottom: 4px;
+}
+
+.odcm-settings-accordion-description {
+    margin: 0;
+    color: var(--odcm-theme-grey-600);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.odcm-settings-accordion-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--odcm-theme-grey-600);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    margin-left: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-settings-accordion-header.is-expanded .odcm-settings-accordion-icon {
+    transform: rotate(180deg);
+}
+
+.odcm-settings-accordion-content {
+    overflow: hidden;
+}
+
+.odcm-settings-section-inner {
+    padding: var(--odcm-theme-spacing-md);
+}
+
+/* Accordion Transitions */
+.odcm-accordion-enter {
+    transition: all 0.3s ease;
+}
+
+.odcm-accordion-enter-start {
+    opacity: 0;
+    max-height: 0;
+}
+
+.odcm-accordion-enter-end {
+    opacity: 1;
+    max-height: 500px;
+}
+
+.odcm-accordion-leave {
+    transition: all 0.3s ease;
+}
+
+.odcm-accordion-leave-start {
+    opacity: 1;
+    max-height: 500px;
+}
+
+.odcm-accordion-leave-end {
+    opacity: 0;
+    max-height: 0;
+}
+
+.odcm-settings-section {
+    margin-bottom: var(--odcm-theme-spacing-lg);
+    padding: var(--odcm-theme-spacing-md);
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    background: var(--odcm-theme-white);
+}
+
+.odcm-settings-section:last-child {
+    margin-bottom: 0;
+}
+
+.odcm-settings-section label,
+.odcm-filters-section label {
+    margin-top: var(--odcm-theme-spacing-lg);
+    font-size: var(--odcm-theme-font-size-sm);
+    font-weight: var(--odcm-theme-font-weight-str);
+    color: var(--odcm-component-text-color-header);
+}
+
+.odcm-settings-section .description,
+.odcm-filters-section .description {
+    margin: 0 0 var(--odcm-theme-spacing-md) 0;
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-600);
+    line-height: 1.4;
+}
+
+.odcm-setting-row {
+    margin-bottom: var(--odcm-theme-spacing-md);
+}
+
+.odcm-setting-row:last-child {
+    margin-bottom: 0;
+}
+
+.odcm-setting-label {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--odcm-theme-spacing-xs);
+    font-weight: var(--odcm-theme-font-weight-str);
+    margin-bottom: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-radio-row {
+    margin-right: var(--odcm-theme-spacing-md);
+}
+
+.odcm-setting-row-pair {
+    display: flex;
+    gap: var(--odcm-key-value-row-gap);
+}
+
+.odcm-setting-row-pair input,
+.odcm-setting-row-pair button {
+    height: min-content;
+}
+
+.odcm-retention-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-retention-option {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+    cursor: pointer;
+    padding: var(--odcm-theme-spacing-xs);
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-component-transition);
+}
+
+label.odcm-retention-option {
+    margin: 0;
+}
+
+.odcm-retention-option:hover {
+    background: var(--odcm-theme-grey-100);
+}
+
+.odcm-retention-option input[type="radio"] {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.odcm-danger-section {
+    background: var(--odcm-theme-red-200);
+    border: solid 1px var(--odcm-theme-red-700);
+    border-radius: var(--odcm-theme-border-radius);
+    padding: var(--odcm-theme-spacing-md);
+    margin: var(--odcm-theme-spacing-sm) 0px;
+}
+
+.odcm-danger-section label {
+    color: var(--odcm-theme-red-900);
+    margin: var(--odcm-theme-spacing-xs) 0px;
+}
+
+.odcm-danger-section .description {
+    color: var(--odcm-theme-grey-900);
+}
+
+/* Settings Pane Content Wrapper - Absolute positioned overlay */
+.odcm-settings-pane-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    width: var(--odcm-theme-side-pane-width);
+    background: var(--odcm-theme-white);
+    z-index: 15; /* Above regular content, below unified header */
+    padding: var(--odcm-theme-spacing-sm);
+    box-sizing: border-box;
+    transform: translateX(-100%); /* Hidden to the left by default */
+    transition: transform 0.3s ease;
+    overflow-y: auto; /* Enable scrolling for settings content */
+}
+
+/* Show settings pane when settings tab is active AND filter pane is visible */
+.odcm-insight-dashboard.filter-pane-visible .odcm-settings-pane-content:not([style*="display: none"]) {
+    transform: translateX(0);
+}
+
+/* Hide settings pane when filter pane is collapsed, regardless of Alpine.js state */
+.odcm-insight-dashboard:not(.filter-pane-visible) .odcm-settings-pane-content {
+    transform: translateX(-100%);
+}
+
+/* Tab Content (now used for both filters and settings inner content) */
+.odcm-tab-content {
+    flex: 1;
+    min-height: 0; /* Allow flex item to shrink below content size */
+    width: 100%; /* Ensure it takes full container width */
+}
+
+/* Settings form styling */
+.odcm-settings-section form {
+    margin: 0;
+}
+
+/* Horizontal Checkbox Layout */
+.odcm-checkbox-group {
+    display: flex;
+    gap: var(--odcm-theme-spacing-lg);
+    flex-wrap: wrap;
+}
+
+.odcm-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+    white-space: nowrap;
+}
+
+.odcm-checkbox-item input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.odcm-checkbox-item label {
+    margin: 0;
+    font-weight: normal;
+    cursor: pointer;
+    font-size: var(--odcm-theme-font-size-sm);
+    font-weight: var(--odcm-theme-font-size-str);
+}
+
+/* ==========================================================================
+   LOG STREAM - Entry List and Pagination
+   ========================================================================== */
+
+.odcm-log-stream-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.odcm-stream-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-md);
+    flex-wrap: nowrap;
+}
+
+/* ==========================================================================
+   LOG ENTRIES CONTROLS WRAPPER
+   ========================================================================== */
+
+.odcm-log-entries-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--odcm-theme-spacing-md);
+    padding: var(--odcm-theme-spacing-sm);
+    background: transparent;
+    margin-bottom: var(--odcm-theme-spacing-sm);
+    flex-wrap: wrap;
+    min-height: 36px;
+}
+
+/* ==========================================================================
+   BATCH SELECTION CONTROLS
+   ========================================================================== */
+
+.odcm-batch-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-md);
+    flex-wrap: wrap;
+    flex: 1; /* Take available space on the left */
+}
+
+.odcm-select-all-container {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-select-all-checkbox {
+    margin: 0;
+    cursor: pointer;
+}
+
+.odcm-select-all-label {
+    margin: 0;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-700);
+}
+
+.odcm-batch-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-md);
+}
+
+.odcm-selection-count {
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-600);
+    font-weight: 500;
+}
+/*
+.odcm-delete-selected {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    margin: var(--odcm-theme-spacing-xs);
+    background: var(--odcm-theme-red-700);
+    color: var(--odcm-theme-white);
+    border: 1px solid var(--odcm-theme-red-700);
+    border-radius: var(--odcm-component-border-radius);
+    cursor: pointer;
+    transition: var(--odcm-component-transition);
+    font-size: var(--odcm-theme-font-size-sm);
+}
+*/
+.odcm-delete-selected:hover:not(:disabled) {
+    background: var(--odcm-theme-red-700);
+    border-color: var(--odcm-theme-red-700);
+    color: var(--odcm-theme-white);
+}
+
+.odcm-delete-selected:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.odcm-delete-selected .dashicons.is-spinning {
+    animation: odcm-spin 1s linear infinite;
+    
+}
+
+.odcm-log-display-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.odcm-timestamp-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Unified Button Styling - Consistent spacing and alignment */
+.odcm-timestamp-toggle,
+.odcm-refresh-button,
+.odcm-delete-selected {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: var(--odcm-component-border-radius);
+    background: var(--odcm-theme-white);
+    border: 1px solid var(--odcm-component-border-color);
+    color: var(--odcm-theme-grey-700);
+    cursor: pointer;
+    transition: var(--odcm-component-transition);
+    font-size: var(--odcm-theme-font-size-sm);
+    line-height: 1.2;
+    min-width: 60px;
+    width: auto;
+    box-sizing: border-box;
+    flex-wrap: nowrap !important;
+    flex-shrink: 0;
+    height: min-content;
+}
+
+/* Force all child elements to display inline */
+.odcm-timestamp-toggle > *,
+.odcm-refresh-button > * {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+}
+
+.odcm-timestamp-toggle:hover,
+.odcm-refresh-button:hover:not(:disabled) {
+    background: var(--odcm-theme-grey-100);
+    border-color: var(--odcm-theme-blue-700);
+    color: var(--odcm-theme-blue-700);
+}
+
+.odcm-refresh-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Unified Icon Styling */
+.odcm-timestamp-toggle .dashicons,
+.odcm-refresh-button .dashicons,
+.odcm-delete-selected .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Button Text Override - Ensures consistent font sizing across WordPress admin */
+.odcm-timestamp-toggle .odcm-button-text,
+.odcm-refresh-button .odcm-button-text {
+    font-size: var(--odcm-theme-font-size-sm) !important;
+    line-height: 1.2 !important;
+    font-weight: normal !important;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   REFRESH CONTROLS - Toggle Switch and Combined Button
+   ========================================================================== */
+
+.odcm-refresh-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+}
+
+/* Toggle Switch */
+.odcm-toggle-switch {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+    cursor: pointer;
+    user-select: none;
+}
+
+.odcm-toggle-switch input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.odcm-toggle-slider {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    background-color: var(--odcm-theme-grey-400);
+    border-radius: 12px;
+    transition: background-color 0.3s ease;
+    cursor: pointer;
+}
+
+.odcm-toggle-slider::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background-color: var(--odcm-theme-white);
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.odcm-toggle-switch input:checked + .odcm-toggle-slider {
+    background-color: var(--odcm-theme-blue-700);
+}
+
+.odcm-toggle-switch input:checked + .odcm-toggle-slider::before {
+    transform: translateX(16px);
+}
+
+.odcm-toggle-switch input:focus + .odcm-toggle-slider {
+    outline: 1px solid var(--odcm-theme-blue-700);
+    outline-offset: 2px;
+}
+
+.odcm-toggle-label {
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-700);
+    font-weight: 500;
+    padding-left: 4px;
+}
+
+/* Spinning animation for refresh icon and other loading states */
+.odcm-refresh-button .dashicons.is-spinning,
+.dashicons.is-spinning {
+    animation: odcm-spin 1s linear infinite;
+}
+
+@keyframes odcm-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Button text spacing */
+.odcm-button-text {
+    margin-left: 4px;
+}
+
+/* Disabled button states */
+.button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Interval Input */
+.odcm-interval-input {
+    width: 32px;
+    padding: 0px;
+    border: 1px solid var(--odcm-theme-grey-400);
+    border-radius: 2px;
+    text-align: center;
+    font-size: var(--odcm-theme-font-size-sm);
+    background: var(--odcm-theme-white);
+}
+
+.odcm-interval-input:focus {
+    outline: 1px solid var(--odcm-theme-blue-700);
+    border-color: var(--odcm-theme-blue-700);
+}
+
+/* Remove spinner arrows from number input */
+.odcm-interval-input::-webkit-outer-spin-button,
+.odcm-interval-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.odcm-interval-input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* Stream States */
+.odcm-loading-state,
+.odcm-error-state,
+.odcm-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--odcm-theme-spacing-lg);
+    text-align: center;
+    color: var(--odcm-theme-grey-600);
+    flex: 1;
+}
+
+.odcm-loading-state .spinner,
+.odcm-error-state .dashicons,
+.odcm-empty-state .dashicons {
+    margin-bottom: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-error-state {
+    color: var(--odcm-theme-red-700);
+}
+
+.odcm-error-state button {
+    margin-top: var(--odcm-theme-spacing-sm);
+}
+
+/* Log Entries */
+.odcm-log-entries {
+    padding: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-log-entry {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    margin-bottom: var(--odcm-theme-spacing-sm);
+    padding: var(--odcm-theme-spacing-xs) var(--odcm-theme-spacing-md);
+    transition: var(--odcm-component-transition);
+    background: var(--odcm-theme-white);
+}
+
+.odcm-log-entry:hover {
+    border-color: var(--odcm-theme-blue-700);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.odcm-log-entry.is-selected {
+    border-color: var(--odcm-theme-blue-700);
+    background: var(--odcm-theme-blue-200);
+}
+
+.odcm-log-entry.is-checkbox-selected {
+    background: var(--odcm-theme-grey-100);
+    border-color: var(--odcm-theme-grey-500);
+}
+
+/* Log Entry Checkbox */
+.odcm-log-entry-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    height: 100%;
+    min-height: 60px; /* Ensure minimum height for proper centering */
+}
+
+.odcm-log-checkbox {
+    margin: 0;
+    cursor: pointer;
+}
+
+.odcm-log-checkbox-label {
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+    display: block;
+}
+
+/* Log Entry Content */
+.odcm-log-entry-content {
+    flex: 1;
+    cursor: pointer;
+    min-width: 0; /* Allow content to shrink */
+}
+
+.odcm-log-entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-log-summary {
+    font-weight: var(--odcm-theme-font-weight-str);
+    line-height: 1.4;
+    flex: 1;
+    margin-right: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-log-meta {
+    display: flex;
+    gap: var(--odcm-theme-spacing-md);
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-600);
+    flex-wrap: wrap;
+    margin-top: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-log-meta span {
+    white-space: nowrap;
+}
+
+.odcm-log-timestamp {
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-600);
+    font-weight: 500;
+}
+
+/* Status Pills - Using Three-Tier System from audit-trail.css */
+.odcm-status-pill {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: var(--odcm-theme-font-size-sm);
+    border-radius: var(--odcm-component-border-radius);
+    background-color: var(--odcm-status-bg);
+    color: var(--odcm-status-text-color);
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+/* Status variants override the semantic status variables */
+.odcm-status-pill--critical {
+    --odcm-status-bg: var(--odcm-theme-red-900);
+    --odcm-status-text-color: var(--odcm-theme-white);
+}
+
+.odcm-status-pill--error {
+    --odcm-status-bg: var(--odcm-theme-red-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--warning {
+    --odcm-status-bg: var(--odcm-theme-yellow-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--success {
+    --odcm-status-bg: var(--odcm-theme-green-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--notice {
+    --odcm-status-bg: var(--odcm-theme-green-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--info {
+    --odcm-status-bg: var(--odcm-theme-grey-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--debug {
+    --odcm-status-bg: var(--odcm-theme-yellow-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--completed {
+    --odcm-status-bg: var(--odcm-theme-green-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--pending {
+    --odcm-status-bg: var(--odcm-theme-yellow-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+.odcm-status-pill--skipped {
+    --odcm-status-bg: var(--odcm-theme-grey-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
+/* Pagination */
+.odcm-pagination {
+    padding: var(--odcm-theme-spacing-md);
+    border-top: 1px solid var(--odcm-component-border-color);
+    background: var(--odcm-theme-grey-100);
+    flex-shrink: 0;
+}
+
+.odcm-pagination .tablenav-pages {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-pagination .displaying-num {
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-600);
+}
+
+.odcm-pagination .pagination-links {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.odcm-pagination .pagination-links button {
+    min-width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--odcm-component-border-color);
+    background: var(--odcm-theme-white);
+    cursor: pointer;
+    border-radius: var(--odcm-component-border-radius);
+}
+
+.odcm-pagination .pagination-links button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.odcm-pagination .pagination-links button:not(:disabled):hover {
+    background: var(--odcm-theme-blue-700);
+    color: var(--odcm-theme-white);
+}
+
+.odcm-pagination .paging-input {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 var(--odcm-theme-spacing-sm);
+}
+
+.odcm-pagination .current-page {
+    width: 60px;
+    text-align: center;
+    padding: 4px;
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+}
+
+/* ==========================================================================
+   DETAIL PANE - Component Display
+   ========================================================================== */
+
+.odcm-detail-pane-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.odcm-detail-loading,
+.odcm-detail-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--odcm-theme-spacing-lg);
+    text-align: center;
+    color: var(--odcm-theme-grey-600);
+    flex: 1;
+}
+
+.odcm-detail-loading .spinner,
+.odcm-detail-empty .dashicons {
+    margin-bottom: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-detail-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--odcm-theme-spacing-sm);
+    min-height: 0; /* Allow flex item to shrink below content size */
+}
+
+.odcm-timeline-list {
+    gap: var(--odcm-theme-spacing-md);
+}
+
+/* ==========================================================================
+   COMPONENT IMPLEMENTATION & THEMING
+   ========================================================================== */
+
+/* Hide component expand/contract buttons in insight dashboard */
+.odcm-insight-dashboard .odcm-component-expand-toggle {
+    display: none !important;
+}
+
+/**
+ * Wrapper for the component row within the audit log.
+ * Applies the requested subtle inset shadow.
+ */
+.odcm-audit-details-container {
+    display: flex;
+    flex-wrap: wrap; /* This is the key to responsive wrapping */
+    align-items: flex-start; /* Allow components to size to their content height instead of stretching */
+    padding: 0px;
+    box-shadow: inset 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    border-radius: 0px;
+    margin-bottom: var(--odcm-component-margin);
+    gap: 12px;
+    padding: var(--odcm-component-padding);
+    background-color: transparent;
+}
+
+/**
+ * Base styles for ALL components.
+ * Responsive layout that adapts to details pane width.
+ */
+.odcm-component {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 0;
+    flex-shrink: 1;
+    flex-basis: 100%; /* Full width in details pane */
+    min-width: 0; /* Allow shrinking */
+    min-height: 120px; /* Minimum height for small components */
+    height: auto; /* Content-based sizing */
+    border: var(--odcm-component-border-width) solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    padding: var(--odcm-theme-spacing-md);
+    margin-bottom: var(--odcm-theme-spacing-md);
+    overflow: hidden;
+    background-color: var(--odcm-theme-grey-100);
+    transition: var(--odcm-component-transition);
+}
+
+/* Components in normal details pane (300px) */
+.odcm-detail-pane:not(.is-expanded) .odcm-component {
+    max-height: var(--odcm-component-base-height); /* Constrained height in narrow pane */
+}
+
+/* Components in expanded details pane */
+.odcm-detail-pane.is-expanded .odcm-component {
+    max-height: var(--odcm-component-max-height); /* More generous height in expanded pane */
+}
+
+.odcm-component:last-child {
+    margin-bottom: 0;
+}
+
+.odcm-component__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-xs);
+    color: var(--odcm-component-text-color-header);
+    font-size: var(--odcm-theme-font-size-str);
+    margin: var(--odcm-component-margin);
+    position: relative;
+}
+
+/* Top row: icon + title on left, status pill on right */
+.odcm-component__header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+/* Left side: icon + title */
+.odcm-component__header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+    flex: 1;
+    min-width: 0; /* Allow content to shrink */
+}
+
+.odcm-component__title {
+    flex: 1;
+    min-width: 0;
+    font-weight: var(--odcm-theme-font-weight-str);
+}
+
+/* Bottom row: timestamp aligned with icon */
+.odcm-component__header-bottom {
+    display: flex;
+    align-items: center;
+    margin-left: calc(16px + var(--odcm-theme-spacing-xs)); /* Icon width + gap */
+}
+
+.odcm-component__ts {
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-600);
+    opacity: 0.85;
+}
+
+/* Status pill positioning - far right on top row */
+.odcm-component__header .odcm-status-pill {
+    flex-shrink: 0;
+    margin: 0;
+}
+
+/* Details Pane Expand Toggle Button - now uses unified icon button styling */
+.odcm-detail-pane-expand-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--odcm-icon-button-padding);
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-icon-button-transition);
+    color: var(--odcm-icon-button-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--odcm-icon-button-size);
+    min-height: var(--odcm-icon-button-size);
+    margin-left: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-detail-pane-expand-toggle:hover {
+    background-color: var(--odcm-icon-button-hover-bg);
+    color: var(--odcm-icon-button-hover-color);
+}
+
+.odcm-detail-pane-expand-toggle:focus {
+    outline: var(--odcm-icon-button-focus-outline);
+    outline-offset: var(--odcm-icon-button-focus-offset);
+}
+
+.odcm-detail-pane-expand-toggle .dashicons {
+    transition: var(--odcm-icon-button-transition);
+    font-size: var(--odcm-icon-button-icon-size);
+    width: var(--odcm-icon-button-icon-size);
+    height: var(--odcm-icon-button-icon-size);
+}
+
+/* ==========================================================================
+   EXPAND TOGGLE BUTTON STYLING AND ICON SWITCHING
+   ========================================================================== */
+
+/* Filter Pane Expand Toggle Button - now uses unified icon button styling */
+.odcm-filter-pane-expand-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--odcm-icon-button-padding);
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-icon-button-transition);
+    color: var(--odcm-icon-button-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--odcm-icon-button-size);
+    min-height: var(--odcm-icon-button-size);
+    margin-left: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-filter-pane-expand-toggle:hover {
+    background-color: var(--odcm-icon-button-hover-bg);
+    color: var(--odcm-icon-button-hover-color);
+}
+
+.odcm-filter-pane-expand-toggle:focus {
+    outline: var(--odcm-icon-button-focus-outline);
+    outline-offset: var(--odcm-icon-button-focus-offset);
+}
+
+.odcm-filter-pane-expand-toggle .dashicons {
+    transition: var(--odcm-icon-button-transition);
+    font-size: var(--odcm-icon-button-icon-size);
+    width: var(--odcm-icon-button-icon-size);
+    height: var(--odcm-icon-button-icon-size);
+}
+
+/* Details Pane Expand Toggle Button - already updated above, keeping for reference */
+
+/* Icon Visibility Control - Filter Pane */
+/* Default state (collapsed): show right arrow (expand rightward over content) */
+.odcm-filter-pane-expand-toggle .icon-expand {
+    display: inline-block;
+}
+
+.odcm-filter-pane-expand-toggle .icon-collapse {
+    display: none;
+}
+
+/* Expanded state: show left arrow (collapse back to the left) */
+.odcm-insight-dashboard.filter-pane-visible .odcm-filter-pane-expand-toggle .icon-expand {
+    display: none;
+}
+
+.odcm-insight-dashboard.filter-pane-visible .odcm-filter-pane-expand-toggle .icon-collapse {
+    display: inline-block;
+}
+
+/* Icon Visibility Control - Details Pane */
+/* Default state (collapsed): show left arrow (expand leftward over content) */
+.odcm-detail-pane-expand-toggle .icon-expand {
+    display: inline-block;
+}
+
+.odcm-detail-pane-expand-toggle .icon-collapse {
+    display: none;
+}
+
+/* Expanded state: show right arrow (collapse back to the right) */
+.odcm-insight-dashboard.detail-pane-expanded .odcm-detail-pane-expand-toggle .icon-expand {
+    display: none;
+}
+
+.odcm-insight-dashboard.detail-pane-expanded .odcm-detail-pane-expand-toggle .icon-collapse {
+    display: inline-block;
+}
+
+/* Component Content Areas */
+.odcm-component__body {
+    color: var(--odcm-component-text-color-body);
+    font-size: var(--odcm-theme-font-size-md);
+    height: auto;
+    overflow-y: auto; /* Scrollable if content exceeds available space */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Allow flex item to shrink below content size */
+    margin: var(--odcm-component-margin)
+}
+
+/* ==========================================================================
+   KEY-VALUE LIST COMPONENTS
+   ========================================================================== */
+
+/**
+ * Key-Value List Layout System
+ * Uses CSS Grid for consistent alignment and responsive behavior
+ */
+.odcm-key-value-list {
+    display: var(--odcm-key-value-layout);
+    grid-template-columns: var(--odcm-key-value-columns);
+    gap: 0px;
+    row-gap: var(--odcm-key-value-row-gap);
+    margin-bottom: var(--odcm-section-margin-bottom);
+}
+
+.odcm-key-value-list:last-child {
+    margin-bottom: 0;
+}
+
+/* Key Styling */
+.odcm-key {
+    padding: var(--odcm-key-padding);
+    background-color: var(--odcm-key-bg);
+    border-radius: var(--odcm-component-border-radius);
+    font-weight: var(--odcm-theme-font-weight-str);
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-component-text-color-header);
+    align-self: start;
+    word-break: break-word;
+}
+
+/* Value Styling */
+.odcm-value {
+    padding: var(--odcm-value-padding);
+    margin: 0px var(--odcm-key-value-gap);
+    border: var(--odcm-value-border);
+    border-radius: var(--odcm-component-border-radius);
+    background-color: var(--odcm-component-value-bg);
+    font-size: var(--odcm-theme-font-size-md);
+    color: var(--odcm-component-text-color-body);
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Special value types *
+.odcm-value--code {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: var(--odcm-theme-grey-200);
+    border-color: var(--odcm-component-code-border-color);
+}
+
+.odcm-value--json {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: var(--odcm-theme-grey-200);
+    border-color: var(--odcm-component-code-border-color);
+    white-space: pre-wrap;
+}*/
+
+.odcm-value--url {
+    word-break: break-all;
+}
+
+.odcm-value--empty {
+    font-style: italic;
+    color: var(--odcm-theme-grey-500);
+}
+
+/* Section Titles */
+.odcm-section-title {
+    font-size: var(--odcm-section-title-font-size);
+    font-weight: var(--odcm-section-title-font-weight);
+    color: var(--odcm-component-text-color-header);
+    margin-bottom: var(--odcm-section-margin-bottom);
+    padding-bottom: var(--odcm-theme-spacing-xs);
+    border-bottom: 1px solid var(--odcm-component-border-color);
+}
+
+/* ==========================================================================
+   CODE BLOCKS AND SYNTAX HIGHLIGHTING
+   ========================================================================== */
+
+.odcm-code-block {
+    background-color: var(--odcm-theme-grey-200);
+    border: 1px solid var(--odcm-component-code-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    padding: var(--odcm-theme-spacing-md);
+    margin: var(--odcm-theme-spacing-xs) 0;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: var(--odcm-theme-font-size-sm);
+    line-height: 1.4;
+}
+
+.odcm-code-block pre {
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: none;
+    overflow: visible;
+}
+
+.odcm-code-block code {
+    background: none;
+    padding: 0;
+    border: none;
+    font-size: inherit;
+    color: inherit;
+}
+
+/* Inline code */
+.odcm-component__body code {
+    background-color: var(--odcm-theme-grey-200);
+    padding: 2px 4px;
+    border-radius: var(--odcm-component-border-radius);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: var(--odcm-theme-font-size-sm);
+    border: 1px solid var(--odcm-component-code-border-color);
+}
+
+/* Prism.js Integration */
+.odcm-component__body .token.comment,
+.odcm-component__body .token.prolog,
+.odcm-component__body .token.doctype,
+.odcm-component__body .token.cdata {
+    color: var(--odcm-theme-grey-600);
+}
+
+.odcm-component__body .token.punctuation {
+    color: var(--odcm-theme-grey-700);
+}
+
+.odcm-component__body .token.property,
+.odcm-component__body .token.tag,
+.odcm-component__body .token.boolean,
+.odcm-component__body .token.number,
+.odcm-component__body .token.constant,
+.odcm-component__body .token.symbol,
+.odcm-component__body .token.deleted {
+    color: var(--odcm-theme-red-700);
+}
+
+.odcm-component__body .token.selector,
+.odcm-component__body .token.attr-name,
+.odcm-component__body .token.string,
+.odcm-component__body .token.char,
+.odcm-component__body .token.builtin,
+.odcm-component__body .token.inserted {
+    color: var(--odcm-theme-green-700);
+}
+
+.odcm-component__body .token.operator,
+.odcm-component__body .token.entity,
+.odcm-component__body .token.url,
+.odcm-component__body .language-css .token.string,
+.odcm-component__body .style .token.string {
+    color: var(--odcm-theme-blue-700);
+}
+
+.odcm-component__body .token.atrule,
+.odcm-component__body .token.attr-value,
+.odcm-component__body .token.keyword {
+    color: var(--odcm-theme-purple-700);
+}
+
+.odcm-component__body .token.function,
+.odcm-component__body .token.class-name {
+    color: var(--odcm-theme-yellow-700);
+}
+
+/* ==========================================================================
+   COMPONENT THEMING VARIANTS
+   ========================================================================== */
+
+/* Success state for passed conditions */
+.odcm-component--success {
+    --odcm-component-border-color: var(--odcm-theme-green-700);
+    --odcm-component-header-border-color: var(--odcm-theme-green-700);
+    --odcm-component-bg: var(--odcm-theme-green-200);
+    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+    --odcm-component-text-color-body: var(--odcm-theme-grey-900);
+    --odcm-component-value-bg: var(--odcm-theme-white);
+    --odcm-key-bg: var(--odcm-theme-green-200);
+}
+
+/* Warning state for failed conditions */
+.odcm-component--warning {
+    --odcm-component-border-color: var(--odcm-theme-yellow-700);
+    --odcm-component-header-border-color: var(--odcm-theme-yellow-700);
+    --odcm-component-bg: var(--odcm-theme-yellow-200);
+    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+    --odcm-component-text-color-body: var(--odcm-theme-grey-900);
+    --odcm-component-value-bg: var(--odcm-theme-white);
+    --odcm-key-bg: var(--odcm-theme-yellow-200);
+}
+
+/* ==========================================================================
+   UNIFIED PAYLOAD COMPONENT STYLING
+   ========================================================================== */
+
+/* Unified Payload Component Base - Matches Alpine.js Dashboard UI */
+.odcm-component {
+    --odcm-component-bg: var(--odcm-theme-white);
+    --odcm-component-border-color: var(--odcm-theme-grey-300);
+    --odcm-component-header-border-color: var(--odcm-theme-grey-300);
+    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+    --odcm-component-text-color-body: var(--odcm-theme-grey-800);
+    --odcm-component-value-bg: var(--odcm-theme-grey-100);
+    --odcm-key-bg: var(--odcm-theme-grey-200);
+}
+
+/* Subtle Semantic Icon Colors in Component Headers */
+.odcm-component--error .odcm-component__header .dashicons {
+    color: var(--odcm-theme-red-700);
+}
+
+.odcm-component--warning .odcm-component__header .dashicons {
+    color: var(--odcm-theme-yellow-700);
+}
+
+.odcm-component--success .odcm-component__header .dashicons {
+    color: var(--odcm-theme-green-700);
+}
+
+.odcm-component--woocommerce .odcm-component__header .dashicons {
+    color: var(--odcm-theme-purple-700);
+}
+
+.odcm-component--completion .odcm-component__header .dashicons {
+    color: var(--odcm-theme-blue-700);
+}
+
+.odcm-component--fallback .odcm-component__header .dashicons {
+    color: var(--odcm-theme-grey-600);
+}
+
+/* ==========================================================================
+   RULE MANAGEMENT SEMANTIC HIGHLIGHTING
+   ========================================================================== */
+
+/* Change Summary Styling */
+.odcm-change-summary {
+    padding: var(--odcm-theme-spacing-sm);
+    background: var(--odcm-theme-grey-100);
+    border-radius: var(--odcm-component-border-radius);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: var(--odcm-theme-font-size-sm);
+    line-height: 1.4;
+    border: 1px solid var(--odcm-component-border-color);
+}
+
+/* Semantic Change Highlighting */
+.odcm-change-addition {
+    background-color: var(--odcm-theme-green-200);
+    color: var(--odcm-theme-grey-900);
+    padding: 2px 4px;
+    border-radius: var(--odcm-component-border-radius);
+    font-weight: 500;
+}
+
+.odcm-change-removal {
+    background-color: var(--odcm-theme-red-200);
+    color: var(--odcm-theme-grey-900);
+    padding: 2px 4px;
+    border-radius: var(--odcm-component-border-radius);
+    font-weight: 500;
+}
+
+.odcm-change-modification {
+    background-color: var(--odcm-theme-blue-200);
+    color: var(--odcm-theme-grey-900);
+    padding: 2px 4px;
+    border-radius: var(--odcm-component-border-radius);
+    font-weight: 500;
+}
+
+.odcm-change-structural {
+    background-color: var(--odcm-theme-purple-200);
+    color: var(--odcm-theme-grey-900);
+    padding: 2px 4px;
+    border-radius: var(--odcm-component-border-radius);
+    font-weight: 500;
+}
+
+/* ==========================================================================
+   TOAST NOTIFICATIONS - REMOVED
+   ========================================================================== */
+
+/* Toast notifications are now handled by the shared design system in odcm-design-system.css */
+
+/* ==========================================================================
+   DESKTOP-ONLY LAYOUT SYSTEM
+   ========================================================================== */
+
+/* Filter Pane - Toggle button should be visible for user control */
+.odcm-filter-pane-expand-toggle {
+    display: flex;
+}
+
+/* Details Pane Expansion Animation - Horizontal growth with right edge anchored */
+.odcm-detail-pane {
+    transform-origin: right center; /* Anchor right edge */
+    transition: width 0.3s ease, transform 0.3s ease;
+}
+
+/* ==========================================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ========================================================================== */
+
+/* Focus indicators */
+.odcm-log-entry:focus,
+.odcm-filter-form input:focus,
+.odcm-filter-form select:focus,
+.odcm-filter-form button:focus {
+    outline: 2px solid var(--odcm-theme-blue-700);
+    outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .odcm-insight-dashboard,
+    .odcm-log-entry,
+    .odcm-filter-pane,
+    .odcm-detail-pane,
+    .odcm-toast {
+        transition: none;
+    }
+
+    .odcm-auto-refresh-indicator .dashicons {
+        animation: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .odcm-log-entry {
+        border-width: 2px;
+    }
+
+    .odcm-log-entry.is-selected {
+        border-width: 3px;
+    }
+
+    .odcm-premium-filter-group {
+        border-width: 2px;
+    }
+}
+
+/* ==========================================================================
+   LOADING STATES AND ANIMATIONS
+   ========================================================================== */
+
+/* Skeleton loading for log entries */
+.odcm-log-entry.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.odcm-log-entry.loading .odcm-log-summary,
+.odcm-log-entry.loading .odcm-log-meta span {
+    background: linear-gradient(90deg, var(--odcm-theme-grey-200) 25%, var(--odcm-theme-grey-300) 50%, var(--odcm-theme-grey-200) 75%);
+    background-size: 200% 100%;
+    animation: odcm-skeleton 1.5s infinite;
+    border-radius: var(--odcm-component-border-radius);
+    color: transparent;
+}
+
+@keyframes odcm-skeleton {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Pulse animation for new entries */
+.odcm-log-entry.new-entry {
+    animation: odcm-pulse 0.6s ease-in-out;
+}
+
+@keyframes odcm-pulse {
+    0% { background-color: var(--odcm-theme-green-200); }
+    100% { background-color: var(--odcm-theme-white); }
+}
+
+
+/* ======================================================================
+   Consolidated Lifecycle UI Enhancements
+   - Visual distinction for consolidated entries in stream
+   - Timeline styles for consolidated detail rendering
+   ====================================================================== */
+
+/* Stream: highlight consolidated entries */
+.odcm-log-entry.is-consolidated {
+  border-color: var(--odcm-theme-grey-500);
+}
+
+.odcm-log-entry.is-consolidated:hover {
+  border-color: var(--odcm-theme-blue-700);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Icon next to consolidated summary */
+.odcm-consolidated-icon {
+  color: var(--odcm-theme-grey-500);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* Detail: consolidated header */
+.odcm-consolidated-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1px solid var(--odcm-theme-grey-300);
+  background: var(--odcm-theme-grey-100);
+  border-radius: var(--odcm-theme-border-radius);
+  margin-bottom: 8px;
+}
+
+.odcm-consolidated-timeline-header h4 {
+  margin: 0;
+  font-size: var(--odcm-theme-font-size-md);
+}
+
+.odcm-consolidated-meta {
+  display: flex;
+  gap: 10px;
+  color: var(--odcm-theme-grey-700);
+}
+
+/* Timeline container */
+.odcm-timeline {
+  position: relative;
+  margin-left: 12px;
+  padding-left: 16px;
+}
+
+/* Vertical line */
+.odcm-timeline:before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--odcm-theme-grey-300);
+}
+
+/* Timeline item */
+.odcm-timeline-item {
+  position: relative;
+  margin: 10px 0;
+}
+
+/* Dot icon per item */
+.odcm-timeline-icon {
+  position: absolute;
+  left: -12px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--odcm-theme-grey-400);
+  border: 2px solid var(--odcm-theme-white);
+  box-shadow: 0 0 0 2px var(--odcm-theme-grey-300);
+}
+
+/* Status colors for dots */
+.odcm-status-icon--success { background: var(--odcm-theme-green-700); }
+.odcm-status-icon--error { background: var(--odcm-theme-red-700); }
+.odcm-status-icon--warning { background: var(--odcm-theme-yellow-700); }
+.odcm-status-icon--info { background: var(--odcm-theme-blue-700); }
+
+/* Content */
+.odcm-timeline-content {
+  background: var(--odcm-theme-white);
+  border: 1px solid var(--odcm-theme-grey-300);
+  border-radius: var(--odcm-theme-border-radius);
+  padding: 8px 10px;
+}
+
+.odcm-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.odcm-timeline-summary {
+  font-weight: 500;
+}
+
+.odcm-timeline-timestamp {
+  color: var(--odcm-theme-grey-700);
+  font-size: var(--odcm-theme-font-size-sm);
+}
+
+.odcm-welcome-text, .odcm-welcome-steps, .odcm-welcome-note {
+    text-align: left;
+    width: 80%;
+    margin: 0 auto;
+}

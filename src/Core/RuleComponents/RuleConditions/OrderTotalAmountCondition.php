@@ -1,0 +1,124 @@
+<?php
+declare(strict_types=1);
+
+namespace OrderDaemon\CompletionManager\Core\RuleComponents\RuleConditions;
+
+use OrderDaemon\CompletionManager\Core\RuleComponents\Interfaces\ConditionInterface;
+use WC_Order;
+
+/**
+ * A condition that checks the total amount of the order.
+ *
+ * @package OrderDaemon\CompletionManager\Core\RuleComponents\Conditions
+ * @since   2.0.2
+ */
+class OrderTotalAmountCondition implements ConditionInterface
+{
+    public function get_id(): string
+    {
+        return 'order_total_amount';
+    }
+
+    public function get_label(): string
+    {
+        return __('Order Total Amount', 'order-daemon');
+    }
+
+    public function get_description(): string
+    {
+        return __('Checks if the order total meets the specified criteria.', 'order-daemon');
+    }
+
+    public function get_capability(): string
+    {
+        return 'condition_order_total'; // Free tier
+    }
+
+    public function get_settings_schema(): ?array
+    {
+        return [
+            'type' => 'object',
+            'properties' => [
+                'operator' => [
+                    'type' => 'string',
+                    'title' => __('Operator', 'order-daemon'),
+                    'description' => __('How to compare the order total.', 'order-daemon'),
+                    // Radio group with inline number input mapping to 'amount'
+                    'enum' => [
+                        'amount_gt' => __('Greater than', 'order-daemon'),
+                        'amount_lt' => __('Less than', 'order-daemon'),
+                        'amount_eq' => __('Equal to', 'order-daemon'),
+                        'amount_gte' => __('Greater than or equal to', 'order-daemon'),
+                        'amount_lte' => __('Less than or equal to', 'order-daemon'),
+                    ],
+                    'ui:radio_inputs' => [
+                        'amount_gt' => 'amount_gt_value',
+                        'amount_lt' => 'amount_lt_value', 
+                        'amount_eq' => 'amount_eq_value',
+                        'amount_gte' => 'amount_gte_value',
+                        'amount_lte' => 'amount_lte_value',
+                    ],
+                    'default' => 'amount_gt',
+                ],
+                // Individual amount fields for each operator
+                'amount_gt_value' => [
+                    'type' => 'number',
+                    'minimum' => 0,
+                    'default' => 100,
+                ],
+                'amount_lt_value' => [
+                    'type' => 'number', 
+                    'minimum' => 0,
+                    'default' => 50,
+                ],
+                'amount_eq_value' => [
+                    'type' => 'number',
+                    'minimum' => 0,
+                    'default' => 75,
+                ],
+                'amount_gte_value' => [
+                    'type' => 'number',
+                    'minimum' => 0,
+                    'default' => 100,
+                ],
+                'amount_lte_value' => [
+                    'type' => 'number',
+                    'minimum' => 0, 
+                    'default' => 50,
+                ],
+            ],
+            'required' => ['operator'],
+        ];
+    }
+
+    public function evaluate(WC_Order $order, array $settings): bool
+    {
+        $operator = $settings['operator'] ?? 'amount_gt';
+        
+        // Get the amount value based on the selected operator
+        $amount_field = $operator . '_value';
+        $amount = isset($settings[$amount_field]) ? (float) $settings[$amount_field] : 0.0;
+        $order_total = (float) $order->get_total();
+
+        // Use WooCommerce decimals and epsilon for equality
+        $decimals = function_exists('wc_get_price_decimals') ? (int) wc_get_price_decimals() : 2;
+        $epsilon = pow(10, -$decimals);
+        $order_total = round($order_total, $decimals);
+        $amount = round($amount, $decimals);
+
+        switch ($operator) {
+            case 'amount_gt':
+                return $order_total > $amount;
+            case 'amount_lt':
+                return $order_total < $amount;
+            case 'amount_eq':
+                return abs($order_total - $amount) <= $epsilon;
+            case 'amount_gte':
+                return $order_total >= $amount;
+            case 'amount_lte':
+                return $order_total <= $amount;
+            default:
+                return false;
+        }
+    }
+}
