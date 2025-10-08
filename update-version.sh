@@ -44,7 +44,7 @@ update_version_and_commit() {
         "s/(define\([[:space:]]*'ODCM_VERSION',[[:space:]]*')[0-9]+\.[0-9]+\.[0-9]+(')/\1$new_version\2/g" "$file_name"
 
     git add "$file_name"
-    git commit -m "$new_version"
+    git commit --allow-empty -m "$new_version"
 
     tag="v$new_version"
     if [[ "$FORCE" == true ]]; then
