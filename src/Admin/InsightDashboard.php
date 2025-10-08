@@ -1462,46 +1462,47 @@ class InsightDashboard
                     </div>
                 </div>
 
-                <template x-for="log in logs" :key="log.id">
+                <template x-for="(log, index) in logs" :key="log?.id || ('invalid-' + index)">
                     <div class="odcm-log-entry" 
+                         x-show="log && log.id"
                          :class="{ 
-                             'is-selected': selectedLog && selectedLog.id === log.id,
-                             'is-checkbox-selected': isLogSelected(log.id),
-                             'is-consolidated': log.consolidation_data && log.consolidation_data.is_consolidated
+                             'is-selected': selectedLog && selectedLog.id === log?.id,
+                             'is-checkbox-selected': log?.id && isLogSelected(log.id),
+                             'is-consolidated': log?.consolidation_data && log.consolidation_data.is_consolidated
                          }">
                         
-                        <div class="odcm-log-entry-checkbox">
+                        <div class="odcm-log-entry-checkbox" x-show="log && log.id">
                             <input type="checkbox" 
-                                   :id="'log-checkbox-' + log.id"
-                                   :checked="isLogSelected(log.id)"
-                                   @change="toggleLogSelection(log.id)"
+                                   :id="'log-checkbox-' + (log?.id || 'invalid')"
+                                   :checked="log?.id && isLogSelected(log.id)"
+                                   @change="log?.id && toggleLogSelection(log.id)"
                                    @click.stop
                                    class="odcm-log-checkbox">
-                            <label :for="'log-checkbox-' + log.id" class="odcm-log-checkbox-label">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label">
                                 <span class="screen-reader-text"><?php echo esc_html__('Select log entry', Odcm_Config::$text_domain); ?></span>
                             </label>
                         </div>
                         
-                        <div class="odcm-log-entry-content" @click="selectLog(log)">
+                        <div class="odcm-log-entry-content" @click="log && selectLog(log)">
                             <div class="odcm-log-entry-header">
                                 <div class="odcm-log-summary">
-                                    <span x-show="log.consolidation_data && log.consolidation_data.is_consolidated"
+                                    <span x-show="log?.consolidation_data && log.consolidation_data.is_consolidated"
                                           class="dashicons dashicons-networking odcm-consolidated-icon"
                                           title="<?php echo esc_attr__('Consolidated Entry', Odcm_Config::$text_domain); ?>"></span>
-                                    <span x-text="log.summary"></span>
+                                    <span x-text="log?.summary || 'No summary available'"></span>
                                 </div>
                                 <span class="odcm-status-pill" 
-                                      :class="'odcm-status-pill--' + ((log.status && typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')"
-                                      x-text="(log.status ? log.status : 'Unknown')"></span>
+                                      :class="'odcm-status-pill--' + ((log?.status && typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')"
+                                      x-text="log?.status || 'Unknown'"></span>
                             </div>
                             
                             <div class="odcm-log-meta">
-                                <span class="odcm-log-timestamp" x-text="formatTimestamp(log.timestamp)"></span>
-                                <span x-show="log.order_id">
+                                <span class="odcm-log-timestamp" x-text="formatTimestamp(log?.timestamp)"></span>
+                                <span x-show="log?.order_id">
                                     <?php echo esc_html__('Order:', Odcm_Config::$text_domain); ?> #<span x-text="log.order_id"></span>
                                 </span>
-                                <span x-text="log.event_type"></span>
-                                <span x-text="log.source"></span>
+                                <span x-text="log?.event_type || ''"></span>
+                                <span x-text="log?.source || ''"></span>
                             </div>
                         </div>
                     </div>

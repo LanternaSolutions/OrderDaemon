@@ -137,6 +137,7 @@ function insightDashboard() {
             display: true,          // Display Options expanded by default
             orderProcessing: false, // Order Processing collapsed by default
             education: false,       // Education collapsed by default
+            webhooks: false,        // Webhook Configuration collapsed by default
             debug: false,           // Debug Settings collapsed by default
             dataManagement: false   // Data Management collapsed by default
         },
@@ -622,8 +623,70 @@ function insightDashboard() {
                         throw new Error('Invalid response format from server');
                     }
 
-                    // Update state
-                    this.logs = Array.isArray(data.logs) ? data.logs : [];
+                    // Validate and filter log data before setting state
+                    const rawLogs = Array.isArray(data.logs) ? data.logs : [];
+                    
+                    // Debug raw data structure
+                    if (odcmIsDebug()) {
+                        console.log('ODCM: Raw logs received:', rawLogs.length, 'entries');
+                        rawLogs.forEach((log, index) => {
+                            if (!log || typeof log !== 'object') {
+                                console.warn(`ODCM: Non-object at index ${index}:`, log);
+                            } else if (log.id === undefined || log.id === null) {
+                                console.warn(`ODCM: Missing ID at index ${index}:`, log);
+                            } else if (typeof log.summary !== 'string') {
+                                console.warn(`ODCM: Invalid summary at index ${index}:`, log);
+                            }
+                        });
+                    }
+                    
+                    const validLogs = rawLogs.filter((log, index) => {
+                        // Validate each log entry
+                        const isValid = log && 
+                                       typeof log === 'object' && 
+                                       log.id !== undefined && 
+                                       log.id !== null &&
+                                       typeof log.summary === 'string';
+                        
+                        return isValid;
+                    });
+
+                    // Check for duplicate IDs and make them unique
+                    const seenIds = new Set();
+                    const uniqueLogs = validLogs.map((log, index) => {
+                        let uniqueId = log.id;
+                        let counter = 1;
+                        
+                        // If we've seen this ID before, make it unique
+                        while (seenIds.has(uniqueId)) {
+                            uniqueId = `${log.id}_dup_${counter}`;
+                            counter++;
+                        }
+                        
+                        seenIds.add(uniqueId);
+                        
+                        // If we had to change the ID, log it
+                        if (uniqueId !== log.id && odcmIsDebug()) {
+                            console.warn(`ODCM: Duplicate ID ${log.id} changed to ${uniqueId}`);
+                        }
+                        
+                        return {
+                            ...log,
+                            id: uniqueId,
+                            original_id: log.id // Keep track of original ID
+                        };
+                    });
+
+                    // Log validation results
+                    if (odcmIsDebug()) {
+                        console.log(`ODCM: Processed ${rawLogs.length} raw logs -> ${validLogs.length} valid -> ${uniqueLogs.length} unique`);
+                        if (rawLogs.length !== validLogs.length) {
+                            console.warn(`ODCM: Filtered out ${rawLogs.length - validLogs.length} invalid log entries`);
+                        }
+                    }
+
+                    // Update state with validated and deduplicated data
+                    this.logs = uniqueLogs;
                     this.total = data.pagination?.total || 0;
                     this.totalPages = data.pagination?.total_pages || 1;
                     this.currentPage = data.pagination?.current_page || 1;
@@ -882,7 +945,17 @@ function insightDashboard() {
                 const savedAccordionState = localStorage.getItem('odcm_settings_accordion_state');
                 if (savedAccordionState) {
                     try {
-                        this.settingsAccordionState = { ...this.settingsAccordionState, ...JSON.parse(savedAccordionState) };
+                        const parsedState = JSON.parse(savedAccordionState);
+                        // Ensure all required accordion sections exist
+                        this.settingsAccordionState = {
+                            display: true,
+                            orderProcessing: false,
+                            education: false,
+                            webhooks: false,
+                            debug: false,
+                            dataManagement: false,
+                            ...parsedState
+                        };
                     } catch (error) {
                         if (odcmIsDebug()) { console.warn('ODCM: Could not parse saved accordion state:', error); }
                     }
@@ -1012,8 +1085,24 @@ function insightDashboard() {
         // =================================================================
         toggleSettingsSection(section) {
             try {
-                if (!this.settingsAccordionState || typeof this.settingsAccordionState[section] === 'undefined') return;
+                if (odcmIsDebug()) { 
+                    console.log('ODCM: toggleSettingsSection called with section:', section);
+                    console.log('ODCM: Current settingsAccordionState:', this.settingsAccordionState);
+                }
+                
+                if (!this.settingsAccordionState || typeof this.settingsAccordionState[section] === 'undefined') {
+                    if (odcmIsDebug()) { 
+                        console.warn('ODCM: Section not found in settingsAccordionState:', section);
+                    }
+                    return;
+                }
+                
                 this.settingsAccordionState[section] = !this.settingsAccordionState[section];
+                
+                if (odcmIsDebug()) { 
+                    console.log('ODCM: After toggle, settingsAccordionState:', this.settingsAccordionState);
+                }
+                
                 // Persist accordion state
                 try {
                     localStorage.setItem('odcm_settings_accordion_state', JSON.stringify(this.settingsAccordionState));
@@ -1228,6 +1317,29 @@ function insightDashboard() {
         mergeLogs(newLogs) {
             if (!newLogs || newLogs.length === 0) return;
 
+            // Validate incoming logs before processing
+            const validNewLogs = newLogs.filter((log, index) => {
+                const isValid = log && 
+                               typeof log === 'object' && 
+                               log.id !== undefined && 
+                               log.id !== null &&
+                               typeof log.summary === 'string';
+                
+                // Debug invalid entries in auto-refresh
+                if (!isValid && odcmIsDebug()) {
+                    console.warn(`ODCM: Invalid log entry in auto-refresh at index ${index}:`, log);
+                }
+                
+                return isValid;
+            });
+
+            // Log validation results for auto-refresh
+            if (odcmIsDebug() && newLogs.length !== validNewLogs.length) {
+                console.warn(`ODCM: Auto-refresh filtered out ${newLogs.length - validNewLogs.length} invalid log entries`);
+            }
+
+            if (validNewLogs.length === 0) return;
+
             // Create a map of existing logs by ID for fast lookup
             const existingLogsMap = new Map();
             this.logs.forEach((log, index) => {
@@ -1235,7 +1347,7 @@ function insightDashboard() {
             });
 
             // Filter out logs that already exist
-            const trulyNewLogs = newLogs.filter(newLog => !existingLogsMap.has(newLog.id));
+            const trulyNewLogs = validNewLogs.filter(newLog => !existingLogsMap.has(newLog.id));
 
             if (trulyNewLogs.length === 0) {
                 if (odcmIsDebug()) { console.log('ODCM: No truly new logs to add (all were duplicates)'); }

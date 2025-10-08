@@ -372,8 +372,14 @@ class AuditLogEndpoint extends WP_REST_Controller
                 }
                 $consolidator = new \OrderDaemon\CompletionManager\Core\LogConsolidationService();
                 $all_logs = $consolidator->consolidate_logs_for_display($all_logs);
+                
+                // The consolidation service now properly returns only:
+                // 1. Consolidated entries (which represent groups of related events)
+                // 2. Individual entries that were NOT part of any consolidation
+                // No additional filtering needed - the service handles this correctly
             } catch (\Throwable $e) {
                 // Fail-safe: keep original logs ungrouped
+                error_log('ODCM: Consolidation failed: ' . $e->getMessage());
             }
 
             // Compute consolidated totals and slice current page
@@ -2527,6 +2533,11 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
         }
 
+        // If no components were extracted, create a fallback timeline showing all events
+        if (empty($all_components)) {
+            return $this->render_simple_timeline_events($timeline_events, $include_debug);
+        }
+
         // Create the envelope structure for render_narrative_timeline
         $consolidated_envelope = array_merge($envelope_meta, [
             'payload_components' => $all_components,
@@ -2945,6 +2956,213 @@ class AuditLogEndpoint extends WP_REST_Controller
             'message' => 'ODCM Free Version Diagnostic Check',
             'data' => $diagnostic_data,
         ], 200);
+    }
+
+    /**
+     * Filter consolidated results to show only consolidated entries and non-consolidated individuals
+     *
+     * The consolidation service returns a mixed array of individual and consolidated entries.
+     * This method filters out individual entries that were consolidated and only keeps:
+     * 1. Consolidated entries (which represent groups)
+     * 2. Individual entries that were NOT part of any consolidation
+     *
+     * @param array $consolidated_logs Output from LogConsolidationService::consolidate_logs_for_display()
+     * @param array $original_logs Original logs before consolidation
+     * @return array Filtered array with only consolidated entries and non-consolidated individuals
+     */
+    private function filter_consolidated_results(array $consolidated_logs, array $original_logs): array
+    {
+        if (empty($consolidated_logs)) {
+            return [];
+        }
+
+        // Build a set of all log IDs that were consolidated (appear in timeline_events)
+        $consolidated_log_ids = [];
+        
+        foreach ($consolidated_logs as $entry) {
+            if (isset($entry['consolidation_data']['is_consolidated']) && 
+                $entry['consolidation_data']['is_consolidated'] === true &&
+                isset($entry['consolidation_data']['timeline_events']) &&
+                is_array($entry['consolidation_data']['timeline_events'])) {
+                
+                // Collect all individual log IDs that are part of this consolidated entry
+                foreach ($entry['consolidation_data']['timeline_events'] as $timeline_event) {
+                    if (isset($timeline_event['id'])) {
+                        $consolidated_log_ids[(int)$timeline_event['id']] = true;
+                    }
+                }
+            }
+        }
+
+        // Debug logging to understand what's happening
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log('ODCM: filter_consolidated_results - Input count: ' . count($consolidated_logs));
+            error_log('ODCM: filter_consolidated_results - Consolidated IDs: ' . json_encode(array_keys($consolidated_log_ids)));
+            
+            $consolidated_count = 0;
+            $individual_count = 0;
+            foreach ($consolidated_logs as $entry) {
+                $is_consolidated = isset($entry['consolidation_data']['is_consolidated']) && 
+                                  $entry['consolidation_data']['is_consolidated'] === true;
+                if ($is_consolidated) {
+                    $consolidated_count++;
+                    error_log('ODCM: Consolidated entry ID: ' . ($entry['id'] ?? 'none') . ' Summary: ' . ($entry['summary'] ?? 'none'));
+                } else {
+                    $individual_count++;
+                    error_log('ODCM: Individual entry ID: ' . ($entry['id'] ?? 'none') . ' Summary: ' . ($entry['summary'] ?? 'none'));
+                }
+            }
+            error_log('ODCM: filter_consolidated_results - Consolidated entries: ' . $consolidated_count . ', Individual entries: ' . $individual_count);
+        }
+
+        // Filter the consolidated results to only include:
+        // 1. Consolidated entries (is_consolidated = true)
+        // 2. Individual entries whose IDs are NOT in the consolidated set
+        $filtered_results = [];
+        
+        foreach ($consolidated_logs as $entry) {
+            $entry_id = $entry['id'] ?? '';
+            $is_consolidated = isset($entry['consolidation_data']['is_consolidated']) && 
+                              $entry['consolidation_data']['is_consolidated'] === true;
+            
+            if ($is_consolidated) {
+                // Always include consolidated entries (they have unique IDs like 'consolidated_123')
+                $filtered_results[] = $entry;
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    error_log('ODCM: Including consolidated entry ID: ' . $entry_id);
+                }
+            } else {
+                // For individual entries, check if their numeric ID was consolidated
+                $numeric_id = is_numeric($entry_id) ? (int)$entry_id : 0;
+                if ($numeric_id > 0 && !isset($consolidated_log_ids[$numeric_id])) {
+                    // Include individual entries that were NOT consolidated
+                    $filtered_results[] = $entry;
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        error_log('ODCM: Including individual entry ID: ' . $entry_id);
+                    }
+                } else {
+                    // Skip individual entries that were consolidated
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        error_log('ODCM: Skipping consolidated individual entry ID: ' . $entry_id);
+                    }
+                }
+            }
+        }
+
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log('ODCM: filter_consolidated_results - Output count: ' . count($filtered_results));
+        }
+
+        return $filtered_results;
+    }
+
+    /**
+     * Render simple timeline events when no payload components are available
+     *
+     * This creates a basic timeline view showing all events in chronological order
+     * when the consolidated entry doesn't have extractable payload components.
+     *
+     * @param array $timeline_events Array of timeline events from consolidation data
+     * @param bool $include_debug Whether to include debug events
+     * @return string HTML output for the simple timeline
+     */
+    private function render_simple_timeline_events(array $timeline_events, bool $include_debug = false): string
+    {
+        if (empty($timeline_events)) {
+            return '<div class="odcm-empty-data">' . esc_html__('No timeline events available', Odcm_Config::$text_domain) . '</div>';
+        }
+
+        // Filter events based on debug setting
+        $filtered_events = [];
+        foreach ($timeline_events as $event) {
+            // Apply debug filtering
+            if (!$include_debug) {
+                $summary = strtolower($event['summary'] ?? '');
+                $event_type = strtolower($event['event_type'] ?? '');
+                $source = strtolower($event['source'] ?? '');
+                
+                // Skip debug-related events
+                if (strpos($summary, 'debug') !== false || 
+                    strpos($event_type, 'debug') !== false || 
+                    strpos($source, 'debug') !== false ||
+                    $event['status'] === 'debug') {
+                    continue;
+                }
+            }
+            
+            $filtered_events[] = $event;
+        }
+
+        if (empty($filtered_events)) {
+            if (!$include_debug) {
+                return '<div class="odcm-empty-data">' . esc_html__('All timeline events filtered (debug mode disabled)', Odcm_Config::$text_domain) . '</div>';
+            } else {
+                return '<div class="odcm-empty-data">' . esc_html__('No timeline events available', Odcm_Config::$text_domain) . '</div>';
+            }
+        }
+
+        // Sort events chronologically
+        usort($filtered_events, function($a, $b) {
+            return strcmp($a['timestamp'] ?? '', $b['timestamp'] ?? '');
+        });
+
+        // Load UI toolkit for consistent rendering
+        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
+            require_once dirname(__DIR__) . '/View/PayloadRenderer/PayloadComponentUIToolkit.php';
+        }
+        $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
+
+        $html = '<div class="odcm-narrative-timeline">';
+        $html .= '<div class="odcm-simple-timeline">';
+
+        foreach ($filtered_events as $event) {
+            $timestamp = $event['timestamp'] ?? '';
+            $status = $event['status'] ?? 'info';
+            $summary = $event['summary'] ?? 'Event';
+            $event_type = $event['event_type'] ?? '';
+            $source = $event['source'] ?? '';
+
+            // Format timestamp for display
+            $formatted_time = '';
+            if (!empty($timestamp)) {
+                try {
+                    $time = new \DateTime($timestamp);
+                    $formatted_time = $time->format('H:i:s');
+                } catch (\Exception $e) {
+                    $formatted_time = $timestamp;
+                }
+            }
+
+            // Create event content
+            $event_content = '<div class="odcm-simple-event-header">';
+            $event_content .= '<span class="odcm-event-time">' . esc_html($formatted_time) . '</span>';
+            $event_content .= '<span class="odcm-event-summary">' . esc_html($summary) . '</span>';
+            $event_content .= '</div>';
+
+            if (!empty($event_type) || !empty($source)) {
+                $event_content .= '<div class="odcm-simple-event-meta">';
+                if (!empty($event_type)) {
+                    $event_content .= '<span class="odcm-event-type">' . esc_html(ucfirst(str_replace('_', ' ', $event_type))) . '</span>';
+                }
+                if (!empty($source)) {
+                    $event_content .= '<span class="odcm-event-source">(' . esc_html($source) . ')</span>';
+                }
+                $event_content .= '</div>';
+            }
+
+            // Render using toolkit for consistent styling
+            $html .= $toolkit->render_component_shell(
+                '', // No title for individual events
+                'simple_event',
+                $event_content,
+                ['status' => $status]
+            );
+        }
+
+        $html .= '</div>';
+        $html .= '</div>';
+
+        return $html;
     }
 
     /**

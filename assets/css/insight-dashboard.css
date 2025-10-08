@@ -95,6 +95,7 @@
   --odcm-calculated-dashboard-height: calc(100vh - var(--odcm-calculated-admin-bar-height));
   --odcm-theme-pane-header-height: 48px;
   --odcm-theme-mobile-header-height: 56px;
+  --odcm-theme-component-base-height: 300px;
   --odcm-theme-component-base-max-height: 360px;
   --odcm-theme-component-max-height: 60vh;
 
@@ -1013,6 +1014,247 @@ label.odcm-retention-option {
     transform: translateX(-100%); /* Hidden to the left by default */
     transition: transform 0.3s ease;
     overflow-y: auto; /* Enable scrolling for settings content */
+}
+
+/* ==========================================================================
+   WEBHOOK CONFIGURATION STYLING
+   ========================================================================== */
+
+/* Webhook endpoints container */
+.odcm-webhook-endpoints {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-md);
+    margin-top: var(--odcm-theme-spacing-sm);
+}
+
+/* Individual webhook endpoint */
+.odcm-webhook-endpoint {
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    padding: var(--odcm-theme-spacing-sm);
+    background: var(--odcm-theme-grey-100);
+}
+
+/* Webhook label with icon and status */
+.odcm-webhook-label {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+    font-weight: 500;
+    margin-bottom: var(--odcm-theme-spacing-xs);
+    font-size: var(--odcm-theme-font-size-sm);
+}
+
+.odcm-gateway-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.odcm-status-indicator {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+/* Webhook URL container with proper width constraints */
+.odcm-webhook-url-container {
+    display: flex;
+    gap: var(--odcm-theme-spacing-xs);
+    align-items: center;
+    width: 100%;
+}
+
+/* Webhook URL input - constrained to fit within pane */
+.odcm-webhook-url {
+    flex: 1;
+    min-width: 0; /* Allow shrinking below content size */
+    max-width: 180px; /* Constrain to fit in 300px pane with copy button */
+    font-size: var(--odcm-theme-font-size-xs);
+    font-family: monospace;
+    padding: 4px 6px;
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    background: var(--odcm-theme-white);
+}
+
+/* Copy button styling */
+.odcm-copy-url {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    font-size: var(--odcm-theme-font-size-xs);
+    min-width: 50px;
+}
+
+/* Gateway adapters styling */
+.odcm-gateway-adapters {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-xs);
+    margin-top: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-adapter-status {
+    padding: var(--odcm-theme-spacing-xs);
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    background: var(--odcm-theme-white);
+}
+
+.odcm-adapter-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.odcm-adapter-name {
+    font-weight: 500;
+    font-size: var(--odcm-theme-font-size-sm);
+}
+
+.odcm-adapter-status-badge {
+    padding: 2px 6px;
+    border-radius: var(--odcm-component-border-radius);
+    font-size: var(--odcm-theme-font-size-xs);
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.odcm-adapter-status-badge--active {
+    background: var(--odcm-theme-green-200);
+    color: var(--odcm-theme-grey-900);
+}
+
+.odcm-adapter-status-badge--inactive {
+    background: var(--odcm-theme-grey-300);
+    color: var(--odcm-theme-grey-700);
+}
+
+.odcm-adapter-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0; /* Allow shrinking below content size */
+}
+
+.odcm-adapter-details small {
+    font-size: var(--odcm-theme-font-size-xs);
+    color: var(--odcm-theme-grey-600);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Security settings styling */
+.odcm-security-settings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-md);
+    margin-top: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-security-setting {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-security-setting label {
+    font-weight: 500;
+    font-size: var(--odcm-theme-font-size-sm);
+    margin: 0;
+}
+
+.odcm-security-setting input[type="password"] {
+    max-width: 200px; /* Constrain password field width */
+    font-size: var(--odcm-theme-font-size-sm);
+}
+
+.odcm-security-setting input[type="checkbox"] {
+    margin-right: var(--odcm-theme-spacing-xs);
+}
+
+/* Webhook testing styling */
+.odcm-webhook-testing {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-xs);
+    margin-top: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-test-webhook {
+    align-self: flex-start;
+    font-size: var(--odcm-theme-font-size-sm);
+    padding: 6px 12px;
+}
+
+/* Recent webhook activity styling */
+.odcm-recent-webhooks {
+    margin-top: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-no-webhooks {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+    padding: var(--odcm-theme-spacing-sm);
+    background: var(--odcm-theme-grey-100);
+    border-radius: var(--odcm-component-border-radius);
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-600);
+}
+
+.odcm-webhook-activity {
+    padding: var(--odcm-theme-spacing-xs);
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    margin-bottom: var(--odcm-theme-spacing-xs);
+    background: var(--odcm-theme-white);
+}
+
+.odcm-webhook-summary {
+    display: flex;
+    gap: var(--odcm-theme-spacing-xs);
+    align-items: center;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+.odcm-webhook-gateway,
+.odcm-webhook-event {
+    font-size: var(--odcm-theme-font-size-xs);
+    padding: 2px 4px;
+    border-radius: var(--odcm-component-border-radius);
+    background: var(--odcm-theme-grey-200);
+}
+
+.odcm-webhook-status {
+    font-size: var(--odcm-theme-font-size-xs);
+    padding: 2px 4px;
+    border-radius: var(--odcm-component-border-radius);
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.odcm-webhook-status--success {
+    background: var(--odcm-theme-green-200);
+    color: var(--odcm-theme-grey-900);
+}
+
+.odcm-webhook-status--error {
+    background: var(--odcm-theme-red-200);
+    color: var(--odcm-theme-grey-900);
+}
+
+.odcm-webhook-status--info {
+    background: var(--odcm-theme-blue-200);
+    color: var(--odcm-theme-grey-900);
+}
+
+.odcm-webhook-time {
+    font-size: var(--odcm-theme-font-size-xs);
+    color: var(--odcm-theme-grey-600);
 }
 
 /* Show settings pane when settings tab is active AND filter pane is visible */
@@ -2230,7 +2472,7 @@ label.odcm-retention-option {
 }
 
 /* High contrast mode support */
-@media (prefers-contrast: high) {
+@media (prefers-contrast: more) {
     .odcm-log-entry {
         border-width: 2px;
     }
