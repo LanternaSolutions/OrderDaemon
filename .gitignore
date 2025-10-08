@@ -1,19 +1,8 @@
 # Composer
 /vendor/
 composer.lock
-/order-daemon/vendor/
-/order-daemon/composer.lock
-/order-daemon/composer_2.phar
-/order-daemon/composer.phar
-
-# WordPress
-/wordpress-stubs/
-
-# Testing
-/tests/wordpress-test-lib/
-# EXPLICITLY UN-IGNORE the custom testing configuration and required includes
-!/tests/wordpress-test-lib/wp-tests-config.php
-!/tests/wordpress-test-lib/includes
+composer_2.phar
+composer.phar
 
 # IDE and OS specific files
 .idea/
@@ -31,10 +20,3 @@ Thumbs.db
 !/.idea/inspectionProfiles/
 # This line is for a custom inspection profile
 !/.idea/inspectionProfiles/Project_Default.xml
-
-# Comparisons
-/Autocomplete-Order-Status-for-WooCommerce-master/
-
-# Misc unnecessary files
-/web/_file_dump/
-/finance/
