@@ -46,7 +46,7 @@ use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
  * - Supports the new process_id correlation system
  *
  * @package OrderDaemon\CompletionManager\Core
- * @since   1.5
+ * @since   1.0.0
  * @author  OrderDaemon Development Team
  */
 class ManualStatusTracker
