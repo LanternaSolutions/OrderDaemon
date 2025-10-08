@@ -1,0 +1,34 @@
+stages:
+  - package_assets
+
+variables:
+  PACKAGE_NAME: "order-daemon"
+
+package_artifacts:
+  stage: package_assets
+  image: registry.gitlab.com/gitlab-org/cli:latest
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+  script:
+    - echo "Packaging assets for release - $CI_COMMIT_TAG"
+    - apk add --no-cache zip
+    - zip -r "$PACKAGE_NAME" ./ -i '**/*.php' '**/*.js' '**/*.css' '*/README.txt' '*/vendor/**'
+  artifacts:
+    name: "$PACKAGE_NAME"
+    paths:
+      - './**/*.php'
+      - './**/*.js'
+      - './**/*.css'
+      - './README.txt'
+      - './vendor/**'
+  release:
+    name: '$CI_COMMIT_TAG'
+    description: 'Automated release for $CI_COMMIT_TAG'  
+    tag_name: '$CI_COMMIT_TAG'                           
+    ref: '$CI_COMMIT_SHA'                    
+    assets:
+      links:
+        - name: "$PACKAGE_NAME"
+          direct_asset_path: "$CI_BUILDS_DIR/${PACKAGE_NAME}.zip" 
+          url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/download?file_type=archive"
+          link_type: package
