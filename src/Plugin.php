@@ -163,8 +163,37 @@ final class Plugin {
 		// Initialize Manual Status Tracker for chain of custody logging
 		ManualStatusTracker::init();
 
+		// Initialize Premium Component Fallback System (v2.2.1+)
+		$this->initialize_premium_fallback_system();
+
         // Initialize Security Guard System (v2.1.1+)
         $this->initialize_security_system();
+	}
+
+	/**
+	 * Initialize the premium component fallback system.
+	 *
+	 * This method sets up the fallback system that handles scenarios where
+	 * existing rules reference premium components that are no longer available
+	 * (e.g., when pro plugin is deactivated or components are migrated).
+	 *
+	 * @since 1.1.0
+	 */
+	private function initialize_premium_fallback_system(): void {
+		try {
+			// Check if the fallback class exists
+			if (!class_exists('\OrderDaemon\CompletionManager\Core\PremiumComponentFallback')) {
+				return;
+			}
+
+			// Initialize the fallback system
+			\OrderDaemon\CompletionManager\Core\PremiumComponentFallback::init();
+
+		} catch (\Throwable $e) {
+			// Silently fail fallback system initialization to prevent breaking the plugin
+			// The fallback system is optional and shouldn't break core functionality
+			error_log('ODCM: Failed to initialize premium component fallback system: ' . $e->getMessage());
+		}
 	}
 
     /**
