@@ -13,7 +13,7 @@
  * - WordPress standard pagination
  *
  * @package OrderDaemon\CompletionManager
- * @since   2.0.0
+ * @since   1.0.0
  */
 
 // Lightweight debug flag resolver for gated logs
@@ -137,13 +137,13 @@ function insightDashboard() {
             display: true,          // Display Options expanded by default
             orderProcessing: false, // Order Processing collapsed by default
             education: false,       // Education collapsed by default
+            webhooks: false,        // Webhook Configuration collapsed by default
             debug: false,           // Debug Settings collapsed by default
             dataManagement: false   // Data Management collapsed by default
         },
 
         // Reprocess pending orders state
         isReprocessing: false,
-
 
         // Generate sample logs state
 
@@ -625,7 +625,7 @@ function insightDashboard() {
 
                     // Validate and filter log data before setting state
                     const rawLogs = Array.isArray(data.logs) ? data.logs : [];
-                    
+
                     // Debug raw data structure
                     if (odcmIsDebug()) {
                         console.log('ODCM: Raw logs received:', rawLogs.length, 'entries');
@@ -639,15 +639,15 @@ function insightDashboard() {
                             }
                         });
                     }
-                    
+
                     const validLogs = rawLogs.filter((log, index) => {
                         // Validate each log entry
-                        const isValid = log && 
-                                       typeof log === 'object' && 
-                                       log.id !== undefined && 
+                        const isValid = log &&
+                                       typeof log === 'object' &&
+                                       log.id !== undefined &&
                                        log.id !== null &&
                                        typeof log.summary === 'string';
-                        
+
                         return isValid;
                     });
 
@@ -656,20 +656,20 @@ function insightDashboard() {
                     const uniqueLogs = validLogs.map((log, index) => {
                         let uniqueId = log.id;
                         let counter = 1;
-                        
+
                         // If we've seen this ID before, make it unique
                         while (seenIds.has(uniqueId)) {
                             uniqueId = `${log.id}_dup_${counter}`;
                             counter++;
                         }
-                        
+
                         seenIds.add(uniqueId);
-                        
+
                         // If we had to change the ID, log it
                         if (uniqueId !== log.id && odcmIsDebug()) {
                             console.warn(`ODCM: Duplicate ID ${log.id} changed to ${uniqueId}`);
                         }
-                        
+
                         return {
                             ...log,
                             id: uniqueId,
@@ -1085,24 +1085,24 @@ function insightDashboard() {
         // =================================================================
         toggleSettingsSection(section) {
             try {
-                if (odcmIsDebug()) { 
+                if (odcmIsDebug()) {
                     console.log('ODCM: toggleSettingsSection called with section:', section);
                     console.log('ODCM: Current settingsAccordionState:', this.settingsAccordionState);
                 }
-                
+
                 if (!this.settingsAccordionState || typeof this.settingsAccordionState[section] === 'undefined') {
-                    if (odcmIsDebug()) { 
+                    if (odcmIsDebug()) {
                         console.warn('ODCM: Section not found in settingsAccordionState:', section);
                     }
                     return;
                 }
-                
+
                 this.settingsAccordionState[section] = !this.settingsAccordionState[section];
-                
-                if (odcmIsDebug()) { 
+
+                if (odcmIsDebug()) {
                     console.log('ODCM: After toggle, settingsAccordionState:', this.settingsAccordionState);
                 }
-                
+
                 // Persist accordion state
                 try {
                     localStorage.setItem('odcm_settings_accordion_state', JSON.stringify(this.settingsAccordionState));
@@ -1319,17 +1319,17 @@ function insightDashboard() {
 
             // Validate incoming logs before processing
             const validNewLogs = newLogs.filter((log, index) => {
-                const isValid = log && 
-                               typeof log === 'object' && 
-                               log.id !== undefined && 
+                const isValid = log &&
+                               typeof log === 'object' &&
+                               log.id !== undefined &&
                                log.id !== null &&
                                typeof log.summary === 'string';
-                
+
                 // Debug invalid entries in auto-refresh
                 if (!isValid && odcmIsDebug()) {
                     console.warn(`ODCM: Invalid log entry in auto-refresh at index ${index}:`, log);
                 }
-                
+
                 return isValid;
             });
 
@@ -1691,8 +1691,7 @@ function insightDashboard() {
                 const detailPane = document.querySelector('.odcm-detail-content');
                 if (detailPane) this.highlightCodeBlocks(detailPane);
             });
-        },
-
+        }
     };
 }
 
