@@ -14,7 +14,7 @@
  * 3. COMPONENTS: CSS classes that apply semantic variables with theme overrides
  * 
  * @package OrderDaemon\CompletionManager
- * @since   2.0.0
+ * @since   1.0.0
  */
 
 /* ==========================================================================
@@ -1183,10 +1183,115 @@ label.odcm-retention-option {
     margin-top: var(--odcm-theme-spacing-sm);
 }
 
+/* Gateway test item container - ensures inline layout */
+.odcm-gateway-test-item {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+    margin-bottom: var(--odcm-theme-spacing-xs);
+}
+
 .odcm-test-webhook {
-    align-self: flex-start;
+    flex-shrink: 0;
     font-size: var(--odcm-theme-font-size-sm);
     padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Test result indicators - inline with buttons */
+.odcm-test-result-indicator {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    margin-left: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-test-success {
+    color: var(--odcm-theme-green-700);
+}
+
+.odcm-test-warning {
+    color: var(--odcm-theme-yellow-700);
+}
+
+.odcm-test-error {
+    color: var(--odcm-theme-red-700);
+}
+
+/* Coming soon badge */
+.odcm-coming-soon-badge {
+    font-size: var(--odcm-theme-font-size-xs);
+    color: var(--odcm-theme-grey-600);
+    font-style: italic;
+    margin-left: var(--odcm-theme-spacing-xs);
+}
+
+/* No gateways message */
+.odcm-no-gateways {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+    padding: var(--odcm-theme-spacing-sm);
+    background: var(--odcm-theme-grey-100);
+    border-radius: var(--odcm-component-border-radius);
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-600);
+}
+
+/* Test history styling */
+.odcm-test-history {
+    margin-top: var(--odcm-theme-spacing-md);
+    padding-top: var(--odcm-theme-spacing-md);
+    border-top: 1px solid var(--odcm-component-border-color);
+}
+
+.odcm-test-history h4 {
+    margin: 0 0 var(--odcm-theme-spacing-sm) 0;
+    font-size: var(--odcm-theme-font-size-sm);
+    font-weight: 600;
+    color: var(--odcm-component-text-color-header);
+}
+
+.odcm-test-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-test-history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--odcm-theme-spacing-xs);
+    background: var(--odcm-theme-white);
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    font-size: var(--odcm-theme-font-size-xs);
+}
+
+.odcm-test-history-item.success {
+    border-left: 3px solid var(--odcm-theme-green-700);
+}
+
+.odcm-test-history-item.failed {
+    border-left: 3px solid var(--odcm-theme-red-700);
+}
+
+.odcm-test-gateway,
+.odcm-test-event {
+    font-weight: 500;
+    margin-right: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-test-status {
+    font-weight: 600;
+}
+
+.odcm-test-time {
+    color: var(--odcm-theme-grey-600);
+    font-size: var(--odcm-theme-font-size-xs);
 }
 
 /* Recent webhook activity styling */

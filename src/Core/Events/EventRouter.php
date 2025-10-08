@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\Core\Events;
 
 use OrderDaemon\CompletionManager\Core\Events\Adapters\PayPalAdapter;
+use OrderDaemon\CompletionManager\Core\Events\Adapters\GenericAdapter;
 
 /**
  * Event Router
@@ -260,6 +261,9 @@ class EventRouter
     {
         // Register PayPal adapter
         $this->registerAdapter(new PayPalAdapter());
+        
+        // Register Generic adapter (fallback for unknown gateways)
+        $this->registerAdapter(new GenericAdapter());
 
         // Future adapters can be registered here
         // $this->registerAdapter(new StripeAdapter());
