@@ -137,13 +137,13 @@ function insightDashboard() {
             display: true,          // Display Options expanded by default
             orderProcessing: false, // Order Processing collapsed by default
             education: false,       // Education collapsed by default
-            webhooks: false,        // Webhook Configuration collapsed by default
             debug: false,           // Debug Settings collapsed by default
             dataManagement: false   // Data Management collapsed by default
         },
 
         // Reprocess pending orders state
         isReprocessing: false,
+
 
         // Generate sample logs state
 
@@ -1691,7 +1691,8 @@ function insightDashboard() {
                 const detailPane = document.querySelector('.odcm-detail-content');
                 if (detailPane) this.highlightCodeBlocks(detailPane);
             });
-        }
+        },
+
     };
 }
 

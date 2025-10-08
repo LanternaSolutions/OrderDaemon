@@ -281,6 +281,18 @@ class InsightDashboard
             'before'
         );
 
+        // Base accordion state
+        $accordion_state = [
+            'display' => false,
+            'orderProcessing' => false,
+            'education' => false,
+            'debug' => false,
+            'dataManagement' => false,
+        ];
+
+        // Allow pro plugin to add additional accordion states
+        $accordion_state = apply_filters('odcm_insight_dashboard_accordion_state', $accordion_state);
+
         // Localize script with API endpoints and configuration
         wp_localize_script('odcm-insight-dashboard-js', 'odcmInsightConfig', [
             // Use root-relative REST URLs to ensure same-origin requests (cookies sent), avoiding masked 404s
@@ -289,10 +301,12 @@ class InsightDashboard
             'renderBatchUrl' => wp_make_link_relative(rest_url('odcm/v1/audit-log/render-components/batch/')),
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('wp_rest'),
+            'restNonce' => wp_create_nonce('wp_rest'),
             'premium_access' => false,
             'perPage' => $this->get_user_per_page_setting(),
             'autoRefreshInterval' => 5000, // 5 seconds
             'debug' => self::is_global_debug_active(),
+            'accordionState' => $accordion_state,
             'dateTimeConfig' => [
                 'dateFormat' => get_option('date_format', 'F j, Y'),
                 'timeFormat' => get_option('time_format', 'g:i a'),
@@ -988,35 +1002,10 @@ class InsightDashboard
                 </div>
             </div>
 
-            <!-- Webhook Configuration Accordion Section -->
-            <div class="odcm-settings-accordion">
-                <div class="odcm-settings-accordion-header" 
-                     @click="toggleSettingsSection('webhooks')"
-                     :class="{ 'is-expanded': settingsAccordionState.webhooks }"
-                     role="button"
-                     tabindex="0"
-                     :aria-expanded="settingsAccordionState.webhooks"
-                     aria-controls="webhook-settings-content">
-                    <div class="odcm-settings-accordion-title">
-                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('Webhook Configuration', Odcm_Config::$text_domain); ?></span>
-                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('Configure webhook endpoints for payment gateways and external services.', Odcm_Config::$text_domain); ?></p>
-                    </div>
-                    <span class="odcm-settings-accordion-icon dashicons dashicons-arrow-down-alt2"></span>
-                </div>
-                <div class="odcm-settings-accordion-content" 
-                     id="webhook-settings-content"
-                     x-show="settingsAccordionState.webhooks"
-                     x-transition:enter="odcm-accordion-enter"
-                     x-transition:enter-start="odcm-accordion-enter-start"
-                     x-transition:enter-end="odcm-accordion-enter-end"
-                     x-transition:leave="odcm-accordion-leave"
-                     x-transition:leave-start="odcm-accordion-leave-start"
-                     x-transition:leave-end="odcm-accordion-leave-end">
-                    <div class="odcm-settings-section-inner">
-                        <?php $this->render_webhook_configuration(); ?>
-                    </div>
-                </div>
-            </div>
+            <?php
+            // Allow pro plugin to add additional settings sections
+            do_action('odcm_insight_dashboard_settings_sections');
+            ?>
 
             <!-- Debug Settings Accordion Section -->
             <div class="odcm-settings-accordion">
@@ -1575,305 +1564,4 @@ class InsightDashboard
         <?php
     }
 
-    /**
-     * Render webhook configuration section
-     */
-    private function render_webhook_configuration(): void
-    {
-        // Get webhook health status
-        $webhook_health = $this->get_webhook_health_status();
-        
-        ?>
-        <!-- Webhook Endpoints -->
-        <div class="odcm-setting-row">
-            <label class="odcm-setting-label"><?php echo esc_html__('Webhook Endpoints', Odcm_Config::$text_domain); ?></label>
-            <p class="description"><?php echo esc_html__('Configure these URLs in your payment gateway settings to receive real-time event notifications.', Odcm_Config::$text_domain); ?></p>
-            
-            <div class="odcm-webhook-endpoints">
-                <!-- PayPal Webhook URL -->
-                <div class="odcm-webhook-endpoint">
-                    <label class="odcm-webhook-label">
-                        <span class="odcm-gateway-icon">💳</span>
-                        <?php echo esc_html__('PayPal Webhook URL', Odcm_Config::$text_domain); ?>
-                        <span class="odcm-status-indicator odcm-status-indicator--<?php echo esc_attr($webhook_health['paypal']['status']); ?>" 
-                              title="<?php echo esc_attr($webhook_health['paypal']['message']); ?>">
-                            <?php echo $webhook_health['paypal']['status'] === 'active' ? '✅' : '⚠️'; ?>
-                        </span>
-                    </label>
-                    <div class="odcm-webhook-url-container">
-                        <input type="text" 
-                               class="odcm-webhook-url regular-text" 
-                               value="<?php echo esc_attr(rest_url('odcm/v1/webhooks/paypal')); ?>" 
-                               readonly>
-                        <button type="button" 
-                                class="odcm-copy-url button button-secondary"
-                                onclick="navigator.clipboard.writeText(this.previousElementSibling.value); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)">
-                            <?php echo esc_html__('Copy', Odcm_Config::$text_domain); ?>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Stripe Webhook URL -->
-                <div class="odcm-webhook-endpoint">
-                    <label class="odcm-webhook-label">
-                        <span class="odcm-gateway-icon">💳</span>
-                        <?php echo esc_html__('Stripe Webhook URL', Odcm_Config::$text_domain); ?>
-                        <span class="odcm-status-indicator odcm-status-indicator--coming-soon" 
-                              title="<?php echo esc_attr__('Stripe adapter coming soon', Odcm_Config::$text_domain); ?>">
-                            🚧
-                        </span>
-                    </label>
-                    <div class="odcm-webhook-url-container">
-                        <input type="text" 
-                               class="odcm-webhook-url regular-text" 
-                               value="<?php echo esc_attr(rest_url('odcm/v1/webhooks/stripe')); ?>" 
-                               readonly>
-                        <button type="button" 
-                                class="odcm-copy-url button button-secondary"
-                                onclick="navigator.clipboard.writeText(this.previousElementSibling.value); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)">
-                            <?php echo esc_html__('Copy', Odcm_Config::$text_domain); ?>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Generic Webhook URL -->
-                <div class="odcm-webhook-endpoint">
-                    <label class="odcm-webhook-label">
-                        <span class="odcm-gateway-icon">🔗</span>
-                        <?php echo esc_html__('Generic Webhook URL', Odcm_Config::$text_domain); ?>
-                        <span class="odcm-status-indicator odcm-status-indicator--<?php echo esc_attr($webhook_health['generic']['status']); ?>" 
-                              title="<?php echo esc_attr($webhook_health['generic']['message']); ?>">
-                            <?php echo $webhook_health['generic']['status'] === 'active' ? '✅' : '⚠️'; ?>
-                        </span>
-                    </label>
-                    <div class="odcm-webhook-url-container">
-                        <input type="text" 
-                               class="odcm-webhook-url regular-text" 
-                               value="<?php echo esc_attr(rest_url('odcm/v1/webhooks/generic')); ?>" 
-                               readonly>
-                        <button type="button" 
-                                class="odcm-copy-url button button-secondary"
-                                onclick="navigator.clipboard.writeText(this.previousElementSibling.value); this.textContent='Copied!'; setTimeout(() => this.textContent='Copy', 2000)">
-                            <?php echo esc_html__('Copy', Odcm_Config::$text_domain); ?>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Gateway Adapters Status -->
-        <div class="odcm-setting-row">
-            <label class="odcm-setting-label"><?php echo esc_html__('Gateway Adapters', Odcm_Config::$text_domain); ?></label>
-            <p class="description"><?php echo esc_html__('Status of available payment gateway adapters for processing webhook events.', Odcm_Config::$text_domain); ?></p>
-            
-            <div class="odcm-gateway-adapters">
-                <?php foreach ($webhook_health['adapters'] as $gateway => $adapter_info): ?>
-                <div class="odcm-adapter-status">
-                    <div class="odcm-adapter-info">
-                        <span class="odcm-adapter-name"><?php echo esc_html(ucfirst($gateway)); ?> Adapter</span>
-                        <span class="odcm-adapter-status-badge odcm-adapter-status-badge--<?php echo esc_attr($adapter_info['status']); ?>">
-                            <?php echo esc_html(ucfirst($adapter_info['status'])); ?>
-                        </span>
-                    </div>
-                    <div class="odcm-adapter-details">
-                        <small><?php echo esc_html($adapter_info['class']); ?></small>
-                        <small><?php echo esc_html(sprintf(__('%d supported events', Odcm_Config::$text_domain), count($adapter_info['supported_events']))); ?></small>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-
-        <!-- Webhook Security Settings -->
-        <div class="odcm-setting-row">
-            <label class="odcm-setting-label"><?php echo esc_html__('Security Settings', Odcm_Config::$text_domain); ?></label>
-            <p class="description"><?php echo esc_html__('Configure webhook authentication and security options.', Odcm_Config::$text_domain); ?></p>
-            
-            <div class="odcm-security-settings">
-                <!-- PayPal Webhook Secret -->
-                <div class="odcm-security-setting">
-                    <label for="odcm_paypal_webhook_secret"><?php echo esc_html__('PayPal Webhook Secret', Odcm_Config::$text_domain); ?></label>
-                    <input type="password" 
-                           id="odcm_paypal_webhook_secret"
-                           name="odcm_paypal_webhook_secret"
-                           value="<?php echo esc_attr(get_option('odcm_paypal_webhook_secret', '')); ?>"
-                           class="regular-text"
-                           placeholder="<?php echo esc_attr__('Enter PayPal webhook secret...', Odcm_Config::$text_domain); ?>">
-                    <p class="description"><?php echo esc_html__('Optional: PayPal webhook secret for signature verification.', Odcm_Config::$text_domain); ?></p>
-                </div>
-
-                <!-- Webhook Debug Mode -->
-                <div class="odcm-security-setting">
-                    <label for="odcm_webhook_debug">
-                        <input type="checkbox" 
-                               id="odcm_webhook_debug"
-                               name="odcm_webhook_debug"
-                               <?php checked(get_option('odcm_webhook_debug', false)); ?>>
-                        <?php echo esc_html__('Enable Webhook Debug Mode', Odcm_Config::$text_domain); ?>
-                    </label>
-                    <p class="description"><?php echo esc_html__('Log detailed webhook processing information for troubleshooting.', Odcm_Config::$text_domain); ?></p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Webhook Testing -->
-        <div class="odcm-setting-row">
-            <label class="odcm-setting-label"><?php echo esc_html__('Webhook Testing', Odcm_Config::$text_domain); ?></label>
-            <p class="description"><?php echo esc_html__('Test webhook processing with sample data to verify your configuration.', Odcm_Config::$text_domain); ?></p>
-            
-            <div class="odcm-webhook-testing">
-                <button type="button" 
-                        class="odcm-test-webhook button"
-                        onclick="this.textContent='Testing...'; setTimeout(() => this.textContent='Test PayPal Webhook', 3000)">
-                    <?php echo esc_html__('Test PayPal Webhook', Odcm_Config::$text_domain); ?>
-                </button>
-                <button type="button" 
-                        class="odcm-test-webhook button" 
-                        disabled
-                        title="<?php echo esc_attr__('Stripe adapter coming soon', Odcm_Config::$text_domain); ?>">
-                    <?php echo esc_html__('Test Stripe Webhook', Odcm_Config::$text_domain); ?>
-                </button>
-            </div>
-        </div>
-
-        <!-- Recent Webhook Activity -->
-        <div class="odcm-setting-row">
-            <label class="odcm-setting-label"><?php echo esc_html__('Recent Activity', Odcm_Config::$text_domain); ?></label>
-            <p class="description"><?php echo esc_html__('Latest webhook events received and processed.', Odcm_Config::$text_domain); ?></p>
-            
-            <div class="odcm-recent-webhooks">
-                <?php $recent_webhooks = $this->get_recent_webhook_activity(); ?>
-                <?php if (empty($recent_webhooks)): ?>
-                    <div class="odcm-no-webhooks">
-                        <span class="dashicons dashicons-info"></span>
-                        <span><?php echo esc_html__('No recent webhook activity. Webhooks will appear here once received.', Odcm_Config::$text_domain); ?></span>
-                    </div>
-                <?php else: ?>
-                    <?php foreach ($recent_webhooks as $webhook): ?>
-                    <div class="odcm-webhook-activity">
-                        <div class="odcm-webhook-summary">
-                            <span class="odcm-webhook-gateway"><?php echo esc_html(ucfirst($webhook['gateway'])); ?></span>
-                            <span class="odcm-webhook-event"><?php echo esc_html($webhook['event_type']); ?></span>
-                            <span class="odcm-webhook-status odcm-webhook-status--<?php echo esc_attr($webhook['status']); ?>">
-                                <?php echo esc_html(ucfirst($webhook['status'])); ?>
-                            </span>
-                        </div>
-                        <div class="odcm-webhook-time">
-                            <?php echo esc_html(human_time_diff(strtotime($webhook['timestamp'])) . ' ago'); ?>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php
-    }
-
-    /**
-     * Get webhook health status
-     * 
-     * @return array Webhook health information
-     */
-    private function get_webhook_health_status(): array
-    {
-        try {
-            // Check if EventRouter is available
-            if (!class_exists('\OrderDaemon\CompletionManager\Core\Events\EventRouter')) {
-                return $this->get_default_webhook_health();
-            }
-
-            $router = new \OrderDaemon\CompletionManager\Core\Events\EventRouter();
-            $adapters = $router->getAvailableAdapters();
-
-            $health = [
-                'paypal' => [
-                    'status' => isset($adapters['paypal']) ? 'active' : 'inactive',
-                    'message' => isset($adapters['paypal']) ? 'PayPal adapter is active and ready' : 'PayPal adapter not available'
-                ],
-                'stripe' => [
-                    'status' => 'coming-soon',
-                    'message' => 'Stripe adapter coming in future update'
-                ],
-                'generic' => [
-                    'status' => 'active',
-                    'message' => 'Generic webhook endpoint is active'
-                ],
-                'adapters' => $adapters
-            ];
-
-            return $health;
-
-        } catch (\Throwable $e) {
-            return $this->get_default_webhook_health();
-        }
-    }
-
-    /**
-     * Get default webhook health status (fallback)
-     * 
-     * @return array Default health information
-     */
-    private function get_default_webhook_health(): array
-    {
-        return [
-            'paypal' => [
-                'status' => 'unknown',
-                'message' => 'Unable to determine PayPal adapter status'
-            ],
-            'stripe' => [
-                'status' => 'coming-soon',
-                'message' => 'Stripe adapter coming in future update'
-            ],
-            'generic' => [
-                'status' => 'active',
-                'message' => 'Generic webhook endpoint should be active'
-            ],
-            'adapters' => []
-        ];
-    }
-
-    /**
-     * Get recent webhook activity
-     * 
-     * @return array Recent webhook events
-     */
-    private function get_recent_webhook_activity(): array
-    {
-        global $wpdb;
-
-        try {
-            // Query recent webhook events from audit log
-            $results = $wpdb->get_results($wpdb->prepare(
-                "SELECT summary, event_type, status, timestamp 
-                 FROM {$wpdb->prefix}odcm_audit_log 
-                 WHERE event_type IN ('webhook_reception', 'webhook_processing', 'universal_event_processing')
-                 ORDER BY timestamp DESC 
-                 LIMIT %d",
-                5
-            ), ARRAY_A);
-
-            $webhooks = [];
-            foreach ($results as $result) {
-                // Extract gateway from summary or event type
-                $gateway = 'unknown';
-                if (stripos($result['summary'], 'paypal') !== false) {
-                    $gateway = 'paypal';
-                } elseif (stripos($result['summary'], 'stripe') !== false) {
-                    $gateway = 'stripe';
-                }
-
-                $webhooks[] = [
-                    'gateway' => $gateway,
-                    'event_type' => $result['event_type'],
-                    'status' => $result['status'] ?: 'info',
-                    'timestamp' => $result['timestamp']
-                ];
-            }
-
-            return $webhooks;
-
-        } catch (\Throwable $e) {
-            return [];
-        }
-    }
 }
