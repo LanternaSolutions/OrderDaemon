@@ -13,7 +13,7 @@ namespace OrderDaemon\CompletionManager\Includes;
  * for inclusion in .po/.pot files, ensuring perfect translation workflow compatibility.
  * 
  * @package OrderDaemon\CompletionManager\Includes
- * @since   2.0.0
+ * @since   1.0.0
  */
 final class Odcm_Strings
 {

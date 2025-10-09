@@ -6,6 +6,7 @@ namespace OrderDaemon\CompletionManager\Core\Events;
 use OrderDaemon\CompletionManager\Includes\AuditTrailLogger;
 use OrderDaemon\CompletionManager\Core\RuleComponents\RuleComponentRegistry;
 use OrderDaemon\CompletionManager\Core\Evaluator;
+use OrderDaemon\CompletionManager\Core\ProcessIdManager;
 
 /**
  * Universal Event Processor
@@ -79,7 +80,19 @@ class UniversalEventProcessor
     public function processEvent(array $event_data): bool
     {
         $start_time = microtime(true);
-        $process_id = 'odcm_universal_' . uniqid();
+        
+        // Use shared process_id for order lifecycle events, random for others
+        $order_id = isset($event_data['primaryObjectID']) && $event_data['primaryObjectType'] === 'order' 
+            ? (int) $event_data['primaryObjectID'] 
+            : 0;
+            
+        if ($order_id > 0) {
+            // Use shared process_id for proper order consolidation
+            $process_id = ProcessIdManager::instance()->get_or_create_process_id($order_id);
+        } else {
+            // Use unique process_id for non-order events
+            $process_id = 'odcm_universal_' . uniqid();
+        }
 
         try {
             // Validate event data
@@ -94,11 +107,6 @@ class UniversalEventProcessor
             // Create evaluation context
             $context = new EvaluationContext($universal_event);
 
-            // Log event reception at debug level
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logEventReception($context, $process_id);
-            }
-
             // Check for idempotency
             if ($this->isDuplicateEvent($universal_event)) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -110,7 +118,7 @@ class UniversalEventProcessor
             // Process through rule engine
             $result = $this->processUniversalEventRules($context, $process_id);
 
-            // Log processing result
+            // Log final processing result
             $execution_time = microtime(true) - $start_time;
             $this->logProcessingResult($context, $result, $execution_time, $process_id);
 
@@ -194,8 +202,13 @@ class UniversalEventProcessor
     {
         $event = $context->event;
         
+        // Use the event's getSummary() method for better user-facing descriptions
+        $summary = $event->getSummary();
+        $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
+        $message = !empty($summary) ? "Event received: {$summary}" : sprintf('%s %s received', $gateway, $event->eventType);
+        
         \odcm_log_custom_event(
-            sprintf('Universal event received: %s from %s', $event->eventType, $event->sourceGateway ?? 'unknown'),
+            $message,
             [
                 'event_type' => $event->eventType,
                 'source_gateway' => $event->sourceGateway,
@@ -256,9 +269,13 @@ class UniversalEventProcessor
     {
         $event = $context->event;
         $status = $result ? 'success' : 'info';
+        
+        // Use the event's getSummary() method for better user-facing descriptions
+        $summary = $event->getSummary();
+        $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
         $message = $result 
-            ? sprintf('Universal event processed successfully: %s from %s', $event->eventType, $event->sourceGateway ?? 'unknown')
-            : sprintf('Universal event processed with no matching rules: %s from %s', $event->eventType, $event->sourceGateway ?? 'unknown');
+            ? (!empty($summary) ? "Successfully processed: {$summary}" : sprintf('%s %s processed successfully', $gateway, $event->eventType))
+            : (!empty($summary) ? "No matching rules for: {$summary}" : sprintf('%s %s completed with no matching rules', $gateway, $event->eventType));
 
         \odcm_log_custom_event(
             $message,
@@ -297,13 +314,18 @@ class UniversalEventProcessor
      */
     private function logProcessingError(\Throwable $error, array $event_data, float $execution_time, string $process_id): void
     {
+        // Create business-friendly error message
+        $gateway = isset($event_data['sourceGateway']) ? ucfirst($event_data['sourceGateway']) : 'Payment gateway';
+        $business_message = $this->createBusinessErrorMessage($error->getMessage(), $gateway);
+        
         \odcm_log_custom_event(
-            sprintf('Universal event processing failed: %s', $error->getMessage()),
+            $business_message,
             [
                 'event_type' => $event_data['eventType'] ?? 'unknown',
                 'source_gateway' => $event_data['sourceGateway'] ?? 'unknown',
                 'idempotency_key' => $event_data['idempotencyKey'] ?? 'unknown',
-                'error_message' => $error->getMessage(),
+                'business_error_message' => $business_message,
+                'technical_error_message' => $error->getMessage(), // Keep for debugging
                 'error_file' => $error->getFile(),
                 'error_line' => $error->getLine(),
                 'execution_time_ms' => round($execution_time * 1000, 2),
@@ -333,7 +355,7 @@ class UniversalEventProcessor
     private function logError(string $message, array $context, string $process_id): void
     {
         \odcm_log_custom_event(
-            'Universal event processor error: ' . $message,
+            'Payment gateway processor error: ' . $message,
             array_merge($context, [
                 'component' => 'universal_event_processor',
                 'error_type' => 'validation_error',
@@ -400,7 +422,7 @@ class UniversalEventProcessor
              GROUP BY gateway
              ORDER BY count DESC",
             $since
-        ), ARRAY_A);
+        ), 'ARRAY_A');
 
         return [
             'period_hours' => $hours,
@@ -535,5 +557,49 @@ class UniversalEventProcessor
                 'universal_event_action_error'
             );
         }
+    }
+
+    /**
+     * Create business-friendly error message from technical error
+     * 
+     * @param string $technical_message The technical error message
+     * @param string $gateway The payment gateway name
+     * @return string Business-friendly error message
+     */
+    private function createBusinessErrorMessage(string $technical_message, string $gateway): string
+    {
+        $message_lower = strtolower($technical_message);
+        
+        // Map common technical errors to business-friendly messages
+        if (strpos($message_lower, 'invalid arguments') !== false) {
+            return "$gateway event processing error: Missing required data";
+        }
+        
+        if (strpos($message_lower, 'authentication') !== false || strpos($message_lower, 'unauthorized') !== false) {
+            return "$gateway authentication error: Unable to verify event authenticity";
+        }
+        
+        if (strpos($message_lower, 'timeout') !== false || strpos($message_lower, 'connection') !== false) {
+            return "$gateway connection error: Network communication failed";
+        }
+        
+        if (strpos($message_lower, 'database') !== false) {
+            return "$gateway processing error: Data storage issue";
+        }
+        
+        if (strpos($message_lower, 'validation') !== false) {
+            return "$gateway validation error: Event data format issue";
+        }
+        
+        if (strpos($message_lower, 'duplicate') !== false) {
+            return "$gateway processing notice: Duplicate event detected";
+        }
+        
+        if (strpos($message_lower, 'not found') !== false) {
+            return "$gateway processing error: Referenced order not found";
+        }
+        
+        // Generic fallback for unknown errors
+        return "$gateway event processing error: Unable to process event";
     }
 }

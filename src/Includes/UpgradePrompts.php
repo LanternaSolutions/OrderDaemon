@@ -15,7 +15,7 @@ namespace OrderDaemon\CompletionManager\Includes;
  * All outputs are intended to be educational and helpful, not sales-focused.
  *
  * @package OrderDaemon\CompletionManager\Includes
- * @since   2.2.0
+ * @since   1.0.0
  */
 final class UpgradePrompts
 {

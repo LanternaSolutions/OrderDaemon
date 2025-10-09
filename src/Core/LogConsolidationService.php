@@ -8,17 +8,17 @@ namespace OrderDaemon\CompletionManager\Core;
  * 
  * Provides intelligent grouping and consolidation of audit log entries to improve
  * the user experience in the Insight Dashboard. Groups related lifecycle events
- * by process_id and order ID with time proximity to create unified timeline views.
+ * by order ID to create unified timeline views, ensuring single entries per order.
  * 
  * Key Features:
- * - Groups logs by process_id for lifecycle events
- * - Falls back to order_id + time window clustering
- * - Creates consolidated entries with embedded timeline data
+ * - Groups ALL lifecycle events by order_id (primary strategy)
+ * - Creates single consolidated entries per order regardless of process_id
  * - Maintains chronological order and preserves individual entries
+ * - Generates business-friendly summaries focusing on outcomes
  * - Provides debug diagnostics for troubleshooting
  * 
  * @package OrderDaemon\CompletionManager\Core
- * @since   2.2.1
+ * @since   1.0.0
  */
 class LogConsolidationService
 {
@@ -32,8 +32,8 @@ class LogConsolidationService
     /**
      * Consolidate logs for display in the Insight Dashboard
      * 
-     * Takes an array of log entries and groups related lifecycle events
-     * by process_id first, then by order ID and time proximity as fallback.
+     * Takes an array of log entries and groups ALL related lifecycle events
+     * by order_id to ensure single consolidated entries per order.
      * Returns a mixed array of individual and consolidated entries suitable 
      * for dashboard display.
      * 
@@ -69,118 +69,63 @@ class LogConsolidationService
         $errors = [];
 
         try {
-            // Group entries by process_id when lifecycle type
+            // Primary consolidation strategy: Group ALL lifecycle entries by order_id
+            $time_window_minutes = isset($lifecycle_family['time_window_minutes']) ? (int)$lifecycle_family['time_window_minutes'] : 30;
+            $consolidated_entries = [];
+            $individual_entries = [];
+            $by_order = [];
+            $non_order_entries = [];
+            
+            // Separate lifecycle entries by order_id vs non-order entries
             foreach ($logs as $entry) {
                 $event_type = isset($entry['event_type']) ? (string) $entry['event_type'] : '';
-                $process_id = isset($entry['process_id']) ? (string) $entry['process_id'] : '';
+                $order_id = isset($entry['order_id']) ? (int) $entry['order_id'] : 0;
 
                 if (in_array($event_type, $lifecycle_types, true)) {
                     $candidate_by_type++;
-                    if ($process_id !== '') {
-                        $eligible_with_process_id++;
-                        $consolidated_groups[$process_id][] = $entry;
+                    if ($order_id > 0) {
+                        $eligible_with_process_id++; // Reuse counter for order-based consolidation
+                        $by_order[$order_id][] = $entry;
                     } else {
-                        $missing_process_id++;
-                        $individual_entries[] = $entry;
+                        $missing_process_id++; // Reuse counter for entries without order_id
+                        $non_order_entries[] = $entry;
                     }
                 } else {
                     if ($event_type !== '') { 
                         $unknown_types_list[] = $event_type; 
                     }
-                    $individual_entries[] = $entry;
+                    $non_order_entries[] = $entry;
                 }
             }
-
-            // Convert groups to consolidated entries
-            $consolidated_entries = [];
-            $groups_count = 0;
-            $non_grouped_candidates = 0;
             
-            foreach ($consolidated_groups as $process_id => $group_entries) {
-                if (count($group_entries) > 1) {
-                    $groups_count++;
-                    $consolidated_entries[] = $this->create_consolidated_entry($group_entries, $process_id);
-                } else {
-                    $non_grouped_candidates++;
-                    $individual_entries[] = $group_entries[0];
+            // Consolidate all entries for each order into single groups
+            $order_consolidation_count = 0;
+            $groups_count = 0;
+            
+            foreach ($by_order as $order_id => $entriesByOrder) {
+                $groups_count++; // Count each order as a group
+                
+                if (count($entriesByOrder) <= 1) {
+                    // Single entries remain individual (but this is rare for order processing)
+                    $individual_entries = array_merge($individual_entries, $entriesByOrder);
+                    continue;
                 }
+                
+                // Sort by time ascending for proper timeline ordering
+                usort($entriesByOrder, function($a, $b){
+                    return strtotime((string)($a['timestamp'] ?? '')) <=> strtotime((string)($b['timestamp'] ?? ''));
+                });
+                
+                // Always consolidate ALL events for the same order regardless of time span
+                // This ensures we get single entries per order as requested
+                $first = $entriesByOrder[0];
+                $pid = sprintf('odcm:order:%d:%s', $order_id, substr(md5((string)$first['timestamp']), 0, 8));
+                $consolidated_entries[] = $this->create_consolidated_entry($entriesByOrder, $pid);
+                $order_consolidation_count++;
             }
-
-            // Fallback consolidation: if no multi-entry groups by process_id were found,
-            // cluster lifecycle entries by order_id within a time window and consolidate.
-            $fallback_groups_used = 0;
-            if ($groups_count === 0) {
-                $time_window_minutes = isset($lifecycle_family['time_window_minutes']) ? (int)$lifecycle_family['time_window_minutes'] : 30;
-                $by_order = [];
-                
-                foreach ($individual_entries as $entry) {
-                    $evt = isset($entry['event_type']) ? (string)$entry['event_type'] : '';
-                    if (!in_array($evt, $lifecycle_types, true)) { 
-                        continue; 
-                    }
-                    $oid = isset($entry['order_id']) ? (int)$entry['order_id'] : 0;
-                    if ($oid <= 0) { 
-                        continue; 
-                    }
-                    $by_order[$oid][] = $entry;
-                }
-                
-                foreach ($by_order as $oid => $entriesByOrder) {
-                    // Sort by time ascending for clustering
-                    usort($entriesByOrder, function($a, $b){
-                        return strtotime((string)($a['timestamp'] ?? '')) <=> strtotime((string)($b['timestamp'] ?? ''));
-                    });
-                    
-                    $cluster = [];
-                    $cluster_start = null;
-                    $flush_cluster = function() use (&$cluster, &$consolidated_entries, &$fallback_groups_used) {
-                        if (count($cluster) > 1) {
-                            $first = $cluster[0];
-                            $pid = sprintf('odcm:orderwin:%d:%s', (int)($first['order_id'] ?? 0), substr(md5((string)$first['timestamp']), 0, 8));
-                            $consolidated_entries[] = $this->create_consolidated_entry($cluster, $pid);
-                            $fallback_groups_used++;
-                        }
-                        $cluster = [];
-                    };
-                    
-                    foreach ($entriesByOrder as $e) {
-                        $t = strtotime((string)($e['timestamp'] ?? ''));
-                        if ($cluster_start === null) {
-                            $cluster[] = $e;
-                            $cluster_start = $t;
-                            continue;
-                        }
-                        if (($t - $cluster_start) <= ($time_window_minutes * 60)) {
-                            $cluster[] = $e;
-                        } else {
-                            // flush previous cluster and start a new one
-                            $flush_cluster();
-                            $cluster[] = $e;
-                            $cluster_start = $t;
-                        }
-                    }
-                    // flush remaining
-                    $flush_cluster();
-                }
-                
-                // Remove any entries that became part of fallback consolidated groups
-                if ($fallback_groups_used > 0) {
-                    // Build a flat list of event IDs/timestamps used in consolidated_entries to filter duplicates
-                    $used_keys = [];
-                    foreach ($consolidated_entries as $ce) {
-                        $timeline = isset($ce['consolidation_data']['timeline_events']) && is_array($ce['consolidation_data']['timeline_events'])
-                            ? $ce['consolidation_data']['timeline_events']
-                            : [];
-                        foreach ($timeline as $te) {
-                            $used_keys[] = (string)($te['id'] ?? ($te['timestamp'] ?? '')); // fallback to timestamp as key
-                        }
-                    }
-                    $individual_entries = array_values(array_filter($individual_entries, function($ie) use ($used_keys){
-                        $k = (string)($ie['id'] ?? ($ie['timestamp'] ?? ''));
-                        return !in_array($k, $used_keys, true);
-                    }));
-                }
-            }
+            
+            // Add non-order entries as individuals (system events, diagnostics, etc.)
+            $individual_entries = array_merge($individual_entries, $non_order_entries);
 
             // Merge and sort by timestamp (desc for stream list)
             $all_entries = array_merge($consolidated_entries, $individual_entries);
@@ -188,31 +133,32 @@ class LogConsolidationService
                 return strtotime((string)($b['timestamp'] ?? '')) <=> strtotime((string)($a['timestamp'] ?? ''));
             });
 
-            // Compute top group sizes for diagnostics
-            $group_sizes = [];
-            foreach ($consolidated_groups as $pid => $entriesByPid) {
-                $group_sizes[$pid] = count($entriesByPid);
+            // Compute diagnostics for order-based consolidation
+            $sample_order_groups = [];
+            $group_count = 0;
+            foreach ($by_order as $order_id => $entriesByOrder) {
+                $sample_order_groups["order_$order_id"] = count($entriesByOrder);
+                $group_count++;
+                if ($group_count >= 5) break; // Limit sample size
             }
-            arsort($group_sizes);
-            $sample_group_sizes = array_slice($group_sizes, 0, 5, true);
 
             // Store diagnostics for optional API exposure
             $this->last_diag = [
                 'enabled' => true,
+                'strategy' => 'order_id_primary',
                 'lifecycle_types' => $lifecycle_types,
                 'total_input' => $total_input,
                 'candidate_by_type' => $candidate_by_type,
-                'eligible_with_process_id' => $eligible_with_process_id,
-                'missing_process_id' => $missing_process_id,
-                'groups_count' => $groups_count,
+                'eligible_with_order_id' => $eligible_with_process_id, // Renamed for clarity
+                'missing_order_id' => $missing_process_id, // Renamed for clarity  
+                'order_groups_count' => $groups_count,
                 'consolidated_entries' => count($consolidated_entries),
-                'non_grouped_candidates' => $non_grouped_candidates,
+                'individual_entries' => count($individual_entries),
                 'unknown_type_count' => max(0, $total_input - $candidate_by_type),
                 'sample_unknown_types' => array_slice(array_values(array_unique($unknown_types_list)), 0, 5),
-                'sample_process_ids' => array_slice(array_keys($consolidated_groups), 0, 5),
-                'sample_group_sizes' => $sample_group_sizes,
-                'fallback_grouping_used' => $fallback_groups_used,
-                'fallback_basis' => $fallback_groups_used > 0 ? 'order_id+time_window' : null,
+                'sample_order_groups' => $sample_order_groups,
+                'order_consolidation_used' => $order_consolidation_count,
+                'consolidation_basis' => 'order_id_direct',
                 'errors' => $errors,
                 'output_count' => count($all_entries),
             ];
@@ -304,67 +250,169 @@ class LogConsolidationService
     {
         $event_count = count($entries);
         
-        // Analyze the group to determine the primary business activity
+        // Extract specific business details from the entries
+        $payment_amount = null;
+        $payment_currency = null;
+        $payment_gateway = null;
+        $final_status = null;
         $has_completion = false;
         $has_error = false;
         $has_payment = false;
         $has_shipping = false;
         $has_rule_execution = false;
+        $has_universal_event = false;
+        $business_error_messages = [];
+
+        // Process entries chronologically to get final state
+        usort($entries, function($a, $b) {
+            return strtotime((string)($a['timestamp'] ?? '')) <=> strtotime((string)($b['timestamp'] ?? ''));
+        });
 
         foreach ($entries as $entry) {
             $event_type = $entry['event_type'] ?? '';
             $status = $entry['status'] ?? '';
-            $summary = strtolower($entry['summary'] ?? '');
+            $summary = $entry['summary'] ?? '';
+            $summary_lower = strtolower($summary);
+
+            // Extract payment amount and currency (prefer the most recent/complete info)
+            if (preg_match('/\b([A-Z]{3})\s*([0-9,]+\.?[0-9]*)\b/', $summary, $matches)) {
+                $payment_currency = $matches[1];
+                $payment_amount = $matches[2];
+            }
+
+            // Extract payment gateway (prefer the most specific info)
+            if (preg_match('/\b(stripe|paypal|square|authorize\.net)\b/i', $summary, $matches)) {
+                $payment_gateway = ucfirst(strtolower($matches[1]));
+            }
+
+            // Track final status from order status changes (most authoritative)
+            if (preg_match('/status.*changed.*from\s+"([^"]+)"\s+to\s+"([^"]+)"/', $summary, $matches)) {
+                $final_status = $matches[2]; // Keep updating to get the final status
+            }
 
             // Detect key business activities
-            if (strpos($summary, 'complet') !== false || strpos($event_type, 'completion') !== false) {
+            if (strpos($summary_lower, 'complet') !== false || strpos($event_type, 'completion') !== false) {
                 $has_completion = true;
             }
-            if ($status === 'error' || strpos($summary, 'error') !== false || strpos($summary, 'fail') !== false) {
+            
+            // Collect business-relevant error messages (skip technical ones)
+            if ($status === 'error' && !$this->is_technical_error($summary)) {
+                $business_error_messages[] = $summary;
                 $has_error = true;
             }
-            if (strpos($summary, 'payment') !== false || strpos($summary, 'paid') !== false) {
+            
+            if (strpos($summary_lower, 'payment') !== false || strpos($summary_lower, 'paid') !== false) {
                 $has_payment = true;
             }
-            if (strpos($summary, 'ship') !== false || strpos($summary, 'deliver') !== false) {
+            if (strpos($summary_lower, 'ship') !== false || strpos($summary_lower, 'deliver') !== false) {
                 $has_shipping = true;
             }
-            if (strpos($summary, 'rule') !== false || strpos($event_type, 'rule') !== false) {
+            if (strpos($summary_lower, 'rule') !== false || strpos($event_type, 'rule') !== false) {
                 $has_rule_execution = true;
+            }
+            // Detect universal events (Stripe, PayPal, etc.)
+            if (strpos($event_type, 'universal_event') !== false || 
+                strpos($summary_lower, 'stripe') !== false || 
+                strpos($summary_lower, 'paypal') !== false ||
+                strpos($summary_lower, 'event received') !== false ||
+                strpos($summary_lower, 'event processed') !== false) {
+                $has_universal_event = true;
             }
         }
 
-        // Create business-focused summary based on detected activities
-        if ($has_error) {
-            return sprintf('Order #%d processing encountered issues (%d events)', $order_id, $event_count);
+        // Build the business summary with proper formatting
+        $summary_parts = [];
+        
+        // Start with order reference followed by colon
+        $order_part = "Order #$order_id:";
+        
+        // Build main activity description
+        $activities = [];
+        
+        // Priority 1: Handle errors first if present
+        if ($has_error && !empty($business_error_messages)) {
+            $activities[] = "processing errors occurred";
         }
-
-        if ($has_completion && $has_payment) {
-            return sprintf('Order #%d completed and payment processed (%d events)', $order_id, $event_count);
+        // Priority 2: Payment information (most important for business)
+        elseif ($payment_amount && $payment_currency && $payment_gateway) {
+            if ($has_completion) {
+                $activities[] = "$payment_gateway payment of $payment_currency $payment_amount completed";
+            } else {
+                $activities[] = "$payment_gateway payment of $payment_currency $payment_amount processed";
+            }
         }
-
-        if ($has_completion) {
-            return sprintf('Order #%d completion processing (%d events)', $order_id, $event_count);
+        elseif ($payment_gateway && ($has_payment || $has_universal_event)) {
+            $activities[] = "$payment_gateway payment processed";
         }
-
-        if ($has_payment && $has_shipping) {
-            return sprintf('Order #%d payment and fulfillment processing (%d events)', $order_id, $event_count);
+        elseif ($has_payment || $has_universal_event) {
+            $activities[] = "payment processed";
         }
-
-        if ($has_payment) {
-            return sprintf('Order #%d payment processing (%d events)', $order_id, $event_count);
+        
+        // Priority 3: Status information (if we have final status and no payment info)
+        if (empty($activities) && $final_status) {
+            $activities[] = "status updated to \"$final_status\"";
         }
-
-        if ($has_shipping) {
-            return sprintf('Order #%d fulfillment processing (%d events)', $order_id, $event_count);
+        
+        // Priority 4: Other business activities
+        if ($has_completion && empty($activities)) {
+            $activities[] = "completion processing";
         }
-
         if ($has_rule_execution) {
-            return sprintf('Order #%d automation rules executed (%d events)', $order_id, $event_count);
+            $activities[] = "automation executed";
         }
+        if ($has_shipping) {
+            $activities[] = "fulfillment processed";
+        }
+        
+        // Fallback: Generic description
+        if (empty($activities)) {
+            if ($has_universal_event) {
+                $activities[] = "gateway events processed";
+            } else {
+                $activities[] = "lifecycle processing";
+            }
+        }
+        
+        // Add final status information if we have it and it's different from the main activity
+        if ($final_status && !$has_payment && !$has_error) {
+            $activities[] = "status updated to \"$final_status\"";
+        }
+        
+        // Combine order reference with activities and event count
+        $activity_text = implode(', ', $activities);
+        $summary = "$order_part $activity_text ($event_count events)";
+        
+        return $summary;
+    }
 
-        // Fallback to generic business summary
-        return sprintf('Order #%d lifecycle process (%d events)', $order_id, $event_count);
+    /**
+     * Check if an error message is technical and should be filtered from business summaries
+     * 
+     * @param string $error_message The error message to check
+     * @return bool True if the error is technical/internal
+     */
+    private function is_technical_error(string $error_message): bool
+    {
+        $technical_patterns = [
+            'Invalid arguments',
+            'Universal event processing failed',
+            'Database error',
+            'PHP error',
+            'Class not found',
+            'Method not found',
+            'Undefined variable',
+            'syntax error',
+            'fatal error',
+        ];
+        
+        $message_lower = strtolower($error_message);
+        foreach ($technical_patterns as $pattern) {
+            if (strpos($message_lower, strtolower($pattern)) !== false) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**

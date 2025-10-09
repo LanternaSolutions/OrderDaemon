@@ -19,7 +19,7 @@ use InvalidArgumentException;
  * - All files declare(strict_types=1) and follow WordPress coding standards.
  *
  * @package OrderDaemon\CompletionManager\View\DashboardComponents
- * @since   2.1.0
+ * @since   1.0.0
  */
 abstract class DashboardComponentRenderer
 {

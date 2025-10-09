@@ -14,7 +14,7 @@ namespace OrderDaemon\CompletionManager\Core\Security;
  * failure, such as user details, request information, or specific guard data.
  *
  * @package OrderDaemon\CompletionManager\Core\Security
- * @since   2.1.1
+ * @since   1.0.0
  */
 class SecurityException extends \Exception {
     /**

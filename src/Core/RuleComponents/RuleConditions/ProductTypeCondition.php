@@ -13,7 +13,7 @@ use WC_Order;
  * (virtual/downloadable) and premium tier (all other product types).
  *
  * @package OrderDaemon\CompletionManager\Core\RuleComponents\Conditions
- * @since   2.0.2
+ * @since   1.0.0
  */
 class ProductTypeCondition implements ConditionInterface
 {

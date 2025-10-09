@@ -17,7 +17,7 @@ use OrderDaemon\CompletionManager\Core\RuleComponents\Interfaces\ActionInterface
  * a new class file.
  *
  * @package OrderDaemon\CompletionManager\Core\RuleComponents
- * @since   2.0.2
+ * @since   1.0.0
  */
 final class RuleComponentRegistry
 {

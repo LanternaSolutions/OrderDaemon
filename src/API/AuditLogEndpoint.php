@@ -21,7 +21,7 @@ use WP_Error;
  * - POST /wp-json/odcm/v1/audit-log/render-components/ - Render log components
  *
  * @package OrderDaemon\CompletionManager\API
- * @since   2.0.0
+ * @since   1.0.0
  */
 class AuditLogEndpoint extends WP_REST_Controller
 {
@@ -453,6 +453,9 @@ class AuditLogEndpoint extends WP_REST_Controller
      */
     public function render_components(WP_REST_Request $request): WP_REST_Response
     {
+        // Always log method entry to diagnose the issue
+        error_log("ODCM RENDER: render_components method called");
+        
         try {
             $log_id = $request->get_param('log_id');
             $include_debug = $request->get_param('include_debug');
@@ -465,14 +468,31 @@ class AuditLogEndpoint extends WP_REST_Controller
                 }
             }
 
+            // Always log parameters to help diagnose the issue
+            error_log("ODCM RENDER: Parameters - log_id: $log_id, include_debug: " . ($include_debug ? 'true' : 'false'));
+
             // Get log entry
             $log = $this->get_log_by_id((int)$log_id);
             if (!$log) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    error_log("ODCM: Log entry not found for ID: $log_id");
+                }
                 return new WP_Error(
                     'odcm_log_not_found',
                     __('Log entry not found', Odcm_Config::$text_domain),
                     ['status' => 404]
                 );
+            }
+
+            // Debug log the retrieved log entry
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM: Retrieved log entry: " . json_encode([
+                    'id' => $log['id'] ?? 'unknown',
+                    'summary' => $log['summary'] ?? 'no summary',
+                    'event_type' => $log['event_type'] ?? 'no event type',
+                    'payload_length' => strlen($log['payload'] ?? ''),
+                    'has_payload' => !empty($log['payload'])
+                ]));
             }
 
             // Start performance monitoring
@@ -482,6 +502,9 @@ class AuditLogEndpoint extends WP_REST_Controller
             $is_consolidated = $this->is_frontend_consolidated_entry($log);
 
             if ($is_consolidated) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    error_log("ODCM: Rendering as consolidated entry");
+                }
                 // Render the consolidated timeline using the existing consolidation data
                 $html = $this->render_frontend_consolidated_entry($log, $include_debug);
             } else {
@@ -492,16 +515,43 @@ class AuditLogEndpoint extends WP_REST_Controller
                     $details = [];
                 }
 
-                // If this is a debug-only process and debug is not included, block with 403
-                if ($this->is_process_logger_entry($details) && !$include_debug && $this->is_debug_only_process($details)) {
-                    return new WP_Error(
-                        'odcm_debug_log_filtered',
-                        __('Debug log entry filtered', Odcm_Config::$text_domain),
-                        ['status' => 403]
-                    );
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    error_log("ODCM: Processing individual entry, payload details: " . json_encode([
+                        'payload_raw_length' => strlen($payload_raw),
+                        'decoded_successfully' => is_array($details),
+                        'details_count' => is_array($details) ? count($details) : 0,
+                        'has_payload_components' => isset($details['payload_components']),
+                        'payload_components_count' => isset($details['payload_components']) && is_array($details['payload_components']) ? count($details['payload_components']) : 0
+                    ]));
                 }
 
-                // Filter components if present when include_debug is false
+                // Apply debug filtering more carefully - only block completely debug-only processes
+                if ($this->is_process_logger_entry($details) && !$include_debug && $this->is_debug_only_process($details)) {
+                    // Only return 403 if ALL components are debug-only, not just some
+                    $non_debug_components = 0;
+                    if (isset($details['payload_components']) && is_array($details['payload_components'])) {
+                        foreach ($details['payload_components'] as $component) {
+                            if (!is_array($component)) { continue; }
+                            if (!$this->is_debug_component($component)) {
+                                $non_debug_components++;
+                            }
+                        }
+                    }
+                    
+                    // Only block if there are literally no non-debug components
+                    if ($non_debug_components === 0) {
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            error_log("ODCM: Debug-only entry blocked, non_debug_components: $non_debug_components");
+                        }
+                        return new WP_Error(
+                            'odcm_debug_log_filtered',
+                            __('Debug log entry filtered', Odcm_Config::$text_domain),
+                            ['status' => 403]
+                        );
+                    }
+                }
+
+                // Filter debug components when include_debug is false, but preserve non-debug content
                 if (isset($details['payload_components']) && is_array($details['payload_components']) && !$include_debug) {
                     $filtered = [];
                     foreach ($details['payload_components'] as $component) {
@@ -510,15 +560,110 @@ class AuditLogEndpoint extends WP_REST_Controller
                         $filtered[] = $component;
                     }
                     $details['payload_components'] = $filtered;
+                    
+                    // If we filtered out all components, create a fallback entry
+                    if (empty($filtered) && !empty($details['payload_components'])) {
+                        $details['payload_components'] = [[
+                            'kind' => 'info',
+                            'label' => 'Event Summary',
+                            'ts' => current_time('mysql'),
+                            'level' => 'info',
+                            'data' => [
+                                'message' => 'Event details are in debug mode. Enable debug logs to see full details.',
+                                'event_summary' => $log['summary'] ?? 'Event processed',
+                                'debug_components_filtered' => count($details['payload_components'] ?? [])
+                            ]
+                        ]];
+                    }
                 }
 
-                // Prefer narrative rendering when payload_components exist
+                // Prefer narrative rendering when payload_components exist, but handle custom events specially
                 if ($this->is_process_logger_entry($details)) {
-                    $html = $this->render_narrative_timeline($details, $include_debug);
+                    // Check if this is a custom error event that should use component rendering instead
+                    $event_type = $details['type'] ?? '';
+                    if ($event_type === 'custom' && $this->is_custom_error_event($details)) {
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            error_log("ODCM: Custom error event for type: $event_type");
+                        }
+                        $html = $this->render_custom_error_event($details, $include_debug);
+                    } else {
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            error_log("ODCM: Timeline event for type: $event_type");
+                        }
+                        $html = $this->render_narrative_timeline($details, $include_debug);
+                    }
                 } else {
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        error_log("ODCM: Using fallback log components rendering");
+                    }
                     // Fallback to existing renderer which handles legacy payloads safely
                     $html = $this->render_log_components($log);
                 }
+            }
+
+            // Debug the final rendered HTML
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM: Final rendered HTML length: " . strlen($html) . " characters");
+                if (empty($html)) {
+                    error_log("ODCM: WARNING - Rendered HTML is empty!");
+                }
+            }
+
+            // Always debug empty timeline divs to understand the issue
+            if ($html === '<div class="odcm-narrative-timeline"></div>') {
+                error_log("ODCM TIMELINE DEBUG: Empty timeline div detected!");
+                error_log("ODCM TIMELINE DEBUG: Log ID: " . ($log['id'] ?? 'unknown'));
+                error_log("ODCM TIMELINE DEBUG: Is consolidated: " . ($is_consolidated ? 'YES' : 'NO'));
+                error_log("ODCM TIMELINE DEBUG: Payload length: " . strlen($payload_raw ?? ''));
+                
+                if ($is_consolidated) {
+                    error_log("ODCM TIMELINE DEBUG: Consolidated log consolidation_data keys: " . json_encode(array_keys($log['consolidation_data'] ?? [])));
+                } else {
+                    $details = is_string($payload_raw) ? json_decode($payload_raw, true) : null;
+                    if (is_array($details)) {
+                        error_log("ODCM TIMELINE DEBUG: Individual payload details keys: " . json_encode(array_keys($details)));
+                        if (isset($details['payload_components']) && is_array($details['payload_components'])) {
+                            error_log("ODCM TIMELINE DEBUG: Payload components count: " . count($details['payload_components']));
+                            error_log("ODCM TIMELINE DEBUG: Sample component kinds: " . json_encode(array_slice(array_map(function($c) { return $c['kind'] ?? 'unknown'; }, $details['payload_components']), 0, 5)));
+                        } else {
+                            error_log("ODCM TIMELINE DEBUG: No payload_components found or not array");
+                        }
+                    } else {
+                        error_log("ODCM TIMELINE DEBUG: Payload could not be decoded as JSON or not array");
+                    }
+                }
+            }
+
+            // Only use fallback for truly empty cases (no payload at all)
+            $payload_raw = $log['payload'] ?? '';
+            if (empty($html) || (empty($payload_raw) && $html === '<div class="odcm-narrative-timeline"></div>')) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    error_log("ODCM: Using fallback for truly empty payload. Payload length: " . strlen($payload_raw));
+                }
+                
+                if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
+                    require_once dirname(__DIR__) . '/View/PayloadRenderer/PayloadComponentUIToolkit.php';
+                }
+                $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
+                
+                $content = '<div class="odcm-fallback-content">';
+                $content .= '<p><strong>Log Entry:</strong> ' . esc_html($log['summary'] ?? 'No summary available') . '</p>';
+                $content .= '<p><strong>Status:</strong> ' . esc_html($log['status'] ?? 'Unknown') . '</p>';
+                $content .= '<p><strong>Event Type:</strong> ' . esc_html($log['event_type'] ?? 'Unknown') . '</p>';
+                $content .= '<p><strong>Timestamp:</strong> ' . esc_html($log['timestamp'] ?? 'Unknown') . '</p>';
+                if (!empty($log['order_id'])) {
+                    $content .= '<p><strong>Order ID:</strong> #' . esc_html($log['order_id']) . '</p>';
+                }
+                
+                $content .= '<p><em>This entry has no payload data available.</em></p>';
+                $content .= '</div>';
+                
+                $html = $toolkit->render_component_shell(
+                    'Log Entry Details',
+                    'fallback',
+                    $content,
+                    ['timestamp' => $log['timestamp'] ?? null]
+                );
             }
 
             // Performance monitoring
@@ -540,7 +685,12 @@ class AuditLogEndpoint extends WP_REST_Controller
             ], 200);
 
         } catch (\Exception $e) {
-            // Log error for debugging
+            // Enhanced error logging
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM: Exception in render_components: " . $e->getMessage());
+                error_log("ODCM: Exception trace: " . $e->getTraceAsString());
+            }
+            
             $this->log_api_error('render_components', $e, ['log_id' => $log_id ?? null]);
 
             return new WP_Error(
@@ -1041,7 +1191,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     WHERE l.log_id = %d";
         }
 
-        $result = $wpdb->get_row($wpdb->prepare($sql, $log_id), ARRAY_A);
+        $result = $wpdb->get_row($wpdb->prepare($sql, $log_id), 'ARRAY_A');
         return $result ?: null;
     }
 
@@ -1078,7 +1228,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         // Prepare with dynamic placeholders
         $prepared = $wpdb->prepare($sql, $ids);
-        $rows = $wpdb->get_results($prepared, ARRAY_A);
+        $rows = $wpdb->get_results($prepared, 'ARRAY_A');
         if (!is_array($rows) || empty($rows)) { return []; }
         $map = [];
         foreach ($rows as $r) {
@@ -1176,18 +1326,140 @@ class AuditLogEndpoint extends WP_REST_Controller
      */
     private function render_narrative_timeline(array $envelope, bool $include_debug = false): string
     {
-        // Get process families from discovery
-        if (!class_exists('OrderDaemon\\CompletionManager\\Core\\ProcessLifecycleDiscovery')) {
-            require_once dirname(__DIR__) . '/Core/ProcessLifecycleDiscovery.php';
+        // Always log method entry with basic info
+        error_log("ODCM TIMELINE: render_narrative_timeline called with envelope keys: " . json_encode(array_keys($envelope)));
+        
+        try {
+            // Check if we have payload_components
+            if (!isset($envelope['payload_components']) || !is_array($envelope['payload_components'])) {
+                error_log("ODCM TIMELINE: No payload_components found, using fallback");
+                return $this->render_fallback_timeline($envelope);
+            }
+
+            $components = $envelope['payload_components'];
+            error_log("ODCM TIMELINE: Found " . count($components) . " payload components");
+
+            // Filter debug components if needed
+            if (!$include_debug) {
+                $filtered = [];
+                foreach ($components as $component) {
+                    if (!is_array($component)) { continue; }
+                    if (!$this->is_debug_component($component)) {
+                        $filtered[] = $component;
+                    }
+                }
+                $components = $filtered;
+                error_log("ODCM TIMELINE: After debug filtering: " . count($components) . " components");
+            }
+
+            // If no components after filtering, return appropriate message
+            if (empty($components)) {
+                error_log("ODCM TIMELINE: No components after filtering, returning empty message");
+                if (!$include_debug) {
+                    return '<div class="odcm-empty-data">' . esc_html__('All events filtered (debug mode disabled)', Odcm_Config::$text_domain) . '</div>';
+                } else {
+                    return '<div class="odcm-empty-data">' . esc_html__('No timeline components available', Odcm_Config::$text_domain) . '</div>';
+                }
+            }
+
+            // Try to render using the existing timeline logic
+            if (!class_exists('OrderDaemon\\CompletionManager\\Core\\ProcessLifecycleDiscovery')) {
+                require_once dirname(__DIR__) . '/Core/ProcessLifecycleDiscovery.php';
+            }
+            $discovery = \OrderDaemon\CompletionManager\Core\ProcessLifecycleDiscovery::instance();
+            $families = $discovery->get_process_families();
+
+            // Group logs by business families
+            $grouped_logs = $this->group_logs_by_families($envelope, $families, $include_debug);
+            error_log("ODCM TIMELINE: Grouped into " . count($grouped_logs) . " groups");
+
+            // Render consolidated or individual entries
+            $result = $this->render_grouped_timeline($grouped_logs, $include_debug);
+            error_log("ODCM TIMELINE: render_grouped_timeline returned " . strlen($result) . " characters");
+
+            // If the result is just an empty timeline div, use fallback
+            if ($result === '<div class="odcm-narrative-timeline"></div>' || empty(trim($result))) {
+                error_log("ODCM TIMELINE: Empty result from render_grouped_timeline, using fallback");
+                return $this->render_fallback_timeline($envelope);
+            }
+
+            return $result;
+
+        } catch (\Throwable $e) {
+            error_log("ODCM TIMELINE: Exception in render_narrative_timeline: " . $e->getMessage());
+            return $this->render_fallback_timeline($envelope);
         }
-        $discovery = \OrderDaemon\CompletionManager\Core\ProcessLifecycleDiscovery::instance();
-        $families = $discovery->get_process_families();
+    }
 
-        // Group logs by business families
-        $grouped_logs = $this->group_logs_by_families($envelope, $families, $include_debug);
+    /**
+     * Render fallback timeline when normal rendering fails
+     *
+     * @param array $envelope The payload envelope
+     * @return string HTML fallback timeline
+     */
+    private function render_fallback_timeline(array $envelope): string
+    {
+        error_log("ODCM FALLBACK: render_fallback_timeline called");
+        
+        // Load UI toolkit for consistent rendering
+        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
+            require_once dirname(__DIR__) . '/View/PayloadRenderer/PayloadComponentUIToolkit.php';
+        }
+        $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
 
-        // Render consolidated or individual entries
-        return $this->render_grouped_timeline($grouped_logs, $include_debug);
+        $html = '<div class="odcm-narrative-timeline">';
+        
+        // Show basic envelope information
+        $content = '<div class="odcm-fallback-envelope">';
+        $content .= '<h4>Envelope Information</h4>';
+        
+        if (isset($envelope['type'])) {
+            $content .= '<p><strong>Type:</strong> ' . esc_html($envelope['type']) . '</p>';
+        }
+        if (isset($envelope['order_id'])) {
+            $content .= '<p><strong>Order ID:</strong> #' . esc_html($envelope['order_id']) . '</p>';
+        }
+        if (isset($envelope['started_at'])) {
+            $content .= '<p><strong>Started At:</strong> ' . esc_html($envelope['started_at']) . '</p>';
+        }
+        if (isset($envelope['correlation_id'])) {
+            $content .= '<p><strong>Correlation ID:</strong> ' . esc_html($envelope['correlation_id']) . '</p>';
+        }
+        
+        // Show payload components summary if they exist
+        if (isset($envelope['payload_components']) && is_array($envelope['payload_components'])) {
+            $component_count = count($envelope['payload_components']);
+            $content .= '<p><strong>Components:</strong> ' . $component_count . ' payload components</p>';
+            
+            // Show component types
+            $component_kinds = [];
+            foreach ($envelope['payload_components'] as $component) {
+                if (is_array($component) && isset($component['kind'])) {
+                    $component_kinds[] = $component['kind'];
+                }
+            }
+            if (!empty($component_kinds)) {
+                $unique_kinds = array_unique($component_kinds);
+                $content .= '<p><strong>Component Types:</strong> ' . esc_html(implode(', ', $unique_kinds)) . '</p>';
+            }
+        } else {
+            $content .= '<p><em>No payload components found in envelope.</em></p>';
+        }
+        
+        $content .= '</div>';
+        
+        $html .= $toolkit->render_component_shell(
+            'Event Data (Fallback)',
+            'fallback_envelope',
+            $content,
+            ['status' => 'info']
+        );
+        
+        $html .= '</div>';
+        
+        error_log("ODCM FALLBACK: Generated " . strlen($html) . " characters of fallback HTML");
+        
+        return $html;
     }
 
     /**
@@ -1232,7 +1504,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
             // Accept both Z and offset by also supporting direct string compare when STR_TO_DATE fails; fallback below if needed
             $prepared = $wpdb->prepare($sql, $order_id, $started_at, $time_window, $started_at, $time_window);
-            $rows = $wpdb->get_results($prepared, ARRAY_A);
+            $rows = $wpdb->get_results($prepared, 'ARRAY_A');
 
             if (!is_array($rows)) { $rows = []; }
             foreach ($rows as $row) {
@@ -1467,7 +1739,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                         ORDER BY l.timestamp ASC";
             }
 
-            $rows = $wpdb->get_results($wpdb->prepare($sql, $process_id), ARRAY_A);
+            $rows = $wpdb->get_results($wpdb->prepare($sql, $process_id), 'ARRAY_A');
             if (!$rows) {
                 return new WP_REST_Response([
                     'process_id' => $process_id,
@@ -1593,9 +1865,9 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         // Execute query
         if (!empty($where_values)) {
-            $results = $wpdb->get_results($wpdb->prepare($sql, $where_values), ARRAY_A);
+            $results = $wpdb->get_results($wpdb->prepare($sql, $where_values), 'ARRAY_A');
         } else {
-            $results = $wpdb->get_results($sql, ARRAY_A);
+            $results = $wpdb->get_results($sql, 'ARRAY_A');
         }
 
         return $results ?: [];
@@ -1651,9 +1923,9 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Execute query
             if (!empty($where_values)) {
-                $results = $wpdb->get_results($wpdb->prepare($sql, $where_values), ARRAY_A);
+                $results = $wpdb->get_results($wpdb->prepare($sql, $where_values), 'ARRAY_A');
             } else {
-                $results = $wpdb->get_results($sql, ARRAY_A);
+                $results = $wpdb->get_results($sql, 'ARRAY_A');
             }
 
             // Normalize to an array (empty when no rows)
@@ -2223,7 +2495,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                         ORDER BY l.timestamp ASC";
             }
 
-            $order_entries = $wpdb->get_results($wpdb->prepare($sql, $order_id), ARRAY_A);
+            $order_entries = $wpdb->get_results($wpdb->prepare($sql, $order_id), 'ARRAY_A');
 
             if (empty($order_entries)) {
                 return '<div class="odcm-empty-data">' . esc_html__('No entries found for this order', Odcm_Config::$text_domain) . '</div>';
@@ -2426,7 +2698,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             $related_entries = $wpdb->get_results(
                 $wpdb->prepare($sql, $order_id, $timestamp, $time_window_minutes, $timestamp, $time_window_minutes),
-                ARRAY_A
+                'ARRAY_A'
             );
 
             if (!is_array($related_entries) || count($related_entries) <= 1) {
@@ -2453,7 +2725,7 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
-     * Render consolidated entry by processing its timeline events
+     * Render consolidated entry by processing its timeline events with enhanced payload extraction
      *
      * @param array $log The consolidated log entry
      * @param bool $include_debug Whether to include debug components
@@ -2461,90 +2733,78 @@ class AuditLogEndpoint extends WP_REST_Controller
      */
     private function render_consolidated_entry(array $log, bool $include_debug = false): string
     {
+        error_log("ODCM CONSOLIDATED: render_consolidated_entry called for log ID: " . ($log['id'] ?? 'unknown'));
+        
         // Extract timeline events from consolidation data
         $timeline_events = $log['consolidation_data']['timeline_events'] ?? [];
 
         if (empty($timeline_events) || !is_array($timeline_events)) {
+            error_log("ODCM CONSOLIDATED: No timeline events found");
             return '<div class="odcm-empty-data">' . esc_html__('No timeline data available for consolidated entry', Odcm_Config::$text_domain) . '</div>';
         }
 
-        // Create a synthetic envelope structure that render_narrative_timeline can process
-        // We'll combine all the payload components from the individual timeline events
+        error_log("ODCM CONSOLIDATED: Processing " . count($timeline_events) . " timeline events");
+
+        // Enhanced payload component extraction with robust error handling
         $all_components = [];
-        $envelope_meta = [
-            'type' => 'consolidated_lifecycle',
-            'order_id' => $log['order_id'] ?? 0,
-            'started_at' => $log['timestamp'] ?? current_time('mysql'),
-            'trigger' => 'consolidated_process',
-            'correlation_id' => $log['process_id'] ?? 'consolidated',
-        ];
+        $processed_events = 0;
+        $failed_events = 0;
+        $total_components_extracted = 0;
 
-        // Process each timeline event to extract payload components
-        foreach ($timeline_events as $event) {
-            $payload_raw = $event['payload'] ?? '';
-            if (empty($payload_raw)) {
-                continue;
-            }
-
-            $event_details = is_string($payload_raw) ? json_decode($payload_raw, true) : null;
-            if (!is_array($event_details)) {
-                continue;
-            }
-
-            // Extract payload components if they exist (ProcessLogger entries)
-            if (isset($event_details['payload_components']) && is_array($event_details['payload_components'])) {
-                foreach ($event_details['payload_components'] as $component) {
-                    if (!is_array($component)) {
-                        continue;
-                    }
-
-                    // Apply debug filtering
-                    if (!$include_debug && $this->is_debug_component($component)) {
-                        continue;
-                    }
-
-                    $all_components[] = $component;
+        foreach ($timeline_events as $event_index => $event) {
+            $processed_events++;
+            $event_id = $event['id'] ?? "event_$event_index";
+            
+            try {
+                // Extract components from this specific timeline event
+                $event_components = $this->extract_components_from_timeline_event($event, $include_debug, $event_index);
+                
+                if (!empty($event_components)) {
+                    $all_components = array_merge($all_components, $event_components);
+                    $total_components_extracted += count($event_components);
+                    error_log("ODCM CONSOLIDATED: Extracted " . count($event_components) . " components from event $event_id");
+                } else {
+                    error_log("ODCM CONSOLIDATED: No components extracted from event $event_id");
                 }
-            } else {
-                // Handle non-ProcessLogger entries by creating synthetic components
-                $synthetic_component = [
-                    'kind' => 'legacy_event',
-                    'label' => $event['summary'] ?? 'Event',
-                    'ts' => $event['timestamp'] ?? current_time('mysql'),
-                    'level' => $event['status'] ?? 'info',
-                    'data' => $event_details,
-                ];
-
-                // Apply debug filtering for synthetic components
-                if (!$include_debug && isset($event_details['level']) && $event_details['level'] === 'debug') {
-                    continue;
+                
+            } catch (\Throwable $e) {
+                $failed_events++;
+                error_log("ODCM CONSOLIDATED: Failed to process timeline event $event_id: " . $e->getMessage());
+                
+                // Create a fallback component for this failed event to maintain timeline continuity
+                $fallback_component = $this->create_fallback_component_for_event($event, $event_index);
+                if ($fallback_component) {
+                    $all_components[] = $fallback_component;
+                    $total_components_extracted++;
                 }
-
-                $all_components[] = $synthetic_component;
             }
         }
 
-        // If no components after filtering, show appropriate message
+        error_log("ODCM CONSOLIDATED: Extraction complete - Total components: $total_components_extracted, Failed events: $failed_events/$processed_events");
+
+        // If no components after processing, provide meaningful fallback
         if (empty($all_components)) {
             if (!$include_debug) {
+                error_log("ODCM CONSOLIDATED: No components after debug filtering");
                 return '<div class="odcm-empty-data">' . esc_html__('All timeline events filtered (debug mode disabled)', Odcm_Config::$text_domain) . '</div>';
             } else {
-                return '<div class="odcm-empty-data">' . esc_html__('No timeline components available', Odcm_Config::$text_domain) . '</div>';
+                error_log("ODCM CONSOLIDATED: No components available at all");
+                // Last resort: show simple timeline events
+                return $this->render_simple_timeline_events($timeline_events, $include_debug);
             }
         }
 
-        // If no components were extracted, create a fallback timeline showing all events
-        if (empty($all_components)) {
-            return $this->render_simple_timeline_events($timeline_events, $include_debug);
-        }
+        // Sort all components chronologically for proper timeline ordering
+        usort($all_components, function($a, $b) {
+            $ts_a = strtotime($a['ts'] ?? '');
+            $ts_b = strtotime($b['ts'] ?? '');
+            return $ts_a <=> $ts_b;
+        });
 
-        // Create the envelope structure for render_narrative_timeline
-        $consolidated_envelope = array_merge($envelope_meta, [
-            'payload_components' => $all_components,
-        ]);
+        error_log("ODCM CONSOLIDATED: Rendering " . count($all_components) . " components in chronological order");
 
-        // Use the existing narrative timeline rendering
-        return $this->render_narrative_timeline($consolidated_envelope, $include_debug);
+        // Render using the enhanced component rendering pipeline
+        return $this->render_consolidated_component_timeline($all_components, $log, $include_debug);
     }
 
     /**
@@ -3163,6 +3423,749 @@ class AuditLogEndpoint extends WP_REST_Controller
         $html .= '</div>';
 
         return $html;
+    }
+
+    /**
+     * Check if this is a custom error event that should use specialized rendering
+     *
+     * @param array $details The payload details
+     * @return bool True if this is a custom error event
+     */
+    private function is_custom_error_event(array $details): bool
+    {
+        // Check if this has error indicators
+        $status = $details['status'] ?? '';
+        $summary = $details['summary'] ?? '';
+        
+        if ($status === 'error') {
+            return true;
+        }
+        
+        if (strpos(strtolower($summary), 'failed') !== false) {
+            return true;
+        }
+        
+        if (strpos(strtolower($summary), 'error') !== false) {
+            return true;
+        }
+        
+        // Check if any payload components indicate an error
+        $components = $details['payload_components'] ?? [];
+        if (is_array($components)) {
+            foreach ($components as $component) {
+                if (!is_array($component)) { continue; }
+                
+                $level = $component['level'] ?? '';
+                $label = $component['label'] ?? '';
+                
+                if ($level === 'error') {
+                    return true;
+                }
+                
+                if (strpos(strtolower($label), 'failed') !== false || 
+                    strpos(strtolower($label), 'error') !== false) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Render custom error event with simplified component-based rendering
+     *
+     * @param array $details The payload details  
+     * @param bool $include_debug Whether to include debug components
+     * @return string HTML output for the custom error event
+     */
+    private function render_custom_error_event(array $details, bool $include_debug = false): string
+    {
+        error_log("ODCM CUSTOM: render_custom_error_event called");
+        
+        // Load UI toolkit for consistent rendering
+        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
+            require_once dirname(__DIR__) . '/View/PayloadRenderer/PayloadComponentUIToolkit.php';
+        }
+        $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
+
+        $html = '<div class="odcm-narrative-timeline">';
+        
+        // Render envelope summary first
+        $summary_content = '<div class="odcm-error-summary">';
+        $summary_content .= '<h4>Error Details</h4>';
+        
+        if (isset($details['summary'])) {
+            $summary_content .= '<p><strong>Summary:</strong> ' . esc_html($details['summary']) . '</p>';
+        }
+        
+        if (isset($details['status'])) {
+            $summary_content .= '<p><strong>Status:</strong> <span class="odcm-status-' . esc_attr($details['status']) . '">' . esc_html(ucfirst($details['status'])) . '</span></p>';
+        }
+        
+        if (isset($details['started_at'])) {
+            $summary_content .= '<p><strong>Occurred At:</strong> ' . esc_html($details['started_at']) . '</p>';
+        }
+        
+        if (isset($details['correlation_id'])) {
+            $summary_content .= '<p><strong>Correlation ID:</strong> <code>' . esc_html($details['correlation_id']) . '</code></p>';
+        }
+        
+        $summary_content .= '</div>';
+        
+        $html .= $toolkit->render_component_shell(
+            'Error Event',
+            'error_summary', 
+            $summary_content,
+            ['status' => $details['status'] ?? 'error']
+        );
+
+        // Render individual payload components
+        $components = $details['payload_components'] ?? [];
+        if (is_array($components) && !empty($components)) {
+            // Load registry for renderer lookup
+            if (!function_exists('odcm_get_payload_component_type')) {
+                require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
+            }
+
+            foreach ($components as $component) {
+                if (!is_array($component)) { continue; }
+                
+                // Apply debug filtering
+                if (!$include_debug && $this->is_debug_component($component)) {
+                    continue;
+                }
+                
+                $kind = sanitize_key($component['kind'] ?? 'info');
+                $label = (string) ($component['label'] ?? ucfirst($kind));
+                $level = sanitize_key($component['level'] ?? 'info');
+                $data = is_array($component['data'] ?? null) ? $component['data'] : [];
+
+                // Skip rendering if data is empty
+                if (empty($data)) {
+                    continue;
+                }
+
+                // Lookup registry for renderer
+                $def = function_exists('odcm_get_payload_component_type') ? \odcm_get_payload_component_type($kind) : null;
+
+                $renderer_html = '';
+                if (is_array($def) && isset($def['renderer_class'])) {
+                    $renderer_class = $def['renderer_class'];
+                    if (strpos($renderer_class, '\\') === false) {
+                        $renderer_class = 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\' . $renderer_class;
+                    }
+                    if (class_exists($renderer_class)) {
+                        try {
+                            $renderer = new $renderer_class();
+                            if (method_exists($renderer, 'render')) {
+                                $renderer_html = $renderer->render($data);
+                            }
+                        } catch (\Throwable $e) {
+                            error_log('ODCM CustomError: Renderer error for ' . $renderer_class . ': ' . $e->getMessage());
+                        }
+                    }
+                }
+
+                // Use UIToolkit for consistent shell if no renderer or renderer failed
+                if (empty($renderer_html)) {
+                    $content = '<div class="odcm-component-data">';
+                    foreach ($data as $key => $value) {
+                        if (is_scalar($value)) {
+                            $content .= '<p><strong>' . esc_html(ucfirst(str_replace('_', ' ', $key))) . ':</strong> ' . esc_html((string)$value) . '</p>';
+                        } elseif (is_array($value)) {
+                            $content .= '<p><strong>' . esc_html(ucfirst(str_replace('_', ' ', $key))) . ':</strong></p>';
+                            $content .= '<pre>' . esc_html(json_encode($value, JSON_PRETTY_PRINT)) . '</pre>';
+                        }
+                    }
+                    $content .= '</div>';
+                    
+                    $renderer_html = $toolkit->render_component_shell(
+                        $label,
+                        $kind,
+                        $content,
+                        ['status' => $level]
+                    );
+                }
+
+                $html .= $renderer_html;
+            }
+        }
+
+        $html .= '</div>';
+        
+        error_log("ODCM CUSTOM: Generated " . strlen($html) . " characters of custom error HTML");
+        
+        return $html;
+    }
+
+    /**
+     * Extract components from a single timeline event with robust error handling
+     *
+     * @param array $event The timeline event to process
+     * @param bool $include_debug Whether to include debug components
+     * @param int $event_index Index of the event for logging purposes
+     * @return array Array of extracted components
+     */
+    private function extract_components_from_timeline_event(array $event, bool $include_debug, int $event_index): array
+    {
+        $event_id = $event['id'] ?? "event_$event_index";
+        $components = [];
+        
+        try {
+            $payload_raw = $event['payload'] ?? '';
+            
+            // Skip events with no payload
+            if (empty($payload_raw)) {
+                error_log("ODCM EXTRACT: Event $event_id has empty payload, creating synthetic component");
+                return $this->create_synthetic_event_component($event, $event_index);
+            }
+            
+            // Parse payload JSON with error handling
+            $event_details = is_string($payload_raw) ? json_decode($payload_raw, true) : null;
+            if (!is_array($event_details)) {
+                error_log("ODCM EXTRACT: Event $event_id payload is not valid JSON, creating synthetic component");
+                return $this->create_synthetic_event_component($event, $event_index);
+            }
+            
+            // Extract ProcessLogger components (preferred method)
+            if (isset($event_details['payload_components']) && is_array($event_details['payload_components'])) {
+                error_log("ODCM EXTRACT: Event $event_id has " . count($event_details['payload_components']) . " payload components");
+                
+                foreach ($event_details['payload_components'] as $component_index => $component) {
+                    if (!is_array($component)) {
+                        error_log("ODCM EXTRACT: Event $event_id component $component_index is not an array, skipping");
+                        continue;
+                    }
+                    
+                    // Apply debug filtering
+                    if (!$include_debug && $this->is_debug_component($component)) {
+                        continue;
+                    }
+                    
+                    // Enrich component with source event metadata
+                    $enriched_component = $this->enrich_component_with_event_metadata($component, $event, $event_index);
+                    $components[] = $enriched_component;
+                }
+                
+                error_log("ODCM EXTRACT: Event $event_id contributed " . count($components) . " components after filtering");
+                return $components;
+            }
+            
+            // Fallback: create synthetic component from event details
+            error_log("ODCM EXTRACT: Event $event_id has no payload_components, creating synthetic component");
+            return $this->create_synthetic_event_component($event, $event_index, $event_details);
+            
+        } catch (\Throwable $e) {
+            error_log("ODCM EXTRACT: Exception processing event $event_id: " . $e->getMessage());
+            // Return fallback component to maintain timeline continuity
+            return $this->create_synthetic_event_component($event, $event_index);
+        }
+    }
+    
+    /**
+     * Create synthetic component from timeline event when payload components aren't available
+     *
+     * @param array $event The timeline event
+     * @param int $event_index Event index
+     * @param array|null $event_details Parsed event details if available
+     * @return array Array containing single synthetic component
+     */
+    private function create_synthetic_event_component(array $event, int $event_index, ?array $event_details = null): array
+    {
+        $event_id = $event['id'] ?? "event_$event_index";
+        $summary = $event['summary'] ?? 'Timeline Event';
+        $timestamp = $event['timestamp'] ?? current_time('mysql');
+        $status = $event['status'] ?? 'info';
+        $event_type = $event['event_type'] ?? 'unknown';
+        $source = $event['source'] ?? 'system';
+        
+        // Determine appropriate component kind based on event characteristics
+        $kind = $this->determine_synthetic_component_kind($event, $event_details);
+        
+        // Build component data from available event information
+        $data = [
+            'event_summary' => $summary,
+            'event_type' => $event_type,
+            'source' => $source,
+            'log_id' => $event_id,
+            'original_status' => $status,
+        ];
+        
+        // Include parsed details if available
+        if (is_array($event_details) && !empty($event_details)) {
+            $data['event_details'] = $event_details;
+        }
+        
+        // Add order context if available
+        if (!empty($event['order_id'])) {
+            $data['order_id'] = (int) $event['order_id'];
+        }
+        
+        $synthetic_component = [
+            'kind' => $kind,
+            'label' => $summary,
+            'ts' => $timestamp,
+            'level' => $status,
+            'data' => $data,
+            'source_event_id' => $event_id,
+            'is_synthetic' => true,
+        ];
+        
+        error_log("ODCM EXTRACT: Created synthetic component of kind '$kind' for event $event_id");
+        
+        return [$synthetic_component];
+    }
+    
+    /**
+     * Determine appropriate component kind for synthetic components
+     *
+     * @param array $event Timeline event
+     * @param array|null $event_details Parsed event details
+     * @return string Component kind
+     */
+    private function determine_synthetic_component_kind(array $event, ?array $event_details): string
+    {
+        $event_type = strtolower($event['event_type'] ?? '');
+        $summary = strtolower($event['summary'] ?? '');
+        $status = strtolower($event['status'] ?? '');
+        
+        // Map event types to appropriate component kinds
+        if (strpos($event_type, 'status') !== false || strpos($summary, 'status') !== false) {
+            return 'status_changed';
+        }
+        
+        if (strpos($event_type, 'payment') !== false || strpos($summary, 'payment') !== false) {
+            return 'stripe_event'; // or 'paypal_event' based on details
+        }
+        
+        if (strpos($event_type, 'order') !== false || strpos($summary, 'order') !== false) {
+            return 'order_loaded';
+        }
+        
+        if (strpos($event_type, 'rule') !== false || strpos($summary, 'rule') !== false) {
+            return 'rule_evaluated';
+        }
+        
+        if ($status === 'error' || strpos($summary, 'error') !== false || strpos($summary, 'failed') !== false) {
+            return 'error';
+        }
+        
+        if (strpos($event_type, 'webhook') !== false || strpos($summary, 'webhook') !== false) {
+            return 'http_webhook';
+        }
+        
+        // Default to info for unrecognized events
+        return 'info';
+    }
+    
+    /**
+     * Enrich component with metadata from source event
+     *
+     * @param array $component Original component
+     * @param array $event Source timeline event
+     * @param int $event_index Event index
+     * @return array Enriched component
+     */
+    private function enrich_component_with_event_metadata(array $component, array $event, int $event_index): array
+    {
+        // Preserve original component structure
+        $enriched = $component;
+        
+        // Add source event metadata for traceability
+        $enriched['source_event'] = [
+            'id' => $event['id'] ?? "event_$event_index",
+            'summary' => $event['summary'] ?? '',
+            'event_type' => $event['event_type'] ?? '',
+            'source' => $event['source'] ?? '',
+            'timestamp' => $event['timestamp'] ?? '',
+        ];
+        
+        // Ensure timestamp is set (prefer component timestamp, fallback to event timestamp)
+        if (empty($enriched['ts']) && !empty($event['timestamp'])) {
+            $enriched['ts'] = $event['timestamp'];
+        }
+        
+        // Add order context if available in event but not in component
+        if (empty($enriched['data']['order_id']) && !empty($event['order_id'])) {
+            if (!isset($enriched['data'])) {
+                $enriched['data'] = [];
+            }
+            $enriched['data']['order_id'] = (int) $event['order_id'];
+        }
+        
+        return $enriched;
+    }
+    
+    /**
+     * Create fallback component for failed event processing
+     *
+     * @param array $event Timeline event that failed to process
+     * @param int $event_index Event index
+     * @return array|null Fallback component or null if event data is too minimal
+     */
+    private function create_fallback_component_for_event(array $event, int $event_index): ?array
+    {
+        $event_id = $event['id'] ?? "event_$event_index";
+        $summary = $event['summary'] ?? 'Processing failed for timeline event';
+        
+        // Only create fallback if we have some meaningful data
+        if (empty($summary) && empty($event['event_type'])) {
+            error_log("ODCM FALLBACK: Event $event_id has no meaningful data, skipping fallback");
+            return null;
+        }
+        
+        $fallback_component = [
+            'kind' => 'error',
+            'label' => 'Event Processing Error',
+            'ts' => $event['timestamp'] ?? current_time('mysql'),
+            'level' => 'warning',
+            'data' => [
+                'message' => 'Failed to process timeline event',
+                'original_summary' => $summary,
+                'event_type' => $event['event_type'] ?? 'unknown',
+                'source' => $event['source'] ?? 'unknown',
+                'event_id' => $event_id,
+                'processing_error' => 'Component extraction failed',
+            ],
+            'source_event_id' => $event_id,
+            'is_fallback' => true,
+        ];
+        
+        error_log("ODCM FALLBACK: Created fallback component for failed event $event_id");
+        
+        return $fallback_component;
+    }
+    
+    /**
+     * Render consolidated component timeline using registry-driven renderers
+     *
+     * @param array $all_components All extracted and sorted components
+     * @param array $log Original consolidated log entry
+     * @param bool $include_debug Whether debug components are included
+     * @return string HTML output for the consolidated timeline
+     */
+    private function render_consolidated_component_timeline(array $all_components, array $log, bool $include_debug): string
+    {
+        error_log("ODCM RENDER_CONSOLIDATED: Starting render with " . count($all_components) . " components");
+        
+        // Load required dependencies
+        if (!function_exists('odcm_get_payload_component_type')) {
+            require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
+        }
+        
+        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
+            require_once dirname(__DIR__) . '/View/PayloadRenderer/PayloadComponentUIToolkit.php';
+        }
+        
+        $html = '<div class="odcm-narrative-timeline">';
+        
+        // Group components by proximity and relevance for better rendering
+        $grouped_components = $this->group_components_for_rendering($all_components);
+        $rendered_count = 0;
+        
+        foreach ($grouped_components as $group_index => $group) {
+            $primary_component = $group['primary'];
+            $context_components = $group['context'] ?? [];
+            
+            $kind = sanitize_key($primary_component['kind'] ?? 'info');
+            $label = (string) ($primary_component['label'] ?? ucfirst($kind));
+            $ts = (string) ($primary_component['ts'] ?? '');
+            $level = sanitize_key($primary_component['level'] ?? 'info');
+            $data = is_array($primary_component['data'] ?? null) ? $primary_component['data'] : [];
+            
+            // Skip rendering if data is empty
+            if (empty($data)) {
+                error_log("ODCM RENDER_CONSOLIDATED: Skipping component $group_index ($kind) - empty data");
+                continue;
+            }
+            
+            // Embed context components into primary component data
+            if (!empty($context_components)) {
+                $data['embedded_context'] = $this->render_embedded_context_components($context_components);
+                error_log("ODCM RENDER_CONSOLIDATED: Embedded " . count($context_components) . " context components into $kind");
+            }
+            
+            // Lookup registry for renderer
+            $def = function_exists('odcm_get_payload_component_type') ? \odcm_get_payload_component_type($kind) : null;
+            $renderer_html = '';
+            
+            if (is_array($def) && isset($def['renderer_class'])) {
+                $renderer_class = $def['renderer_class'];
+                if (strpos($renderer_class, '\\') === false) {
+                    $renderer_class = 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\' . $renderer_class;
+                }
+                
+                if (class_exists($renderer_class)) {
+                    try {
+                        $renderer = new $renderer_class();
+                        
+                        // Try different rendering methods in order of preference
+                        if (method_exists($renderer, 'renderTimelineItem')) {
+                            $renderer_html = $renderer->renderTimelineItem($kind, $label, $ts !== '' ? $ts : null, $level, $data);
+                        } elseif (method_exists($renderer, 'render')) {
+                            $renderer_html = $renderer->render($data);
+                        }
+                        
+                        if (!empty($renderer_html)) {
+                            $rendered_count++;
+                            error_log("ODCM RENDER_CONSOLIDATED: Successfully rendered component $group_index ($kind) using $renderer_class");
+                        }
+                        
+                    } catch (\Throwable $e) {
+                        error_log("ODCM RENDER_CONSOLIDATED: Renderer error for $renderer_class: " . $e->getMessage());
+                    }
+                }
+            }
+            
+            // Fallback rendering using UIToolkit
+            if (empty($renderer_html)) {
+                error_log("ODCM RENDER_CONSOLIDATED: Using fallback UIToolkit rendering for component $group_index ($kind)");
+                $renderer_html = $this->render_component_using_ui_toolkit($kind, $label, $data, $level, $ts);
+                if (!empty($renderer_html)) {
+                    $rendered_count++;
+                }
+            }
+            
+            $html .= $renderer_html;
+        }
+        
+        $html .= '</div>';
+        
+        error_log("ODCM RENDER_CONSOLIDATED: Completed rendering $rendered_count components, total HTML length: " . strlen($html));
+        
+        // If no components were successfully rendered, provide a meaningful fallback
+        if ($rendered_count === 0) {
+            error_log("ODCM RENDER_CONSOLIDATED: No components rendered successfully, using simple timeline fallback");
+            $timeline_events = $log['consolidation_data']['timeline_events'] ?? [];
+            return $this->render_simple_timeline_events($timeline_events, $include_debug);
+        }
+        
+        return $html;
+    }
+    
+    /**
+     * Group components for optimal rendering by combining primary events with related context
+     *
+     * @param array $all_components All components to group
+     * @return array Array of component groups with primary and context components
+     */
+    private function group_components_for_rendering(array $all_components): array
+    {
+        $groups = [];
+        $context_components = [];
+        
+        // Separate primary components from context-only components
+        foreach ($all_components as $component) {
+            $kind = $component['kind'] ?? 'info';
+            
+            if ($this->isContextOnlyComponent($kind)) {
+                $context_components[] = $component;
+            } else {
+                // Each primary component gets its own group
+                $groups[] = [
+                    'primary' => $component,
+                    'context' => [],
+                ];
+            }
+        }
+        
+        // Distribute context components to their most relevant primary components
+        foreach ($context_components as $context) {
+            $best_group_index = $this->find_best_group_for_context($context, $groups);
+            if ($best_group_index !== null) {
+                $groups[$best_group_index]['context'][] = $context;
+            }
+        }
+        
+        error_log("ODCM GROUP: Created " . count($groups) . " component groups, distributed " . count($context_components) . " context components");
+        
+        return $groups;
+    }
+    
+    /**
+     * Find the best primary component group for a context component
+     *
+     * @param array $context_component Context component to assign
+     * @param array $groups Existing component groups
+     * @return int|null Index of best group or null if no good match
+     */
+    private function find_best_group_for_context(array $context_component, array $groups): ?int
+    {
+        if (empty($groups)) {
+            return null;
+        }
+        
+        $context_ts = strtotime($context_component['ts'] ?? '');
+        $context_kind = $context_component['kind'] ?? '';
+        $best_score = -1;
+        $best_index = null;
+        
+        foreach ($groups as $index => $group) {
+            $primary = $group['primary'];
+            $primary_ts = strtotime($primary['ts'] ?? '');
+            $primary_kind = $primary['kind'] ?? '';
+            
+            $score = 0;
+            
+            // Time proximity scoring (closer is better)
+            if ($context_ts > 0 && $primary_ts > 0) {
+                $time_diff = abs($context_ts - $primary_ts);
+                if ($time_diff <= 1) {
+                    $score += 10; // Very close
+                } elseif ($time_diff <= 5) {
+                    $score += 5;  // Close
+                } elseif ($time_diff <= 30) {
+                    $score += 2;  // Somewhat close
+                }
+            }
+            
+            // Logical relevance scoring
+            if ($context_kind === 'attribution' || $context_kind === 'performance') {
+                $score += 3; // These are generally relevant to any primary event
+            }
+            
+            if ($context_kind === 'info' && strpos($primary_kind, 'status') !== false) {
+                $score += 5; // Info components are especially relevant to status changes
+            }
+            
+            if ($score > $best_score) {
+                $best_score = $score;
+                $best_index = $index;
+            }
+        }
+        
+        // Only assign if we found a reasonably good match
+        return $best_score > 0 ? $best_index : 0; // Default to first group if no good match
+    }
+    
+    /**
+     * Render embedded context components as inline content
+     *
+     * @param array $context_components Array of context components
+     * @return string HTML content for embedding
+     */
+    private function render_embedded_context_components(array $context_components): string
+    {
+        $embedded_html = '';
+        
+        foreach ($context_components as $context) {
+            $kind = $context['kind'] ?? '';
+            $data = is_array($context['data'] ?? null) ? $context['data'] : [];
+            
+            if (empty($data)) {
+                continue;
+            }
+            
+            // Use simplified rendering for context components
+            $context_html = $this->generateContextContent($kind, $data);
+            if (!empty($context_html)) {
+                $embedded_html .= '<div class="odcm-embedded-context">' . $context_html . '</div>';
+            }
+        }
+        
+        return $embedded_html;
+    }
+    
+    /**
+     * Render component using UIToolkit as fallback when no specific renderer is available
+     *
+     * @param string $kind Component kind
+     * @param string $label Component label
+     * @param array $data Component data
+     * @param string $level Component level
+     * @param string $ts Component timestamp
+     * @return string HTML output
+     */
+    private function render_component_using_ui_toolkit(string $kind, string $label, array $data, string $level, string $ts): string
+    {
+        $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
+        
+        // Build content based on data structure
+        $content = '<div class="odcm-component-fallback">';
+        
+        // Show synthetic/fallback indicators
+        if (!empty($data['is_synthetic'])) {
+            $content .= '<p class="odcm-synthetic-notice"><em>Synthetic component (generated from event data)</em></p>';
+        } elseif (!empty($data['is_fallback'])) {
+            $content .= '<p class="odcm-fallback-notice"><em>Fallback component (processing error occurred)</em></p>';
+        }
+        
+        // Render key data points
+        foreach ($data as $key => $value) {
+            // Skip metadata keys
+            if (in_array($key, ['is_synthetic', 'is_fallback', 'source_event', 'embedded_context'], true)) {
+                continue;
+            }
+            
+            if (is_scalar($value) && $value !== '') {
+                $formatted_key = ucfirst(str_replace('_', ' ', $key));
+                $content .= '<p><strong>' . esc_html($formatted_key) . ':</strong> ' . esc_html((string)$value) . '</p>';
+            } elseif (is_array($value) && !empty($value)) {
+                $formatted_key = ucfirst(str_replace('_', ' ', $key));
+                $content .= '<p><strong>' . esc_html($formatted_key) . ':</strong></p>';
+                $content .= '<pre class="odcm-json-data">' . esc_html(json_encode($value, JSON_PRETTY_PRINT)) . '</pre>';
+            }
+        }
+        
+        // Include embedded context if available
+        if (!empty($data['embedded_context'])) {
+            $content .= '<div class="odcm-context-section">';
+            $content .= '<h5>Related Context</h5>';
+            $content .= $data['embedded_context'];
+            $content .= '</div>';
+        }
+        
+        $content .= '</div>';
+        
+        // Determine appropriate theme based on component kind and level
+        $theme = $this->determine_component_theme($kind, $level);
+        
+        return $toolkit->render_component_shell(
+            $label,
+            $theme,
+            $content,
+            ['timestamp' => $ts, 'status' => $level]
+        );
+    }
+    
+    /**
+     * Determine appropriate theme for component rendering
+     *
+     * @param string $kind Component kind
+     * @param string $level Component level
+     * @return string Theme identifier
+     */
+    private function determine_component_theme(string $kind, string $level): string
+    {
+        // Level-based themes take priority for errors/warnings
+        if ($level === 'error' || $kind === 'error') {
+            return 'error';
+        }
+        
+        if ($level === 'warning') {
+            return 'warning';
+        }
+        
+        // Kind-based themes
+        $theme_map = [
+            'status_changed' => 'woocommerce',
+            'order_loaded' => 'woocommerce',
+            'stock_adjusted' => 'woocommerce',
+            'meta_updated' => 'woocommerce',
+            'rule_evaluated' => 'rule',
+            'stripe_event' => 'api',
+            'paypal_event' => 'api',
+            'http_webhook' => 'api',
+            'email_action' => 'api',
+            'database_query' => 'database',
+            'metrics' => 'performance',
+            'performance' => 'performance',
+            'system_info' => 'system',
+            'info' => 'system',
+        ];
+        
+        return $theme_map[$kind] ?? 'system';
     }
 
     /**

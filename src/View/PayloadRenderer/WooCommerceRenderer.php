@@ -13,7 +13,7 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
  * handles all structural concerns (headers, icons, component wrapper).
  *
  * @package OrderDaemon\CompletionManager\View\PayloadRenderer
- * @since   1.3.0
+ * @since   1.0.0
  */
 
 // Prevent direct access to this file
@@ -21,14 +21,6 @@ if (!defined('WPINC')) {
     die;
 }
 
-/**
- * WooCommerce Renderer Class
- *
- * Handles rendering of WooCommerce data with proper formatting
- * for orders, products, and customer information.
- *
- * @since 1.0.0
- */
 class WooCommerceRenderer extends PayloadComponentRenderer
 {
     /**

@@ -10,7 +10,7 @@ use WC_Order;
  * An action that changes the order status to 'completed'.
  *
  * @package OrderDaemon\CompletionManager\Core\RuleComponents\Actions
- * @since   2.0.2
+ * @since   1.0.0
  */
 class CompleteOrderAction implements ActionInterface
 {

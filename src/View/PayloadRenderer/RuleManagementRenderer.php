@@ -58,7 +58,7 @@ use RuntimeException;
  * ```
  *
  * @package OrderDaemon\CompletionManager\View\PayloadRenderer
- * @since   2.0.2
+ * @since   1.0.0
  * @author  OrderDaemon Development Team
  */
 

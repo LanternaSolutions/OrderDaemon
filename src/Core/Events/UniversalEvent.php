@@ -18,7 +18,7 @@ namespace OrderDaemon\CompletionManager\Core\Events;
  * - dispute_opened, dispute_won, dispute_lost
  * 
  * @package OrderDaemon\CompletionManager\Core\Events
- * @since   2.2.0
+ * @since   1.1.0
  */
 final class UniversalEvent
 {
@@ -274,27 +274,77 @@ final class UniversalEvent
      */
     public function getSummary(): string
     {
+        // Create business-focused summary based on event type and context
+        $gateway = $this->sourceGateway ? ucfirst($this->sourceGateway) : '';
+        $humanEvent = $this->humanizeEventType($this->eventType);
+        $amount = ($this->amount !== null && $this->currency) 
+            ? "{$this->currency} " . number_format($this->amount, 2) 
+            : '';
+        
+        // Build context-aware summary
+        if ($this->primaryObjectType === 'order' && $this->primaryObjectID) {
+            $orderRef = "Order #{$this->primaryObjectID}";
+            
+            // Payment-related events
+            if (strpos($this->eventType, 'payment') !== false) {
+                if ($amount) {
+                    return trim("{$gateway} payment of {$amount} {$this->getStatusDescription()} for {$orderRef}");
+                } else {
+                    return trim("{$gateway} payment {$this->getStatusDescription()} for {$orderRef}");
+                }
+            }
+            
+            // Subscription events
+            if (strpos($this->eventType, 'subscription') !== false) {
+                if ($amount) {
+                    return trim("{$gateway} subscription ({$amount}) {$this->getStatusDescription()} for {$orderRef}");
+                } else {
+                    return trim("{$gateway} subscription {$this->getStatusDescription()} for {$orderRef}");
+                }
+            }
+            
+            // Refund events
+            if (strpos($this->eventType, 'refund') !== false) {
+                if ($amount) {
+                    return trim("{$gateway} refund of {$amount} {$this->getStatusDescription()} for {$orderRef}");
+                } else {
+                    return trim("{$gateway} refund {$this->getStatusDescription()} for {$orderRef}");
+                }
+            }
+            
+            // Generic order events with amount
+            if ($amount) {
+                return trim("{$gateway} {$humanEvent} ({$amount}) for {$orderRef}");
+            } else {
+                return trim("{$gateway} {$humanEvent} for {$orderRef}");
+            }
+        }
+        
+        // Non-order events or events without order context
         $parts = [];
         
-        // Add gateway context if present
-        if ($this->sourceGateway) {
-            $parts[] = ucfirst($this->sourceGateway);
+        if ($gateway) {
+            $parts[] = $gateway;
         }
         
-        // Add event type (human readable)
-        $parts[] = $this->humanizeEventType($this->eventType);
+        $parts[] = $humanEvent;
         
-        // Add primary entity context
         if ($this->primaryObjectID) {
-            $parts[] = "for {$this->primaryObjectType} #{$this->primaryObjectID}";
+            $parts[] = "#{$this->primaryObjectID}";
         }
         
-        // Add amount if present
-        if ($this->amount !== null && $this->currency) {
-            $parts[] = "({$this->currency} " . number_format($this->amount, 2) . ")";
+        if ($amount) {
+            $parts[] = "({$amount})";
         }
         
-        return implode(' ', $parts);
+        $summary = implode(' ', $parts);
+        
+        // Add status context if available
+        if ($this->status && $this->status !== 'COMPLETED') {
+            $summary .= " - " . $this->getStatusDescription();
+        }
+        
+        return $summary;
     }
 
     /**
@@ -521,6 +571,45 @@ final class UniversalEvent
         }
         
         return $sanitized;
+    }
+
+    /**
+     * Get human-readable status description
+     * 
+     * @return string
+     */
+    private function getStatusDescription(): string
+    {
+        if (!$this->status) {
+            return 'processed';
+        }
+        
+        // Map common gateway statuses to user-friendly descriptions
+        $statusMap = [
+            'COMPLETED' => 'completed',
+            'SUCCESS' => 'completed',
+            'APPROVED' => 'approved',
+            'PENDING' => 'pending',
+            'PROCESSING' => 'processing',
+            'DENIED' => 'denied',
+            'FAILED' => 'failed',
+            'CANCELLED' => 'cancelled',
+            'CANCELED' => 'cancelled',
+            'REFUNDED' => 'refunded',
+            'PARTIALLY_REFUNDED' => 'partially refunded',
+            'DISPUTED' => 'disputed',
+            'REVERSED' => 'reversed',
+            'EXPIRED' => 'expired',
+        ];
+        
+        $upperStatus = strtoupper($this->status);
+        
+        if (isset($statusMap[$upperStatus])) {
+            return $statusMap[$upperStatus];
+        }
+        
+        // Convert other statuses to lowercase and replace underscores
+        return strtolower(str_replace('_', ' ', $this->status));
     }
 
     /**

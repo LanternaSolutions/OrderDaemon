@@ -11,7 +11,7 @@ namespace OrderDaemon\CompletionManager\Core\RuleComponents\Interfaces;
  * while complex triggers like AnyStatusChangeTrigger can provide custom logic.
  *
  * @package OrderDaemon\CompletionManager\Core\RuleComponents\Interfaces
- * @since   2.0.2
+ * @since   1.0.0
  */
 interface TriggerInterface extends ComponentInterface
 {

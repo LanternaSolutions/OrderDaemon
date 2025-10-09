@@ -14,7 +14,7 @@ namespace OrderDaemon\CompletionManager\Includes;
  * and to guide users on next steps without interrupting core functionality.
  *
  * @package OrderDaemon\CompletionManager\Includes
- * @since   2.2.0
+ * @since   1.0.0
  *
  */
 final class DependencyChecker

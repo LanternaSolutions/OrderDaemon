@@ -14,7 +14,7 @@ namespace OrderDaemon\CompletionManager\Core\Security;
  * compatibility with WordPress role and capability system.
  *
  * @package OrderDaemon\CompletionManager\Core\Security
- * @since   2.1.1
+ * @since   1.0.0
  */
 class CapabilityGuard implements Guard {
     /**

@@ -26,7 +26,7 @@ namespace OrderDaemon\CompletionManager\Core;
  * - odcm_attribution_context (array, final context)
  *
  * @package OrderDaemon\CompletionManager\Core
- * @since   2.0.4
+ * @since   1.0.0
  */
 final class AttributionTracker
 {

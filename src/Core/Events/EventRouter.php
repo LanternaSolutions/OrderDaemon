@@ -5,6 +5,7 @@ namespace OrderDaemon\CompletionManager\Core\Events;
 
 use OrderDaemon\CompletionManager\Core\Events\Adapters\PayPalAdapter;
 use OrderDaemon\CompletionManager\Core\Events\Adapters\GenericAdapter;
+use OrderDaemon\CompletionManager\Core\ProcessIdManager;
 
 /**
  * Event Router
@@ -237,9 +238,16 @@ class EventRouter
         }
 
         foreach ($events as $event) {
-            // Add process ID for tracking
+            // Add process ID for tracking - use shared process_id for order events
             $event_data = $event->toArray();
-            $event_data['process_id'] = 'odcm_webhook_' . uniqid();
+            
+            // Use shared process_id for order lifecycle events, random for others
+            if ($event->primaryObjectType === 'order' && !empty($event->primaryObjectID)) {
+                $order_id = (int) $event->primaryObjectID;
+                $event_data['process_id'] = ProcessIdManager::instance()->get_or_create_process_id($order_id);
+            } else {
+                $event_data['process_id'] = 'odcm_webhook_' . uniqid();
+            }
 
             // Enqueue for async processing
             as_enqueue_async_action(

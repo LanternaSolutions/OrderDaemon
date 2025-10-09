@@ -17,7 +17,7 @@ use OrderDaemon\CompletionManager\Core\AttributionTracker;
  * and performance metrics to provide complete audit trails.
  *
  * @package OrderDaemon\CompletionManager\Core\Security
- * @since   2.1.1
+ * @since   1.0.0
  */
 class GuardChecker {
     /**

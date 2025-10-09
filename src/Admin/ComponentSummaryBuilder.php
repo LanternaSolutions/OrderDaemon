@@ -16,7 +16,7 @@ use OrderDaemon\CompletionManager\Core\RuleComponents\RuleComponentRegistry;
  * specialized logic by extending this behavior (future enhancement).
  *
  * @package OrderDaemon\CompletionManager\Admin
- * @since   2.0.3
+ * @since   1.0.0
  */
 final class ComponentSummaryBuilder
 {

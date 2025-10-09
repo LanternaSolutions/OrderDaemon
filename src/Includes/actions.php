@@ -369,12 +369,83 @@ function odcm_handle_order_check_processing($args) {
         return;
     }
 
-    // Create an instance of the Executor class with required logger
-    $logger = new \OrderDaemon\CompletionManager\Includes\AuditTrailLogger();
-    $executor = new \OrderDaemon\CompletionManager\Core\Executor($logger);
+    // Get the WooCommerce order
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        \odcm_log_custom_event(
+            'Order check processing failed: Order not found',
+            [
+                'order_id' => $order_id,
+                'error' => 'WooCommerce order not found or invalid'
+            ],
+            $order_id,
+            'error',
+            'order_check_not_found'
+        );
+        return;
+    }
 
-    // Call the process_order_check method with the extracted order_id
-    $executor->process_order_check($order_id);
+    try {
+        // Create a universal event for the order check
+        $universal_event_data = [
+            'eventType' => 'order_check_scheduled',
+            'sourceGateway' => $order->get_payment_method() ?: 'unknown',
+            'channel' => 'system',
+            'primaryObjectType' => 'order',
+            'primaryObjectID' => $order_id,
+            'transactionID' => $order->get_transaction_id(),
+            'status' => $order->get_status(),
+            'amount' => (float) $order->get_total(),
+            'currency' => $order->get_currency(),
+            'occurredAt' => current_time('c'),
+            'receivedAt' => current_time('c'),
+            'idempotencyKey' => 'order_check_' . $order_id . '_' . time(),
+            'rawData' => [
+                'order_status' => $order->get_status(),
+                'payment_method' => $order->get_payment_method(),
+                'customer_id' => $order->get_customer_id(),
+                'source' => 'scheduled_check',
+                'trigger' => 'action_scheduler'
+            ]
+        ];
+
+        // Process through UniversalEventProcessor
+        $processor = \OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor::instance();
+        $result = $processor->processEvent($universal_event_data);
+
+        // Log the result for debugging
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            \odcm_log_custom_event(
+                $result ? 'Order check processed successfully' : 'Order check completed with no matching rules',
+                [
+                    'order_id' => $order_id,
+                    'processing_result' => $result,
+                    'order_status' => $order->get_status(),
+                    'payment_method' => $order->get_payment_method(),
+                    'order_total' => $order->get_total()
+                ],
+                $order_id,
+                $result ? 'success' : 'info',
+                'order_check_completed'
+            );
+        }
+
+    } catch (\Throwable $e) {
+        // Log processing error but don't let it break the system
+        \odcm_log_custom_event(
+            'Order check processing failed with exception: ' . $e->getMessage(),
+            [
+                'order_id' => $order_id,
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'order_status' => $order ? $order->get_status() : 'unknown'
+            ],
+            $order_id,
+            'error',
+            'order_check_exception'
+        );
+    }
 }
 
 // Hook the order check processing handler
@@ -395,7 +466,7 @@ function odcm_handle_universal_event_processing(array $args) {
     if (!is_array($args) || !isset($args['event'])) {
         // Log error using existing logging system
         \odcm_log_custom_event(
-            'Universal event processing failed: Invalid arguments',
+            'Payment gateway event processing error: Missing data',
             [
                 'args' => $args,
                 'error' => 'Missing event data in arguments'
@@ -413,7 +484,7 @@ function odcm_handle_universal_event_processing(array $args) {
     if (!is_array($event_data) || !isset($event_data['eventType'])) {
         // Log error using existing logging system
         \odcm_log_custom_event(
-            'Universal event processing failed: Invalid event data',
+            'Payment gateway event processing error: Invalid data format',
             [
                 'event_data' => $event_data,
                 'error' => 'Missing eventType in event data'
@@ -434,8 +505,14 @@ function odcm_handle_universal_event_processing(array $args) {
 
         // Log success/failure at debug level
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $gateway = isset($event_data['sourceGateway']) ? ucfirst($event_data['sourceGateway']) : 'Payment gateway';
+            $event_type = isset($event_data['eventType']) ? $event_data['eventType'] : 'event';
+            $message = $result ? 
+                "{$gateway} {$event_type} processed successfully" : 
+                "{$gateway} {$event_type} completed with no action";
+                
             \odcm_log_custom_event(
-                $result ? 'Universal event processed successfully' : 'Universal event processing completed with no action',
+                $message,
                 [
                     'event_type' => $event_data['eventType'] ?? 'unknown',
                     'source_gateway' => $event_data['sourceGateway'] ?? 'unknown',
@@ -451,7 +528,7 @@ function odcm_handle_universal_event_processing(array $args) {
     } catch (\Throwable $e) {
         // Log processing error
         \odcm_log_custom_event(
-            'Universal event processing failed with exception: ' . $e->getMessage(),
+            'Payment gateway event processing error: ' . $e->getMessage(),
             [
                 'event_type' => $event_data['eventType'] ?? 'unknown',
                 'source_gateway' => $event_data['sourceGateway'] ?? 'unknown',

@@ -161,9 +161,6 @@ function insightDashboard() {
                 // Load persistent settings
                 this.loadSettings();
 
-                // Initialize height detection and adjustment
-                this.initializeHeightManagement();
-
                 // Debug initial state
                 if (odcmIsDebug()) { console.log('ODCM: Initial state - filterPaneVisible:', this.filterPaneVisible, 'detailsOpen:', this.detailsOpen); }
                 if (odcmIsDebug()) { console.log('ODCM: Dashboard classes:', this.dashboardClasses); }
@@ -199,6 +196,7 @@ function insightDashboard() {
                 this.initializeServerRetentionState();
                 this.setupPrismWatchers();
 
+
                 if (odcmIsDebug()) { console.log('ODCM Insight Dashboard: Initialized successfully'); }
             } catch (e) {
                 console.error('ODCM: init() failed:', e);
@@ -208,241 +206,6 @@ function insightDashboard() {
             }
         },
 
-        // =================================================================
-        // WORDPRESS HEIGHT INTEGRATION
-        // =================================================================
-
-        initializeHeightManagement() {
-            try {
-                // Hook into WordPress's existing height management system
-                this.setupWordPressHeightIntegration();
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: WordPress height integration initialized');
-                }
-            } catch (error) {
-                if (odcmIsDebug()) {
-                    console.warn('ODCM: WordPress height integration failed:', error);
-                }
-            }
-        },
-
-        setupWordPressHeightIntegration() {
-            try {
-                // Enhanced function to sync our dashboard with WordPress's layout system
-                const syncDashboardWithWordPress = () => {
-                    try {
-                        const wpBodyContent = document.getElementById('wpbody-content');
-                        const wpBody = document.getElementById('wpbody');
-                        const wpcontent = document.getElementById('wpcontent');
-                        const dashboard = document.getElementById('odcm-insight-dashboard');
-                        const adminBar = document.getElementById('wpadminbar');
-
-                        if (!dashboard) return;
-
-                        // Calculate available height based on WordPress structure
-                        let availableHeight;
-
-                        // Method 1: Use WordPress's calculated height if available
-                        if (wpBodyContent && wpBodyContent.style.height && wpBodyContent.style.height !== 'auto') {
-                            availableHeight = wpBodyContent.style.height;
-                            if (odcmIsDebug()) {
-                                console.log(`ODCM: Using WordPress calculated height: ${availableHeight}`);
-                            }
-                        }
-                        // Method 2: Calculate from viewport minus admin elements
-                        else {
-                            const adminBarHeight = adminBar ? adminBar.offsetHeight : 32;
-                            const viewportHeight = window.innerHeight;
-
-                            // Account for any additional WordPress admin elements
-                            let additionalOffset = 0;
-
-                            // Check for WordPress notices that might affect height
-                            const notices = document.querySelectorAll('.notice, .updated, .error');
-                            notices.forEach(notice => {
-                                if (notice.offsetParent !== null) { // Only visible notices
-                                    additionalOffset += notice.offsetHeight;
-                                }
-                            });
-
-                            availableHeight = `${viewportHeight - adminBarHeight - additionalOffset}px`;
-
-                            if (odcmIsDebug()) {
-                                console.log(`ODCM: Calculated height - Viewport: ${viewportHeight}px, Admin bar: ${adminBarHeight}px, Notices: ${additionalOffset}px, Result: ${availableHeight}`);
-                            }
-                        }
-
-                        // Apply height to dashboard with proper CSS custom property support
-                        dashboard.style.height = availableHeight;
-                        dashboard.style.minHeight = availableHeight;
-                        dashboard.style.maxHeight = availableHeight;
-
-                        // Update CSS custom properties for responsive components
-                        const adminBarHeight = adminBar ? adminBar.offsetHeight : 32;
-                        document.documentElement.style.setProperty('--odcm-calculated-admin-bar-height', `${adminBarHeight}px`);
-                        document.documentElement.style.setProperty('--odcm-calculated-dashboard-height', availableHeight);
-
-                        // Ensure parent containers support the full height
-                        if (wpBodyContent) {
-                            wpBodyContent.style.height = availableHeight;
-                            wpBodyContent.style.minHeight = availableHeight;
-                            wpBodyContent.style.overflow = 'hidden';
-                        }
-
-                        if (wpBody) {
-                            wpBody.style.height = '100vh';
-                            wpBody.style.display = 'flex';
-                            wpBody.style.flexDirection = 'column';
-                        }
-
-                        if (wpcontent) {
-                            wpcontent.style.height = '100vh';
-                            wpcontent.style.display = 'flex';
-                            wpcontent.style.flexDirection = 'column';
-                        }
-
-                        // Trigger a custom event for other components that might need to respond
-                        const heightChangeEvent = new CustomEvent('odcm-height-updated', {
-                            detail: {
-                                height: availableHeight,
-                                adminBarHeight: adminBarHeight,
-                                timestamp: Date.now()
-                            }
-                        });
-                        document.dispatchEvent(heightChangeEvent);
-
-                        if (odcmIsDebug()) {
-                            console.log(`ODCM: Height sync completed - Dashboard: ${availableHeight}`);
-                        }
-
-                    } catch (error) {
-                        if (odcmIsDebug()) {
-                            console.warn('ODCM: Height sync failed:', error);
-                        }
-                    }
-                };
-
-                // Enhanced WordPress event integration
-                const wordPressHeightEvents = [
-                    'wp-pin-menu',
-                    'wp-window-resized.pin-menu',
-                    'postboxes-columnchange.pin-menu',
-                    'postbox-toggled.pin-menu',
-                    'wp-collapse-menu.pin-menu',
-                    'wp-scroll-start.pin-menu',
-                    'wp-collapse-menu',
-                    'adminmenu-resize'
-                ];
-
-                // Listen for WordPress height updates with jQuery if available
-                if (typeof jQuery !== 'undefined') {
-                    jQuery(document).on(wordPressHeightEvents.join(' '), syncDashboardWithWordPress);
-
-                    // Also listen for WordPress admin menu state changes
-                    jQuery(document).on('wp-collapse-menu', function(event, data) {
-                        // Delay sync to allow WordPress to complete its layout changes
-                        setTimeout(syncDashboardWithWordPress, 150);
-                    });
-
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: Hooked into WordPress height events:', wordPressHeightEvents);
-                    }
-                }
-
-                // Enhanced resize handling with debouncing
-                let resizeTimeout;
-                const handleResize = () => {
-                    clearTimeout(resizeTimeout);
-                    resizeTimeout = setTimeout(() => {
-                        syncDashboardWithWordPress();
-                        // Also trigger a re-layout of internal components
-                        this.triggerLayoutUpdate();
-                    }, 100);
-                };
-
-                // Listen for various resize events
-                window.addEventListener('resize', handleResize);
-                window.addEventListener('orientationchange', handleResize);
-
-                // Listen for WordPress-specific layout changes
-                document.addEventListener('wp-responsive-activate', handleResize);
-                document.addEventListener('wp-responsive-deactivate', handleResize);
-
-                // Enhanced initial sync with multiple attempts
-                const performInitialSync = () => {
-                    // Immediate sync
-                    syncDashboardWithWordPress();
-
-                    // Additional syncs to catch WordPress's delayed layout calculations
-                    setTimeout(syncDashboardWithWordPress, 100);
-                    setTimeout(syncDashboardWithWordPress, 300);
-                    setTimeout(syncDashboardWithWordPress, 500);
-                };
-
-                // Use Alpine.js $nextTick if available, otherwise setTimeout
-                if (this.$nextTick) {
-                    this.$nextTick(performInitialSync);
-                } else {
-                    setTimeout(performInitialSync, 50);
-                }
-
-                // Store enhanced cleanup function
-                this.heightCleanup = () => {
-                    if (typeof jQuery !== 'undefined') {
-                        jQuery(document).off(wordPressHeightEvents.join(' '), syncDashboardWithWordPress);
-                        jQuery(document).off('wp-collapse-menu');
-                    }
-                    window.removeEventListener('resize', handleResize);
-                    window.removeEventListener('orientationchange', handleResize);
-                    document.removeEventListener('wp-responsive-activate', handleResize);
-                    document.removeEventListener('wp-responsive-deactivate', handleResize);
-
-                    // Clear any pending timeouts
-                    if (resizeTimeout) {
-                        clearTimeout(resizeTimeout);
-                    }
-                };
-
-                // Enhanced cleanup watcher
-                if (this.$watch) {
-                    this.$watch('$el', (newEl, oldEl) => {
-                        if (!newEl && oldEl && this.heightCleanup) {
-                            this.heightCleanup();
-                        }
-                    });
-                }
-
-            } catch (error) {
-                if (odcmIsDebug()) {
-                    console.warn('ODCM: WordPress height integration setup failed:', error);
-                }
-            }
-        },
-
-        // New method to trigger layout updates for internal components
-        triggerLayoutUpdate() {
-            try {
-                // Trigger re-calculation of internal component heights
-                const dashboard = document.getElementById('odcm-insight-dashboard');
-                if (dashboard) {
-                    // Force a reflow to ensure all components adapt to new height
-                    dashboard.style.display = 'none';
-                    dashboard.offsetHeight; // Trigger reflow
-                    dashboard.style.display = '';
-
-                    // Dispatch event for components that need to respond to layout changes
-                    const layoutEvent = new CustomEvent('odcm-layout-update', {
-                        detail: { timestamp: Date.now() }
-                    });
-                    dashboard.dispatchEvent(layoutEvent);
-                }
-            } catch (error) {
-                if (odcmIsDebug()) {
-                    console.warn('ODCM: Layout update failed:', error);
-                }
-            }
-        },
 
         async checkWelcomeScenario() {
             try {
@@ -472,6 +235,7 @@ function insightDashboard() {
                 this.isWelcomeScenario = false;
             }
         },
+
 
         setupFilterWatchers() {
             // Watch for filter changes and reset pagination
@@ -580,18 +344,18 @@ function insightDashboard() {
                             });
                         }
 
-                        // Handle 404 as welcome scenario instead of error (fixes the main issue)
+                        // Handle 404 properly - don't override welcome scenario
                         if (response.status === 404) {
                             if (odcmIsDebug()) {
-                                console.log('ODCM: Treating 404 as welcome scenario (no logs available)');
+                                console.log('ODCM: API returned 404, clearing logs but preserving welcome scenario state');
                             }
 
-                            // Set welcome scenario state instead of showing error
+                            // Clear logs but don't override welcome scenario state
                             this.logs = [];
                             this.total = 0;
                             this.totalPages = 1;
                             this.currentPage = 1;
-                            this.isWelcomeScenario = true;
+                            // Don't change this.isWelcomeScenario here - let it be determined by the backend
                             this.error = null;
                             this.initialLoad = false;
                             this.loading = false;
@@ -691,6 +455,12 @@ function insightDashboard() {
                     this.totalPages = data.pagination?.total_pages || 1;
                     this.currentPage = data.pagination?.current_page || 1;
                     this.lastFetchTime = new Date().toISOString();
+
+                    // Exit welcome scenario if we received logs
+                    if (this.isWelcomeScenario && uniqueLogs.length > 0) {
+                        this.isWelcomeScenario = false;
+                        if (odcmIsDebug()) { console.log('ODCM: Exiting welcome scenario - logs received'); }
+                    }
 
                     // Don't override the welcome scenario detection here
                     // The proper welcome scenario check happens in checkWelcomeScenario()
@@ -883,31 +653,73 @@ function insightDashboard() {
             this.detailLoading = true;
 
             try {
+                // Debug logging to track the complete request pipeline
+                if (odcmIsDebug()) {
+                    console.log('ODCM: fetchLogDetails called with logId:', logId);
+                    console.log('ODCM: this.config.renderUrl:', this.config.renderUrl);
+                    console.log('ODCM: this.config.nonce:', this.config.nonce ? 'present' : 'missing');
+                    console.log('ODCM: this.filters.include_debug:', this.filters.include_debug);
+                }
+
+                const requestPayload = {
+                    log_id: logId,
+                    include_debug: this.filters.include_debug
+                };
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Making POST request to:', this.config.renderUrl);
+                    console.log('ODCM: Request payload:', requestPayload);
+                }
+
                 const response = await fetch(`${this.config.renderUrl}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-WP-Nonce': this.config.nonce
                     },
-                    body: JSON.stringify({
-                        log_id: logId,
-                        include_debug: this.filters.include_debug // Pass current debug filter state
-                    })
+                    body: JSON.stringify(requestPayload)
                 });
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Response status:', response.status);
+                    console.log('ODCM: Response headers:', Object.fromEntries(response.headers.entries()));
+                }
 
                 if (!response.ok) {
                     // Handle debug-filtered entries gracefully
                     if (response.status === 403) {
+                        if (odcmIsDebug()) {
+                            console.log('ODCM: Entry filtered due to debug settings');
+                        }
                         return '<div class="odcm-debug-filtered">This log entry is only visible when "Include Debug Logs" is enabled.</div>';
                     }
+                    
+                    if (odcmIsDebug()) {
+                        const responseText = await response.text().catch(() => 'Unable to read response');
+                        console.error('ODCM: API Error Response:', responseText);
+                    }
+                    
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const data = await response.json();
+                
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Response data:', data);
+                    console.log('ODCM: HTML length:', (data.html || '').length);
+                }
+
                 return data.html || '';
 
             } catch (error) {
                 console.error('ODCM: Error fetching log details:', error);
+                if (odcmIsDebug()) {
+                    console.error('ODCM: Full error details:', {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack
+                    });
+                }
                 this.showToast('Failed to load log details', 'error');
                 return '<div class="odcm-error">Failed to load details</div>';
             } finally {
@@ -1287,6 +1099,12 @@ function insightDashboard() {
                     if (data.logs && data.logs.length > 0) {
                         if (odcmIsDebug()) { console.log(`ODCM: Auto-refresh found ${data.logs.length} new logs`); }
 
+                        // If this is the first logs in a welcome scenario, exit welcome mode
+                        if (this.isWelcomeScenario && this.logs.length === 0) {
+                            this.isWelcomeScenario = false;
+                            if (odcmIsDebug()) { console.log('ODCM: Exiting welcome scenario - first logs received'); }
+                        }
+
                         // Merge new logs with proper deduplication
                         this.mergeLogs(data.logs);
 
@@ -1299,11 +1117,21 @@ function insightDashboard() {
                     }
 
                     this.lastFetchTime = new Date().toISOString();
+                } else if (response.status === 404) {
+                    // Handle 404 gracefully - API might not be available yet
+                    // Keep auto-refresh running for welcome scenario
+                    if (odcmIsDebug() && this.isWelcomeScenario) {
+                        console.log('ODCM: Auto-refresh 404 in welcome scenario - API not ready yet');
+                    }
                 } else {
+                    // Only log non-404 errors to reduce console noise
                     console.warn(`ODCM: Auto-refresh API error: ${response.status} ${response.statusText}`);
                 }
             } catch (error) {
-                console.warn('ODCM: Auto-refresh failed:', error);
+                // Only log network errors if debug mode
+                if (odcmIsDebug()) {
+                    console.warn('ODCM: Auto-refresh failed:', error);
+                }
                 // Don't show toast for auto-refresh failures to avoid spam
             } finally {
                 this.isRefreshing = false;
@@ -1719,6 +1547,22 @@ function insightDashboard() {
             }
         } catch (e) { /* noop */ }
     }
+
+    // Enhanced Alpine.js detection and fallback
+    function checkAlpineJS() {
+        if (typeof window.Alpine === 'undefined') {
+            console.error('ODCM: Alpine.js failed to load. Dashboard interactivity will be limited.');
+            if (hasDashboardRoot()) {
+                const dashboard = document.getElementById('odcm-insight-dashboard');
+                dashboard.innerHTML = '<div class="odcm-error-state" style="padding: 20px; text-align: center; border: 1px solid #dc3545; background: #f8d7da; color: #721c24; border-radius: 4px; margin: 20px;"><h3>Dashboard Loading Error</h3><p>The dashboard JavaScript framework failed to load. This is typically caused by Content Security Policy restrictions.</p><p><strong>To fix this:</strong> Please contact your administrator to allow JavaScript from your domain, or check browser console for specific errors.</p></div>';
+            }
+            return false;
+        }
+        return true;
+    }
+
+    // Check Alpine.js availability after a short delay
+    setTimeout(checkAlpineJS, 2000);
 
     window.addEventListener('error', function(ev){
         if (!ev) return;

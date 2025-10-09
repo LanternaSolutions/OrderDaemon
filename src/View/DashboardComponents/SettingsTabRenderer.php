@@ -7,7 +7,7 @@ namespace OrderDaemon\CompletionManager\View\DashboardComponents;
  * Settings Tab Component Renderer
  *
  * @package OrderDaemon\CompletionManager\View\DashboardComponents
- * @since   2.1.0
+ * @since   1.0.0
  */
 class SettingsTabRenderer extends DashboardComponentRenderer
 {

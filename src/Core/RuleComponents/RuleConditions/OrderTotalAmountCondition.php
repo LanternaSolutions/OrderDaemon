@@ -10,7 +10,7 @@ use WC_Order;
  * A condition that checks the total amount of the order.
  *
  * @package OrderDaemon\CompletionManager\Core\RuleComponents\Conditions
- * @since   2.0.2
+ * @since   1.0.0
  */
 class OrderTotalAmountCondition implements ConditionInterface
 {

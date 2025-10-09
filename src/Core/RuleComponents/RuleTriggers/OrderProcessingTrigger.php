@@ -9,7 +9,7 @@ use OrderDaemon\CompletionManager\Core\RuleComponents\Interfaces\TriggerInterfac
  * A trigger that fires when an order status changes to 'processing'.
  *
  * @package OrderDaemon\CompletionManager\Core\RuleComponents\Triggers
- * @since   2.0.2
+ * @since   1.0.0
  */
 class OrderProcessingTrigger implements TriggerInterface
 {

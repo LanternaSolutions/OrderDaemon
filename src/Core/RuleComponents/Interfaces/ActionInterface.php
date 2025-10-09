@@ -12,7 +12,7 @@ use WC_Order;
  * specific to actions.
  *
  * @package OrderDaemon\CompletionManager\Core\RuleComponents\Interfaces
- * @since   2.0.2
+ * @since   1.0.0
  */
 interface ActionInterface extends ComponentInterface
 {

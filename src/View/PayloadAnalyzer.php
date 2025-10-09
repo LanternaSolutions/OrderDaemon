@@ -51,7 +51,7 @@ use OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentRenderer;
  * - Minimal data copying and transformation
  *
  * @package OrderDaemon\CompletionManager\View
- * @since   1.3.0
+ * @since   1.0.0
  * @author  OrderDaemon Development Team
  * @link    https://docs.OrderDaemon.com/completion-manager/payload-rendering-system
  */

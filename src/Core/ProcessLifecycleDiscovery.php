@@ -157,8 +157,16 @@ final class ProcessLifecycleDiscovery
             'block_checkout_processed',
             'status_change_processing',
             'manual_status_change',
+            'automatic_workflow_transition',
             'rule_execution',
             'order_completion',
+            'order_check_completed',
+            'order_processing',
+            'universal_event_processing', // Universal events are part of order lifecycle
+            'universal_event_reception',
+            'universal_event_processing_error',
+            'universal_event_argument_error',
+            'universal_event_validation_error',
             'process_started', // Context-dependent
         ];
 

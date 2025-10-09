@@ -12,7 +12,7 @@ use OrderDaemon\CompletionManager\Includes\Odcm_Config;
  * concept used by PayloadComponentRegistry but simplified for admin UI.
  *
  * @package OrderDaemon\CompletionManager\Core
- * @since   2.1.0
+ * @since   1.0.0
  */
 class DashboardComponentRegistry
 {

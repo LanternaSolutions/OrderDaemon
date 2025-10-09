@@ -40,7 +40,7 @@ namespace OrderDaemon\CompletionManager\Core;
  * - Preservation of existing AuditTrailLogger functionality
  *
  * @package OrderDaemon\CompletionManager\Core
- * @since   1.2.2
+ * @since   1.0.0
  * @author  OrderDaemon Development Team
  * @link    https://docs.OrderDaemon.com/completion-manager/audit-log-system
  */

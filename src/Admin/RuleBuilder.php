@@ -20,7 +20,7 @@ use OrderDaemon\CompletionManager\Includes\DependencyChecker;
  * - PHP-first architecture with server-side data preparation
  *
  * @package OrderDaemon\CompletionManager\Admin
- * @since   2.0.2
+ * @since   1.0.0
  */
 final class RuleBuilder
 {
@@ -183,10 +183,10 @@ final class RuleBuilder
         $plugin_version = defined('ODCM_VERSION') ? ODCM_VERSION : '3.0.0';
         $assets_url = plugin_dir_url(ODCM_PLUGIN_FILE) . 'assets/';
 
-        // Enqueue Alpine.js from CDN
+        // Enqueue Alpine.js served locally
         wp_enqueue_script(
             'alpine-js',
-            'https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js',
+            $assets_url . 'js/vendor/alpine.min.js',
             [],
             '3.14.9',
             true

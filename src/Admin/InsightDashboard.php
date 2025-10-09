@@ -26,7 +26,7 @@ use OrderDaemon\CompletionManager\View\DashboardComponents\DetailPaneRenderer;
  * - WordPress standard pagination
  * 
  * @package OrderDaemon\CompletionManager\Admin
- * @since   2.0.0
+ * @since   1.0.0
  */
 class InsightDashboard
 {
@@ -223,10 +223,10 @@ class InsightDashboard
             true
         );
 
-        // Alpine.js 3.14.9 from CDN for optimal performance
+        // Alpine.js 3.14.9 served locally
         wp_enqueue_script(
             'alpine-js',
-            'https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js',
+            $assets_url . 'js/vendor/alpine.min.js',
             [],
             '3.14.9',
             true
@@ -388,32 +388,28 @@ class InsightDashboard
     }
 
     /**
-     * Determine if this is a welcome scenario (fresh installation)
+     * Determine if this is a welcome scenario (no logs available)
      *
-     * @return bool True if this appears to be a fresh installation with no rules
+     * @return bool True if no log entries exist in the system
      */
     private function determine_welcome_scenario(): bool
     {
-        // Check if any order rules exist
-        $rule_count = wp_count_posts('odcm_order_rule');
-        $total_rules = 0;
-
-        if ($rule_count && is_object($rule_count)) {
-            // Count all non-trash statuses
-            foreach (get_post_stati() as $status) {
-                if ($status !== 'trash' && isset($rule_count->$status)) {
-                    $total_rules += (int) $rule_count->$status;
-                }
-            }
-        }
-
-        // If no rules exist, this is definitely a welcome scenario
-        if ($total_rules === 0) {
+        global $wpdb;
+        
+        // Check if audit log table exists
+        $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$audit_log_table}'") === $audit_log_table;
+        
+        if (!$table_exists) {
+            // If table doesn't exist, it's definitely a welcome scenario
             return true;
         }
-
-        // If no rules exist, it's a welcome scenario. Otherwise, it's not.
-        return $total_rules === 0;
+        
+        // Check if any log entries exist
+        $log_count = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_log_table}");
+        
+        // If no logs exist, show welcome scenario
+        return (int) $log_count === 0;
     }
 
     /**
@@ -527,60 +523,6 @@ class InsightDashboard
         $this->render_dashboard_html();
     }
 
-    /**
-     * Render the main dashboard HTML structure
-     */
-    private function render_dashboard_html(): void
-    {
-        ?>
-        <div class="wrap">
-            <!-- Alpine.js App Container -->
-            <div id="odcm-insight-dashboard" 
-                 x-data="insightDashboard()"
-                 x-init="init()"
-             class="odcm-insight-dashboard"
-             :class="dashboardClasses">
-
-            <!-- Unified Sticky Header Bar -->
-            <div class="odcm-unified-header">
-                <?php $this->render_unified_header(); ?>
-            </div>
-
-            <!-- Content Grid -->
-            <div class="odcm-content-grid">
-                <!-- Filter Pane -->
-                <div class="odcm-filter-pane">
-                    <?php $this->render_filter_pane(); ?>
-                <!--</div> DO NOT UNCOMMENT THIS DIV - IT WILL BREAK UI -->
-
-                <!-- Log Stream -->
-                <div class="odcm-log-stream">
-                    <?php $this->render_log_stream(); ?>
-                </div>
-
-                <!-- Detail Pane -->
-                <div class="odcm-detail-pane">
-                    <?php $this->render_detail_pane(); ?>
-                </div>
-            </div>
-
-            <!-- Toast Notifications -->
-            <div class="odcm-toast-container">
-                <template x-for="toast in (typeof ODCMToasts !== 'undefined' ? ODCMToasts.toasts : [])" :key="toast.id">
-                    <div class="odcm-toast" 
-                         :class="'odcm-toast--' + toast.type"
-                         x-show="true"
-                         x-transition:enter="odcm-toast-enter"
-                         x-transition:leave="odcm-toast-leave">
-                        <span x-text="toast.message"></span>
-                        <button type="button" @click="removeToast(toast.id)">×</button>
-                    </div>
-                </template>
-            </div>
-        </div>
-        </div>
-        <?php
-    }
 
     /**
      * Add custom body class for the dashboard page

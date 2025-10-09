@@ -578,8 +578,8 @@ class ManualStatusTracker
             }
         } catch (\Throwable $e) {
             // Log error but don't let it break the manual status change process
-            odcm_log_message('Universal event processing failed: ' . $e->getMessage(), 'error');
-            odcm_log_message('Universal event processing error details: ' . $e->getFile() . ':' . $e->getLine(), 'error');
+            odcm_log_message('Payment gateway event processing error: ' . $e->getMessage(), 'error');
+            odcm_log_message('Payment gateway event processing error details: ' . $e->getFile() . ':' . $e->getLine(), 'error');
             // Continue execution without throwing the exception
         }
     }

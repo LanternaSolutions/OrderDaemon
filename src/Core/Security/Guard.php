@@ -14,7 +14,7 @@ namespace OrderDaemon\CompletionManager\Core\Security;
  * extensible security verification while maintaining clean separation of concerns.
  *
  * @package OrderDaemon\CompletionManager\Core\Security
- * @since   2.1.1
+ * @since   1.0.0
  */
 interface Guard {
     /**

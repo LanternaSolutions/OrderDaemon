@@ -10,7 +10,7 @@
  * - Design system integration
  *
  * @package OrderDaemon\CompletionManager
- * @since   2.0.2
+ * @since   1.0.0
  */
 
 /**

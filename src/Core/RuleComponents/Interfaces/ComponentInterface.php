@@ -11,7 +11,7 @@ namespace OrderDaemon\CompletionManager\Core\RuleComponents\Interfaces;
  * the necessary metadata for the UI and the backend to function correctly.
  *
  * @package OrderDaemon\CompletionManager\Core\RuleComponents\Interfaces
- * @since   2.0.2
+ * @since   1.0.0
  */
 interface ComponentInterface
 {

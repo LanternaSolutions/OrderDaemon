@@ -52,7 +52,7 @@ use RuntimeException;
  * - Subscription and invoice lifecycle context
  *
  * @package OrderDaemon\CompletionManager\View\PayloadRenderer
- * @since   1.1.1
+ * @since   1.0.0
  */
 class StripeEventRenderer extends PayloadComponentRenderer
 {

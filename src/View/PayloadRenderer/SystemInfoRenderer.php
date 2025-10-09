@@ -13,7 +13,7 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
  * handles all structural concerns (headers, icons, component wrapper).
  *
  * @package OrderDaemon\CompletionManager\View\PayloadRenderer
- * @since   1.3.0
+ * @since   1.0.0
  */
 
 // Prevent direct access to this file
@@ -21,13 +21,6 @@ if (!defined('WPINC')) {
     die;
 }
 
-/**
- * System Info Renderer Class
- *
- * Handles rendering of system information with proper formatting.
- *
- * @since 1.0.0
- */
 class SystemInfoRenderer extends PayloadComponentRenderer
 {
     /**

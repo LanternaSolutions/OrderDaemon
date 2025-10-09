@@ -17,7 +17,7 @@ use OrderDaemon\CompletionManager\Core\RuleComponents\RuleComponentRegistry;
  * and to get/save rule data.
  *
  * @package OrderDaemon\CompletionManager\API
- * @since   2.0.2
+ * @since   1.0.0
  */
 class RuleBuilderApiController extends WP_REST_Controller
 {

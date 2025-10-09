@@ -46,7 +46,7 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
  * ```
  *
  * @package OrderDaemon\CompletionManager\View\PayloadRenderer
- * @since   1.3.0
+ * @since   1.0.0
  * @author  OrderDaemon Development Team
  * @link    https://docs.OrderDaemon.com/completion-manager/payload-rendering-system
  */

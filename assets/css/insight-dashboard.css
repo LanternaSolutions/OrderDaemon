@@ -177,58 +177,23 @@
    WORDPRESS-NATIVE LAYOUT INTEGRATION
    ========================================================================== */
 
-/* WordPress-Native Dashboard Integration */
-/* When our dashboard is active, completely override WordPress admin layout */
+/* WordPress-Native Dashboard Integration - Normal Flow Layout */
+/* Let WordPress notices display normally and push dashboard content down */
 .odcm-is-fullscreen-dashboard #wpbody-content {
-    overflow: hidden !important; /* Prevent scrolling of the main content area */
-    height: var(--odcm-calculated-dashboard-height, calc(100vh - var(--odcm-calculated-admin-bar-height))) !important;
-    min-height: var(--odcm-calculated-dashboard-height, calc(100vh - var(--odcm-calculated-admin-bar-height))) !important;
-    max-height: var(--odcm-calculated-dashboard-height, calc(100vh - var(--odcm-calculated-admin-bar-height))) !important;
+    /* Remove forced height constraints - let content flow naturally */
     padding: 0 !important; /* Remove default WordPress padding */
     margin: 0 !important; /* Remove default WordPress margins */
-    display: flex !important;
-    flex-direction: column !important;
-    position: relative !important; /* Ensure proper positioning context */
 }
 
 .odcm-is-fullscreen-dashboard .wrap {
-    height: 100% !important; /* Fill available space in #wpbody-content */
-    min-height: 100% !important;
-    max-height: 100% !important;
+    /* Remove forced height constraints - let content flow naturally */
     margin: 0 !important; /* Remove WordPress default margins */
     padding: 0 !important; /* Remove WordPress default padding */
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important; /* Prevent any overflow */
-    position: relative !important;
 }
 
-/* Ensure proper height inheritance from WordPress admin structure */
+/* Normal admin menu spacing - no height forcing */
 .odcm-is-fullscreen-dashboard #wpcontent {
-    height: 100vh !important; /* Full viewport height */
-    min-height: 100vh !important;
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-}
-
-.odcm-is-fullscreen-dashboard #wpbody {
-    flex: 1 !important; /* Take remaining space after admin bar */
-    display: flex !important;
-    flex-direction: column !important;
-    min-height: 0 !important; /* Allow shrinking */
-    overflow: hidden !important;
-    height: var(--odcm-calculated-dashboard-height, calc(100vh - var(--odcm-calculated-admin-bar-height))) !important;
-}
-
-/* Ensure no spacing between admin sidebar and dashboard */
-.odcm-is-fullscreen-dashboard #wpcontent {
-    padding-left: 0 !important;
     margin-left: 160px !important; /* Maintain WordPress admin menu spacing */
-}
-
-.odcm-is-fullscreen-dashboard #wpbody {
-    margin-right: 0 !important;
 }
 
 /* Handle collapsed admin menu state */
@@ -249,18 +214,6 @@
     }
 }
 
-/* Ensure WordPress notices don't interfere with height calculations */
-.odcm-is-fullscreen-dashboard .notice,
-.odcm-is-fullscreen-dashboard .updated,
-.odcm-is-fullscreen-dashboard .error {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    z-index: 1000 !important;
-    margin: 0 !important;
-}
-
 /* ==========================================================================
    DASHBOARD LAYOUT - Unified Header + Content Grid
    ========================================================================== */
@@ -273,10 +226,7 @@
 }
 
 .odcm-insight-dashboard {
-    height: 100% !important; /* Fill the .wrap container completely */
-    min-height: var(--odcm-calculated-dashboard-height, calc(100vh - var(--odcm-calculated-admin-bar-height))) !important;
-    max-height: 100% !important; /* Prevent overflow */
-    overflow: hidden !important; /* Prevent any scrolling at dashboard level */
+    /* Simple, elegant solution - let WordPress notices flow naturally above */
     display: flex !important;
     flex-direction: column !important;
     margin: 0 !important;
@@ -286,12 +236,7 @@
     border-bottom: 1px solid var(--odcm-component-border-color) !important;
     position: relative !important;
     box-sizing: border-box !important;
-}
-
-/* Ensure dashboard adapts to dynamic height changes */
-.odcm-insight-dashboard[style*="height"] {
-    min-height: inherit !important;
-    max-height: inherit !important;
+    min-height: 85vh; /* Good baseline height - WordPress notices naturally push this down */
 }
 
 /* Hide WordPress admin footer on our dashboard page */
@@ -542,6 +487,7 @@
     overflow-y: auto; /* Enable internal scrolling */
     height: 100%; /* Fill available grid space */
     min-height: 0; /* Allow shrinking below content size */
+    max-height: 100%; /* Prevent growing beyond available space */
 }
 
 .odcm-log-stream {
@@ -551,6 +497,7 @@
     overflow-y: auto; /* Enable internal scrolling */
     height: 100%; /* Fill available grid space */
     min-height: 0; /* Allow shrinking below content size */
+    max-height: 100%; /* Prevent growing beyond available space */
     z-index: 5; /* Same level as other panes - grid handles positioning */
 }
 
@@ -561,6 +508,7 @@
     overflow-y: auto; /* Enable internal scrolling */
     height: 100%; /* Fill available grid space */
     min-height: 0; /* Allow shrinking below content size */
+    max-height: 100%; /* Prevent growing beyond available space */
     transform: translateX(0);
 }
 
@@ -2054,12 +2002,12 @@ label.odcm-retention-option {
 
 /* Components in normal details pane (300px) */
 .odcm-detail-pane:not(.is-expanded) .odcm-component {
-    max-height: var(--odcm-component-base-height); /* Constrained height in narrow pane */
+    max-height: var(--odcm-theme-component-base-height); /* Constrained height in narrow pane */
 }
 
 /* Components in expanded details pane */
 .odcm-detail-pane.is-expanded .odcm-component {
-    max-height: var(--odcm-component-max-height); /* More generous height in expanded pane */
+    max-height: var(--odcm-theme-component-max-height); /* More generous height in expanded pane */
 }
 
 .odcm-component:last-child {
