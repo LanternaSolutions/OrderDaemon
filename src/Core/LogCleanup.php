@@ -141,9 +141,6 @@ class LogCleanup
      */
     private function log_cleanup_activity(int $deleted_count, int $retention_days): void
     {
-        if (!class_exists('OrderDaemon\CompletionManager\Includes\AuditTrailLogger')) {
-            return;
-        }
 
         $retention_type = 'free';
 

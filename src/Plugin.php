@@ -208,23 +208,19 @@ final class Plugin {
     private function initialize_security_system(): void {
         try {
             // Check if required classes exist before instantiation
-            if (!class_exists('\OrderDaemon\CompletionManager\Includes\AuditTrailLogger') ||
-                !class_exists('\OrderDaemon\CompletionManager\Core\Security\GuardChecker')) {
+            if (!class_exists('\OrderDaemon\CompletionManager\Core\Security\GuardChecker')) {
                 // Classes not available yet, skip initialization
                 return;
             }
 
-            // Initialize the guard checker service with audit logging
-            $audit_logger = new \OrderDaemon\CompletionManager\Includes\AuditTrailLogger();
-            $guard_checker = new \OrderDaemon\CompletionManager\Core\Security\GuardChecker($audit_logger);
+            // Initialize the guard checker service
+            $guard_checker = new \OrderDaemon\CompletionManager\Core\Security\GuardChecker();
 
             // Store guard checker in global registry for access by other components
             $GLOBALS['odcm_guard_checker'] = $guard_checker;
 
             // Log security system initialization
-            $audit_logger->log(
-                'security_system_initialized',
-                'info',
+            odcm_log_event(
                 'Security guard system initialized successfully',
                 [
                     'guard_system_version' => '1.0.0',
@@ -234,7 +230,10 @@ final class Plugin {
                         'CapabilityGuard',
                         'CompositeGuard'
                     ]
-                ]
+                ],
+                null,
+                'success',
+                'security_system_initialized'
             );
         } catch (\Throwable $e) {
             // Silently fail guard system initialization to prevent breaking the plugin

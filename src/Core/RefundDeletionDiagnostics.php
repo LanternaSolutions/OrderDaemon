@@ -530,7 +530,7 @@ final class RefundDeletionDiagnostics
             }
 
             // Build canonical narrative envelope and log directly
-            if (function_exists('odcm_log_registered_event')) {
+            if (function_exists('odcm_log_event')) {
                 $now = odcm_iso8601_now();
                 $status = 'info';
                 $event_type = 'refund_created';
@@ -592,13 +592,13 @@ final class RefundDeletionDiagnostics
                 $amount_val = isset($context['refund']['amount']) ? (float)$context['refund']['amount'] : null;
                 $currency = ($order instanceof WC_Order) ? (string)$order->get_currency() : '';
                 $formatted_amount = $amount_val !== null ? (function_exists('wc_price') ? wc_price($amount_val, $currency !== '' ? ['currency' => $currency] : []) : number_format_i18n($amount_val, 2)) : '';
-                odcm_log_registered_event($event_type, [
-                    'order_id'     => $order_id,
-                    'details'      => $envelope,
-                    'status'       => $status,
-                    'summary_args' => [$refund_id, $order_id, $formatted_amount],
-                    'source'       => 'refund_diagnostics',
-                ]);
+                odcm_log_event(
+                    sprintf('Refund #%d created for Order #%d (%s)', $refund_id, $order_id, $formatted_amount),
+                    $envelope,
+                    $order_id,
+                    $status,
+                    $event_type
+                );
             }
         } catch (\Throwable $e) {
             $this->safe_error_log('handle_order_refunded error', $e);
@@ -645,7 +645,7 @@ final class RefundDeletionDiagnostics
             }
             $order   = $this->is_woocommerce_available() ? wc_get_order($order_id) : null;
             $context = $this->is_woocommerce_available() ? $this->capture_refund_context($refund_id, $order instanceof WC_Order ? $order : null) : [];
-            if (function_exists('odcm_log_registered_event')) {
+            if (function_exists('odcm_log_event')) {
                 $now = odcm_iso8601_now();
                 $event_type = 'order_partially_refunded';
                 $status = 'warning';
@@ -704,13 +704,13 @@ final class RefundDeletionDiagnostics
                 $currency = ($order instanceof WC_Order) ? (string)$order->get_currency() : '';
                 $formatted_amount = $amount_val !== null ? (function_exists('wc_price') ? wc_price($amount_val, $currency !== '' ? ['currency' => $currency] : []) : number_format_i18n($amount_val, 2)) : '';
                 $percent = isset($context['impact']['refund_percentage']) && is_numeric($context['impact']['refund_percentage']) ? (int) round((float)$context['impact']['refund_percentage']) : 0;
-                odcm_log_registered_event($event_type, [
-                    'order_id'     => $order_id,
-                    'details'      => $envelope,
-                    'status'       => $status,
-                    'summary_args' => [$order_id, $formatted_amount, $percent],
-                    'source'       => 'refund_diagnostics',
-                ]);
+                odcm_log_event(
+                    sprintf('Order #%d partially refunded (%s - %d%%)', $order_id, $formatted_amount, $percent),
+                    $envelope,
+                    $order_id,
+                    $status,
+                    $event_type
+                );
             }
         } catch (\Throwable $e) {
             $this->safe_error_log('handle_order_partially_refunded error', $e);
@@ -757,7 +757,7 @@ final class RefundDeletionDiagnostics
             }
             $order   = $this->is_woocommerce_available() ? wc_get_order($order_id) : null;
             $context = $this->is_woocommerce_available() ? $this->capture_refund_context($refund_id, $order instanceof WC_Order ? $order : null) : [];
-            if (function_exists('odcm_log_registered_event')) {
+            if (function_exists('odcm_log_event')) {
                 $now = odcm_iso8601_now();
                 $event_type = 'order_fully_refunded';
                 $status = 'warning';
@@ -815,13 +815,13 @@ final class RefundDeletionDiagnostics
                 $amount_val = isset($context['refund']['amount']) ? (float)$context['refund']['amount'] : null;
                 $currency = ($order instanceof WC_Order) ? (string)$order->get_currency() : '';
                 $formatted_amount = $amount_val !== null ? (function_exists('wc_price') ? wc_price($amount_val, $currency !== '' ? ['currency' => $currency] : []) : number_format_i18n($amount_val, 2)) : '';
-                odcm_log_registered_event($event_type, [
-                    'order_id'     => $order_id,
-                    'details'      => $envelope,
-                    'status'       => $status,
-                    'summary_args' => [$order_id, $formatted_amount],
-                    'source'       => 'refund_diagnostics',
-                ]);
+                odcm_log_event(
+                    sprintf('Order #%d fully refunded (%s)', $order_id, $formatted_amount),
+                    $envelope,
+                    $order_id,
+                    $status,
+                    $event_type
+                );
             }
         } catch (\Throwable $e) {
             $this->safe_error_log('handle_order_fully_refunded error', $e);
@@ -858,7 +858,7 @@ final class RefundDeletionDiagnostics
             $order_id  = $this->resolve_order_id_from_refund($refund_id);
             $order     = ($order_id > 0 && $this->is_woocommerce_available()) ? wc_get_order($order_id) : null;
             $context   = $this->is_woocommerce_available() ? $this->capture_refund_context($refund_id, $order instanceof WC_Order ? $order : null) : [];
-            if (function_exists('odcm_log_registered_event')) {
+            if (function_exists('odcm_log_event')) {
                 $now = odcm_iso8601_now();
                 $event_type = 'refund_created';
                 $status = 'info';
@@ -916,13 +916,13 @@ final class RefundDeletionDiagnostics
                 $amount_val = isset($context['refund']['amount']) ? (float)$context['refund']['amount'] : null;
                 $currency = ($order instanceof WC_Order) ? (string)$order->get_currency() : '';
                 $formatted_amount = $amount_val !== null ? (function_exists('wc_price') ? wc_price($amount_val, $currency !== '' ? ['currency' => $currency] : []) : number_format_i18n($amount_val, 2)) : '';
-                odcm_log_registered_event($event_type, [
-                    'order_id'     => $order_id,
-                    'details'      => $envelope,
-                    'status'       => $status,
-                    'summary_args' => [$refund_id, $order_id, $formatted_amount],
-                    'source'       => 'refund_diagnostics',
-                ]);
+                odcm_log_event(
+                    sprintf('Refund #%d created for Order #%d (%s)', $refund_id, $order_id, $formatted_amount),
+                    $envelope,
+                    $order_id,
+                    $status,
+                    $event_type
+                );
             }
         } catch (\Throwable $e) {
             $this->safe_error_log('handle_refund_created error', $e);
@@ -959,7 +959,7 @@ final class RefundDeletionDiagnostics
             $order_id  = $this->resolve_order_id_from_refund($refund_id);
             $order     = ($order_id > 0 && $this->is_woocommerce_available()) ? wc_get_order($order_id) : null;
             $context   = $this->is_woocommerce_available() ? $this->capture_refund_context($refund_id, $order instanceof WC_Order ? $order : null) : [];
-            if (function_exists('odcm_log_registered_event')) {
+            if (function_exists('odcm_log_event')) {
                 $now = odcm_iso8601_now();
                 $event_type = 'refund_deleted';
                 $refund_data = [
@@ -1015,13 +1015,13 @@ final class RefundDeletionDiagnostics
                     'summary'            => $summary,
                     'payload_components' => $components,
                 ];
-                odcm_log_registered_event($event_type, [
-                    'order_id'     => $order_id,
-                    'details'      => $envelope,
-                    'status'       => $status,
-                    'summary_args' => [$refund_id, $order_id],
-                    'source'       => 'refund_diagnostics',
-                ]);
+                odcm_log_event(
+                    sprintf('Refund #%d deleted for Order #%d', $refund_id, $order_id),
+                    $envelope,
+                    $order_id,
+                    $status,
+                    $event_type
+                );
             }
         } catch (\Throwable $e) {
             $this->safe_error_log('handle_refund_deleted error', $e);
@@ -1343,7 +1343,7 @@ final class RefundDeletionDiagnostics
      */
     private function log_deletion_event(string $event_type, int $order_id, string $status = 'warning', string $phase = '', ?array $snapshot = null): void
     {
-        if (!function_exists('odcm_log_registered_event')) {
+        if (!function_exists('odcm_log_event')) {
             return;
         }
         $perf_start = microtime(true);
@@ -1429,14 +1429,14 @@ final class RefundDeletionDiagnostics
                 $actor_display .= ' — ' . sanitize_text_field((string)$u->display_name);
             }
         }
-        // Registry-based logging with templated summary
-        odcm_log_registered_event($event_type, [
-            'order_id'     => $order_id,
-            'details'      => $envelope,
-            'status'       => $status,
-            'summary_args' => [$order_id, $actor_display],
-            'source'       => 'deletion_diagnostics',
-        ]);
+        // Direct logging
+        odcm_log_event(
+            $summary,
+            $envelope,
+            $order_id,
+            $status,
+            $event_type
+        );
         } catch (\Throwable $e) {
             $this->safe_error_log('log_deletion_event error', $e);
         }

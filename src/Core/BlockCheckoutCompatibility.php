@@ -571,14 +571,9 @@ final class BlockCheckoutCompatibility
             $shared_pid = null;
         }
 
-        odcm_log_event([
-            'summary'     => sprintf('Block Checkout processed for order #%d', $order->get_id()),
-            'event_type'  => 'block_checkout_processed',
-            'status'      => 'info',
-            'order_id'    => $order->get_id(),
-            // Explicitly pass process_id to avoid reliance on discovery timing
-            'process_id'  => $shared_pid ?: null,
-            'payload'     => [
+        odcm_log_event(
+            sprintf('Block Checkout processed for order #%d', $order->get_id()),
+            [
                 'type'            => 'block_checkout_observation',
                 // Use the shared process id for correlation if available
                 'correlation_id'  => $shared_pid ?: ('odcm:blkco:' . $order->get_id() . ':' . uniqid('', true)),
@@ -589,10 +584,13 @@ final class BlockCheckoutCompatibility
                 'summary'         => sprintf('Block Checkout observation for order #%d', $order->get_id()),
                 'payload_components' => $payload_components,
                 'checkout_context'   => $checkout_context,
+                'process_id'      => $shared_pid ?: null,
             ],
-            'log_category' => 'core',
-            'is_test'     => false,
-        ]);
+            $order->get_id(),
+            'info',
+            'block_checkout_processed',
+            false
+        );
     }
 
     /**

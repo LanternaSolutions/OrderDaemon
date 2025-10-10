@@ -560,8 +560,8 @@ class WebhookController extends WP_REST_Controller
      */
     private function log_webhook_reception(string $gateway, array $input_data, string $process_id): void
     {
-        if (function_exists('odcm_log_custom_event')) {
-            odcm_log_custom_event(
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
                 sprintf('Webhook received from %s gateway', $gateway),
                 [
                     'gateway' => $gateway,
@@ -573,8 +573,7 @@ class WebhookController extends WP_REST_Controller
                 null,
                 'info',
                 'webhook_reception',
-                false,
-                $process_id
+                false
             );
         }
 
@@ -598,8 +597,8 @@ class WebhookController extends WP_REST_Controller
      */
     private function log_webhook_success(string $gateway, int $events_count, float $execution_time, string $process_id): void
     {
-        if (function_exists('odcm_log_custom_event')) {
-            odcm_log_custom_event(
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
                 sprintf('Webhook processed successfully: %s (%d events)', $gateway, $events_count),
                 [
                     'gateway' => $gateway,
@@ -610,8 +609,7 @@ class WebhookController extends WP_REST_Controller
                 null,
                 'success',
                 'webhook_processing',
-                false,
-                $process_id
+                false
             );
         }
 
@@ -636,8 +634,8 @@ class WebhookController extends WP_REST_Controller
      */
     private function log_webhook_error(string $gateway, \Throwable $error, float $execution_time, string $process_id): void
     {
-        if (function_exists('odcm_log_custom_event')) {
-            odcm_log_custom_event(
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
                 sprintf('Webhook processing failed: %s - %s', $gateway, $error->getMessage()),
                 [
                     'gateway' => $gateway,
@@ -649,8 +647,7 @@ class WebhookController extends WP_REST_Controller
                 null,
                 'error',
                 'webhook_processing',
-                false,
-                $process_id
+                false
             );
         }
 
@@ -672,8 +669,8 @@ class WebhookController extends WP_REST_Controller
      */
     private function log_test_initiation(string $gateway, string $event_type, string $test_id): void
     {
-        if (function_exists('odcm_log_custom_event')) {
-            odcm_log_custom_event(
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
                 sprintf('Webhook test initiated: %s gateway, %s event', $gateway, $event_type),
                 [
                     'gateway' => $gateway,
@@ -686,8 +683,7 @@ class WebhookController extends WP_REST_Controller
                 null,
                 'info',
                 'webhook_test',
-                true, // Mark as test event for filtering
-                $test_id
+                true
             );
         }
     }
@@ -705,7 +701,7 @@ class WebhookController extends WP_REST_Controller
      */
     private function log_test_completion(string $gateway, string $event_type, string $test_id, bool $is_success, float $execution_time, array $response_data): void
     {
-        if (function_exists('odcm_log_custom_event')) {
+        if (function_exists('odcm_log_event')) {
             $status = $is_success ? 'success' : 'warning';
             $message = sprintf(
                 'Webhook test completed: %s gateway, %s event - %s',
@@ -714,7 +710,7 @@ class WebhookController extends WP_REST_Controller
                 $is_success ? 'SUCCESS' : 'FAILED'
             );
 
-            odcm_log_custom_event(
+            odcm_log_event(
                 $message,
                 [
                     'gateway' => $gateway,
@@ -730,8 +726,7 @@ class WebhookController extends WP_REST_Controller
                 null,
                 $status,
                 'webhook_test',
-                true, // Mark as test event for filtering
-                $test_id
+                true
             );
         }
     }
@@ -748,8 +743,8 @@ class WebhookController extends WP_REST_Controller
      */
     private function log_test_error(string $gateway, string $event_type, string $test_id, \Throwable $error, float $execution_time): void
     {
-        if (function_exists('odcm_log_custom_event')) {
-            odcm_log_custom_event(
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
                 sprintf('Webhook test failed: %s gateway, %s event - %s', $gateway, $event_type, $error->getMessage()),
                 [
                     'gateway' => $gateway,
@@ -766,8 +761,7 @@ class WebhookController extends WP_REST_Controller
                 null,
                 'error',
                 'webhook_test',
-                true, // Mark as test event for filtering
-                $test_id
+                true
             );
         }
 

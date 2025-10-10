@@ -312,8 +312,8 @@ class EventRouter
      */
     private function logRouterSuccess(string $gateway, int $events_count, float $execution_time): void
     {
-        if (function_exists('odcm_log_custom_event')) {
-            odcm_log_custom_event(
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
                 sprintf('Event router processed %s events from %s gateway', $events_count, $gateway),
                 [
                     'gateway' => $gateway,
@@ -343,7 +343,7 @@ class EventRouter
      */
     private function logRouterError(string $message, ?string $gateway = null, array $input_data = [], ?float $execution_time = null): void
     {
-        if (function_exists('odcm_log_custom_event')) {
+        if (function_exists('odcm_log_event')) {
             $context = [
                 'error_message' => $message,
                 'component' => 'event_router',
@@ -366,7 +366,7 @@ class EventRouter
                 ];
             }
 
-            odcm_log_custom_event(
+            odcm_log_event(
                 sprintf('Event router error: %s', $message),
                 $context,
                 null,

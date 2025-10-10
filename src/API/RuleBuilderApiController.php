@@ -1208,10 +1208,10 @@ class RuleBuilderApiController extends WP_REST_Controller
             ];
 
             // Log using the plugin's audit system if available
-            if (function_exists('odcm_log_custom_event')) {
+            if (function_exists('odcm_log_event')) {
                 $message = $this->generate_audit_message($action, $rule_id, $audit_entry['changes_summary']);
                 
-                odcm_log_custom_event(
+                odcm_log_event(
                     $message,
                     $audit_entry,
                     null, // No specific order ID
@@ -1886,8 +1886,8 @@ class RuleBuilderApiController extends WP_REST_Controller
         ));
 
         // Log to plugin's audit trail if available
-        if (function_exists('odcm_log_custom_event')) {
-            odcm_log_custom_event(
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
                 "API Error in {$endpoint}: " . $e->getMessage(),
                 array_merge($context, [
                     'error_file' => $e->getFile(),

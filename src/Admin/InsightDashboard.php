@@ -1198,8 +1198,8 @@ class InsightDashboard
         ];
 
         // Use Order Daemon custom event logging if available
-        if (function_exists('odcm_log_custom_event')) {
-            odcm_log_custom_event(
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
                 $message,
                 $context,
                 null, // No order ID

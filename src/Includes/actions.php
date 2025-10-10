@@ -19,42 +19,6 @@ if (!defined('WPINC')) {
 // Import required classes
 use function OrderDaemon\CompletionManager\Utils\odcm_sanitize_payload_for_logging;
 
-/**
- * Asynchronously logs an event by scheduling a background job.
- *
- * This function is the universal entry point for triggering a log event from anywhere
- * in the plugin. It's designed to be lightweight and fast, immediately handing off the
- * logging request to Action Scheduler without delaying any user-facing operations.
- *
- * Canonical narrative-first mode:
- * - Pass event_data with keys: 'canonical' => true, 'status', 'event_type', 'summary', and optional 'data' array
- *   where 'data' may include 'order_id' and 'details' (payload array).
- * - The worker will route it to AuditTrailLogger::record() to ensure a single narrative payload entry.
- *
- * @param array $event_data The event data to be logged.
- * @return void
- * @since 1.0.0
- */
-function odcm_log_event(array $event_data) {
-    // Guard clause to ensure Action Scheduler is available
-    if (!function_exists('as_enqueue_async_action')) {
-        return;
-    }
-
-    // Add process ID for lifecycle events
-    if (!function_exists('odcm_maybe_add_process_id')) {
-        // Ensure helper is available
-        require_once __DIR__ . '/functions.php';
-    }
-    $event_data = odcm_maybe_add_process_id($event_data);
-
-    // Schedule the background task
-    as_enqueue_async_action(
-        'odcm_process_log_entry',  // Hook name
-        ['event_data' => $event_data],  // Arguments
-        'odcm-logs'  // Group
-    );
-}
 
 /**
  * Processes log entries in the background.
@@ -70,251 +34,66 @@ function odcm_log_event(array $event_data) {
 function odcm_handle_log_processing(array $args) {
     global $wpdb;
 
-    // Enhanced argument handling to support multiple Action Scheduler argument structures
-    $event_data = null;
-
-    // Method 1: Standard nested structure ['event_data' => [...]]
-    if (isset($args['event_data']) && is_array($args['event_data'])) {
-        $event_data = $args['event_data'];
-    }
-    // Method 2: Direct structure where $args IS the event_data
-    elseif (isset($args['summary']) && isset($args['event_type'])) {
-        $event_data = $args;
-    }
-    // Method 3: Check if first element is the event_data array
-    elseif (is_array($args) && count($args) === 1 && is_array(reset($args))) {
-        $first_element = reset($args);
-        if (isset($first_element['summary']) && isset($first_element['event_type'])) {
-            $event_data = $first_element;
-        }
-    }
-
-    // If we still don't have valid event_data, log the issue and return
-    if (!is_array($event_data) || !isset($event_data['summary']) || !isset($event_data['event_type'])) {
-        // Enhanced error logging for debugging
-        error_log("ODCM: Log processing failed - Could not extract valid event_data from arguments");
-        error_log("ODCM: Arguments received: " . print_r($args, true));
-        error_log("ODCM: Extracted event_data: " . print_r($event_data, true));
-
-        // Only log to database if we're not already in a logging error loop
-        static $error_logged = false;
-        if (!$error_logged) {
-            $error_logged = true;
-            $wpdb->insert(
-                $wpdb->prefix . 'odcm_audit_log',
-                [
-                    'summary' => 'Log processing failed: Could not extract valid event_data',
-                    'event_type' => 'log_processing_error',
-                    'status' => 'error',
-                    'timestamp' => current_time('mysql'),
-                    'is_test' => 0
-                ]
-            );
-        }
+    // Extract event_data from args
+    $event_data = $args['event_data'] ?? null;
+    if (!is_array($event_data) || !isset($event_data['summary'], $event_data['event_type'])) {
+        error_log("ODCM: Invalid event_data in log processing");
         return;
     }
 
-    // Canonical narrative-first adapter: if flagged, route to AuditTrailLogger::record() and return
-    try {
-        if (!empty($event_data['canonical']) && isset($event_data['status'], $event_data['event_type'], $event_data['summary'])) {
-            $status     = sanitize_text_field((string) $event_data['status']);
-            $event_type = sanitize_key((string) $event_data['event_type']);
-            $summary    = sanitize_text_field((string) $event_data['summary']);
-            $data       = isset($event_data['data']) && is_array($event_data['data']) ? $event_data['data'] : [];
+    // Extract envelope for payload
+    $envelope = $event_data['envelope'] ?? [];
+    $sanitized_envelope = odcm_sanitize_payload_for_logging($envelope);
 
-            // Ensure order_id is absint if provided
-            if (isset($data['order_id'])) {
-                $data['order_id'] = absint($data['order_id']);
-            }
-            // Forward optional canonical metadata if present
-            if (isset($event_data['process_id']) && !isset($data['process_id'])) {
-                $data['process_id'] = sanitize_text_field((string)$event_data['process_id']);
-            }
-            if (isset($event_data['log_category']) && !isset($data['log_category'])) {
-                $data['log_category'] = sanitize_text_field((string)$event_data['log_category']);
-            }
-            if (isset($event_data['is_test']) && !isset($data['is_test'])) {
-                $data['is_test'] = (bool)$event_data['is_test'];
-            }
-            if (isset($event_data['source']) && !isset($data['source'])) {
-                $data['source'] = sanitize_text_field((string)$event_data['source']);
-            }
-
-            // Write via canonical writer (single source of truth)
-            $log_id = \OrderDaemon\CompletionManager\Includes\AuditTrailLogger::record($status, $event_type, $summary, $data);
-            if ($log_id === false) {
-                // Minimal error record to avoid recursion
-                $wpdb->insert(
-                    $wpdb->prefix . 'odcm_audit_log',
-                    [
-                        'summary' => 'AuditTrailLogger::record failed in async adapter',
-                        'event_type' => 'logging_error',
-                        'status' => 'error',
-                        'timestamp' => current_time('mysql'),
-                        'is_test' => 0
-                    ]
-                );
-            }
-            return; // Do not continue to legacy path
-        }
-    } catch (\Throwable $adapter_e) {
-        // Log adapter failure minimally and continue to legacy path
-        error_log('ODCM: Canonical adapter failed: ' . $adapter_e->getMessage());
-    }
-
-    // Validate required fields
-    if (!isset($event_data['summary']) || !isset($event_data['event_type'])) {
-        // Direct database logging to avoid recursion
-        error_log("ODCM: Log processing failed - Missing required fields: " . print_r($event_data, true));
-        $wpdb->insert(
-            $wpdb->prefix . 'odcm_audit_log',
-            [
-                'summary' => 'Log processing failed: Missing required fields (summary or event_type)',
-                'event_type' => 'log_processing_error',
-                'status' => 'error',
-                'timestamp' => current_time('mysql'),
-                'is_test' => 0
-            ]
-        );
-        return;
-    }
-
-    // Extract payload, default to empty array if not set
-    $payload = isset($event_data['payload']) ? $event_data['payload'] : [];
-
-    // Sanitize payload
-    $sanitized_payload = odcm_sanitize_payload_for_logging($payload);
-
-    // Save payload to database
+    // Insert payload first
     $payload_insert = $wpdb->insert(
         $wpdb->prefix . 'odcm_audit_log_payloads',
-        [
-            'payload' => json_encode($sanitized_payload)
-        ]
+        ['payload' => json_encode($sanitized_envelope)]
     );
 
-    // Check if payload insert failed
     if ($payload_insert === false) {
-        // Direct database logging to avoid recursion
-        error_log("ODCM: Failed to insert payload into database: " . $wpdb->last_error);
-        $wpdb->insert(
-            $wpdb->prefix . 'odcm_audit_log',
-            [
-                'summary' => 'Failed to insert payload into database: ' . $wpdb->last_error,
-                'event_type' => 'database_insert_error',
-                'status' => 'error',
-                'timestamp' => current_time('mysql'),
-                'is_test' => 0
-            ]
-        );
+        error_log("ODCM: Failed to insert payload: " . $wpdb->last_error);
         return;
     }
 
-    // Get the payload ID
     $payload_id = $wpdb->insert_id;
 
-    // Prepare log entry data
+    // Prepare log data
     $log_data = [
-        'summary' => $event_data['summary'],
-        'event_type' => $event_data['event_type'],
+        'summary'    => sanitize_text_field($event_data['summary']),
+        'event_type' => sanitize_key($event_data['event_type']),
+        'status'     => sanitize_key($event_data['status'] ?? 'info'),
         'payload_id' => $payload_id,
-        'timestamp' => current_time('mysql')
+        'timestamp'  => current_time('mysql'),
+        'is_test'    => !empty($event_data['is_test']) ? 1 : 0,
     ];
 
-    // Add optional fields if they exist
-    if (isset($event_data['status'])) {
-        $log_data['status'] = $event_data['status'];
-    }
-
-    if (isset($event_data['order_id'])) {
+    // Add optional fields
+    if (!empty($event_data['order_id'])) {
         $log_data['order_id'] = (int) $event_data['order_id'];
     }
-
-    if (isset($event_data['is_test'])) {
-        $log_data['is_test'] = (bool) $event_data['is_test'] ? 1 : 0;
-    }
-
-    // Persist process_id if provided (enables UI consolidation)
-    if (isset($event_data['process_id']) && is_string($event_data['process_id']) && $event_data['process_id'] !== '') {
+    if (!empty($event_data['process_id'])) {
         $log_data['process_id'] = sanitize_text_field($event_data['process_id']);
     }
-    // Optional: persist source and log_category when provided
-    if (isset($event_data['source']) && is_string($event_data['source']) && $event_data['source'] !== '') {
+    if (!empty($event_data['source'])) {
         $log_data['source'] = sanitize_text_field($event_data['source']);
     }
-    if (isset($event_data['log_category']) && is_string($event_data['log_category']) && $event_data['log_category'] !== '') {
-        $log_data['log_category'] = sanitize_text_field($event_data['log_category']);
-    }
 
-    // IDEMPOTENT OPERATIONS: Use INSERT IGNORE to let database handle duplicates
-    // This approach is more reliable than application-level duplicate checking
-    // and eliminates race conditions between multiple processes
-
-    // Add a hash field for duplicate detection based on key fields
-    $duplicate_signature = md5(serialize([
+    // Insert log entry with duplicate protection
+    $duplicate_hash = md5(serialize([
         'summary' => $log_data['summary'],
         'event_type' => $log_data['event_type'],
-        'status' => $log_data['status'] ?? 'info',
+        'status' => $log_data['status'],
         'order_id' => $log_data['order_id'] ?? null,
-        'is_test' => $log_data['is_test'] ?? 0,
         'timestamp_minute' => date('Y-m-d H:i', strtotime($log_data['timestamp']))
     ]));
+    $log_data['duplicate_hash'] = $duplicate_hash;
 
-    $log_data['duplicate_hash'] = $duplicate_signature;
+    $query = "INSERT IGNORE INTO {$wpdb->prefix}odcm_audit_log (" . 
+             implode(', ', array_keys($log_data)) . ") VALUES (" . 
+             implode(', ', array_fill(0, count($log_data), '%s')) . ")";
 
-    // Use INSERT IGNORE to make the operation idempotent
-    // If a duplicate exists (based on unique constraint), it will be silently ignored
-    $query = "INSERT IGNORE INTO {$wpdb->prefix}odcm_audit_log (";
-    $query .= implode(', ', array_keys($log_data));
-    $query .= ") VALUES (";
-    $query .= implode(', ', array_fill(0, count($log_data), '%s'));
-    $query .= ")";
-
-    $log_insert = $wpdb->query($wpdb->prepare($query, array_values($log_data)));
-
-    // Check if insertion was successful or silently ignored
-    if ($log_insert === false) {
-        // Log database errors (but not duplicate key errors)
-        if (strpos($wpdb->last_error, 'Duplicate entry') === false) {
-            error_log("ODCM: Failed to insert log entry into database: " . $wpdb->last_error);
-            // Create a simple error log entry without recursion risk
-            $wpdb->query($wpdb->prepare(
-                "INSERT IGNORE INTO {$wpdb->prefix}odcm_audit_log 
-                 (summary, event_type, status, timestamp, is_test, duplicate_hash) 
-                 VALUES (%s, %s, %s, %s, %d, %s)",
-                'Failed to insert log entry into database: ' . $wpdb->last_error,
-                'database_insert_error',
-                'error',
-                current_time('mysql'),
-                0,
-                md5('database_error_' . time())
-            ));
-        } else {
-            // Duplicate detected and prevented by database - this is expected behavior
-            // Clean up the payload we created since we're not using it
-            $wpdb->delete(
-                $wpdb->prefix . 'odcm_audit_log_payloads',
-                ['payload_id' => $payload_id]
-            );
-
-            // Only log to debug if ODCM_DEBUG is enabled
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM: Prevented duplicate log entry via database constraint - Summary: {$log_data['summary']}, Event: {$log_data['event_type']}");
-            }
-        }
-    } elseif ($log_insert === 0) {
-        // INSERT IGNORE returned 0 rows affected - duplicate was silently ignored
-        // Clean up the payload we created since we're not using it
-        $wpdb->delete(
-            $wpdb->prefix . 'odcm_audit_log_payloads',
-            ['payload_id' => $payload_id]
-        );
-
-        // Only log to debug if ODCM_DEBUG is enabled
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM: Duplicate log entry silently ignored by database - Summary: {$log_data['summary']}, Event: {$log_data['event_type']}");
-        }
-    }
+    $wpdb->query($wpdb->prepare($query, array_values($log_data)));
 }
 
 // Hook the handler to the action scheduled by the Feeder
@@ -340,8 +119,8 @@ function odcm_handle_order_check_processing($args) {
         // Direct integer format: 123
         $order_id = (int) $args;
     } else {
-        // Use new registry-based logging for argument validation errors
-        \odcm_log_custom_event(
+        // Use unified logging for argument validation errors
+        odcm_log_event(
             'Order check processing failed: Invalid argument type',
             [
                 'args' => $args,
@@ -355,8 +134,8 @@ function odcm_handle_order_check_processing($args) {
     }
 
     if ($order_id <= 0) {
-        // Use new registry-based logging for order ID validation errors
-        \odcm_log_custom_event(
+        // Use unified logging for order ID validation errors
+        odcm_log_event(
             'Order check processing failed: Invalid order ID',
             [
                 'args' => $args,
@@ -372,7 +151,7 @@ function odcm_handle_order_check_processing($args) {
     // Get the WooCommerce order
     $order = wc_get_order($order_id);
     if (!$order) {
-        \odcm_log_custom_event(
+        odcm_log_event(
             'Order check processing failed: Order not found',
             [
                 'order_id' => $order_id,
@@ -415,7 +194,7 @@ function odcm_handle_order_check_processing($args) {
 
         // Log the result for debugging
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            \odcm_log_custom_event(
+            odcm_log_event(
                 $result ? 'Order check processed successfully' : 'Order check completed with no matching rules',
                 [
                     'order_id' => $order_id,
@@ -432,7 +211,7 @@ function odcm_handle_order_check_processing($args) {
 
     } catch (\Throwable $e) {
         // Log processing error but don't let it break the system
-        \odcm_log_custom_event(
+        odcm_log_event(
             'Order check processing failed with exception: ' . $e->getMessage(),
             [
                 'order_id' => $order_id,
@@ -464,8 +243,8 @@ add_action('odcm_process_order_check', 'odcm_handle_order_check_processing', 10,
 function odcm_handle_universal_event_processing(array $args) {
     // Validate arguments
     if (!is_array($args) || !isset($args['event'])) {
-        // Log error using existing logging system
-        \odcm_log_custom_event(
+        // Log error using unified logging system
+        odcm_log_event(
             'Payment gateway event processing error: Missing data',
             [
                 'args' => $args,
@@ -482,8 +261,8 @@ function odcm_handle_universal_event_processing(array $args) {
 
     // Validate event data structure
     if (!is_array($event_data) || !isset($event_data['eventType'])) {
-        // Log error using existing logging system
-        \odcm_log_custom_event(
+        // Log error using unified logging system
+        odcm_log_event(
             'Payment gateway event processing error: Invalid data format',
             [
                 'event_data' => $event_data,
@@ -511,7 +290,7 @@ function odcm_handle_universal_event_processing(array $args) {
                 "{$gateway} {$event_type} processed successfully" : 
                 "{$gateway} {$event_type} completed with no action";
                 
-            \odcm_log_custom_event(
+            odcm_log_event(
                 $message,
                 [
                     'event_type' => $event_data['eventType'] ?? 'unknown',
@@ -527,7 +306,7 @@ function odcm_handle_universal_event_processing(array $args) {
 
     } catch (\Throwable $e) {
         // Log processing error
-        \odcm_log_custom_event(
+        odcm_log_event(
             'Payment gateway event processing error: ' . $e->getMessage(),
             [
                 'event_type' => $event_data['eventType'] ?? 'unknown',

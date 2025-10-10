@@ -37,7 +37,6 @@ namespace OrderDaemon\CompletionManager\Core;
  * - Similar structure to OptionRegistry for consistency
  * - Integration with existing entitlement system
  * - Compatibility with current asynchronous logging via Action Scheduler
- * - Preservation of existing AuditTrailLogger functionality
  *
  * @package OrderDaemon\CompletionManager\Core
  * @since   1.0.0
@@ -104,7 +103,7 @@ if (!defined('WPINC')) {
  * 
  * New event types can be added by:
  * 1. Adding entry to this registry function
- * 2. Using odcm_log_registered_event() with the new event slug
+ * 2. Using odcm_log_event() with the new event slug
  * 3. Providing appropriate context data for summary template
  * 
  * The registry is designed to be easily extended without breaking

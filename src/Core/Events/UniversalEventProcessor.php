@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core\Events;
 
-use OrderDaemon\CompletionManager\Includes\AuditTrailLogger;
 use OrderDaemon\CompletionManager\Core\RuleComponents\RuleComponentRegistry;
 use OrderDaemon\CompletionManager\Core\Evaluator;
 use OrderDaemon\CompletionManager\Core\ProcessIdManager;
@@ -42,18 +41,10 @@ class UniversalEventProcessor
     private Evaluator $evaluator;
 
     /**
-     * Audit trail logger
-     * 
-     * @var AuditTrailLogger
-     */
-    private AuditTrailLogger $logger;
-
-    /**
      * Constructor
      */
     private function __construct()
     {
-        $this->logger = new AuditTrailLogger();
         $this->registry = new RuleComponentRegistry();
         $this->evaluator = new Evaluator();
     }
@@ -207,7 +198,7 @@ class UniversalEventProcessor
         $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
         $message = !empty($summary) ? "Event received: {$summary}" : sprintf('%s %s received', $gateway, $event->eventType);
         
-        \odcm_log_custom_event(
+        \odcm_log_event(
             $message,
             [
                 'event_type' => $event->eventType,
@@ -240,7 +231,7 @@ class UniversalEventProcessor
      */
     private function logDuplicateEvent(UniversalEvent $event, string $process_id): void
     {
-        \odcm_log_custom_event(
+        \odcm_log_event(
             sprintf('Duplicate universal event detected: %s (idempotency key: %s)', $event->eventType, $event->idempotencyKey),
             [
                 'event_type' => $event->eventType,
@@ -277,7 +268,7 @@ class UniversalEventProcessor
             ? (!empty($summary) ? "Successfully processed: {$summary}" : sprintf('%s %s processed successfully', $gateway, $event->eventType))
             : (!empty($summary) ? "No matching rules for: {$summary}" : sprintf('%s %s completed with no matching rules', $gateway, $event->eventType));
 
-        \odcm_log_custom_event(
+        \odcm_log_event(
             $message,
             [
                 'event_type' => $event->eventType,
@@ -318,7 +309,7 @@ class UniversalEventProcessor
         $gateway = isset($event_data['sourceGateway']) ? ucfirst($event_data['sourceGateway']) : 'Payment gateway';
         $business_message = $this->createBusinessErrorMessage($error->getMessage(), $gateway);
         
-        \odcm_log_custom_event(
+        \odcm_log_event(
             $business_message,
             [
                 'event_type' => $event_data['eventType'] ?? 'unknown',
@@ -354,7 +345,7 @@ class UniversalEventProcessor
      */
     private function logError(string $message, array $context, string $process_id): void
     {
-        \odcm_log_custom_event(
+        \odcm_log_event(
             'Payment gateway processor error: ' . $message,
             array_merge($context, [
                 'component' => 'universal_event_processor',
@@ -541,7 +532,7 @@ class UniversalEventProcessor
             }
         } catch (\Throwable $e) {
             // Log action execution error but don't stop processing
-            \odcm_log_custom_event(
+            \odcm_log_event(
                 sprintf('Action execution failed: %s', $e->getMessage()),
                 [
                     'action_id' => $id,

@@ -776,30 +776,35 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @example
  * ```php
  * // Log a successful order completion
- * odcm_log_registered_event('order_completed', [
- *     'order_id' => 123,
- *     'payload' => ['completion_time' => time()]
- * ]);
- * // Result: "Order #123 completed successfully"
+ * odcm_log_event(
+ *     'Order #123 completed successfully',
+ *     ['completion_time' => time()],
+ *     123,
+ *     'success',
+ *     'order_completed'
+ * );
  * 
  * // Log a rule match with context
- * odcm_log_registered_event('rule_matched', [
- *     'order_id' => 456,
- *     'rule_name' => 'Virtual Products Auto-Complete',
- *     'payload' => ['rule_id' => 789]
- * ]);
- * // Result: "Order #456 matched completion rule: Virtual Products Auto-Complete"
+ * odcm_log_event(
+ *     'Order #456 matched completion rule: Virtual Products Auto-Complete',
+ *     ['rule_id' => 789],
+ *     456,
+ *     'info',
+ *     'rule_matched'
+ * );
  * 
- * // Debug event (only logged if ODCM_DEBUG is true)
- * odcm_log_registered_event('process_order_check_start', [
- *     'order_id' => 789,
- *     'payload' => ['trigger' => 'woocommerce_order_status_processing']
- * ]);
- * // Result: "Starting order check process for order #789" (if debug enabled)
+ * // Debug event
+ * odcm_log_event(
+ *     'Starting order check process for order #789',
+ *     ['trigger' => 'woocommerce_order_status_processing'],
+ *     789,
+ *     'debug',
+ *     'process_order_check_start'
+ * );
  * 
- * // Invalid event slug
- * $result = odcm_log_registered_event('nonexistent_event', []);
- * // Result: false (logs developer error and returns false)
+ * // Basic event logging
+ * $result = odcm_log_event('Custom plugin action completed');
+ * // Result: true (if Action Scheduler is available)
  * ```
  */
 
@@ -940,10 +945,10 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @example
  * ```php
  * // Basic usage - log a simple event
- * odcm_log_custom_event('My plugin performed an action');
- * 
+ * odcm_log_event('My plugin performed an action');
+ *
  * // Log with status and order association
- * odcm_log_custom_event(
+ * odcm_log_event(
  *     'Payment gateway webhook processed',
  *     null,
  *     123, // order_id
@@ -951,7 +956,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * );
  * 
  * // Full usage with all parameters
- * odcm_log_custom_event(
+ * odcm_log_event(
  *     'External API sync completed',
  *     [
  *         'api_endpoint' => 'https://api.example.com/sync',
@@ -965,7 +970,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * );
  * 
  * // Error logging with details
- * odcm_log_custom_event(
+ * odcm_log_event(
  *     'Failed to connect to external service',
  *     [
  *         'service' => 'inventory_api',
@@ -979,7 +984,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * );
  * 
  * // Integration-specific event
- * odcm_log_custom_event(
+ * odcm_log_event(
  *     'MailChimp subscriber updated',
  *     [
  *         'subscriber_email' => 'customer@example.com',
@@ -993,7 +998,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * );
  * 
  * // Warning with custom event type
- * odcm_log_custom_event(
+ * odcm_log_event(
  *     'Deprecated API endpoint used',
  *     [
  *         'endpoint' => '/api/v1/orders',
@@ -1006,70 +1011,73 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * );
  * ```
  */
-function odcm_log_custom_event(
-    string $summary, 
-    ?array $payload = null, 
-    ?int $order_id = null, 
+function odcm_log_event(
+    string $summary,
+    array $data = [],
+    ?int $order_id = null,
     string $status = 'info',
-    ?string $event_type = null,
+    string $event_type = 'event',
     bool $is_test = false
 ): bool {
+    // Guard clause - ensure Action Scheduler is available
+    if (!function_exists('as_enqueue_async_action')) {
+        return false;
+    }
+
     // Validate status against registry
     $available_statuses = odcm_get_log_statuses();
     if (!array_key_exists($status, $available_statuses)) {
-        // Log warning about invalid status and default to 'info'
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("[ODCM WARNING] Invalid status '{$status}' in odcm_log_custom_event(), defaulting to 'info'");
-        }
         $status = 'info';
     }
-    
-    // Set default event type if not provided
-    if ($event_type === null) {
-        $event_type = 'custom_event';
-    }
-    
-    // Narrative-only adapter: build a minimal envelope with a single timeline item
+
+    // Build payload_components structure for narrative timeline
     $level = in_array($status, ['error','warning','info','debug','success'], true) ? $status : 'info';
-    // Map 'success' to 'info' level for timeline styling
-    if ($level === 'success') { $level = 'info'; }
+    if ($level === 'success') { $level = 'info'; } // Map success to info for timeline styling
+    
     $component = [
-        'key'   => 'custom-' . wp_generate_uuid4(),
+        'key'   => 'event-' . wp_generate_uuid4(),
         'kind'  => 'info',
         'ts'    => odcm_iso8601_now(),
         'label' => $summary,
         'level' => $level,
-        'data'  => is_array($payload) ? $payload : [],
+        'data'  => $data,
     ];
+    
     $envelope = [
-        'type'               => 'custom',
-        'correlation_id'     => 'odcm:custom:' . ($order_id ? (string)$order_id : 'na') . ':' . wp_generate_uuid4(),
+        'type'               => 'event',
+        'correlation_id'     => 'odcm:event:' . ($order_id ? (string)$order_id : 'na') . ':' . wp_generate_uuid4(),
         'order_id'           => $order_id,
         'actor'              => ['id' => get_current_user_id() ?: null, 'role' => null, 'name' => null],
         'started_at'         => odcm_iso8601_now(),
         'finished_at'        => odcm_iso8601_now(),
         'status'             => $status,
         'summary'            => $summary,
-        'payload_components' => [ $component ],
+        'payload_components' => [$component],
     ];
 
-    // Prepare canonical narrative event for async writer
+    // Prepare event data for Action Scheduler
     $event_data = [
-        'canonical'    => true,
-        'summary'      => $summary,
-        'status'       => $status,
-        'event_type'   => $event_type,
-        'data'         => [
-            'order_id'     => $order_id,
-            'details'      => $envelope,
-            'log_category' => 'custom',
-            'is_test'      => $is_test,
-            'source'       => 'custom',
-        ],
+        'summary'    => $summary,
+        'status'     => $status,
+        'event_type' => $event_type,
+        'order_id'   => $order_id,
+        'is_test'    => $is_test,
+        'envelope'   => $envelope,
+        'source'     => 'unified_logger',
     ];
 
-    // Delegate to asynchronous logging system (canonical path)
-    odcm_log_event($event_data);
+    // Add process ID for lifecycle events
+    if (!function_exists('odcm_maybe_add_process_id')) {
+        require_once __DIR__ . '/functions.php';
+    }
+    $event_data = odcm_maybe_add_process_id($event_data);
+
+    // Schedule asynchronously via Action Scheduler
+    as_enqueue_async_action(
+        'odcm_process_log_entry',
+        ['event_data' => $event_data],
+        'odcm-logs'
+    );
 
     return true;
 }
@@ -1368,95 +1376,6 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
 }
 
 
-if (!function_exists('odcm_log_registered_event')) {
-    /**
-     * Registry-based internal event logger.
-     *
-     * @param string $event_slug Event identifier defined in registry.
-     * @param array  $context_data Context including 'order_id', optional 'summary_args' (array),
-     *                             optional 'details' (canonical envelope), optional 'status' override,
-     *                             optional 'is_test' (bool), optional 'source' (string).
-     * @param bool   $force_debug If true, logs debug-category events even when ODCM_DEBUG is disabled.
-     * @return bool True if scheduled.
-     */
-    function odcm_log_registered_event(string $event_slug, array $context_data = [], bool $force_debug = false): bool
-    {
-        // Load registries
-        if (!function_exists('OrderDaemon\\CompletionManager\\Core\\odcm_get_log_event_types')) {
-            require_once dirname(__DIR__) . '/Core/LogRegistries.php';
-        }
-        $events = \OrderDaemon\CompletionManager\Core\odcm_get_log_event_types();
-        if (!isset($events[$event_slug])) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('[ODCM] Unknown event slug in odcm_log_registered_event: ' . $event_slug);
-            }
-            return false;
-        }
-        $def = $events[$event_slug];
-
-        // Category gating for debug events
-        $category = isset($def['category']) ? (string)$def['category'] : 'core';
-        if ($category === 'debug' && !(defined('ODCM_DEBUG') && ODCM_DEBUG) && !$force_debug) {
-            return false;
-        }
-
-        // Determine status
-        $statuses = function_exists('odcm_get_log_statuses') ? odcm_get_log_statuses() : \OrderDaemon\CompletionManager\Core\odcm_get_log_statuses();
-        $status = isset($context_data['status']) ? sanitize_key((string)$context_data['status']) : (string)($def['default_status'] ?? 'info');
-        if (!isset($statuses[$status])) {
-            $status = (string)($def['default_status'] ?? 'info');
-        }
-
-        // Build summary
-        $template = (string)($def['summary_template'] ?? '%s');
-        $summary_args = isset($context_data['summary_args']) && is_array($context_data['summary_args'])
-            ? $context_data['summary_args']
-            : [];
-        $summary = '';
-        if (!empty($summary_args)) {
-            // Sanitize args to strings
-            $safe_args = array_map(static function($v) {
-                if (is_numeric($v)) { return $v; }
-                return is_string($v) ? sanitize_text_field($v) : (string) (is_scalar($v) ? $v : '');
-            }, $summary_args);
-            try {
-                $summary = vsprintf($template, $safe_args);
-            } catch (\Throwable $e) {
-                $summary = (string)($def['label'] ?? ucfirst($event_slug));
-            }
-        } else {
-            $summary = (string)($def['label'] ?? ucfirst($event_slug));
-        }
-
-        // Narrative details envelope (optional)
-        $details = isset($context_data['details']) && is_array($context_data['details']) ? $context_data['details'] : null;
-        $order_id = isset($context_data['order_id']) ? (int)$context_data['order_id'] : null;
-        $is_test = !empty($context_data['is_test']);
-        $source  = isset($context_data['source']) ? sanitize_key((string)$context_data['source']) : 'registry';
-
-        // Prepare canonical event payload
-        $event_data = [
-            'canonical'  => true,
-            'summary'    => $summary,
-            'event_type' => $event_slug,
-            'status'     => $status,
-            'data'       => [
-                'order_id'     => $order_id,
-                'details'      => $details,
-                'log_category' => $category,
-                'is_test'      => $is_test,
-                'source'       => $source,
-            ],
-        ];
-
-        // Delegate to async logger
-        if (function_exists('odcm_log_event')) {
-            odcm_log_event($event_data);
-            return true;
-        }
-        return false;
-    }
-}
 
 /**
  * Add process ID to event data if it's an order lifecycle event

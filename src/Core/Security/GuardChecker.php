@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core\Security;
 
-use OrderDaemon\CompletionManager\Includes\AuditTrailLogger;
 use OrderDaemon\CompletionManager\Core\AttributionTracker;
 
 /**
@@ -21,14 +20,6 @@ use OrderDaemon\CompletionManager\Core\AttributionTracker;
  */
 class GuardChecker {
     /**
-     * Audit trail logger instance.
-     *
-     * @var AuditTrailLogger
-     * @since 1.0.0
-     */
-    private AuditTrailLogger $logger;
-
-    /**
      * Attribution tracker for IP detection.
      *
      * @var AttributionTracker|null
@@ -39,11 +30,9 @@ class GuardChecker {
     /**
      * Construct a new GuardChecker.
      *
-     * @param AuditTrailLogger $logger The audit trail logger instance
      * @since 1.0.0
      */
-    public function __construct(AuditTrailLogger $logger) {
-        $this->logger = $logger;
+    public function __construct() {
         // Initialize attribution tracker safely
         try {
             $this->attribution_tracker = AttributionTracker::instance();
@@ -74,9 +63,7 @@ class GuardChecker {
             $execution_time = (microtime(true) - $start_time) * 1000; // Convert to milliseconds
 
             // Log successful verification
-            $this->logger->log(
-                'security_check_passed',
-                'security',
+            odcm_log_event(
                 'Security verification successful',
                 array_merge($context, [
                     'guard_type' => get_class($guard),
@@ -84,16 +71,17 @@ class GuardChecker {
                     'execution_time_ms' => round($execution_time, 2),
                     'user_context' => $this->getUserContext(),
                     'request_context' => $this->getRequestContext()
-                ])
+                ]),
+                null,
+                'success',
+                'security_check_passed'
             );
 
         } catch (SecurityException $e) {
             $execution_time = (microtime(true) - $start_time) * 1000;
 
             // Log security failure with comprehensive context
-            $this->logger->log(
-                'security_check_failed',
-                'error',
+            odcm_log_event(
                 'Security verification failed: ' . $e->getMessage(),
                 array_merge($context, [
                     'guard_type' => get_class($guard),
@@ -103,7 +91,10 @@ class GuardChecker {
                     'user_context' => $this->getUserContext(),
                     'request_context' => $this->getRequestContext(),
                     'stack_trace' => $e->getTraceAsString()
-                ])
+                ]),
+                null,
+                'error',
+                'security_check_failed'
             );
 
             // Re-throw for handling by calling code

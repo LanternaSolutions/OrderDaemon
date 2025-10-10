@@ -364,22 +364,12 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $all_logs = [];
             }
 
-            // Apply UI consolidation by process_id for lifecycle events
-            $consolidator = null;
+            // Apply UI-only consolidation by process_id for lifecycle events
             try {
-                if (!class_exists('OrderDaemon\\CompletionManager\\Core\\LogConsolidationService')) {
-                    require_once dirname(__DIR__) . '/Core/LogConsolidationService.php';
-                }
-                $consolidator = new \OrderDaemon\CompletionManager\Core\LogConsolidationService();
-                $all_logs = $consolidator->consolidate_logs_for_display($all_logs);
-                
-                // The consolidation service now properly returns only:
-                // 1. Consolidated entries (which represent groups of related events)
-                // 2. Individual entries that were NOT part of any consolidation
-                // No additional filtering needed - the service handles this correctly
+                $all_logs = $this->apply_process_id_consolidation($all_logs);
             } catch (\Throwable $e) {
                 // Fail-safe: keep original logs ungrouped
-                error_log('ODCM: Consolidation failed: ' . $e->getMessage());
+                error_log('ODCM: Process ID consolidation failed: ' . $e->getMessage());
             }
 
             // Compute consolidated totals and slice current page
@@ -424,13 +414,6 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'pagination_basis' => 'consolidated',
                 ],
             ];
-
-            // Optional: include consolidation diagnostics in debug mode (response meta only; no DB writes)
-            $debug_on = (defined('ODCM_DEBUG') && ODCM_DEBUG) || (bool) get_option('odcm_debug_lifecycle', false);
-            if ($debug_on && $consolidator && method_exists($consolidator, 'get_last_diag')) {
-                $diag = $consolidator->get_last_diag();
-                $response_data['meta']['consolidation_diag'] = $diag;
-            }
 
             return new WP_REST_Response($response_data, 200);
 
@@ -2130,8 +2113,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             // Exclude entries that are debug-only processes by checking details JSON
-            // This mirrors the required logic: NOT (details LIKE %s OR details LIKE %s OR details LIKE %s)
-            $condition = "NOT (l.details LIKE %s OR l.details LIKE %s OR l.details LIKE %s)";
+            // Handle empty/NULL details as non-debug (should pass filter)
+            $condition = "(l.details IS NULL OR l.details = '' OR NOT (l.details LIKE %s OR l.details LIKE %s OR l.details LIKE %s))";
             $values = [
                 '%"level":"debug"%',
                 '%"source":"debug_%',
@@ -2166,8 +2149,8 @@ class AuditLogEndpoint extends WP_REST_Controller
         ));
 
         // Log to plugin's audit trail if available
-        if (function_exists('odcm_log_custom_event')) {
-            odcm_log_custom_event(
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
                 "API Error in {$endpoint}: " . $e->getMessage(),
                 array_merge($context, [
                     'error_file' => $e->getFile(),
@@ -2274,29 +2257,29 @@ class AuditLogEndpoint extends WP_REST_Controller
         }
 
         // Log the batch deletion operation if audit logging is available
-        if (function_exists('odcm_log_custom_event')) {
-            $user = wp_get_current_user();
+            if (function_exists('odcm_log_event')) {
+                $user = wp_get_current_user();
 
-            odcm_log_custom_event(
-                sprintf(
-                    'Batch deleted %d log entries via Insight Dashboard',
-                    $deleted_count
-                ),
-                [
-                    'deleted_log_ids' => $log_ids,
-                    'deleted_count' => $deleted_count,
-                    'requested_count' => count($log_ids),
-                    'user_id' => $user->ID,
-                    'user_login' => $user->user_login,
-                    'user_ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-                ],
-                null,
-                'info',
-                'batch_delete',
-                false // Don't include this in test logs
-            );
-        }
+                odcm_log_event(
+                    sprintf(
+                        'Batch deleted %d log entries via Insight Dashboard',
+                        $deleted_count
+                    ),
+                    [
+                        'deleted_log_ids' => $log_ids,
+                        'deleted_count' => $deleted_count,
+                        'requested_count' => count($log_ids),
+                        'user_id' => $user->ID,
+                        'user_login' => $user->user_login,
+                        'user_ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+                        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
+                    ],
+                    null,
+                    'info',
+                    'batch_delete',
+                    false // Don't include this in test logs
+                );
+            }
     }
 
     /**
@@ -2457,22 +2440,39 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
-     * Render a frontend consolidated entry by re-running consolidation logic
+     * Render a process-representative entry by querying all events with the same process_id
      *
-     * @param array $log The representative log entry
+     * @param array $log The representative log entry 
      * @param bool $include_debug Whether to include debug components
-     * @return string HTML output for the consolidated timeline
+     * @return string HTML output for the process timeline
      */
     private function render_frontend_consolidated_entry(array $log, bool $include_debug = false): string
     {
-        $order_id = isset($log['order_id']) ? (int) $log['order_id'] : 0;
+        // Check if this is a process representative entry
+        if (!empty($log['is_process_representative']) && !empty($log['process_id'])) {
+            // Query all events with the same process_id
+            return $this->render_process_timeline_by_process_id($log['process_id'], $include_debug);
+        }
         
-        if ($order_id <= 0) {
-            return '<div class="odcm-empty-data">' . esc_html__('Invalid order ID for consolidated entry', Odcm_Config::$text_domain) . '</div>';
+        // Fallback: render as individual log entry
+        return $this->render_log_components($log);
+    }
+
+    /**
+     * Render timeline for all events with a specific process_id
+     *
+     * @param string $process_id The process ID to query
+     * @param bool $include_debug Whether to include debug components
+     * @return string HTML output for the process timeline
+     */
+    private function render_process_timeline_by_process_id(string $process_id, bool $include_debug = false): string
+    {
+        if (empty($process_id)) {
+            return '<div class="odcm-empty-data">' . esc_html__('Invalid process ID', Odcm_Config::$text_domain) . '</div>';
         }
 
         try {
-            // Fetch all log entries for this order
+            // Query all events with this process_id
             global $wpdb;
             $log_table = $wpdb->prefix . 'odcm_audit_log';
             $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
@@ -2484,55 +2484,103 @@ class AuditLogEndpoint extends WP_REST_Controller
                                COALESCE(p.payload, l.details, '') as payload 
                         FROM {$log_table} l 
                         LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id
-                        WHERE l.order_id = %d 
+                        WHERE l.process_id = %s 
                         ORDER BY l.timestamp ASC";
             } else {
                 $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
                                l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
                                l.details as payload 
                         FROM {$log_table} l
-                        WHERE l.order_id = %d 
+                        WHERE l.process_id = %s 
                         ORDER BY l.timestamp ASC";
             }
 
-            $order_entries = $wpdb->get_results($wpdb->prepare($sql, $order_id), 'ARRAY_A');
+            $process_events = $wpdb->get_results($wpdb->prepare($sql, $process_id), 'ARRAY_A');
 
-            if (empty($order_entries)) {
-                return '<div class="odcm-empty-data">' . esc_html__('No entries found for this order', Odcm_Config::$text_domain) . '</div>';
+            if (empty($process_events)) {
+                return '<div class="odcm-empty-data">' . esc_html__('No events found for this process', Odcm_Config::$text_domain) . '</div>';
             }
 
-            // Use LogConsolidationService to consolidate the entries
-            if (!class_exists('OrderDaemon\\CompletionManager\\Core\\LogConsolidationService')) {
-                require_once dirname(__DIR__) . '/Core/LogConsolidationService.php';
-            }
-            
-            $consolidator = new \OrderDaemon\CompletionManager\Core\LogConsolidationService();
-            $consolidated_entries = $consolidator->consolidate_logs_for_display($order_entries);
+            // Extract all payload components from the process events
+            $all_components = [];
+            $first_event = $process_events[0];
+            $envelope_meta = [
+                'type' => 'process_timeline',
+                'order_id' => $first_event['order_id'] ?? 0,
+                'started_at' => $first_event['timestamp'] ?? current_time('mysql'),
+                'trigger' => 'process_lifecycle',
+                'correlation_id' => $process_id,
+            ];
 
-            // Find the consolidated entry that contains our target log ID
-            $target_consolidated = null;
-            foreach ($consolidated_entries as $entry) {
-                if (isset($entry['consolidation_data']['timeline_events'])) {
-                    foreach ($entry['consolidation_data']['timeline_events'] as $timeline_event) {
-                        if (isset($timeline_event['id']) && (int)$timeline_event['id'] === (int)$log['id']) {
-                            $target_consolidated = $entry;
-                            break 2;
+            // Process each event to extract payload components
+            foreach ($process_events as $event) {
+                $payload_raw = $event['payload'] ?? '';
+                if (empty($payload_raw)) {
+                    continue;
+                }
+
+                $event_details = is_string($payload_raw) ? json_decode($payload_raw, true) : null;
+                if (!is_array($event_details)) {
+                    continue;
+                }
+
+                // Extract payload components if they exist (ProcessLogger entries)
+                if (isset($event_details['payload_components']) && is_array($event_details['payload_components'])) {
+                    foreach ($event_details['payload_components'] as $component) {
+                        if (!is_array($component)) {
+                            continue;
                         }
+
+                        // Apply debug filtering
+                        if (!$include_debug && $this->is_debug_component($component)) {
+                            continue;
+                        }
+
+                        $all_components[] = $component;
                     }
+                } else {
+                    // Handle non-ProcessLogger entries by creating synthetic components
+                    $synthetic_component = [
+                        'kind' => 'process_event',
+                        'label' => $event['summary'] ?? ($event['event_type'] ?? 'Event'),
+                        'ts' => $event['timestamp'] ?? current_time('mysql'),
+                        'level' => $event['status'] ?? 'info',
+                        'data' => array_merge($event_details, [
+                            'event_type' => $event['event_type'] ?? '',
+                            'source' => $event['source'] ?? '',
+                            'log_id' => $event['id'] ?? 0,
+                        ]),
+                    ];
+
+                    // Apply debug filtering for synthetic components
+                    if (!$include_debug && isset($event_details['level']) && $event_details['level'] === 'debug') {
+                        continue;
+                    }
+
+                    $all_components[] = $synthetic_component;
                 }
             }
 
-            if ($target_consolidated && isset($target_consolidated['consolidation_data']['timeline_events'])) {
-                // Render using the consolidated timeline events
-                return $this->render_consolidated_entry($target_consolidated, $include_debug);
-            } else {
-                // Fallback: render all entries for this order as a timeline
-                return $this->render_order_timeline($order_entries, $include_debug);
+            // If no components after filtering, show appropriate message
+            if (empty($all_components)) {
+                if (!$include_debug) {
+                    return '<div class="odcm-empty-data">' . esc_html__('All process events filtered (debug mode disabled)', Odcm_Config::$text_domain) . '</div>';
+                } else {
+                    return '<div class="odcm-empty-data">' . esc_html__('No process components available', Odcm_Config::$text_domain) . '</div>';
+                }
             }
 
+            // Create the envelope structure for render_narrative_timeline
+            $process_envelope = array_merge($envelope_meta, [
+                'payload_components' => $all_components,
+            ]);
+
+            // Use the existing narrative timeline rendering
+            return $this->render_narrative_timeline($process_envelope, $include_debug);
+
         } catch (\Throwable $e) {
-            error_log('ODCM: render_frontend_consolidated_entry failed: ' . $e->getMessage());
-            return '<div class="odcm-empty-data">' . esc_html__('Error rendering consolidated entry', Odcm_Config::$text_domain) . '</div>';
+            error_log('ODCM: render_process_timeline_by_process_id failed: ' . $e->getMessage());
+            return '<div class="odcm-empty-data">' . esc_html__('Error rendering process timeline', Odcm_Config::$text_domain) . '</div>';
         }
     }
 
@@ -3182,7 +3230,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Function availability
             'functions' => [
                 'odcm_can_use' => function_exists('odcm_can_use'),
-                'odcm_log_custom_event' => function_exists('odcm_log_custom_event'),
+                'odcm_log_event' => function_exists('odcm_log_event'),
                 'rest_url' => function_exists('rest_url'),
                 'current_user_can' => function_exists('current_user_can'),
             ],
@@ -4166,6 +4214,190 @@ class AuditLogEndpoint extends WP_REST_Controller
         ];
         
         return $theme_map[$kind] ?? 'system';
+    }
+
+    /**
+     * Apply pure UI-only consolidation by process_id for lifecycle events
+     * 
+     * Groups events by process_id for display without storing any consolidation data.
+     * This maintains the "one event per DB row" architecture principle.
+     * Uses the latest event from each process as the representative for the list view.
+     *
+     * @param array $logs Array of log entries from database
+     * @return array Array with representative entries for each process_id group
+     */
+    private function apply_process_id_consolidation(array $logs): array
+    {
+        if (empty($logs)) {
+            return [];
+        }
+
+        // Get process families to identify lifecycle events
+        if (!class_exists('OrderDaemon\\CompletionManager\\Core\\ProcessLifecycleDiscovery')) {
+            require_once dirname(__DIR__) . '/Core/ProcessLifecycleDiscovery.php';
+        }
+
+        $discovery = \OrderDaemon\CompletionManager\Core\ProcessLifecycleDiscovery::instance();
+        $families = $discovery->get_process_families();
+        $lifecycle_family = $families['order_lifecycle'] ?? null;
+
+        if (!$lifecycle_family || empty($lifecycle_family['consolidate_ui'])) {
+            // Consolidation disabled, return logs as-is
+            return $logs;
+        }
+
+        $lifecycle_types = array_values(array_unique(array_filter((array) ($lifecycle_family['process_types'] ?? []))));
+        
+        // Group logs by process_id
+        $by_process_id = [];
+        $individual_entries = [];
+
+        foreach ($logs as $log) {
+            $process_id = $log['process_id'] ?? '';
+            $event_type = $log['event_type'] ?? '';
+
+            // Only consolidate lifecycle events that have a process_id
+            if (!empty($process_id) && in_array($event_type, $lifecycle_types, true)) {
+                $by_process_id[$process_id][] = $log;
+            } else {
+                // Keep non-lifecycle events and events without process_id as individuals
+                $individual_entries[] = $log;
+            }
+        }
+
+        // Create representative entries for each process_id group (no consolidation data stored)
+        $representative_entries = [];
+        foreach ($by_process_id as $process_id => $process_logs) {
+            if (count($process_logs) <= 1) {
+                // Single entries remain individual
+                $individual_entries = array_merge($individual_entries, $process_logs);
+                continue;
+            }
+
+            // Sort by timestamp for proper ordering
+            usort($process_logs, function($a, $b) {
+                return strtotime($a['timestamp'] ?? '') <=> strtotime($b['timestamp'] ?? '');
+            });
+
+            // Use the latest log as the representative entry with updated summary
+            $last_log = $process_logs[count($process_logs) - 1];
+            $order_id = $process_logs[0]['order_id'] ?? 0;
+
+            // Create representative entry (no consolidation_data stored!)
+            $representative_entry = $last_log; // Start with the actual log entry
+            
+            // Update only the summary to indicate it represents multiple events
+            $representative_entry['summary'] = $this->create_process_summary($process_logs, $order_id);
+            $representative_entry['status'] = $this->determine_process_status($process_logs);
+            $representative_entry['is_process_representative'] = true; // Simple flag for detail rendering
+            $representative_entry['process_event_count'] = count($process_logs);
+
+            $representative_entries[] = $representative_entry;
+        }
+
+        // Merge representative and individual entries
+        $all_entries = array_merge($representative_entries, $individual_entries);
+
+        // Sort by timestamp (desc for stream list)
+        usort($all_entries, function($a, $b) {
+            return strtotime($b['timestamp'] ?? '') <=> strtotime($a['timestamp'] ?? '');
+        });
+
+        return $all_entries;
+    }
+
+    /**
+     * Create a business-relevant summary for a process group
+     *
+     * @param array $process_logs Array of logs in the process
+     * @param int $order_id Order ID
+     * @return string Process summary
+     */
+    private function create_process_summary(array $process_logs, int $order_id): string
+    {
+        $event_count = count($process_logs);
+        $has_completion = false;
+        $has_error = false;
+        $final_status = null;
+        $payment_gateway = null;
+
+        // Analyze logs to determine process outcome
+        foreach ($process_logs as $log) {
+            $summary = strtolower($log['summary'] ?? '');
+            $status = $log['status'] ?? '';
+
+            if (strpos($summary, 'complet') !== false) {
+                $has_completion = true;
+            }
+
+            if ($status === 'error') {
+                $has_error = true;
+            }
+
+            // Extract payment gateway info
+            if (preg_match('/\b(stripe|paypal|square)\b/i', $summary, $matches)) {
+                $payment_gateway = ucfirst(strtolower($matches[1]));
+            }
+
+            // Track final status changes
+            if (preg_match('/status.*changed.*to\s+"([^"]+)"/', $summary, $matches)) {
+                $final_status = $matches[1];
+            }
+        }
+
+        // Build summary
+        $summary_parts = ["Order #$order_id:"];
+
+        if ($has_error) {
+            $summary_parts[] = "processing errors occurred";
+        } elseif ($has_completion) {
+            if ($payment_gateway) {
+                $summary_parts[] = "$payment_gateway payment completed";
+            } else {
+                $summary_parts[] = "completion processing";
+            }
+        } elseif ($final_status) {
+            $summary_parts[] = "status updated to \"$final_status\"";
+        } else {
+            $summary_parts[] = "lifecycle processing";
+        }
+
+        return implode(' ', $summary_parts) . " ($event_count events)";
+    }
+
+    /**
+     * Determine overall status for a process group
+     *
+     * @param array $process_logs Array of logs in the process
+     * @return string Overall status
+     */
+    private function determine_process_status(array $process_logs): string
+    {
+        $statuses = array_map(function($log) {
+            return $log['status'] ?? 'info';
+        }, $process_logs);
+
+        if (in_array('error', $statuses, true)) return 'error';
+        if (in_array('warning', $statuses, true)) return 'warning';
+        if (in_array('success', $statuses, true)) return 'success';
+
+        return 'info';
+    }
+
+    /**
+     * Check if any logs in the process are test entries
+     * 
+     * @param array $process_logs Array of logs in the process
+     * @return bool True if any log is marked as test
+     */
+    private function any_test_entries(array $process_logs): bool
+    {
+        foreach ($process_logs as $log) {
+            if (!empty($log['is_test']) && (int)$log['is_test'] === 1) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

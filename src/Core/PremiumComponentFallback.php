@@ -74,8 +74,8 @@ class PremiumComponentFallback
             $component_info = self::get_migrated_component_info($component_type, $component_id);
             
             // Log the fallback action
-            if (function_exists('odcm_log_custom_event')) {
-                odcm_log_custom_event(
+            if (function_exists('odcm_log_event')) {
+                odcm_log_event(
                     sprintf(
                         'Premium component "%s" not available - requires pro plugin',
                         $component_info['name']

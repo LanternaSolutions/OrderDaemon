@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\Core;
 
 use OrderDaemon\CompletionManager\Admin\Notices;
-use OrderDaemon\CompletionManager\Includes\AuditTrailLogger;
 use OrderDaemon\CompletionManager\Core\BlockCheckoutCompatibility;
 use OrderDaemon\CompletionManager\Core\RefundDeletionDiagnostics;
 use OrderDaemon\CompletionManager\Core\AttributionTracker;
@@ -259,9 +258,9 @@ class Core
             return false;
         }
 
-        // ENHANCED DUPLICATE PREVENTION: Rely on Action Scheduler's built-in deduplication
+        // DUPLICATE PREVENTION: Only prevent queue flooding and processing conflicts
         if (function_exists('as_get_scheduled_actions')) {
-            // Check for pending actions
+            // Check for pending actions to prevent queue flooding
             $existing_actions = as_get_scheduled_actions([
                 'hook' => 'odcm_process_order_check',
                 'args' => ['order_id' => $order_id],
@@ -274,24 +273,7 @@ class Core
                 return false;
             }
 
-            // Check for very recent completed actions (within last 5 minutes)
-            // This prevents rapid re-scheduling of the same order
-            $recent_actions = as_get_scheduled_actions([
-                'hook' => 'odcm_process_order_check',
-                'args' => ['order_id' => $order_id],
-                'status' => 'complete',
-                'per_page' => 1,
-                'date_query' => [
-                    'after' => '5 minutes ago'
-                ]
-            ]);
-
-            if (!empty($recent_actions)) {
-                odcm_log_message("Skipping duplicate scheduling for order #{$order_id} - recently processed", 'info');
-                return false;
-            }
-
-            // Check for currently running actions
+            // Check for currently running actions to prevent processing conflicts
             $running_actions = as_get_scheduled_actions([
                 'hook' => 'odcm_process_order_check',
                 'args' => ['order_id' => $order_id],
@@ -393,7 +375,7 @@ class Core
             ]
         ];
         
-        odcm_log_custom_event(
+        odcm_log_event(
             'Admin requested reprocess of all orders',
             [
                 'type' => 'admin_action',
@@ -603,7 +585,7 @@ class Core
             
             $summary = sprintf('Order #%d status changed to "%s"; scheduled via specific hook', $order_id, $status_slug);
             
-            odcm_log_custom_event(
+            odcm_log_event(
                 $summary,
                 [
                     'type' => 'status_change_processing',

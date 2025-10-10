@@ -41,8 +41,7 @@ use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
  * This class integrates with the existing audit log architecture:
  * - Uses the new registry-based logging system
  * - Follows established payload structure patterns
- * - Maintains compatibility with existing AuditTrailLogger
- * - Supports the new process_id correlation system
+ * - Supports the process_id correlation system
  *
  * @package OrderDaemon\CompletionManager\Core
  * @since   1.0.0
@@ -225,7 +224,7 @@ class ManualStatusTracker
         );
         
         // Log using Universal Events system
-        odcm_log_custom_event(
+        odcm_log_event(
             $final_summary,
             [
                 'type' => $event_type,
@@ -290,19 +289,14 @@ class ManualStatusTracker
 
         // Log the manual edit using registry-based logging (DEBUG level)
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            odcm_log_registered_event('manual_status_change', [
-                'order_id' => $post_id,
-                'user_id' => $user_id,
-                'action_taken' => 'order_edit',
-                'payload' => [
+            odcm_log_event(
+                sprintf('Order #%d manually edited by %s', $post_id, $user_display_name),
+                [
                     'order_id' => $post_id,
                     'user_id' => $user_id,
                     'user_display_name' => $user_display_name,
                     'action_taken' => 'order_edit',
                     'edit_context' => 'admin_interface',
-                    'timestamp' => current_time('mysql', true),
-                    'context' => 'manual_order_edit',
-                    'user_roles' => $current_user->roles,
                     'order_status' => $order->get_status(),
                     'order_data' => [
                         'total' => $order->get_total(),
@@ -310,8 +304,11 @@ class ManualStatusTracker
                         'payment_method' => $order->get_payment_method(),
                         'customer_id' => $order->get_customer_id(),
                     ]
-                ]
-            ]);
+                ],
+                $post_id,
+                'info',
+                'manual_order_edit'
+            );
         }
     }
 
@@ -456,7 +453,7 @@ class ManualStatusTracker
         $summary = sprintf('Manual automation trigger for Order #%d', $order_id);
         
         // Log using Universal Events system
-        odcm_log_custom_event(
+        odcm_log_event(
             $summary,
             [
                 'type' => 'admin_action',
