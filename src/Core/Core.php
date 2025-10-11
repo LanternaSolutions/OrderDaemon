@@ -39,6 +39,12 @@ class Core
      */
     public function init()
     {
+        // DIAGNOSTIC: Log when Core::init() starts
+        odcm_log_event("ODCM HOOK DEBUG: Core::init() starting at " . current_time('mysql'), [], null, 'info', 'hook_debug');
+        odcm_log_event("ODCM HOOK DEBUG: Current hook: " . current_action(), [], null, 'info', 'hook_debug');
+        odcm_log_event("ODCM HOOK DEBUG: WooCommerce loaded: " . (class_exists('WooCommerce') ? 'YES' : 'NO'), [], null, 'info', 'hook_debug');
+        odcm_log_event("ODCM HOOK DEBUG: wc_get_order_statuses available: " . (function_exists('wc_get_order_statuses') ? 'YES' : 'NO'), [], null, 'info', 'hook_debug');
+        
         // WordPress-standard form processing using admin-post.php
         add_action('admin_post_odcm_reprocess_orders', [$this, 'handle_reprocess_request']);
 
@@ -416,12 +422,17 @@ class Core
      */
     public function handle_payment_complete(int $order_id): void
     {
+        // DIAGNOSTIC: Log when this hook fires
+        odcm_log_event("ODCM HOOK DEBUG: handle_payment_complete() called for order #{$order_id}", [], $order_id, 'info', 'hook_debug');
+        odcm_log_event("ODCM HOOK DEBUG: Current action: " . current_action(), [], $order_id, 'info', 'hook_debug');
+        
         if ($order_id <= 0) {
             return;
         }
 
         $order = wc_get_order($order_id);
         if (!$order) {
+            odcm_log_message("ODCM HOOK DEBUG: Could not load order #{$order_id} in handle_payment_complete", 'error');
             return;
         }
 
@@ -456,14 +467,26 @@ class Core
      */
     public function handle_order_status_change(int $order_id): void
     {
+        // DIAGNOSTIC: Log when this hook fires
+        odcm_log_event("ODCM HOOK DEBUG: handle_order_status_change() called for order #{$order_id}", [], $order_id, 'info', 'hook_debug');
+        odcm_log_event("ODCM HOOK DEBUG: Current action: " . current_action(), [], $order_id, 'info', 'hook_debug');
+        
         if ($order_id <= 0) {
             return;
         }
 
         // Determine current status (the "to" status)
         $order = wc_get_order($order_id);
+        if (!$order) {
+            odcm_log_message("ODCM HOOK DEBUG: Could not load order #{$order_id} in handle_order_status_change", 'error');
+            return;
+        }
+        
         $status = $order ? $order->get_status() : '';
         $status_slug = $status !== '' ? sanitize_key((string)$status) : 'unknown';
+        
+        // DIAGNOSTIC: Log status details
+        odcm_log_message("ODCM HOOK DEBUG: Order #{$order_id} status is '{$status_slug}'", 'info');
 
         // Capture attribution and map to canonical source values
         $source = 'system';
@@ -1329,6 +1352,10 @@ class Core
      */
     public function handle_new_order(int $order_id, $order = null): void
     {
+        // DIAGNOSTIC: Log when this hook fires
+        odcm_log_event("ODCM HOOK DEBUG: handle_new_order() called for order #{$order_id}", [], $order_id, 'info', 'hook_debug');
+        odcm_log_event("ODCM HOOK DEBUG: Current action: " . current_action(), [], $order_id, 'info', 'hook_debug');
+        
         if ($order_id <= 0) {
             return;
         }
@@ -1339,8 +1366,12 @@ class Core
         }
 
         if (!$order instanceof \WC_Order) {
+            odcm_log_event("ODCM HOOK DEBUG: Could not load order #{$order_id} in handle_new_order", [], $order_id, 'error', 'hook_debug');
             return;
         }
+        
+        // DIAGNOSTIC: Log order details
+        odcm_log_event("ODCM HOOK DEBUG: Order #{$order_id} status is '{$order->get_status()}'", [], $order_id, 'info', 'hook_debug');
 
         try {
             // Generate UniversalEvent for order creation

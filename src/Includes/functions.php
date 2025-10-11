@@ -1017,7 +1017,8 @@ function odcm_log_event(
     ?int $order_id = null,
     string $status = 'info',
     string $event_type = 'event',
-    bool $is_test = false
+    bool $is_test = false,
+    ?string $process_id = null
 ): bool {
     // Guard clause - ensure Action Scheduler is available
     if (!function_exists('as_enqueue_async_action')) {
@@ -1067,12 +1068,19 @@ function odcm_log_event(
     ];
 
     // Add process ID for lifecycle events
-    if (!function_exists('odcm_maybe_add_process_id')) {
-        require_once __DIR__ . '/functions.php';
+    if ($process_id) {
+        // Use explicitly provided process_id
+        $event_data['process_id'] = $process_id;
+    } else {
+        // Auto-detect process_id for lifecycle events
+        if (!function_exists('odcm_maybe_add_process_id')) {
+            require_once __DIR__ . '/functions.php';
+        }
+        $event_data = odcm_maybe_add_process_id($event_data);
     }
-    $event_data = odcm_maybe_add_process_id($event_data);
 
     // Schedule asynchronously via Action Scheduler
+    // Wrap in array so Action Scheduler passes it as single array argument
     as_enqueue_async_action(
         'odcm_process_log_entry',
         ['event_data' => $event_data],

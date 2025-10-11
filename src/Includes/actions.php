@@ -34,10 +34,11 @@ use function OrderDaemon\CompletionManager\Utils\odcm_sanitize_payload_for_loggi
 function odcm_handle_log_processing(array $args) {
     global $wpdb;
 
-    // Extract event_data from args
+    // Extract event_data from wrapped args
     $event_data = $args['event_data'] ?? null;
     if (!is_array($event_data) || !isset($event_data['summary'], $event_data['event_type'])) {
         error_log("ODCM: Invalid event_data in log processing");
+        error_log("ODCM DEBUG: Args structure: " . wp_json_encode($args));
         return;
     }
 
