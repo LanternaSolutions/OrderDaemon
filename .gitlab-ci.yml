@@ -21,6 +21,7 @@ package_artifacts:
       rsync -a --prune-empty-dirs \
         --include='*/' \
         --include='README.txt' \
+        --include='composer.json' \
         --include='*.php' \
         --include='*.js' \
         --include='*.css' \
