@@ -1,6 +1,5 @@
 # Composer
 /vendor/
-composer.lock
 composer_2.phar
 composer.phar
 
