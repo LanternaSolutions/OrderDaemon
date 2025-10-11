@@ -27,112 +27,112 @@ final class UniversalEvent
      * 
      * @var string
      */
-    public readonly string $eventType;
+    public $eventType;
 
     /**
      * Source gateway identifier (paypal, stripe, etc.) or null for system events
      * 
      * @var string|null
      */
-    public readonly ?string $sourceGateway;
+    public $sourceGateway;
 
     /**
      * Channel through which the event was received
      * 
      * @var string
      */
-    public readonly string $channel;
+    public $channel;
 
     /**
      * Primary entity type this event is about
      * 
      * @var string
      */
-    public readonly string $primaryObjectType;
+    public $primaryObjectType;
 
     /**
      * Primary entity ID
      * 
      * @var int|string|null
      */
-    public readonly int|string|null $primaryObjectID;
+    public $primaryObjectID;
 
     /**
      * Secondary/related entity type (optional)
      * 
      * @var string|null
      */
-    public readonly ?string $secondaryObjectType;
+    public $secondaryObjectType;
 
     /**
      * Secondary/related entity ID (optional)
      * 
      * @var int|string|null
      */
-    public readonly int|string|null $secondaryObjectID;
+    public $secondaryObjectID;
 
     /**
      * Gateway transaction/reference ID
      * 
      * @var string|null
      */
-    public readonly ?string $transactionID;
+    public $transactionID;
 
     /**
      * Gateway/accounting status (COMPLETED, DENIED, etc.)
      * 
      * @var string|null
      */
-    public readonly ?string $status;
+    public $status;
 
     /**
      * Reason code or failure description
      * 
      * @var string|null
      */
-    public readonly ?string $reason;
+    public $reason;
 
     /**
      * Transaction amount
      * 
      * @var float|null
      */
-    public readonly ?float $amount;
+    public $amount;
 
     /**
      * Currency code (USD, EUR, etc.)
      * 
      * @var string|null
      */
-    public readonly ?string $currency;
+    public $currency;
 
     /**
      * When the event occurred at the source (ISO8601)
      * 
      * @var string
      */
-    public readonly string $occurredAt;
+    public $occurredAt;
 
     /**
      * When the plugin received/ingested the event (ISO8601)
      * 
      * @var string
      */
-    public readonly string $receivedAt;
+    public $receivedAt;
 
     /**
      * Stable key for deduplication
      * 
      * @var string
      */
-    public readonly string $idempotencyKey;
+    public $idempotencyKey;
 
     /**
      * Unmodified source payload (sanitized for storage)
      * 
      * @var array
      */
-    public readonly array $rawData;
+    public $rawData;
 
     /**
      * Valid event channels
@@ -415,7 +415,13 @@ final class UniversalEvent
      * @param mixed $objectID
      * @return int|string|null
      */
-    private function validateObjectID($objectID): int|string|null
+    /**
+     * Validates object ID and returns validated value.
+     *
+     * @param mixed $objectID The object ID to validate
+     * @return int|string|null The validated object ID
+     */
+    private function validateObjectID($objectID)
     {
         if ($objectID === null || $objectID === '') {
             return null;

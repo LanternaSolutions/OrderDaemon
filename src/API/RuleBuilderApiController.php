@@ -703,7 +703,7 @@ class RuleBuilderApiController extends WP_REST_Controller
      * @param WP_REST_Request $request The REST API request.
      * @return bool|WP_Error True if user has permission, WP_Error otherwise.
      */
-    public function post_permissions_check(WP_REST_Request $request): bool|WP_Error
+    public function post_permissions_check(WP_REST_Request $request)
     {
         // Check user capability
         if (!current_user_can('manage_woocommerce')) {

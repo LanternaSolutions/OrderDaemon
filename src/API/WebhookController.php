@@ -137,7 +137,13 @@ class WebhookController extends WP_REST_Controller
      * @param WP_REST_Request $request The REST request
      * @return WP_REST_Response|WP_Error Response object on success, or WP_Error on failure
      */
-    public function handle_webhook(WP_REST_Request $request): WP_REST_Response|WP_Error
+    /**
+     * Handle incoming webhook requests.
+     *
+     * @param WP_REST_Request $request The REST API request.
+     * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+     */
+    public function handle_webhook(WP_REST_Request $request)
     {
         $start_time = microtime(true);
         $gateway = $request->get_param('gateway');
@@ -216,7 +222,7 @@ class WebhookController extends WP_REST_Controller
      * @param WP_REST_Request $request The REST request
      * @return WP_REST_Response|WP_Error Response object on success, or WP_Error on failure
      */
-    public function test_webhook(WP_REST_Request $request): WP_REST_Response|WP_Error
+    public function test_webhook(WP_REST_Request $request)
     {
         $start_time = microtime(true);
         $gateway = $request->get_param('gateway');
