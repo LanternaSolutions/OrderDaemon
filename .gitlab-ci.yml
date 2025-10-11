@@ -27,6 +27,6 @@ package_artifacts:
     ref: '$CI_COMMIT_SHA'
     assets:
       links:
-        - name: "$PLUGIN_FILE_NAME"
+        - name: "$PACKAGE_NAME"
           url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/${PLUGIN_FILE_NAME}"
           link_type: package
