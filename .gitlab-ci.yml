@@ -12,17 +12,29 @@ package_artifacts:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   script:
     - echo "Packaging assets for release - $CI_COMMIT_TAG"
-    - apk add --no-cache php php-phar php-openssl git unzip zip composer
+    - apk add --no-cache php php-phar php-openssl git unzip zip composer rsync
     - COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
-    - echo "Creating ${PLUGIN_FILE_NAME}"
+    - echo "Creating ${PLUGIN_FILE_NAME} with root directory ${PACKAGE_NAME}/"
+    - STAGING_DIR="$(mktemp -d)"
+    - mkdir -p "$STAGING_DIR/$PACKAGE_NAME"
     - |
-      zip -r "$PLUGIN_FILE_NAME" . \
-        -i '*.php' \
-           '**/*.php' \
-           '**/*.js' \
-           '**/*.css' \
-           'README.txt' \
-           'vendor/**'
+      rsync -a --prune-empty-dirs \
+        --include='*/' \
+        --include='README.txt' \
+        --include='*.php' \
+        --include='*.js' \
+        --include='*.css' \
+        --include='**/*.php' \
+        --include='**/*.js' \
+        --include='**/*.css' \
+        --include='vendor/***' \
+        --exclude='*' \
+        ./ "$STAGING_DIR/$PACKAGE_NAME/"
+    - |
+      cd "$STAGING_DIR" && \
+      zip -r "$CI_PROJECT_DIR/$PLUGIN_FILE_NAME" "$PACKAGE_NAME" && \
+      cd "$CI_PROJECT_DIR"
+    - rm -rf "$STAGING_DIR"
     - echo "Verifying the archive exists"
     - ls -l "$PLUGIN_FILE_NAME"
     - test -f "$PLUGIN_FILE_NAME"
