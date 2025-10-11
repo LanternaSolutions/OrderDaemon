@@ -437,18 +437,19 @@ class PayloadComponentUIToolkit
         
         $output .= '<span class="odcm-component__ts">' . $timestamp_html . '</span>';
         
-                // Append optional started_at and trigger metadata if provided
-                if (!empty($options['started_at'])) {
-                    $started_fmt = $this->format_timestamp($options['started_at'], [
-                        'include_milliseconds' => false,
-                        'fallback_format' => 'M j, Y g:i:s A'
-                    ]);
-                    $meta_text = sprintf(__(' | Started: %s', 'order-daemon'), $started_fmt);
-                    if (!empty($options['trigger'])) {
-                        $meta_text .= ' ' . sprintf(__('(Trigger: %s)', 'order-daemon'), (string)$options['trigger']);
-                    }
-                    $output .= '<span class="odcm-component__ts">' . esc_html($meta_text) . '</span>';
-                }
+        // Append optional timestamp metadata if provided
+        $timestamp_field = $options['ts'] ?? null;
+        if (!empty($timestamp_field)) {
+            $started_fmt = $this->format_timestamp($timestamp_field, [
+                'include_milliseconds' => false,
+                'fallback_format' => 'M j, Y g:i:s A'
+            ]);
+            $meta_text = sprintf(__(' | Started: %s', 'order-daemon'), $started_fmt);
+            if (!empty($options['trigger'])) {
+                $meta_text .= ' ' . sprintf(__('(Trigger: %s)', 'order-daemon'), (string)$options['trigger']);
+            }
+            $output .= '<span class="odcm-component__ts">' . esc_html($meta_text) . '</span>';
+        }
         $output .= '</div>';
         
         $output .= '<button class="odcm-component-expand-toggle" type="button" aria-label="' . esc_attr__('Toggle component expansion', 'order-daemon') . '">';
@@ -692,7 +693,7 @@ class PayloadComponentUIToolkit
      */
     private function parseTimestampToUnix($timestamp)
     {
-        // Handle numeric timestamps (assume Unix timestamp)
+        // Handle numeric timestamps (Unix timestamps from optimized envelope structure)
         if (is_numeric($timestamp)) {
             $unix_ts = (int)$timestamp;
             // Validate reasonable timestamp range (after 1970, before year 2100)
@@ -701,9 +702,17 @@ class PayloadComponentUIToolkit
             }
         }
         
-        // Handle string timestamps
+        // Handle string timestamps (legacy ISO 8601 format or other parseable formats)
         if (is_string($timestamp) && !empty($timestamp)) {
-            // Try to parse with strtotime()
+            // Check if it's a string representation of a Unix timestamp
+            if (ctype_digit($timestamp)) {
+                $unix_ts = (int)$timestamp;
+                if ($unix_ts > 0 && $unix_ts < 4102444800) {
+                    return $unix_ts;
+                }
+            }
+            
+            // Try to parse ISO 8601 or other formats with strtotime()
             $parsed = strtotime($timestamp);
             if ($parsed !== false) {
                 return $parsed;

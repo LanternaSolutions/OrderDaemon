@@ -1036,24 +1036,23 @@ function odcm_log_event(
     if ($level === 'success') { $level = 'info'; } // Map success to info for timeline styling
     
     $component = [
-        'key'   => 'event-' . wp_generate_uuid4(),
+        'k'     => 'c' . time() . rand(10,99),
         'kind'  => 'info',
-        'ts'    => odcm_iso8601_now(),
+        'ts'    => time(),
         'label' => $summary,
         'level' => $level,
         'data'  => $data,
     ];
     
     $envelope = [
-        'type'               => 'event',
-        'correlation_id'     => 'odcm:event:' . ($order_id ? (string)$order_id : 'na') . ':' . wp_generate_uuid4(),
-        'order_id'           => $order_id,
-        'actor'              => ['id' => get_current_user_id() ?: null, 'role' => null, 'name' => null],
-        'started_at'         => odcm_iso8601_now(),
-        'finished_at'        => odcm_iso8601_now(),
-        'status'             => $status,
-        'summary'            => $summary,
-        'payload_components' => [$component],
+        'type'       => 'event',
+        'cid'        => ($order_id ? (string)$order_id : 'na') . ':' . time(),
+        'oid'        => $order_id,
+        'actor'      => ['id' => get_current_user_id() ?: null, 'role' => null, 'name' => null],
+        'ts'         => time(),
+        'status'     => $status,
+        'summary'    => $summary,
+        'components' => [$component],
     ];
 
     // Prepare event data for Action Scheduler

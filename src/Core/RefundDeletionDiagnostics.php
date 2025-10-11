@@ -579,14 +579,13 @@ final class RefundDeletionDiagnostics
 
                 $summary = $this->build_summary($event_type, $order_id, $refund_id);
                 $envelope = [
-                    'type'               => 'refund_event',
-                    'correlation_id'     => 'odcm:refund:' . $order_id . ':' . $refund_id . ':' . uniqid('', true),
-                    'order_id'           => $order_id,
-                    'started_at'         => $now,
-                    'finished_at'        => $now,
-                    'status'             => $status,
-                    'summary'            => $summary,
-                    'payload_components' => $components,
+                    'type'       => 'refund_event',
+                    'cid'        => ($order_id ?: 0) . ':' . time(),
+                    'oid'        => $order_id,
+                    'ts'         => time(),
+                    'status'     => $status,
+                    'summary'    => $summary,
+                    'components' => $components,
                 ];
 
                 $amount_val = isset($context['refund']['amount']) ? (float)$context['refund']['amount'] : null;
@@ -691,14 +690,13 @@ final class RefundDeletionDiagnostics
                 $status = $this->merge_status($status, (string)$metrics_component['level']);
                 $summary = $this->build_summary($event_type, $order_id, $refund_id);
                 $envelope = [
-                    'type'               => 'refund_event',
-                    'correlation_id'     => 'odcm:refund:' . $order_id . ':' . $refund_id . ':' . uniqid('', true),
-                    'order_id'           => $order_id,
-                    'started_at'         => $now,
-                    'finished_at'        => $now,
-                    'status'             => $status,
-                    'summary'            => $summary,
-                    'payload_components' => $components,
+                    'type'       => 'refund_event',
+                    'cid'        => ($order_id ?: 0) . ':' . time(),
+                    'oid'        => $order_id,
+                    'ts'         => time(),
+                    'status'     => $status,
+                    'summary'    => $summary,
+                    'components' => $components,
                 ];
                 $amount_val = isset($context['refund']['amount']) ? (float)$context['refund']['amount'] : null;
                 $currency = ($order instanceof WC_Order) ? (string)$order->get_currency() : '';
@@ -803,14 +801,13 @@ final class RefundDeletionDiagnostics
                 $status = $this->merge_status($status, (string)$metrics_component['level']);
                 $summary = $this->build_summary($event_type, $order_id, $refund_id);
                 $envelope = [
-                    'type'               => 'refund_event',
-                    'correlation_id'     => 'odcm:refund:' . $order_id . ':' . $refund_id . ':' . uniqid('', true),
-                    'order_id'           => $order_id,
-                    'started_at'         => $now,
-                    'finished_at'        => $now,
-                    'status'             => $status,
-                    'summary'            => $summary,
-                    'payload_components' => $components,
+                    'type'       => 'refund_event',
+                    'cid'        => ($order_id ?: 0) . ':' . time(),
+                    'oid'        => $order_id,
+                    'ts'         => time(),
+                    'status'     => $status,
+                    'summary'    => $summary,
+                    'components' => $components,
                 ];
                 $amount_val = isset($context['refund']['amount']) ? (float)$context['refund']['amount'] : null;
                 $currency = ($order instanceof WC_Order) ? (string)$order->get_currency() : '';
@@ -905,13 +902,12 @@ final class RefundDeletionDiagnostics
                 $summary = $this->build_summary($event_type, $order_id, $refund_id);
                 $envelope = [
                     'type'               => 'refund_event',
-                    'correlation_id'     => 'odcm:refund:' . $order_id . ':' . $refund_id . ':' . uniqid('', true),
-                    'order_id'           => $order_id,
-                    'started_at'         => $now,
-                    'finished_at'        => $now,
+                    'cid'                => $order_id . ':' . time(),
+                    'oid'                => $order_id,
+                    'ts'                 => time(),
                     'status'             => $status,
                     'summary'            => $summary,
-                    'payload_components' => $components,
+                    'components'         => $components,
                 ];
                 $amount_val = isset($context['refund']['amount']) ? (float)$context['refund']['amount'] : null;
                 $currency = ($order instanceof WC_Order) ? (string)$order->get_currency() : '';
@@ -1007,13 +1003,12 @@ final class RefundDeletionDiagnostics
                 $summary = $this->build_summary($event_type, $order_id, $refund_id);
                 $envelope = [
                     'type'               => 'refund_event',
-                    'correlation_id'     => 'odcm:refund:' . $order_id . ':' . $refund_id . ':' . uniqid('', true),
-                    'order_id'           => $order_id,
-                    'started_at'         => $now,
-                    'finished_at'        => $now,
+                    'cid'                => $order_id . ':' . time(),
+                    'oid'                => $order_id,
+                    'ts'                 => time(),
                     'status'             => $status,
                     'summary'            => $summary,
-                    'payload_components' => $components,
+                    'components'         => $components,
                 ];
                 odcm_log_event(
                     sprintf('Refund #%d deleted for Order #%d', $refund_id, $order_id),
@@ -1298,34 +1293,24 @@ final class RefundDeletionDiagnostics
         // Canonical narrative-first payload submission
         $envelope = [
             'type'               => 'refund_event',
-            'correlation_id'     => 'odcm:refund:' . ($order_id ?: 0) . ':' . uniqid('', true),
-            'order_id'           => $order_id,
-            'refund_id'          => $refund_id,
-            'started_at'         => odcm_iso8601_now(),
-            'finished_at'        => odcm_iso8601_now(),
+            'cid'                => ($order_id ?: 0) . ':' . time(),
+            'oid'                => $order_id,
+            'ts'                 => time(),
             'status'             => $status,
             'summary'            => $summary,
-            'payload_components' => $components,
+            'components'         => $components,
         ];
         if (is_array($refund_context)) {
             $envelope['refund_context'] = $refund_context;
         }
 
-        $event_data = [
-            'canonical'  => true,
-            'summary'    => $summary,
-            'event_type' => $event_type,
-            'status'     => $status,
-            'data'       => [
-                'order_id'     => $order_id,
-                'details'      => $envelope,
-                'log_category' => 'core',
-                'is_test'      => false,
-                'source'       => 'refund_diagnostics',
-            ],
-        ];
-
-        odcm_log_event($event_data);
+        odcm_log_event(
+            $summary,
+            $envelope,
+            $order_id,
+            $status,
+            $event_type
+        );
         } catch (\Throwable $e) {
             $this->safe_error_log('log_refund_event error', $e);
         }
@@ -1408,13 +1393,12 @@ final class RefundDeletionDiagnostics
         // Canonical narrative-first envelope
         $envelope = [
             'type'               => 'deletion_event',
-            'correlation_id'     => 'odcm:deletion:' . ($order_id ?: 0) . ':' . uniqid('', true),
-            'order_id'           => $order_id,
-            'started_at'         => odcm_iso8601_now(),
-            'finished_at'        => odcm_iso8601_now(),
+            'cid'                => ($order_id ?: 0) . ':' . time(),
+            'oid'                => $order_id,
+            'ts'                 => time(),
             'status'             => $status,
             'summary'            => $summary,
-            'payload_components' => $components,
+            'components'         => $components,
         ];
         if (is_array($snapshot)) {
             $envelope['snapshot'] = $snapshot;

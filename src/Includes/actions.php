@@ -31,8 +31,24 @@ use function OrderDaemon\CompletionManager\Utils\odcm_sanitize_payload_for_loggi
  * @return void
  * @since 1.0.0
  */
-function odcm_handle_log_processing(array $args) {
+function odcm_handle_log_processing($args) {
     global $wpdb;
+
+    // Handle both array and JSON string arguments from Action Scheduler
+    if (is_string($args)) {
+        // Action Scheduler is passing JSON string - decode it
+        $args = json_decode($args, true);
+        if (!is_array($args)) {
+            error_log("ODCM: Failed to decode JSON args in log processing");
+            error_log("ODCM DEBUG: Raw args: " . $args);
+            return;
+        }
+    }
+
+    if (!is_array($args)) {
+        error_log("ODCM: Args must be array or JSON string, got " . gettype($args));
+        return;
+    }
 
     // Extract event_data from wrapped args
     $event_data = $args['event_data'] ?? null;
@@ -69,15 +85,41 @@ function odcm_handle_log_processing(array $args) {
         'is_test'    => !empty($event_data['is_test']) ? 1 : 0,
     ];
 
-    // Add optional fields
+    // Add optional fields - check both top-level event_data and optimized envelope structure
+    $order_id = null;
+    $process_id = null;
+    $source = null;
+    
+    // Extract order_id
     if (!empty($event_data['order_id'])) {
-        $log_data['order_id'] = (int) $event_data['order_id'];
+        $order_id = (int) $event_data['order_id'];
+    } elseif (!empty($envelope['oid'])) {
+        $order_id = (int) $envelope['oid']; // Optimized field name
     }
+    
+    // Extract process_id  
     if (!empty($event_data['process_id'])) {
-        $log_data['process_id'] = sanitize_text_field($event_data['process_id']);
+        $process_id = sanitize_text_field($event_data['process_id']);
+    } elseif (!empty($envelope['cid'])) {
+        $process_id = sanitize_text_field($envelope['cid']); // Optimized field name (correlation_id)
     }
+    
+    // Extract source
     if (!empty($event_data['source'])) {
-        $log_data['source'] = sanitize_text_field($event_data['source']);
+        $source = sanitize_text_field($event_data['source']);
+    } elseif (!empty($envelope['source'])) {
+        $source = sanitize_text_field($envelope['source']); // Same field name
+    }
+    
+    // Add to log_data if found
+    if ($order_id) {
+        $log_data['order_id'] = $order_id;
+    }
+    if ($process_id) {
+        $log_data['process_id'] = $process_id;
+    }
+    if ($source) {
+        $log_data['source'] = $source;
     }
 
     // Insert log entry with duplicate protection

@@ -431,8 +431,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Render log components for detail view
-     *
-     * Narrative-only rendering: always renders payload_components via registry-driven renderers (no analyzer)
+     * Narrative-only rendering: always renders components via registry-driven renderers
      */
     public function render_components(WP_REST_Request $request): WP_REST_Response
     {
@@ -503,8 +502,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                         'payload_raw_length' => strlen($payload_raw),
                         'decoded_successfully' => is_array($details),
                         'details_count' => is_array($details) ? count($details) : 0,
-                        'has_payload_components' => isset($details['payload_components']),
-                        'payload_components_count' => isset($details['payload_components']) && is_array($details['payload_components']) ? count($details['payload_components']) : 0
+                        'has_components' => isset($details['components']),
+                        'components_count' => isset($details['components']) && is_array($details['components']) ? count($details['components']) : 0
                     ]));
                 }
 
@@ -512,8 +511,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                 if ($this->is_process_logger_entry($details) && !$include_debug && $this->is_debug_only_process($details)) {
                     // Only return 403 if ALL components are debug-only, not just some
                     $non_debug_components = 0;
-                    if (isset($details['payload_components']) && is_array($details['payload_components'])) {
-                        foreach ($details['payload_components'] as $component) {
+                    if (isset($details['components']) && is_array($details['components'])) {
+                        foreach ($details['components'] as $component) {
                             if (!is_array($component)) { continue; }
                             if (!$this->is_debug_component($component)) {
                                 $non_debug_components++;
@@ -535,18 +534,18 @@ class AuditLogEndpoint extends WP_REST_Controller
                 }
 
                 // Filter debug components when include_debug is false, but preserve non-debug content
-                if (isset($details['payload_components']) && is_array($details['payload_components']) && !$include_debug) {
+                if (isset($details['components']) && is_array($details['components']) && !$include_debug) {
                     $filtered = [];
-                    foreach ($details['payload_components'] as $component) {
+                    foreach ($details['components'] as $component) {
                         if (!is_array($component)) { continue; }
                         if ($this->is_debug_component($component)) { continue; }
                         $filtered[] = $component;
                     }
-                    $details['payload_components'] = $filtered;
+                    $details['components'] = $filtered;
                     
                     // If we filtered out all components, create a fallback entry
-                    if (empty($filtered) && !empty($details['payload_components'])) {
-                        $details['payload_components'] = [[
+                    if (empty($filtered) && !empty($details['components'])) {
+                        $details['components'] = [[
                             'kind' => 'info',
                             'label' => 'Event Summary',
                             'ts' => current_time('mysql'),
@@ -554,13 +553,13 @@ class AuditLogEndpoint extends WP_REST_Controller
                             'data' => [
                                 'message' => 'Event details are in debug mode. Enable debug logs to see full details.',
                                 'event_summary' => $log['summary'] ?? 'Event processed',
-                                'debug_components_filtered' => count($details['payload_components'] ?? [])
+                                'debug_components_filtered' => count($details['components'] ?? [])
                             ]
                         ]];
                     }
                 }
 
-                // Prefer narrative rendering when payload_components exist, but handle custom events specially
+                // Prefer narrative rendering when components exist, but handle custom events specially
                 if ($this->is_process_logger_entry($details)) {
                     // Check if this is a custom error event that should use component rendering instead
                     $event_type = $details['type'] ?? '';
@@ -605,11 +604,11 @@ class AuditLogEndpoint extends WP_REST_Controller
                     $details = is_string($payload_raw) ? json_decode($payload_raw, true) : null;
                     if (is_array($details)) {
                         error_log("ODCM TIMELINE DEBUG: Individual payload details keys: " . json_encode(array_keys($details)));
-                        if (isset($details['payload_components']) && is_array($details['payload_components'])) {
-                            error_log("ODCM TIMELINE DEBUG: Payload components count: " . count($details['payload_components']));
-                            error_log("ODCM TIMELINE DEBUG: Sample component kinds: " . json_encode(array_slice(array_map(function($c) { return $c['kind'] ?? 'unknown'; }, $details['payload_components']), 0, 5)));
+                        if (isset($details['components']) && is_array($details['components'])) {
+                            error_log("ODCM TIMELINE DEBUG: Components count: " . count($details['components']));
+                            error_log("ODCM TIMELINE DEBUG: Sample component kinds: " . json_encode(array_slice(array_map(function($c) { return $c['kind'] ?? 'unknown'; }, $details['components']), 0, 5)));
                         } else {
-                            error_log("ODCM TIMELINE DEBUG: No payload_components found or not array");
+                            error_log("ODCM TIMELINE DEBUG: No components found or not array");
                         }
                     } else {
                         error_log("ODCM TIMELINE DEBUG: Payload could not be decoded as JSON or not array");
@@ -748,14 +747,14 @@ class AuditLogEndpoint extends WP_REST_Controller
                 }
 
                 // Filter debug components when include_debug is false
-                if (isset($details['payload_components']) && is_array($details['payload_components']) && !$include_debug) {
+                if (isset($details['components']) && is_array($details['components']) && !$include_debug) {
                     $filtered = [];
-                    foreach ($details['payload_components'] as $component) {
+                    foreach ($details['components'] as $component) {
                         if (!is_array($component)) { continue; }
                         if ($this->is_debug_component($component)) { continue; }
                         $filtered[] = $component;
                     }
-                    $details['payload_components'] = $filtered;
+                    $details['components'] = $filtered;
                 }
 
                 // Render using the same logic as single-item
@@ -1302,9 +1301,9 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
-     * Render a narrative timeline for payload_components.
+     * Render a narrative timeline for components.
      *
-     * @param array $envelope The decoded payload envelope containing payload_components and metadata.
+     * @param array $envelope The decoded payload envelope containing components and metadata.
      * @return string HTML output for the details pane.
      */
     private function render_narrative_timeline(array $envelope, bool $include_debug = false): string
@@ -1313,14 +1312,14 @@ class AuditLogEndpoint extends WP_REST_Controller
         error_log("ODCM TIMELINE: render_narrative_timeline called with envelope keys: " . json_encode(array_keys($envelope)));
         
         try {
-            // Check if we have payload_components
-            if (!isset($envelope['payload_components']) || !is_array($envelope['payload_components'])) {
-                error_log("ODCM TIMELINE: No payload_components found, using fallback");
-                return $this->render_fallback_timeline($envelope);
-            }
+        // Check if we have components
+        if (!isset($envelope['components']) || !is_array($envelope['components'])) {
+            error_log("ODCM TIMELINE: No components found, using fallback");
+            return $this->render_fallback_timeline($envelope);
+        }
 
-            $components = $envelope['payload_components'];
-            error_log("ODCM TIMELINE: Found " . count($components) . " payload components");
+        $components = $envelope['components'];
+            error_log("ODCM TIMELINE: Found " . count($components) . " components");
 
             // Filter debug components if needed
             if (!$include_debug) {
@@ -1399,24 +1398,28 @@ class AuditLogEndpoint extends WP_REST_Controller
         if (isset($envelope['type'])) {
             $content .= '<p><strong>Type:</strong> ' . esc_html($envelope['type']) . '</p>';
         }
-        if (isset($envelope['order_id'])) {
-            $content .= '<p><strong>Order ID:</strong> #' . esc_html($envelope['order_id']) . '</p>';
+        if (isset($envelope['oid'])) {
+            $content .= '<p><strong>Order ID:</strong> #' . esc_html($envelope['oid']) . '</p>';
         }
-        if (isset($envelope['started_at'])) {
-            $content .= '<p><strong>Started At:</strong> ' . esc_html($envelope['started_at']) . '</p>';
+        if (isset($envelope['ts'])) {
+            // Handle Unix timestamp display
+            $timestamp_display = is_numeric($envelope['ts']) 
+                ? date('Y-m-d H:i:s', (int)$envelope['ts']) 
+                : (string)$envelope['ts'];
+            $content .= '<p><strong>Started At:</strong> ' . esc_html($timestamp_display) . '</p>';
         }
-        if (isset($envelope['correlation_id'])) {
-            $content .= '<p><strong>Correlation ID:</strong> ' . esc_html($envelope['correlation_id']) . '</p>';
+        if (isset($envelope['cid'])) {
+            $content .= '<p><strong>Correlation ID:</strong> ' . esc_html($envelope['cid']) . '</p>';
         }
         
-        // Show payload components summary if they exist
-        if (isset($envelope['payload_components']) && is_array($envelope['payload_components'])) {
-            $component_count = count($envelope['payload_components']);
-            $content .= '<p><strong>Components:</strong> ' . $component_count . ' payload components</p>';
+        // Show components summary if they exist
+        if (isset($envelope['components']) && is_array($envelope['components'])) {
+            $component_count = count($envelope['components']);
+            $content .= '<p><strong>Components:</strong> ' . $component_count . ' components</p>';
             
             // Show component types
             $component_kinds = [];
-            foreach ($envelope['payload_components'] as $component) {
+            foreach ($envelope['components'] as $component) {
                 if (is_array($component) && isset($component['kind'])) {
                     $component_kinds[] = $component['kind'];
                 }
@@ -1426,7 +1429,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $content .= '<p><strong>Component Types:</strong> ' . esc_html(implode(', ', $unique_kinds)) . '</p>';
             }
         } else {
-            $content .= '<p><em>No payload components found in envelope.</em></p>';
+            $content .= '<p><em>No components found in envelope.</em></p>';
         }
         
         $content .= '</div>';
@@ -1457,8 +1460,8 @@ class AuditLogEndpoint extends WP_REST_Controller
     {
         // Defensive checks
         $type = isset($envelope['type']) ? (string)$envelope['type'] : '';
-        $order_id = isset($envelope['order_id']) ? (int)$envelope['order_id'] : 0;
-        $started_at = isset($envelope['started_at']) ? (string)$envelope['started_at'] : '';
+        $order_id = isset($envelope['oid']) ? (int)$envelope['oid'] : 0;
+        $ts = isset($envelope['ts']) ? $envelope['ts'] : '';
 
         $order_family = $families['order_lifecycle'] ?? null;
         $order_types = is_array($order_family) && isset($order_family['process_types']) && is_array($order_family['process_types'])
@@ -1467,7 +1470,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         $time_window = is_array($order_family) && isset($order_family['time_window_minutes']) ? (int)$order_family['time_window_minutes'] : 30;
 
         // If this envelope is not an order lifecycle process or we cannot identify order/time, keep single group
-        if ($type === '' || !in_array($type, $order_types, true) || $order_id <= 0 || $started_at === '') {
+        if ($type === '' || !in_array($type, $order_types, true) || $order_id <= 0 || $ts === '') {
             return [ [ 'title' => null, 'envelopes' => [ $envelope ] ] ];
         }
 
@@ -1479,14 +1482,14 @@ class AuditLogEndpoint extends WP_REST_Controller
             $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
             $payload_table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$payload_table}'");
             // Compute window bounds in MySQL using INTERVAL
-            // We fetch candidates by order_id and timestamp close to started_at, then filter by envelope.type in PHP
+            // We fetch candidates by order_id and timestamp close to ts, then filter by envelope.type in PHP
             if ($payload_table_exists) {
                 $sql = "SELECT COALESCE(p.payload, l.details) AS payload, l.timestamp FROM {$log_table} l LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id WHERE l.order_id = %d AND l.timestamp BETWEEN (STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%sZ') - INTERVAL %d MINUTE) AND (STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%sZ') + INTERVAL %d MINUTE) ORDER BY l.timestamp ASC";
             } else {
                 $sql = "SELECT l.details AS payload, l.timestamp FROM {$log_table} l WHERE l.order_id = %d AND l.timestamp BETWEEN (STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%sZ') - INTERVAL %d MINUTE) AND (STR_TO_DATE(%s, '%Y-%m-%dT%H:%i:%sZ') + INTERVAL %d MINUTE) ORDER BY l.timestamp ASC";
             }
             // Accept both Z and offset by also supporting direct string compare when STR_TO_DATE fails; fallback below if needed
-            $prepared = $wpdb->prepare($sql, $order_id, $started_at, $time_window, $started_at, $time_window);
+            $prepared = $wpdb->prepare($sql, $order_id, $ts, $time_window, $ts, $time_window);
             $rows = $wpdb->get_results($prepared, 'ARRAY_A');
 
             if (!is_array($rows)) { $rows = []; }
@@ -1497,8 +1500,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                 if (!is_array($det)) { continue; }
                 $det_type = isset($det['type']) ? (string)$det['type'] : '';
                 if ($det_type === '' || !in_array($det_type, $order_types, true)) { continue; }
-                // Only include envelopes that have payload_components (ProcessLogger entries)
-                if (!isset($det['payload_components']) || !is_array($det['payload_components'])) { continue; }
+                // Only include envelopes that have components (ProcessLogger entries)
+                if (!isset($det['components']) || !is_array($det['components'])) { continue; }
                 $related[] = $det;
             }
         } catch (\Throwable $e) {
@@ -1506,12 +1509,12 @@ class AuditLogEndpoint extends WP_REST_Controller
             error_log('ODCM: group_logs_by_families discovery failed: ' . $e->getMessage());
         }
 
-        // Ensure the current envelope is included and remove duplicates by correlation_id
+        // Ensure the current envelope is included and remove duplicates by cid
         $all = array_merge([ $envelope ], $related);
         $seen = [];
         $unique = [];
         foreach ($all as $env) {
-            $cid = isset($env['correlation_id']) ? (string)$env['correlation_id'] : md5(serialize($env));
+            $cid = isset($env['cid']) ? (string)$env['cid'] : md5(serialize($env));
             if (isset($seen[$cid])) { continue; }
             $seen[$cid] = true;
             $unique[] = $env;
@@ -1540,9 +1543,9 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         // Respect include_debug flag provided by the client
         foreach ($envelopes as $env) {
-            // Handle ProcessLogger entries (with payload_components)
-            if (isset($env['payload_components']) && is_array($env['payload_components'])) {
-                $pcs = $env['payload_components'];
+            // Handle ProcessLogger entries (with components)
+            if (isset($env['components']) && is_array($env['components'])) {
+                $pcs = $env['components'];
                 foreach ($pcs as $pc) {
                     if (!$include_debug) {
                         $lvl = isset($pc['level']) ? (string)$pc['level'] : '';
@@ -1552,7 +1555,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     $components[] = $pc;
                 }
             } else {
-                // Handle custom event entries (without payload_components) using existing renderer system
+                // Handle custom event entries (without components) using existing renderer system
                 // Create a timeline component that uses the existing registry-driven renderers
                 $custom_component = [
                     'kind' => 'custom_event',
@@ -1611,7 +1614,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         $html = '<div class="odcm-narrative-timeline">';
 
         $first_meta = true;
-        // We use the first envelope to provide timeline meta (started_at/trigger) if available
+        // We use the first envelope to provide timeline meta (ts/trigger) if available
         $meta_env = !empty($envelopes) ? $envelopes[0] : [];
 
         foreach ($enriched_events as $event) {
@@ -1645,7 +1648,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     try {
                         $renderer = new $renderer_class();
                         if ($first_meta && method_exists($renderer, 'setTimelineMeta')) {
-                            $startedAt = isset($meta_env['started_at']) ? (string)$meta_env['started_at'] : null;
+                            $startedAt = isset($meta_env['ts']) ? (string)$meta_env['ts'] : null;
                             $trigger   = isset($meta_env['trigger']) ? (string)$meta_env['trigger'] : null;
                             $renderer->setTimelineMeta($startedAt, $trigger);
                         }
@@ -2507,9 +2510,9 @@ class AuditLogEndpoint extends WP_REST_Controller
             $envelope_meta = [
                 'type' => 'process_timeline',
                 'order_id' => $first_event['order_id'] ?? 0,
-                'started_at' => $first_event['timestamp'] ?? current_time('mysql'),
+                'ts' => $first_event['timestamp'] ?? current_time('mysql'),
                 'trigger' => 'process_lifecycle',
-                'correlation_id' => $process_id,
+                'cid' => $process_id,
             ];
 
             // Process each event to extract payload components
@@ -2525,8 +2528,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                 }
 
                 // Extract payload components if they exist (ProcessLogger entries)
-                if (isset($event_details['payload_components']) && is_array($event_details['payload_components'])) {
-                    foreach ($event_details['payload_components'] as $component) {
+                if (isset($event_details['components']) && is_array($event_details['components'])) {
+                    foreach ($event_details['components'] as $component) {
                         if (!is_array($component)) {
                             continue;
                         }
@@ -2572,7 +2575,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Create the envelope structure for render_narrative_timeline
             $process_envelope = array_merge($envelope_meta, [
-                'payload_components' => $all_components,
+                'components' => $all_components,
             ]);
 
             // Use the existing narrative timeline rendering
@@ -2603,9 +2606,9 @@ class AuditLogEndpoint extends WP_REST_Controller
         $envelope_meta = [
             'type' => 'order_timeline',
             'order_id' => $first_entry['order_id'] ?? 0,
-            'started_at' => $first_entry['timestamp'] ?? current_time('mysql'),
+            'ts' => $first_entry['timestamp'] ?? current_time('mysql'),
             'trigger' => 'order_processing',
-            'correlation_id' => 'order_' . ($first_entry['order_id'] ?? 0),
+            'cid' => 'order_' . ($first_entry['order_id'] ?? 0),
         ];
 
         // Process each entry to extract payload components
@@ -2621,8 +2624,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             // Extract payload components if they exist (ProcessLogger entries)
-            if (isset($entry_details['payload_components']) && is_array($entry_details['payload_components'])) {
-                foreach ($entry_details['payload_components'] as $component) {
+            if (isset($entry_details['components']) && is_array($entry_details['components'])) {
+                foreach ($entry_details['components'] as $component) {
                     if (!is_array($component)) {
                         continue;
                     }
@@ -2668,7 +2671,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         // Create the envelope structure for render_narrative_timeline
         $order_envelope = array_merge($envelope_meta, [
-            'payload_components' => $all_components,
+            'components' => $all_components,
         ]);
 
         // Use the existing narrative timeline rendering
@@ -2874,9 +2877,9 @@ class AuditLogEndpoint extends WP_REST_Controller
         $envelope_meta = [
             'type' => 'lifecycle_group',
             'order_id' => $first_entry['order_id'] ?? 0,
-            'started_at' => $first_entry['timestamp'] ?? current_time('mysql'),
+            'ts' => $first_entry['timestamp'] ?? current_time('mysql'),
             'trigger' => 'order_lifecycle',
-            'correlation_id' => 'order_' . ($first_entry['order_id'] ?? 0),
+            'cid' => 'order_' . ($first_entry['order_id'] ?? 0),
         ];
 
         // Process each lifecycle entry to extract payload components
@@ -2891,9 +2894,9 @@ class AuditLogEndpoint extends WP_REST_Controller
                 continue;
             }
 
-            // Extract payload components if they exist (ProcessLogger entries)
-            if (isset($entry_details['payload_components']) && is_array($entry_details['payload_components'])) {
-                foreach ($entry_details['payload_components'] as $component) {
+            // Extract components if they exist
+            if (isset($entry_details['components']) && is_array($entry_details['components'])) {
+                foreach ($entry_details['components'] as $component) {
                     if (!is_array($component)) {
                         continue;
                     }
@@ -2939,7 +2942,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         // Create the envelope structure for render_narrative_timeline
         $lifecycle_envelope = array_merge($envelope_meta, [
-            'payload_components' => $all_components,
+            'components' => $all_components,
         ]);
 
         // Use the existing narrative timeline rendering
@@ -2947,14 +2950,14 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
-     * Check if this is a ProcessLogger entry (has payload_components)
+     * Check if this has components
      *
      * @param array $details
      * @return bool
      */
     private function is_process_logger_entry(array $details): bool
     {
-        return isset($details['payload_components']) && is_array($details['payload_components']) && !empty($details['payload_components']);
+        return isset($details['components']) && is_array($details['components']) && !empty($details['components']);
     }
 
     /**
@@ -2976,8 +2979,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             return true;
         }
 
-        $components = isset($details['payload_components']) && is_array($details['payload_components'])
-            ? $details['payload_components']
+        $components = isset($details['components']) && is_array($details['components'])
+            ? $details['components']
             : [];
         if (!empty($components)) {
             foreach ($components as $component) {
@@ -3498,7 +3501,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         }
         
         // Check if any payload components indicate an error
-        $components = $details['payload_components'] ?? [];
+        $components = $details['components'] ?? [];
         if (is_array($components)) {
             foreach ($components as $component) {
                 if (!is_array($component)) { continue; }
@@ -3551,12 +3554,16 @@ class AuditLogEndpoint extends WP_REST_Controller
             $summary_content .= '<p><strong>Status:</strong> <span class="odcm-status-' . esc_attr($details['status']) . '">' . esc_html(ucfirst($details['status'])) . '</span></p>';
         }
         
-        if (isset($details['started_at'])) {
-            $summary_content .= '<p><strong>Occurred At:</strong> ' . esc_html($details['started_at']) . '</p>';
+        if (isset($details['ts'])) {
+            // Handle Unix timestamp display
+            $timestamp_display = is_numeric($details['ts']) 
+                ? date('Y-m-d H:i:s', (int)$details['ts']) 
+                : (string)$details['ts'];
+            $summary_content .= '<p><strong>Occurred At:</strong> ' . esc_html($timestamp_display) . '</p>';
         }
         
-        if (isset($details['correlation_id'])) {
-            $summary_content .= '<p><strong>Correlation ID:</strong> <code>' . esc_html($details['correlation_id']) . '</code></p>';
+        if (isset($details['cid'])) {
+            $summary_content .= '<p><strong>Correlation ID:</strong> <code>' . esc_html($details['cid']) . '</code></p>';
         }
         
         $summary_content .= '</div>';
@@ -3568,8 +3575,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             ['status' => $details['status'] ?? 'error']
         );
 
-        // Render individual payload components
-        $components = $details['payload_components'] ?? [];
+        // Render individual components
+        $components = $details['components'] ?? [];
         if (is_array($components) && !empty($components)) {
             // Load registry for renderer lookup
             if (!function_exists('odcm_get_payload_component_type')) {
@@ -3677,10 +3684,10 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
             
             // Extract ProcessLogger components (preferred method)
-            if (isset($event_details['payload_components']) && is_array($event_details['payload_components'])) {
-                error_log("ODCM EXTRACT: Event $event_id has " . count($event_details['payload_components']) . " payload components");
+            if (isset($event_details['components']) && is_array($event_details['components'])) {
+                error_log("ODCM EXTRACT: Event $event_id has " . count($event_details['components']) . " components");
                 
-                foreach ($event_details['payload_components'] as $component_index => $component) {
+                foreach ($event_details['components'] as $component_index => $component) {
                     if (!is_array($component)) {
                         error_log("ODCM EXTRACT: Event $event_id component $component_index is not an array, skipping");
                         continue;
@@ -3701,7 +3708,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
             
             // Fallback: create synthetic component from event details
-            error_log("ODCM EXTRACT: Event $event_id has no payload_components, creating synthetic component");
+            error_log("ODCM EXTRACT: Event $event_id has no components, creating synthetic component");
             return $this->create_synthetic_event_component($event, $event_index, $event_details);
             
         } catch (\Throwable $e) {

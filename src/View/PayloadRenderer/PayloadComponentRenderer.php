@@ -208,7 +208,7 @@ abstract class PayloadComponentRenderer
             
             // Pass process metadata to header if available
                         if ($this->timelineStartedAt !== null) {
-                            $options['started_at'] = $this->timelineStartedAt;
+                            $options['ts'] = $this->timelineStartedAt;
                         }
                         if ($this->timelineTrigger !== null) {
                             $options['trigger'] = $this->timelineTrigger;

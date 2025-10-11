@@ -47,6 +47,11 @@ class UniversalEventProcessor
     {
         $this->registry = new RuleComponentRegistry();
         $this->evaluator = new Evaluator();
+        
+        // Inject ProcessLogger into Evaluator for audit trail creation
+        $sanitizer = new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer();
+        $process_logger = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger($sanitizer);
+        $this->evaluator->set_process_logger($process_logger);
     }
 
     /**
@@ -466,12 +471,33 @@ class UniversalEventProcessor
                 continue;
             }
 
+            // Start ProcessLogger for this rule evaluation
+            $sanitizer = new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer();
+            $rule_logger = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger($sanitizer);
+            $this->evaluator->set_process_logger($rule_logger);
+            
+            $rule_logger->start('rule_execution', [
+                'order_id' => $context->getOrderId(),
+                'summary' => sprintf('Evaluating rule: %s', $rule->post_title),
+                'source' => 'universal_event_processor'
+            ]);
+
             // Evaluate rule against universal event context
             $trace = $this->evaluator->evaluateRuleAgainstUniversalEvent($context, $rule_data, $this->registry);
 
             if ($trace['matched']) {
+                // Log rule match
+                $rule_logger->add_component('rule_matched', 
+                    sprintf('Rule "%s" matched', $rule->post_title), 
+                    ['rule_id' => $rule->ID, 'rule_name' => $rule->post_title]
+                );
+
                 // Execute primary action
                 if (isset($rule_data['primaryAction']['id'])) {
+                    $rule_logger->add_component('action_executed', 
+                        sprintf('Executing primary action: %s', $rule_data['primaryAction']['id']), 
+                        ['action_id' => $rule_data['primaryAction']['id']]
+                    );
                     $this->executeUniversalEventAction($context, $rule_data['primaryAction']);
                 }
 
@@ -479,13 +505,29 @@ class UniversalEventProcessor
                 if (!empty($rule_data['secondaryActions']) && is_array($rule_data['secondaryActions'])) {
                     foreach ($rule_data['secondaryActions'] as $actionDef) {
                         if (isset($actionDef['id'])) {
+                            $rule_logger->add_component('action_executed', 
+                                sprintf('Executing secondary action: %s', $actionDef['id']), 
+                                ['action_id' => $actionDef['id']]
+                            );
                             $this->executeUniversalEventAction($context, $actionDef);
                         }
                     }
                 }
 
+                // Finish with success
+                $rule_logger->finish('success', sprintf('Rule "%s" executed successfully', $rule->post_title));
+
                 // First Match Wins - stop processing
                 return true;
+            } else {
+                // Log rule non-match
+                $rule_logger->add_component('rule_no_match', 
+                    sprintf('Rule "%s" did not match', $rule->post_title), 
+                    ['rule_id' => $rule->ID, 'rule_name' => $rule->post_title, 'conditions' => $trace['conditions']]
+                );
+                
+                // Finish with info status
+                $rule_logger->finish('info', sprintf('Rule "%s" did not match conditions', $rule->post_title));
             }
         }
 

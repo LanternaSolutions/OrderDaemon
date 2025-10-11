@@ -530,11 +530,11 @@ final class BlockCheckoutCompatibility
             return;
         }
 
-        $payload_components = [
+        $components = [
             [
-                'key'   => 'block-checkout-' . uniqid('', true),
+                'k'     => 'c' . time() . rand(10,99),
                 'kind'  => 'info',
-                'ts'    => wp_date('c'),
+                'ts'    => time(),
                 'label' => 'Block Checkout Processed',
                 'level' => 'info',
                 'data'  => [
@@ -544,17 +544,17 @@ final class BlockCheckoutCompatibility
                 ],
             ],
             [
-                'key'   => 'cart-analysis-' . uniqid('', true),
+                'k'     => 'c' . time() . rand(10,99),
                 'kind'  => 'fallback',
-                'ts'    => wp_date('c'),
+                'ts'    => time(),
                 'label' => 'Cart Analysis',
                 'level' => 'info',
                 'data'  => $checkout_context['cart_analysis'] ?? [],
             ],
             [
-                'key'   => 'payment-context-' . uniqid('', true),
+                'k'     => 'c' . time() . rand(10,99),
                 'kind'  => 'fallback',
-                'ts'    => wp_date('c'),
+                'ts'    => time(),
                 'label' => 'Payment Context',
                 'level' => 'info',
                 'data'  => $checkout_context['payment_context'] ?? [],
@@ -576,13 +576,12 @@ final class BlockCheckoutCompatibility
             [
                 'type'            => 'block_checkout_observation',
                 // Use the shared process id for correlation if available
-                'correlation_id'  => $shared_pid ?: ('odcm:blkco:' . $order->get_id() . ':' . uniqid('', true)),
+                'cid'             => $shared_pid ?: ($order->get_id() . ':' . time()),
                 'order_id'        => $order->get_id(),
-                'started_at'      => wp_date('c'),
-                'finished_at'     => wp_date('c'),
+                'ts'              => time(),
                 'status'          => 'info',
                 'summary'         => sprintf('Block Checkout observation for order #%d', $order->get_id()),
-                'payload_components' => $payload_components,
+                'components' => $components,
                 'checkout_context'   => $checkout_context,
                 'process_id'      => $shared_pid ?: null,
             ],

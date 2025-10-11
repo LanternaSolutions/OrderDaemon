@@ -138,15 +138,15 @@ class ManualStatusTracker
         // Log status change using Universal Events system
         $sanitizer = new ComponentSanitizer();
         
-        // Prepare sanitized payload components
-        $payload_components = [];
+        // Prepare sanitized components
+        $components = [];
         
         // Add status change component
         $status_data = $sanitizer->sanitize('status_changed', ['from' => $from, 'to' => $to]);
-        $payload_components[] = [
-            'key' => 'status-change-' . wp_generate_uuid4(),
+        $components[] = [
+            'k' => 'c' . time() . rand(10,99),
             'kind' => 'status_changed',
-            'ts' => odcm_iso8601_now(),
+            'ts' => time(),
             'label' => 'Status changed',
             'level' => 'info',
             'data' => $status_data,
@@ -155,10 +155,10 @@ class ManualStatusTracker
         // Add workflow info if automatic
         if ($is_automatic_workflow) {
             $info_data = $sanitizer->sanitize('info', ['message' => 'Standard WooCommerce workflow transition detected']);
-            $payload_components[] = [
-                'key' => 'workflow-info-' . wp_generate_uuid4(),
+            $components[] = [
+                'k' => 'c' . time() . rand(10,99),
                 'kind' => 'info',
-                'ts' => odcm_iso8601_now(),
+                'ts' => time(),
                 'label' => 'Automatic workflow transition',
                 'level' => 'info',
                 'data' => $info_data,
@@ -187,10 +187,10 @@ class ManualStatusTracker
                 'external_service' => $ext_compact,
             ];
             
-            $payload_components[] = [
-                'key' => 'attribution-' . wp_generate_uuid4(),
+            $components[] = [
+                'k' => 'c' . time() . rand(10,99),
                 'kind' => 'info',
-                'ts' => odcm_iso8601_now(),
+                'ts' => time(),
                 'label' => 'Attribution context',
                 'level' => 'info',
                 'data' => ['attribution' => $attribution_data],
@@ -203,10 +203,10 @@ class ManualStatusTracker
                 'code' => 'bypassed_automation',
                 'message' => 'This change may have bypassed auto rules'
             ]);
-            $payload_components[] = [
-                'key' => 'bypass-warning-' . wp_generate_uuid4(),
+            $components[] = [
+                'k' => 'c' . time() . rand(10,99),
                 'kind' => 'warning',
-                'ts' => odcm_iso8601_now(),
+                'ts' => time(),
                 'label' => 'Automation bypass context',
                 'level' => 'warning',
                 'data' => $warning_data,
@@ -228,16 +228,15 @@ class ManualStatusTracker
             $final_summary,
             [
                 'type' => $event_type,
-                'correlation_id' => 'odcm:status_change:' . $order_id . ':' . wp_generate_uuid4(),
-                'order_id' => $order_id,
+                'cid' => $order_id . ':' . time(),
+                'oid' => $order_id,
                 'actor' => [
                     'id' => $source === 'manual' ? $user_id : null,
-                    'role' => null,
-                    'name' => $user_display_name
+                    'role' => $source === 'manual' ? ($current_user->roles[0] ?? null) : null,
+                    'name' => $source === 'manual' ? $current_user->display_name : null,
                 ],
-                'started_at' => odcm_iso8601_now(),
-                'finished_at' => odcm_iso8601_now(),
-                'payload_components' => $payload_components,
+                'ts' => time(),
+                'components' => $components,
             ],
             $order_id,
             'success',
@@ -457,16 +456,15 @@ class ManualStatusTracker
             $summary,
             [
                 'type' => 'admin_action',
-                'correlation_id' => 'odcm:manual_trigger:' . $order_id . ':' . wp_generate_uuid4(),
-                'order_id' => $order_id,
+                'cid' => $order_id . ':' . time(),
+                'oid' => $order_id,
                 'actor' => [
                     'id' => $current_user->ID,
                     'role' => null,
                     'name' => $user_context['user_display_name']
                 ],
-                'started_at' => odcm_iso8601_now(),
-                'finished_at' => odcm_iso8601_now(),
-                'payload_components' => $payload_components,
+                'ts' => time(),
+                'components' => $payload_components,
             ],
             $order_id,
             'success',

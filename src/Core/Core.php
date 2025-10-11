@@ -370,14 +370,21 @@ class Core
         // Log admin reprocess action using Universal Events system
         $sanitizer = new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer();
         
-        $payload_components = [
+        $action_data = $sanitizer->sanitize('admin_action', [
+            'action' => 'reprocess_orders',
+            'user_id' => get_current_user_id(),
+            'user_name' => $user_display_name,
+            'order_count' => $count
+        ]);
+        
+        $components = [
             [
-                'key' => 'admin-reprocess-' . wp_generate_uuid4(),
-                'kind' => 'info',
-                'ts' => odcm_iso8601_now(),
-                'label' => 'Admin requested reprocess',
+                'k' => 'c' . time() . rand(10,99),
+                'kind' => 'admin_action',
+                'ts' => time(),
+                'label' => sprintf(__('Admin reprocessed %d orders', 'order-daemon'), $count),
                 'level' => 'info',
-                'data' => $sanitizer->sanitize('info', ['message' => 'Admin requested reprocess of all orders']),
+                'data' => $action_data
             ]
         ];
         
@@ -385,15 +392,14 @@ class Core
             'Admin requested reprocess of all orders',
             [
                 'type' => 'admin_action',
-                'correlation_id' => 'odcm:admin_reprocess:' . wp_generate_uuid4(),
+                'cid' => 'admin:' . time(),
                 'actor' => [
                     'id' => get_current_user_id(),
                     'role' => null,
                     'name' => wp_get_current_user()->display_name ?: wp_get_current_user()->user_login
                 ],
-                'started_at' => odcm_iso8601_now(),
-                'finished_at' => odcm_iso8601_now(),
-                'payload_components' => $payload_components,
+                'ts' => time(),
+                'components' => $components,
             ],
             null,
             'info',
@@ -561,12 +567,12 @@ class Core
         try {
             $sanitizer = new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer();
             
-            $payload_components = [];
+            $components = [];
             
             // Add status change component
             $status_data = $sanitizer->sanitize('status_changed', ['from' => 'unknown', 'to' => $status_slug]);
-            $payload_components[] = [
-                'key' => 'status-change-' . wp_generate_uuid4(),
+            $components[] = [
+                'k' => 'c' . time() . rand(10,99),
                 'kind' => 'status_changed',
                 'ts' => odcm_iso8601_now(),
                 'label' => 'Status changed',
@@ -596,8 +602,8 @@ class Core
                     'external_service' => $ext_compact,
                 ];
                 
-                $payload_components[] = [
-                    'key' => 'attribution-' . wp_generate_uuid4(),
+                $components[] = [
+                    'k' => 'c' . time() . rand(10,99),
                     'kind' => 'info',
                     'ts' => odcm_iso8601_now(),
                     'label' => 'Attribution context',
@@ -612,12 +618,11 @@ class Core
                 $summary,
                 [
                     'type' => 'status_change_processing',
-                    'correlation_id' => 'odcm:status_change:' . $order_id . ':' . wp_generate_uuid4(),
+                    'cid' => $order_id . ':' . time(),
                     'order_id' => $order_id,
                     'actor' => ['id' => null, 'role' => null, 'name' => 'system'],
-                    'started_at' => odcm_iso8601_now(),
-                    'finished_at' => odcm_iso8601_now(),
-                    'payload_components' => $payload_components,
+                    'ts' => time(),
+                    'components' => $components,
                 ],
                 $order_id,
                 'info',
@@ -642,11 +647,10 @@ class Core
     }
 
     /**
-     * Handles general WooCommerce order status change events.
-     *
-     * This method is triggered for ALL order status changes and includes deduplication
-     * logic to prevent duplicate processing when specific status hooks have already
-     * been triggered.
+     * Handles general WooCommerce order status change events with hybrid logging.
+     * - Normal mode: Only logs when rules are triggered and actions taken
+     * - Debug mode: ALSO logs rule evaluations and status changes for all orders
+     *    - CAN CAUSE DATA BLOAT!
      *
      * @param int $order_id The ID of the order that changed status.
      * @param string $from_status The previous order status.
@@ -662,11 +666,24 @@ class Core
         $from_slug = sanitize_key((string)$from_status);
         $to_slug   = sanitize_key((string)$to_status);
 
-        // Check if any rules with AnyStatusChangeTrigger should be triggered for this transition
-        if (!$this->should_trigger_any_status_change_rules($from_slug, $to_slug)) {
-            odcm_log_message("Skipping general status change for order #{$order_id} ({$from_slug} → {$to_slug}) - no AnyStatusChangeTrigger rules match this transition", 'info');
-            return;
+        // Always log in debug mode
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->log_status_change_evaluation($order_id, $from_slug, $to_slug);
         }
+
+        // Get matching rules for this status change
+        $matching_rules = $this->get_matching_rules_for_status_change($from_slug, $to_slug);
+
+        if (empty($matching_rules)) {
+            // No rules match - log only in debug mode
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->log_no_rules_matched($order_id, $from_slug, $to_slug);
+            }
+            return; // Exit early - no rule processing needed
+        }
+
+        // Rules match - ALWAYS log this (production + debug)
+        $this->log_rule_evaluation_started($order_id, $from_slug, $to_slug, $matching_rules);
 
         // Dedup using specific-hook marker and last processed meta
         try {
@@ -1474,5 +1491,212 @@ class Core
                 'source' => $this->determine_change_source()
             ]
         ]);
+    }
+
+    /**
+     * Log status change evaluation for debug mode.
+     * Called when ODCM_DEBUG is true to track all status change evaluations.
+     *
+     * @param int $order_id Order ID
+     * @param string $from Previous status slug
+     * @param string $to New status slug
+     * @return void
+     */
+    private function log_status_change_evaluation(int $order_id, string $from, string $to): void
+    {
+        odcm_log_event(
+            "Status change evaluation: Order #{$order_id} ({$from} → {$to})",
+            ['from' => $from, 'to' => $to, 'debug_mode' => true],
+            $order_id,
+            'info',
+            'status_evaluation'
+        );
+    }
+
+    /**
+     * Log when no rules match a status change (debug mode only).
+     * Helps debug why certain orders don't trigger any rules.
+     *
+     * @param int $order_id Order ID
+     * @param string $from Previous status slug
+     * @param string $to New status slug
+     * @return void
+     */
+    private function log_no_rules_matched(int $order_id, string $from, string $to): void
+    {
+        $rule_count = $this->count_active_rules();
+        odcm_log_event(
+            "No rules matched for Order #{$order_id} status change ({$from} → {$to})",
+            [
+                'from' => $from, 
+                'to' => $to, 
+                'total_active_rules' => $rule_count,
+                'debug_mode' => true
+            ],
+            $order_id,
+            'info',
+            'no_rules_matched'
+        );
+    }
+
+    /**
+     * Log when rule evaluation starts (normal + debug modes).
+     * Always logged when rules are found that could match.
+     *
+     * @param int $order_id Order ID
+     * @param string $from Previous status slug
+     * @param string $to New status slug
+     * @param array $rules Array of matching rules
+     * @return void
+     */
+    private function log_rule_evaluation_started(int $order_id, string $from, string $to, array $rules): void
+    {
+        odcm_log_event(
+            "Evaluating " . count($rules) . " rule(s) for Order #{$order_id}",
+            [
+                'from' => $from, 
+                'to' => $to, 
+                'rule_count' => count($rules),
+                'rule_ids' => array_column($rules, 'id')
+            ],
+            $order_id,
+            'info',
+            'rule_evaluation_started'
+        );
+    }
+
+    /**
+     * Log individual rule evaluation results (normal + debug modes).
+     *
+     * @param int $order_id Order ID
+     * @param array $rule Rule data with id and name
+     * @param array $result Evaluation result with matched boolean and details
+     * @return void
+     */
+    private function log_rule_evaluation_result(int $order_id, array $rule, array $result): void
+    {
+        $status = $result['matched'] ? 'success' : 'info';
+        $action = $result['matched'] ? 'matched and executed' : 'evaluated but did not match';
+        
+        odcm_log_event(
+            "Rule '{$rule['name']}' {$action} for Order #{$order_id}",
+            [
+                'rule_id' => $rule['id'],
+                'rule_name' => $rule['name'],
+                'matched' => $result['matched'],
+                'conditions_met' => $result['conditions_met'] ?? null,
+                'actions_taken' => $result['actions_taken'] ?? []
+            ],
+            $order_id,
+            $status,
+            'rule_evaluation_result'
+        );
+    }
+
+    /**
+     * Get matching rules for a specific status change.
+     * Replaces the boolean should_trigger_any_status_change_rules with detailed rule matching.
+     *
+     * @param string $from_slug Previous status slug
+     * @param string $to_slug New status slug
+     * @return array Array of matching rules with id, name, and data
+     */
+    private function get_matching_rules_for_status_change(string $from_slug, string $to_slug): array
+    {
+        $rules = get_posts([
+            'post_type' => 'odcm_order_rule',
+            'post_status' => 'publish',
+            'posts_per_page' => -1,
+            'meta_query' => [
+                [
+                    'key' => '_odcm_rule_active',
+                    'value' => '1',
+                    'compare' => '='
+                ]
+            ]
+        ]);
+        
+        $matching_rules = [];
+        
+        foreach ($rules as $rule) {
+            $rule_data = json_decode(get_post_meta($rule->ID, '_odcm_rule_data', true), true);
+            
+            if ($this->rule_matches_status_change($rule_data, $from_slug, $to_slug)) {
+                $matching_rules[] = [
+                    'id' => $rule->ID,
+                    'name' => $rule->post_title,
+                    'data' => $rule_data
+                ];
+            }
+        }
+        
+        return $matching_rules;
+    }
+
+    /**
+     * Check if a specific rule matches a status change.
+     *
+     * @param array $rule_data Rule configuration data
+     * @param string $from Previous status slug
+     * @param string $to New status slug
+     * @return bool True if rule matches this status change
+     */
+    private function rule_matches_status_change(array $rule_data, string $from, string $to): bool
+    {
+        $trigger = $rule_data['trigger'] ?? [];
+        $trigger_id = $trigger['id'] ?? '';
+        
+        // Check different trigger types
+        switch ($trigger_id) {
+            case 'order_status_any_change':
+                return $this->evaluate_any_status_change_trigger($trigger, $from, $to);
+            case 'order_processing':
+                return $to === 'processing';
+            case 'order_completed':
+                return $to === 'completed';
+            // Add other trigger types as needed...
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Evaluate AnyStatusChangeTrigger for a specific transition.
+     *
+     * @param array $trigger Trigger configuration
+     * @param string $from Previous status slug
+     * @param string $to New status slug
+     * @return bool True if trigger should fire
+     */
+    private function evaluate_any_status_change_trigger(array $trigger, string $from, string $to): bool
+    {
+        $settings = $trigger['settings'] ?? [];
+        
+        // If no from/to restrictions, match all transitions
+        $from_statuses = $settings['from_statuses'] ?? [];
+        $to_statuses = $settings['to_statuses'] ?? [];
+        
+        // Empty arrays mean "all statuses"
+        $from_match = empty($from_statuses) || in_array($from, $from_statuses);
+        $to_match = empty($to_statuses) || in_array($to, $to_statuses);
+        
+        return $from_match && $to_match;
+    }
+
+    /**
+     * Count active rules for logging purposes.
+     *
+     * @return int Number of active rules
+     */
+    private function count_active_rules(): int
+    {
+        $rules = get_posts([
+            'post_type' => 'odcm_order_rule',
+            'post_status' => 'publish',
+            'posts_per_page' => -1,
+            'fields' => 'ids'
+        ]);
+        
+        return count($rules);
     }
 }
