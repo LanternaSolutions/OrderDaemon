@@ -15,7 +15,13 @@ package_artifacts:
     - apk add --no-cache php php-phar php-openssl git unzip zip composer
     - COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
     - echo "Creating ${PLUGIN_FILE_NAME}"
-    - zip -r "$PLUGIN_FILE_NAME" ./ -i '**/*.php' '**/*.js' '**/*.css' '*/README.txt' '*/vendor/**'
+    - zip -r "$PLUGIN_FILE_NAME" . \
+        -i '*.php' \
+           '**/*.php' \
+           '**/*.js' \
+           '**/*.css' \
+           'README.txt' \
+           'vendor/**'
     - echo "Verifying the archive exists"
     - ls -l "$PLUGIN_FILE_NAME"
     - test -f "$PLUGIN_FILE_NAME"
