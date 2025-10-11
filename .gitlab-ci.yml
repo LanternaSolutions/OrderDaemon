@@ -3,6 +3,7 @@ stages:
 
 variables:
   PACKAGE_NAME: "order-daemon"
+  PLUGIN_FILE_NAME: "$PACKAGE_NAME-$CI_COMMIT_TAG.zip"
 
 package_artifacts:
   stage: package_assets
@@ -13,11 +14,13 @@ package_artifacts:
     - echo "Packaging assets for release - $CI_COMMIT_TAG"
     - apk add --no-cache php php-phar php-openssl git unzip zip composer
     - COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
-    - PLUGIN_FILE_NAME="${PACKAGE_NAME}-${CI_COMMIT_TAG#v}.zip"
     - echo "Creating ${PLUGIN_FILE_NAME}"
     - zip -r "$PLUGIN_FILE_NAME" ./ -i '**/*.php' '**/*.js' '**/*.css' '*/README.txt' '*/vendor/**'
+    - echo "Verifying the archive exists"
+    - ls -l "$PLUGIN_FILE_NAME"
+    - test -f "$PLUGIN_FILE_NAME"
   artifacts:
-    name: "$PACKAGE_NAME"
+    name: "$PLUGIN_FILE_NAME"
     paths:
       - "$PLUGIN_FILE_NAME"
   release:
@@ -27,6 +30,6 @@ package_artifacts:
     ref: '$CI_COMMIT_SHA'
     assets:
       links:
-        - name: "$PACKAGE_NAME"
+        - name: "$PLUGIN_FILE_NAME"
           url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/${PLUGIN_FILE_NAME}"
           link_type: package
