@@ -1,11 +1,12 @@
 #!/bin/bash
 
 show_instructions() {
-    echo "Usage: $0 [-f|--force] <version>"
+    echo "Usage: $0 [-f|--force] <version|major|minor|patch>"
     echo "Options:"
     echo "  -f, --force   Force update even if the new version is the same or lower"
     echo "  -h, --help    Show these instructions"
     echo "Examples:"
+    echo "  $0 patch"
     echo "  $0 1.2.3"
     echo "  $0 --force 1.2.3"
     echo "  $0 --help"
@@ -24,16 +25,36 @@ get_current_version() {
     echo "$current_version"
 }
 
-get_incremented_patch_version() {
+get_incremented_version() {
     local current_version="$1"
+    local target_segment="${2:-patch}" # accepted: major|minor|patch
+
     IFS='.' read -r -a version_parts <<<"$current_version"
 
-    local patch="${version_parts[2]}"
-    local incremented_patch=$((patch + 1))
+    local major="${version_parts[0]:-patch}"
+    local minor="${version_parts[1]:-patch}"
+    local patch="${version_parts[2]:-patch}"
 
-    local incremented_version="${version_parts[0]}.${version_parts[1]}.$incremented_patch"
+    case "$target_segment" in
+        major)
+            major=$((major + 1))
+            minor=0
+            patch=0
+            ;;
+        minor)
+            minor=$((minor + 1))
+            patch=0
+            ;;
+        patch)
+            patch=$((patch + 1))
+            ;;
+        *)
+            echo "Invalid target segment: $target_segment" >&2
+            return 1
+            ;;
+    esac
 
-    echo "$incremented_version"
+    echo "$major.$minor.$patch"
 }
 
 # Detect GNU vs BSD sed for in-place editing
@@ -133,8 +154,8 @@ main() {
 
     local normalized_version=""
 
-    if [[ "$requested_version" == 'patch' && -n "$current_version" ]]; then
-        normalized_version="$(get_incremented_patch_version "$current_version")"
+    if [[ "$requested_version" =~ ^major|minor|patch$ && -n "$current_version" ]]; then
+        normalized_version="$(get_incremented_version "$current_version")"
         echo "Bumping patch version."
     else
         normalized_version="$requested_version"
