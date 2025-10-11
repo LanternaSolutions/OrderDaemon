@@ -17,7 +17,7 @@ package_artifacts:
     - echo "Creating ${PLUGIN_FILE_NAME}"
     - zip -r "$PLUGIN_FILE_NAME" ./ -i '**/*.php' '**/*.js' '**/*.css' '*/README.txt' '*/vendor/**'
   artifacts:
-    name: "$PLUGIN_FILE_NAME"
+    name: "$PACKAGE_NAME"
     paths:
       - "$PLUGIN_FILE_NAME"
   release:
