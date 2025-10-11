@@ -68,6 +68,17 @@ main() {
     FORCE=false
     new_version=""
 
+    file_name="./order-daemon.php"
+    current_version=$(grep -Eo 'Version:[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+' "$file_name" | awk '{print $2}')
+
+    if [[ -z "$current_version" ]]; then
+        echo "Could not find current version in $file_name"
+        exit 1
+    else
+        echo "Current version: $current_version"
+        echo
+    fi
+
     if [[ $# -eq 0 ]]; then
         show_instructions
         exit 1
@@ -103,19 +114,11 @@ main() {
         exit 1
     fi
 
-    file_name="./order-daemon.php"
-    current_version=$(grep -Eo 'Version:[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+' "$file_name" | awk '{print $2}')
-
     if ! [[ "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         echo "Invalid version: $new_version"
         if [[ -n "$current_version" ]]; then
             show_incremented_patch_version "$current_version"
         fi
-        exit 1
-    fi
-
-    if [[ -z "$current_version" ]]; then
-        echo "Could not find current version in $file_name"
         exit 1
     fi
 
