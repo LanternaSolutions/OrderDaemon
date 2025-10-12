@@ -83,6 +83,9 @@ update_version_and_commit() {
     sed -E "${SED_INPLACE[@]}" \
         "s/(define\([[:space:]]*'ODCM_VERSION',[[:space:]]*')[0-9]+\.[0-9]+\.[0-9]+(')/\1$requested_version\2/g" "$file_name"
 
+    sed -E "${SED_INPLACE[@]}" \
+        "s/(Stable tag:)[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+/\1 $requested_version/g" "./README.txt"
+
     # Replace common placeholders used before release
     # Matches: @since next
     while IFS= read -r -d '' file; do
