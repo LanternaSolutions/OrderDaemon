@@ -19,6 +19,8 @@ package_artifacts:
     - mkdir -p "$STAGING_DIR/$PACKAGE_NAME"
     - |
       rsync -a --prune-empty-dirs \
+        --exclude='.*' \
+        --exclude='*/.*' \
         --include='*/' \
         --include='README.txt' \
         --include='composer.json' \
