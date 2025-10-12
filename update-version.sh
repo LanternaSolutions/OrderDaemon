@@ -1,25 +1,62 @@
 #!/bin/bash
 
 show_instructions() {
-    echo "Usage: $0 [-f|--force] <version>"
+    echo "Usage: $0 [-f|--force] [-n|--dry-run] <version|major|minor|patch>"
     echo "Options:"
     echo "  -f, --force   Force update even if the new version is the same or lower"
+    echo "  -n, --dry-run Do everything except creating git commits and tags"
     echo "  -h, --help    Show these instructions"
     echo "Examples:"
+    echo "  $0 patch"
     echo "  $0 1.2.3"
     echo "  $0 --force 1.2.3"
+    echo "  $0 --dry-run minor"
     echo "  $0 --help"
 }
 
-show_incremented_patch_version() {
-    local current_version="$1"
-    IFS='.' read -r -a version_parts <<<"$current_version"
-    patch_version="${version_parts[2]}"
-    patch_version=$((patch_version + 1))
+get_current_version() {
+    local current_version=""
+    current_version=$(grep -Eo 'Version:[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+' "$file_name" | awk '{print $2}')
 
-    version_parts[2]="$patch_version"
-    new_expected_version="${version_parts[0]}.${version_parts[1]}.${version_parts[2]}"
-    echo "Expected new version: $new_expected_version"
+    if [[ -z "$current_version" ]]; then
+        echo "Could not find current version in $file_name."
+        exit 1
+    fi
+
+    echo "Current version: $current_version"
+    echo "$current_version"
+}
+
+get_incremented_version() {
+    local current_version="$1"
+    local target_segment="${2:-patch}" # accepted: major|minor|patch
+
+    IFS='.' read -r -a version_parts <<<"$current_version"
+
+    local major="${version_parts[0]:-patch}"
+    local minor="${version_parts[1]:-patch}"
+    local patch="${version_parts[2]:-patch}"
+
+    case "$target_segment" in
+        major)
+            major=$((major + 1))
+            minor=0
+            patch=0
+            ;;
+        minor)
+            minor=$((minor + 1))
+            patch=0
+            ;;
+        patch)
+            patch=$((patch + 1))
+            ;;
+        *)
+            echo "Invalid target segment: $target_segment" >&2
+            return 1
+            ;;
+    esac
+
+    echo "$major.$minor.$patch"
 }
 
 # Detect GNU vs BSD sed for in-place editing
@@ -34,44 +71,70 @@ setup_sed_inplace() {
 update_version_and_commit() {
     local file_name="$1"
     local current_version="$2"
-    local new_version="$3"
-    echo "Updating version from $current_version to $new_version..."
+    local requested_version="$3"
+    local force="${4:-false}"
+    local dry_run="${5:-false}"
+
+    echo "Updating version from $current_version to $requested_version..."
 
     sed -E "${SED_INPLACE[@]}" \
-        "s/(Version:)[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+/\1 $new_version/g" "$file_name"
+        "s/(Version:)[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+/\1 $requested_version/g" "$file_name"
 
     sed -E "${SED_INPLACE[@]}" \
-        "s/(define\([[:space:]]*'ODCM_VERSION',[[:space:]]*')[0-9]+\.[0-9]+\.[0-9]+(')/\1$new_version\2/g" "$file_name"
+        "s/(define\([[:space:]]*'ODCM_VERSION',[[:space:]]*')[0-9]+\.[0-9]+\.[0-9]+(')/\1$requested_version\2/g" "$file_name"
+
+    sed -E "${SED_INPLACE[@]}" \
+        "s/(Stable tag:)[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+/\1 $requested_version/g" "./README.txt"
 
     # Replace common placeholders used before release
     # Matches: @since next
     while IFS= read -r -d '' file; do
         sed -E "${SED_INPLACE[@]}" \
-            -e "s/@since([[:space:]]+)next/@since\1$new_version/g" \
+            -e "s/@since([[:space:]]+)next/@since\1$requested_version/g" \
             "$file"
     done < <(find . -type f \( -name "*.php" -o -name "*.js" -o -name "*.css" \) -print0)
 
-    git add -A
-    git commit --allow-empty -m "$new_version"
+    if [[ "$dry_run" == true ]]; then
+        echo "[dry-run] Skipping git add/commit and tag creation."
+        echo "[dry-run] Would have created commit with message: $requested_version"
+        echo "[dry-run] Would have created tag: v$requested_version"
+        return 0
+    fi
 
-    tag="v$new_version"
-    if [[ "$FORCE" == true ]]; then
+    git add -A
+    git commit --allow-empty -m "$requested_version"
+
+    tag="v$requested_version"
+    if [[ "$force" == true ]]; then
         echo "Forcing tag $tag to point to the new commit."
         git tag -a -f "$tag" -m "$tag"
     else
+        echo "Adding version tag $tag."
         git tag -a "$tag" -m "$tag"
     fi
 }
 
 main() {
-    # Parse arguments
-    FORCE=false
-    new_version=""
+    local file_name="./order-daemon.php"
+
+    local current_version=""
+    current_version=$(grep -Eo 'Version:[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+' "$file_name" | awk '{print $2}')
+
+    if [[ -z "$current_version" ]]; then
+        echo "Could not find current version in $file_name."
+        exit 1
+    else
+        echo "Current version: $current_version"
+    fi
 
     if [[ $# -eq 0 ]]; then
         show_instructions
         exit 1
     fi
+
+    local requested_version=""
+    local force=false
+    local dry_run=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -80,12 +143,17 @@ main() {
                 exit 1
                 ;;
             -f|--force)
-                FORCE=true
+                force=true
+                shift
+                ;;
+            -n|--dry-run)
+                dry_run=true
+                echo "Dry-run mode enabled: commits and tags will NOT be created."
                 shift
                 ;;
             *)
-                if [[ -z "$new_version" ]]; then
-                    new_version="$1"
+                if [[ -z "$requested_version" ]]; then
+                    requested_version="$1"
                     shift
                 else
                     echo "Unknown argument: $1"
@@ -98,43 +166,39 @@ main() {
 
     setup_sed_inplace
 
-    if [[ -z "$new_version" ]]; then
+    if [[ -z "$requested_version" ]]; then
         show_instructions
         exit 1
     fi
 
-    file_name="./order-daemon.php"
-    current_version=$(grep -Eo 'Version:[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+' "$file_name" | awk '{print $2}')
+    local normalized_version=""
 
-    if ! [[ "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        echo "Invalid version: $new_version"
-        if [[ -n "$current_version" ]]; then
-            show_incremented_patch_version "$current_version"
-        fi
+    if [[ "$requested_version" =~ ^major|minor|patch$ && -n "$current_version" ]]; then
+        normalized_version="$(get_incremented_version "$current_version")"
+        echo "Bumping patch version."
+    else
+        normalized_version="$requested_version"
+    fi
+
+    if ! [[ "$normalized_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "Invalid version: $requested_version"
         exit 1
     fi
 
-    if [[ -z "$current_version" ]]; then
-        echo "Could not find current version in $file_name"
-        exit 1
-    fi
-
-    if [[ "$FORCE" == true ]]; then
-        echo "Forcing version update to $new_version (current: $current_version)."
-        update_version_and_commit "$file_name" "$current_version" "$new_version"
+    if [[ "$force" == true ]]; then
+        echo "Forcing version update."
+        update_version_and_commit "$file_name" "$current_version" "$normalized_version" true "$dry_run"
         exit 0
     fi
 
-    if [[ "$current_version" == "$new_version" ]]; then
-        echo -e "Current version ($current_version) is the same as new version ($new_version).\nNo update needed."
-        show_incremented_patch_version "$current_version"
+    if [[ "$current_version" == "$normalized_version" ]]; then
+        echo -e "Current version ($current_version) is the same as new version ($normalized_version).\nNo update needed."
         exit 0
-    elif [[ "$(echo -e "$new_version\n$current_version" | sort -V | head -n 1)" == "$new_version" ]]; then
-        echo -e "New version ($new_version) is less than current version ($current_version) \nVersion must be incremented."
-        show_incremented_patch_version "$current_version"
+    elif [[ "$(echo -e "$normalized_version\n$current_version" | sort -V | head -n 1)" == "$normalized_version" ]]; then
+        echo -e "New version ($normalized_version) is less than current version ($current_version).\nVersion must be incremented."
         exit 1
     else
-        update_version_and_commit "$file_name" "$current_version" "$new_version"
+        update_version_and_commit "$file_name" "$current_version" "$normalized_version" false "$dry_run"
         exit 0
     fi
 }

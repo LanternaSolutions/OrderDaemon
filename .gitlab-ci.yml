@@ -19,8 +19,11 @@ package_artifacts:
     - mkdir -p "$STAGING_DIR/$PACKAGE_NAME"
     - |
       rsync -a --prune-empty-dirs \
+        --exclude='.*' \
+        --exclude='*/.*' \
         --include='*/' \
         --include='README.txt' \
+        --include='composer.json' \
         --include='*.php' \
         --include='*.js' \
         --include='*.css' \
@@ -28,6 +31,7 @@ package_artifacts:
         --include='**/*.js' \
         --include='**/*.css' \
         --include='vendor/***' \
+        --include='languages/***' \
         --exclude='*' \
         ./ "$STAGING_DIR/$PACKAGE_NAME/"
     - |
