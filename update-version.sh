@@ -1,14 +1,16 @@
 #!/bin/bash
 
 show_instructions() {
-    echo "Usage: $0 [-f|--force] <version|major|minor|patch>"
+    echo "Usage: $0 [-f|--force] [-n|--dry-run] <version|major|minor|patch>"
     echo "Options:"
     echo "  -f, --force   Force update even if the new version is the same or lower"
+    echo "  -n, --dry-run Do everything except creating git commits and tags"
     echo "  -h, --help    Show these instructions"
     echo "Examples:"
     echo "  $0 patch"
     echo "  $0 1.2.3"
     echo "  $0 --force 1.2.3"
+    echo "  $0 --dry-run minor"
     echo "  $0 --help"
 }
 
@@ -71,6 +73,7 @@ update_version_and_commit() {
     local current_version="$2"
     local requested_version="$3"
     local force="${4:-false}"
+    local dry_run="${5:-false}"
 
     echo "Updating version from $current_version to $requested_version..."
 
@@ -87,6 +90,13 @@ update_version_and_commit() {
             -e "s/@since([[:space:]]+)next/@since\1$requested_version/g" \
             "$file"
     done < <(find . -type f \( -name "*.php" -o -name "*.js" -o -name "*.css" \) -print0)
+
+    if [[ "$dry_run" == true ]]; then
+        echo "[dry-run] Skipping git add/commit and tag creation."
+        echo "[dry-run] Would have created commit with message: $requested_version"
+        echo "[dry-run] Would have created tag: v$requested_version"
+        return 0
+    fi
 
     git add -A
     git commit --allow-empty -m "$requested_version"
@@ -121,6 +131,7 @@ main() {
 
     local requested_version=""
     local force=false
+    local dry_run=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -130,6 +141,11 @@ main() {
                 ;;
             -f|--force)
                 force=true
+                shift
+                ;;
+            -n|--dry-run)
+                dry_run=true
+                echo "Dry-run mode enabled: commits and tags will NOT be created."
                 shift
                 ;;
             *)
@@ -168,7 +184,7 @@ main() {
 
     if [[ "$force" == true ]]; then
         echo "Forcing version update."
-        update_version_and_commit "$file_name" "$current_version" "$normalized_version" true
+        update_version_and_commit "$file_name" "$current_version" "$normalized_version" true "$dry_run"
         exit 0
     fi
 
@@ -179,7 +195,7 @@ main() {
         echo -e "New version ($normalized_version) is less than current version ($current_version).\nVersion must be incremented."
         exit 1
     else
-        update_version_and_commit "$file_name" "$current_version" "$normalized_version"
+        update_version_and_commit "$file_name" "$current_version" "$normalized_version" false "$dry_run"
         exit 0
     fi
 }
