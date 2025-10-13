@@ -1008,51 +1008,161 @@ function odcm_get_log_statuses(): array
         'success' => [
             'label'     => __('Success', 'order-daemon'),
             'css_class' => 'odcm-status-pill--success',
+            'code'      => 1,
         ],
         
         'error' => [
             'label'     => __('Error', 'order-daemon'),
             'css_class' => 'odcm-status-pill--error',
+            'code'      => 2,
         ],
         
         'warning' => [
             'label'     => __('Warning', 'order-daemon'),
             'css_class' => 'odcm-status-pill--warning',
+            'code'      => 3,
         ],
         
         'info' => [
             'label'     => __('Info', 'order-daemon'),
             'css_class' => 'odcm-status-pill--info',
+            'code'      => 4,
         ],
         
         'notice' => [
             'label'     => __('Notice', 'order-daemon'),
             'css_class' => 'odcm-status-pill--notice',
+            'code'      => 5,
         ],
         
         'debug' => [
             'label'     => __('Debug', 'order-daemon'),
             'css_class' => 'odcm-status-pill--debug',
+            'code'      => 6,
         ],
         
         'critical' => [
             'label'     => __('Critical', 'order-daemon'),
             'css_class' => 'odcm-status-pill--critical',
+            'code'      => 7,
         ],
         
         'pending' => [
             'label'     => __('Pending', 'order-daemon'),
             'css_class' => 'odcm-status-pill--notice',
+            'code'      => 8,
         ],
         
         'skipped' => [
             'label'     => __('Skipped', 'order-daemon'),
             'css_class' => 'odcm-status-pill--notice',
+            'code'      => 9,
         ],
         
         'completed' => [
             'label'     => __('Completed', 'order-daemon'),
             'css_class' => 'odcm-status-pill--success',
+            'code'      => 10,
         ],
     ];
+}
+
+/**
+ * Get Log Sources Registry - Sources of audit log events with encoding
+ *
+ * @since 1.0.0
+ * @return array<string, array<string, mixed>>
+ */
+function odcm_get_log_sources(): array
+{
+    return [
+        'system' => [
+            'label' => __('System', 'order-daemon'),
+            'code'  => 1,
+        ],
+        'manual' => [
+            'label' => __('Manual', 'order-daemon'), 
+            'code'  => 2,
+        ],
+        'webhook' => [
+            'label' => __('Webhook', 'order-daemon'),
+            'code'  => 3,
+        ],
+        'api' => [
+            'label' => __('API', 'order-daemon'),
+            'code'  => 4,
+        ],
+        'scheduled' => [
+            'label' => __('Scheduled', 'order-daemon'),
+            'code'  => 5,
+        ],
+        'processor' => [
+            'label' => __('Event Processor', 'order-daemon'),
+            'code'  => 6,
+        ],
+        'logger' => [
+            'label' => __('Logger', 'order-daemon'),
+            'code'  => 7,
+        ],
+    ];
+}
+
+/**
+ * Encode status string to integer code
+ *
+ * @param string $status Status string
+ * @return int Status code
+ */
+function odcm_encode_status(string $status): int 
+{
+    $statuses = odcm_get_log_statuses();
+    return $statuses[$status]['code'] ?? 4; // Default to 'info'
+}
+
+/**
+ * Decode status code to string
+ *
+ * @param int $code Status code
+ * @return string Status string
+ */
+function odcm_decode_status(int $code): string 
+{
+    static $reverse_map = null;
+    if ($reverse_map === null) {
+        $statuses = odcm_get_log_statuses();
+        foreach ($statuses as $status => $data) {
+            $reverse_map[$data['code']] = $status;
+        }
+    }
+    return $reverse_map[$code] ?? 'info';
+}
+
+/**
+ * Encode source string to integer code
+ *
+ * @param string $source Source string
+ * @return int Source code
+ */
+function odcm_encode_source(string $source): int 
+{
+    $sources = odcm_get_log_sources();
+    return $sources[$source]['code'] ?? 1; // Default to 'system'
+}
+
+/**
+ * Decode source code to string
+ *
+ * @param int $code Source code
+ * @return string Source string
+ */
+function odcm_decode_source(int $code): string 
+{
+    static $reverse_map = null;
+    if ($reverse_map === null) {
+        $sources = odcm_get_log_sources();
+        foreach ($sources as $source => $data) {
+            $reverse_map[$data['code']] = $source;
+        }
+    }
+    return $reverse_map[$code] ?? 'system';
 }

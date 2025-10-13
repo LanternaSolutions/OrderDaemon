@@ -49,12 +49,7 @@ class Installer
             
             // Update the database version
             self::update_db_version();
-            
-            // Log successful installation
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('Order Daemon: Database setup completed successfully');
-            }
-            
+
         } catch (Exception $e) {
             // Log installation error
             error_log('Order Daemon Database Setup Error: ' . $e->getMessage());

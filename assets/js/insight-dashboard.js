@@ -656,22 +656,24 @@ function insightDashboard() {
                 // Debug logging to track the complete request pipeline
                 if (odcmIsDebug()) {
                     console.log('ODCM: fetchLogDetails called with logId:', logId);
-                    console.log('ODCM: this.config.renderUrl:', this.config.renderUrl);
+                    console.log('ODCM: this.config.apiUrl:', this.config.apiUrl);
                     console.log('ODCM: this.config.nonce:', this.config.nonce ? 'present' : 'missing');
                     console.log('ODCM: this.filters.include_debug:', this.filters.include_debug);
                 }
 
+                // Use the correct REST API endpoint format
+                const renderEndpoint = `${this.config.apiUrl}render-components/`;
                 const requestPayload = {
                     log_id: logId,
                     include_debug: this.filters.include_debug
                 };
 
                 if (odcmIsDebug()) {
-                    console.log('ODCM: Making POST request to:', this.config.renderUrl);
+                    console.log('ODCM: Making POST request to:', renderEndpoint);
                     console.log('ODCM: Request payload:', requestPayload);
                 }
 
-                const response = await fetch(`${this.config.renderUrl}`, {
+                const response = await fetch(renderEndpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1508,11 +1510,102 @@ function insightDashboard() {
         },
 
         // =================================================================
+        // LOG ENTRY CLASSIFICATION AND STYLING
+        // =================================================================
+        
+        /**
+         * Get CSS classes for a log entry based on its properties
+         */
+        getLogEntryClasses(log) {
+            const classes = ['odcm-log-entry'];
+            
+            // Add consolidated entry class
+            if (this.isConsolidatedEntry(log)) {
+                classes.push('is-consolidated');
+            }
+            
+            // Add process representative class
+            if (log.is_process_representative) {
+                classes.push('is-process-representative');
+            }
+            
+            // Add selected state
+            if (this.selectedLog && this.selectedLog.id === log.id) {
+                classes.push('is-selected');
+            }
+            
+            // Add checkbox selected state
+            if (this.isLogSelected(log.id)) {
+                classes.push('is-checkbox-selected');
+            }
+            
+            return classes.join(' ');
+        },
+        
+        /**
+         * Check if a log entry is consolidated (has multiple events)
+         */
+        isConsolidatedEntry(log) {
+            return log.is_process_representative === true || 
+                   (log.consolidation_data && log.consolidation_data.is_consolidated === true) ||
+                   (log.process_event_count && log.process_event_count > 1);
+        },
+        
+        /**
+         * Get the appropriate icon for a log entry
+         */
+        getLogEntryIcon(log) {
+            if (this.isConsolidatedEntry(log)) {
+                return 'dashicons-networking'; // Network/group icon for consolidated entries
+            }
+            
+            // Return different icons based on event type or status
+            const eventType = (log.event_type || '').toLowerCase();
+            const status = (log.status || '').toLowerCase();
+            
+            if (status === 'error') return 'dashicons-warning';
+            if (status === 'success') return 'dashicons-yes-alt';
+            if (eventType.includes('payment')) return 'dashicons-money-alt';
+            if (eventType.includes('order')) return 'dashicons-cart';
+            if (eventType.includes('webhook')) return 'dashicons-admin-links';
+            
+            return 'dashicons-admin-generic'; // Default icon
+        },
+        
+        /**
+         * Get display text for consolidated entries
+         */
+        getConsolidatedText(log) {
+            if (!this.isConsolidatedEntry(log)) return '';
+            
+            const count = log.process_event_count || 
+                         (log.consolidation_data && log.consolidation_data.timeline_events 
+                          ? log.consolidation_data.timeline_events.length 
+                          : 2);
+            
+            return `(${count} events)`;
+        },
+
+        // =================================================================
         // DETAIL PANE
         // =================================================================
         async selectLog(log) {
             this.selectedLog = log;
             this.detailLoading = true;
+            
+            // Check if this is a consolidated/representative entry
+            const isConsolidated = this.isConsolidatedEntry(log);
+            
+            if (odcmIsDebug()) {
+                console.log('ODCM: selectLog called for:', {
+                    id: log.id,
+                    summary: log.summary,
+                    isConsolidated: isConsolidated,
+                    isProcessRepresentative: log.is_process_representative,
+                    processEventCount: log.process_event_count
+                });
+            }
+            
             this.detailHtml = await this.fetchLogDetails(log.id);
             this.detailLoading = false;
             this.$nextTick(() => {

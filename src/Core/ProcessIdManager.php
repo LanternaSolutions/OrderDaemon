@@ -40,9 +40,6 @@ final class ProcessIdManager
         if (!empty($existing_id)) {
             // Verify the process is still active (within reasonable time window)
             if ($this->is_process_active($existing_id)) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log(sprintf('ODCM PID: reuse existing pid for order %d: %s', $order_id, (string)$existing_id));
-                }
                 return (string) $existing_id;
             }
         }
@@ -54,9 +51,6 @@ final class ProcessIdManager
         update_post_meta($order_id, '_odcm_active_process_id', $process_id);
         update_post_meta($order_id, '_odcm_process_started_at', time());
 
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log(sprintf('ODCM PID: created new pid for order %d: %s (previous: %s)', $order_id, $process_id, (string)($existing_id ?: 'none')));
-        }
 
         return $process_id;
     }

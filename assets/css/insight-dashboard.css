@@ -2580,21 +2580,103 @@ label.odcm-retention-option {
    - Timeline styles for consolidated detail rendering
    ====================================================================== */
 
-/* Stream: highlight consolidated entries */
+/* Log Entry Icons - Dynamic icons for different entry types */
+.odcm-log-entry-icon {
+    color: var(--odcm-theme-grey-600);
+    margin-right: var(--odcm-theme-spacing-xs);
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Consolidated entries get special icon color */
+.odcm-log-entry.is-consolidated .odcm-log-entry-icon {
+    color: var(--odcm-theme-blue-700);
+}
+
+/* Process representative entries get special icon color */
+.odcm-log-entry.is-process-representative .odcm-log-entry-icon {
+    color: var(--odcm-theme-purple-700);
+}
+
+/* Consolidated Count Badge */
+.odcm-consolidated-count {
+    display: inline-flex;
+    align-items: center;
+    background: var(--odcm-theme-blue-200);
+    color: var(--odcm-theme-grey-900);
+    padding: 2px 6px;
+    border-radius: var(--odcm-component-border-radius);
+    font-size: var(--odcm-theme-font-size-xs);
+    font-weight: 500;
+    margin-left: var(--odcm-theme-spacing-xs);
+    border: 1px solid var(--odcm-theme-blue-700);
+}
+
+/* Process Representative Badge */
+.odcm-process-representative-badge {
+    display: inline-flex;
+    align-items: center;
+    background: var(--odcm-theme-purple-200);
+    color: var(--odcm-theme-grey-900);
+    padding: 2px 6px;
+    border-radius: var(--odcm-component-border-radius);
+    font-size: var(--odcm-theme-font-size-xs);
+    font-weight: 500;
+    border: 1px solid var(--odcm-theme-purple-700);
+    text-transform: uppercase;
+}
+
+/* Stream: Enhanced styling for consolidated entries */
 .odcm-log-entry.is-consolidated {
-  border-color: var(--odcm-theme-grey-500);
+    border-color: var(--odcm-theme-blue-700);
+    background: var(--odcm-theme-blue-200);
+    border-left: 4px solid var(--odcm-theme-blue-700);
 }
 
 .odcm-log-entry.is-consolidated:hover {
-  border-color: var(--odcm-theme-blue-700);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-color: var(--odcm-theme-blue-700);
+    background: var(--odcm-theme-blue-200);
+    box-shadow: 0 3px 8px rgba(0, 123, 186, 0.2);
+}
+
+/* Process representative entries */
+.odcm-log-entry.is-process-representative {
+    border-color: var(--odcm-theme-purple-700);
+    background: var(--odcm-theme-purple-200);
+    border-left: 4px solid var(--odcm-theme-purple-700);
+}
+
+.odcm-log-entry.is-process-representative:hover {
+    border-color: var(--odcm-theme-purple-700);
+    background: var(--odcm-theme-purple-200);
+    box-shadow: 0 3px 8px rgba(111, 66, 194, 0.2);
 }
 
 /* Icon next to consolidated summary */
 .odcm-consolidated-icon {
-  color: var(--odcm-theme-grey-500);
-  margin-right: 6px;
-  vertical-align: middle;
+    color: var(--odcm-theme-blue-700);
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+/* Enhanced log summary layout for consolidated entries */
+.odcm-log-entry.is-consolidated .odcm-log-summary,
+.odcm-log-entry.is-process-representative .odcm-log-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--odcm-theme-spacing-xs);
+}
+
+/* Ensure the summary text doesn't break awkwardly */
+.odcm-log-summary > span:first-of-type {
+    flex: 1;
+    min-width: 0;
 }
 
 /* Detail: consolidated header */

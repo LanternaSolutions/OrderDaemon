@@ -54,7 +54,6 @@ class EventRouter
                 throw new \InvalidArgumentException("No adapter available for gateway: {$gateway}");
             }
 
-            $this->logRouterInfo("Selected adapter: {$adapter->getGatewayName()}", $gateway);
 
             // Validate authenticity
             if (!$adapter->validateAuthenticity($input_data)) {
@@ -98,7 +97,6 @@ class EventRouter
         $gateway_name = $adapter->getGatewayName();
         $this->adapters[$gateway_name] = $adapter;
         
-        $this->logRouterInfo("Registered adapter for gateway: {$gateway_name}");
     }
 
     /**
@@ -256,7 +254,6 @@ class EventRouter
                 'odcm-webhooks'
             );
 
-            $this->logRouterInfo("Dispatched event: {$event->eventType} ({$event->idempotencyKey})");
         }
     }
 
@@ -280,27 +277,6 @@ class EventRouter
         do_action('odcm_register_gateway_adapters', $this);
     }
 
-    /**
-     * Log router information
-     * 
-     * @param string $message Log message
-     * @param string|null $gateway Gateway context
-     * @param array $context Additional context
-     * @return void
-     */
-    private function logRouterInfo(string $message, ?string $gateway = null, array $context = []): void
-    {
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            $log_message = 'ODCM Event Router: ' . $message;
-            if ($gateway) {
-                $log_message .= " (Gateway: {$gateway})";
-            }
-            if (!empty($context)) {
-                $log_message .= ' - Context: ' . wp_json_encode($context);
-            }
-            error_log($log_message);
-        }
-    }
 
     /**
      * Log router success
@@ -327,9 +303,6 @@ class EventRouter
             );
         }
 
-        $this->logRouterInfo("Successfully processed {$events_count} events", $gateway, [
-            'execution_time' => $execution_time
-        ]);
     }
 
     /**

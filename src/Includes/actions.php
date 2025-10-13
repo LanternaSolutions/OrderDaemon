@@ -33,6 +33,9 @@ use function OrderDaemon\CompletionManager\Utils\odcm_sanitize_payload_for_loggi
  */
 function odcm_handle_log_processing($args) {
     global $wpdb;
+    
+    // DEBUG: Log that function is being called
+    error_log("ODCM DEBUG: odcm_handle_log_processing() called with args: " . wp_json_encode($args));
 
     // Handle both array and JSON string arguments from Action Scheduler
     if (is_string($args)) {
@@ -50,22 +53,76 @@ function odcm_handle_log_processing($args) {
         return;
     }
 
-    // Extract event_data from wrapped args
-    $event_data = $args['event_data'] ?? null;
-    if (!is_array($event_data) || !isset($event_data['summary'], $event_data['event_type'])) {
-        error_log("ODCM: Invalid event_data in log processing");
-        error_log("ODCM DEBUG: Args structure: " . wp_json_encode($args));
+    // SIMPLIFIED: Expect only compressed format
+    // odcm_log_event() sends compressed data directly to Action Scheduler
+    if (!isset($args['d']) || !is_array($args['d'])) {
+        error_log("ODCM: Invalid compressed payload structure");
+        error_log("ODCM DEBUG: Expected compressed format with 'd' key, got: " . wp_json_encode($args));
         return;
     }
 
-    // Extract envelope for payload
-    $envelope = $event_data['envelope'] ?? [];
-    $sanitized_envelope = odcm_sanitize_payload_for_logging($envelope);
+    $comp_data = $args['d'];
+    
+    // Decode compressed fields using registry helper functions
+    $status = odcm_decode_status($comp_data['st'] ?? 4);
+    $event_type = $comp_data['t'] ?? 'event';
+    $order_id = $comp_data['o'] ?? null;
+    $is_test = !empty($comp_data['test']);
+    $process_id = $comp_data['pid'] ?? null;
+    $source = odcm_decode_source($comp_data['src'] ?? 7);
+    
+    // TEMPLATE-BASED SUMMARY RECONSTRUCTION
+    $event_types = odcm_get_log_event_types();
+    $has_template = isset($event_types[$event_type]['summary_template']);
+    
+    if ($has_template) {
+        // Reconstruct from template + variables
+        $template = $event_types[$event_type]['summary_template'];
+        $data = $comp_data['data'] ?? [];
+        
+        // Build variables array for sprintf
+        $variables = [];
+        if ($order_id) {
+            $variables[] = $order_id; // Most templates use order_id as first variable
+        }
+        
+        // Add additional variables from data array in common order
+        if (!empty($data['rule_name'])) {
+            $variables[] = $data['rule_name'];
+        }
+        if (!empty($data['error_message'])) {
+            $variables[] = $data['error_message'];
+        }
+        if (!empty($data['user_name'])) {
+            $variables[] = $data['user_name'];
+        }
+        
+        try {
+            // Reconstruct full summary from template
+            $summary = sprintf($template, ...$variables);
+        } catch (Exception $e) {
+            // Fallback if sprintf fails
+            $summary = "Event: {$event_type}";
+            if ($order_id) {
+                $summary .= " (Order #{$order_id})";
+            }
+        }
+        
+    } else {
+        // Custom event - use stored summary (already validated length)
+        $summary = $comp_data['s'] ?? 'Custom event processed';
+    }
+    
+    // Store compressed format as payload (70%+ space savings!)
+    $payload_to_store = $args;
 
-    // Insert payload first
+    // Sanitize and insert payload
+    $sanitized_payload = odcm_sanitize_payload_for_logging($payload_to_store);
+    error_log("ODCM DEBUG: About to insert payload: " . json_encode($sanitized_payload));
+    
     $payload_insert = $wpdb->insert(
         $wpdb->prefix . 'odcm_audit_log_payloads',
-        ['payload' => json_encode($sanitized_envelope)]
+        ['payload' => json_encode($sanitized_payload)]
     );
 
     if ($payload_insert === false) {
@@ -74,52 +131,27 @@ function odcm_handle_log_processing($args) {
     }
 
     $payload_id = $wpdb->insert_id;
+    error_log("ODCM DEBUG: Payload inserted with ID: " . $payload_id);
 
-    // Prepare log data
+    // Prepare log data from extracted values
     $log_data = [
-        'summary'    => sanitize_text_field($event_data['summary']),
-        'event_type' => sanitize_key($event_data['event_type']),
-        'status'     => sanitize_key($event_data['status'] ?? 'info'),
+        'summary'    => sanitize_text_field($summary),
+        'event_type' => sanitize_key($event_type),
+        'status'     => sanitize_key($status),
         'payload_id' => $payload_id,
         'timestamp'  => current_time('mysql'),
-        'is_test'    => !empty($event_data['is_test']) ? 1 : 0,
+        'is_test'    => $is_test ? 1 : 0,
     ];
 
-    // Add optional fields - check both top-level event_data and optimized envelope structure
-    $order_id = null;
-    $process_id = null;
-    $source = null;
-    
-    // Extract order_id
-    if (!empty($event_data['order_id'])) {
-        $order_id = (int) $event_data['order_id'];
-    } elseif (!empty($envelope['oid'])) {
-        $order_id = (int) $envelope['oid']; // Optimized field name
-    }
-    
-    // Extract process_id  
-    if (!empty($event_data['process_id'])) {
-        $process_id = sanitize_text_field($event_data['process_id']);
-    } elseif (!empty($envelope['cid'])) {
-        $process_id = sanitize_text_field($envelope['cid']); // Optimized field name (correlation_id)
-    }
-    
-    // Extract source
-    if (!empty($event_data['source'])) {
-        $source = sanitize_text_field($event_data['source']);
-    } elseif (!empty($envelope['source'])) {
-        $source = sanitize_text_field($envelope['source']); // Same field name
-    }
-    
-    // Add to log_data if found
+    // Add optional fields if available
     if ($order_id) {
-        $log_data['order_id'] = $order_id;
+        $log_data['order_id'] = (int) $order_id;
     }
     if ($process_id) {
-        $log_data['process_id'] = $process_id;
+        $log_data['process_id'] = sanitize_text_field($process_id);
     }
     if ($source) {
-        $log_data['source'] = $source;
+        $log_data['source'] = sanitize_text_field($source);
     }
 
     // Insert log entry with duplicate protection

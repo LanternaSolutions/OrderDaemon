@@ -1961,109 +1961,162 @@ class AuditLogEndpoint extends WP_REST_Controller
      */
     private function apply_filters_to_query(WP_REST_Request $request, array &$where_conditions, array &$where_values): void
     {
+        // Enhanced debugging for the "Server error - include test/debug log settings" issue
+        error_log("ODCM API FILTER DEBUG: apply_filters_to_query called");
+        error_log("ODCM API FILTER DEBUG: Request parameters: " . json_encode($request->get_params()));
+        
         try {
             global $wpdb;
 
-            // Search filter
+            // Search filter with debugging
             $search = $request->get_param('s');
+            error_log("ODCM API FILTER DEBUG: Search parameter: " . ($search ?: 'empty'));
             if (!empty($search)) {
                 $where_conditions[] = "(l.summary LIKE %s OR l.order_id = %s)";
                 $where_values[] = '%' . $wpdb->esc_like($search) . '%';
                 $where_values[] = is_numeric($search) ? (int) $search : 0;
+                error_log("ODCM API FILTER DEBUG: Search filter applied");
             }
 
-            // Status filter (premium)
+            // Status filter (premium) with debugging
             $status = $request->get_param('status');
+            error_log("ODCM API FILTER DEBUG: Status parameter: " . ($status ?: 'empty'));
             if (!empty($status) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
                 $where_conditions[] = "l.status = %s";
                 $where_values[] = $status;
+                error_log("ODCM API FILTER DEBUG: Status filter applied");
             }
 
-            // Event type filter (premium)
+            // Event type filter (premium) with debugging
             $event_type = $request->get_param('event_type');
+            error_log("ODCM API FILTER DEBUG: Event type parameter: " . ($event_type ?: 'empty'));
             if (!empty($event_type) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
                 $where_conditions[] = "l.event_type = %s";
                 $where_values[] = $event_type;
+                error_log("ODCM API FILTER DEBUG: Event type filter applied");
             }
 
-            // Source filter (premium)
+            // Source filter (premium) with debugging
             $source = $request->get_param('source');
+            error_log("ODCM API FILTER DEBUG: Source parameter: " . ($source ?: 'empty'));
             if (!empty($source) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
                 $where_conditions[] = "l.source = %s";
                 $where_values[] = $source;
+                error_log("ODCM API FILTER DEBUG: Source filter applied");
             }
 
-            // Order ID filter (premium)
+            // Order ID filter (premium) with debugging
             $order_id = $request->get_param('order_id');
+            error_log("ODCM API FILTER DEBUG: Order ID parameter: " . ($order_id ?: 'empty'));
             if (!empty($order_id) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
                 $where_conditions[] = "l.order_id = %d";
                 $where_values[] = (int) $order_id;
+                error_log("ODCM API FILTER DEBUG: Order ID filter applied");
             }
 
-            // Date range filters (premium)
+            // Date range filters (premium) with debugging
             $date_start = $request->get_param('date_start');
             $date_end = $request->get_param('date_end');
+            error_log("ODCM API FILTER DEBUG: Date range - start: " . ($date_start ?: 'empty') . ", end: " . ($date_end ?: 'empty'));
             if (!empty($date_start) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
                 $where_conditions[] = "l.timestamp >= %s";
                 $where_values[] = $date_start . ' 00:00:00';
+                error_log("ODCM API FILTER DEBUG: Date start filter applied");
             }
             if (!empty($date_end) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
                 $where_conditions[] = "l.timestamp <= %s";
                 $where_values[] = $date_end . ' 23:59:59';
+                error_log("ODCM API FILTER DEBUG: Date end filter applied");
             }
 
-            // Include tests filter (always available) - now using boolean logic
+            // Include tests filter (always available) - ENHANCED DEBUGGING
             $include_tests = $request->get_param('include_tests');
+            error_log("ODCM API FILTER DEBUG: Include tests parameter: " . ($include_tests ? 'true' : 'false') . " (type: " . gettype($include_tests) . ")");
+            
             if (!$include_tests) {
+                error_log("ODCM API FILTER DEBUG: Applying test exclusion filter");
                 try {
                     // Check if is_test column exists before using it
                     $log_table = $wpdb->prefix . 'odcm_audit_log';
+                    error_log("ODCM API FILTER DEBUG: Checking is_test column existence in table: $log_table");
+                    
                     $column_exists = $wpdb->get_var("SHOW COLUMNS FROM {$log_table} LIKE 'is_test'");
+                    error_log("ODCM API FILTER DEBUG: is_test column exists: " . ($column_exists ? 'YES' : 'NO'));
+                    error_log("ODCM API FILTER DEBUG: WPDB last error after column check: " . ($wpdb->last_error ?: 'none'));
 
                     if ($column_exists && !$wpdb->last_error) {
                         $where_conditions[] = "(l.is_test IS NULL OR l.is_test = 0)";
+                        error_log("ODCM API FILTER DEBUG: Test exclusion condition added successfully");
+                    } else {
+                        error_log("ODCM API FILTER DEBUG: Test exclusion condition NOT added - column missing or DB error");
                     }
                 } catch (\Exception $e) {
-                    error_log("ODCM API: Error checking is_test column: " . $e->getMessage());
+                    error_log("ODCM API FILTER DEBUG: Exception in test filter: " . $e->getMessage());
+                    error_log("ODCM API FILTER DEBUG: Exception trace: " . $e->getTraceAsString());
                     // Continue without test exclusion
                 }
+            } else {
+                error_log("ODCM API FILTER DEBUG: Including test logs - no test exclusion applied");
             }
 
-            // Include debug filter (always available) - now using boolean logic
+            // Include debug filter (always available) - ENHANCED DEBUGGING
             $include_debug = $request->get_param('include_debug');
+            error_log("ODCM API FILTER DEBUG: Include debug parameter: " . ($include_debug ? 'true' : 'false') . " (type: " . gettype($include_debug) . ")");
+            
             if (!$include_debug) {
+                error_log("ODCM API FILTER DEBUG: Applying debug exclusion filter");
                 try {
                     // Build debug exclusion condition with defensive checks
                     $debug_condition = $this->build_debug_exclusion_condition();
+                    error_log("ODCM API FILTER DEBUG: Debug condition result: " . json_encode($debug_condition));
+                    
                     if (!empty($debug_condition['condition'])) {
                         $where_conditions[] = $debug_condition['condition'];
                         if (!empty($debug_condition['values'])) {
                             $where_values = array_merge($where_values, $debug_condition['values']);
                         }
+                        error_log("ODCM API FILTER DEBUG: Debug exclusion condition added successfully");
+                    } else {
+                        error_log("ODCM API FILTER DEBUG: Debug exclusion condition NOT added - empty condition returned");
                     }
                 } catch (\Exception $e) {
-                    error_log("ODCM API: Error applying debug filter: " . $e->getMessage());
+                    error_log("ODCM API FILTER DEBUG: Exception in debug filter: " . $e->getMessage());
+                    error_log("ODCM API FILTER DEBUG: Exception trace: " . $e->getTraceAsString());
                     // Continue without debug exclusion - better to show some debug logs than fail completely
                 }
+            } else {
+                error_log("ODCM API FILTER DEBUG: Including debug logs - no debug exclusion applied");
             }
 
             // Exclude consolidation diagnostics by default unless explicitly opted-in and in debug
             $include_consolidation_diag = (bool) $request->get_param('include_consolidation_diag');
             $debug_on = (defined('ODCM_DEBUG') && ODCM_DEBUG);
+            error_log("ODCM API FILTER DEBUG: Consolidation diag - include: " . ($include_consolidation_diag ? 'true' : 'false') . ", debug_on: " . ($debug_on ? 'true' : 'false'));
+            
             if (!($include_consolidation_diag && $debug_on)) {
                 $where_conditions[] = "(l.event_type IS NULL OR l.event_type <> %s)";
                 $where_values[] = 'consolidation_diag';
+                error_log("ODCM API FILTER DEBUG: Consolidation diagnostic exclusion applied");
+            } else {
+                error_log("ODCM API FILTER DEBUG: Including consolidation diagnostics");
             }
 
             // Since filter for incremental updates
             $since = $request->get_param('since');
+            error_log("ODCM API FILTER DEBUG: Since parameter: " . ($since ?: 'empty'));
             if (!empty($since)) {
                 $where_conditions[] = "l.timestamp > %s";
                 $where_values[] = $since;
+                error_log("ODCM API FILTER DEBUG: Since filter applied");
             }
 
+            error_log("ODCM API FILTER DEBUG: Final filter state - conditions: " . count($where_conditions) . ", values: " . count($where_values));
+            error_log("ODCM API FILTER DEBUG: Where conditions: " . json_encode($where_conditions));
+
         } catch (\Exception $e) {
-            error_log("ODCM API: Error in apply_filters_to_query: " . $e->getMessage());
+            error_log("ODCM API FILTER DEBUG: CRITICAL EXCEPTION in apply_filters_to_query: " . $e->getMessage());
+            error_log("ODCM API FILTER DEBUG: Exception trace: " . $e->getTraceAsString());
+            
             // Reset to basic state if filter application fails
             $where_conditions = [];
             $where_values = [];
@@ -2075,8 +2128,9 @@ class AuditLogEndpoint extends WP_REST_Controller
                     $where_conditions[] = "(l.summary LIKE %s OR l.order_id = %s)";
                     $where_values[] = '%' . $wpdb->esc_like($search) . '%';
                     $where_values[] = is_numeric($search) ? (int) $search : 0;
+                    error_log("ODCM API FILTER DEBUG: Applied basic search filter in exception recovery");
                 } catch (\Exception $search_e) {
-                    error_log("ODCM API: Even basic search filter failed: " . $search_e->getMessage());
+                    error_log("ODCM API FILTER DEBUG: Even basic search filter failed: " . $search_e->getMessage());
                     // Complete fallback - no filters
                     $where_conditions = [];
                     $where_values = [];

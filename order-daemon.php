@@ -46,7 +46,7 @@ define('ODCM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ODCM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('ODCM_PLUGIN_FILE', __FILE__);
 if ( ! defined( 'ODCM_DEBUG' ) ) {
-    define('ODCM_DEBUG', defined('WP_DEBUG') && WP_DEBUG);
+    define('ODCM_DEBUG', false); // ✅ Default disabled, explicit enable only
 }
 define('ODCM_IS_CORE', true);
 

@@ -1025,7 +1025,12 @@ function odcm_log_event(
         return false;
     }
 
-    // Validate status against registry
+    // Validate and sanitize summary parameter
+    if (empty($summary) || !is_string($summary)) {
+        $summary = 'Event logged'; // Default fallback
+    }
+
+    // Validate status against registry and get encoding helper functions
     $available_statuses = odcm_get_log_statuses();
     if (!array_key_exists($status, $available_statuses)) {
         $status = 'info';
@@ -1063,7 +1068,7 @@ function odcm_log_event(
         'order_id'   => $order_id,
         'is_test'    => $is_test,
         'envelope'   => $envelope,
-        'source'     => 'unified_logger',
+        'source'     => 'logger',
     ];
 
     // Add process ID for lifecycle events
@@ -1078,13 +1083,76 @@ function odcm_log_event(
         $event_data = odcm_maybe_add_process_id($event_data);
     }
 
-    // Schedule asynchronously via Action Scheduler
-    // Wrap in array so Action Scheduler passes it as single array argument
-    as_enqueue_async_action(
-        'odcm_process_log_entry',
-        ['event_data' => $event_data],
-        'odcm-logs'
-    );
+    // SIMPLIFIED COMPRESSION FOR ACTION SCHEDULER
+    // Always store event_type + essential data
+    // Registry templates will be used during decompression
+    $event_types = odcm_get_log_event_types();
+    $has_template = isset($event_types[$event_type]['summary_template']);
+    
+    $compressed = [
+        'd' => [
+            't' => $event_type,  // Always store event type
+            'st' => odcm_encode_status($status),
+            'o' => $order_id,
+        ]
+    ];
+    
+    // For custom events (no template), validate and store summary
+    if (!$has_template) {
+        $compressed['d']['s'] = odcm_validate_custom_summary($summary, 60); // 60 char limit
+    }
+    
+    // Store the original data array - this contains variables for templates
+    if (!empty($data)) {
+        $compressed['d']['data'] = $data;
+    }
+    
+    // Add test flag if needed
+    if ($is_test) {
+        $compressed['d']['test'] = 1;
+    }
+    
+    // Minimal envelope data
+    $compressed['d']['e'] = [
+        'st' => odcm_encode_status($envelope['status']),
+        'ts' => $envelope['ts'],
+        'cs' => count($envelope['components']),
+    ];
+
+    // Add process_id if available
+    if (!empty($event_data['process_id'])) {
+        $compressed['d']['pid'] = $event_data['process_id'];
+    }
+
+    // Add source encoding
+    $compressed['d']['src'] = odcm_encode_source($event_data['source']);
+
+    // CHECK SIZE AND QUEUE - Send ONLY compressed data to Action Scheduler
+    $encoded_size = strlen(json_encode($compressed));
+    if ($encoded_size < 190) {
+        // FIX: Action Scheduler uses call_user_func_array() which spreads array arguments
+        // We need to pass the compressed data as a single argument in an array
+        as_enqueue_async_action(
+            'odcm_process_log_entry',
+            [$compressed], // Wrap in array to prevent spreading
+            'odcm-logs'
+        );
+    } else {
+        // Fallback: ultra-minimal payload
+        $minimal = [
+            'd' => [
+                's' => substr($summary, 0, 20) . '...',
+                'st' => odcm_encode_status($status),
+                'o' => $order_id,
+                'pid' => $event_data['process_id'] ?? null
+            ]
+        ];
+        as_enqueue_async_action(
+            'odcm_process_log_entry',
+            [$minimal], // Wrap in array to prevent spreading
+            'odcm-logs'
+        );
+    }
 
     return true;
 }
@@ -1117,6 +1185,83 @@ function odcm_get_log_event_types(): array
 function odcm_get_log_statuses(): array
 {
     return \OrderDaemon\CompletionManager\Core\odcm_get_log_statuses();
+}
+
+/**
+ * Encode status string to integer code - Global Wrapper Function
+ *
+ * @since 1.0.0
+ * @param string $status Status string
+ * @return int Status code
+ */
+function odcm_encode_status(string $status): int 
+{
+    return \OrderDaemon\CompletionManager\Core\odcm_encode_status($status);
+}
+
+/**
+ * Decode status code to string - Global Wrapper Function
+ *
+ * @since 1.0.0
+ * @param int $code Status code
+ * @return string Status string
+ */
+function odcm_decode_status(int $code): string 
+{
+    return \OrderDaemon\CompletionManager\Core\odcm_decode_status($code);
+}
+
+/**
+ * Encode source string to integer code - Global Wrapper Function
+ *
+ * @since 1.0.0
+ * @param string $source Source string
+ * @return int Source code
+ */
+function odcm_encode_source(string $source): int 
+{
+    return \OrderDaemon\CompletionManager\Core\odcm_encode_source($source);
+}
+
+/**
+ * Decode source code to string - Global Wrapper Function
+ *
+ * @since 1.0.0
+ * @param int $code Source code
+ * @return string Source string
+ */
+function odcm_decode_source(int $code): string 
+{
+    return \OrderDaemon\CompletionManager\Core\odcm_decode_source($code);
+}
+
+/**
+ * Validate custom summary against character limits
+ *
+ * Enforces character limits for custom event summaries to ensure
+ * they fit within Action Scheduler payload constraints.
+ *
+ * @since 1.0.0
+ * @param string $summary The custom summary to validate
+ * @param int $max_length Maximum allowed character length (default: 60)
+ * @return string Validated and potentially truncated summary
+ */
+function odcm_validate_custom_summary(string $summary, int $max_length = 60): string 
+{
+    if (strlen($summary) <= $max_length) {
+        return $summary;
+    }
+    
+    // Truncate with ellipsis, ensuring we don't break in the middle of a word
+    $truncated = substr($summary, 0, $max_length - 3);
+    $last_space = strrpos($truncated, ' ');
+    
+    if ($last_space !== false && $last_space > $max_length * 0.8) {
+        // If we have a space in the last 20% of the string, break there
+        $truncated = substr($truncated, 0, $last_space);
+    }
+    
+    return $truncated . '...';
 }
 
 /**
@@ -1243,33 +1388,16 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
  *         </details>
  */
 function odcm_format_as_args_column($output, $row) {
-    // DEBUG: Log that the filter is being called
-    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-        error_log('[ODCM DEBUG] odcm_format_as_args_column() called');
-        error_log('[ODCM DEBUG] Original output length: ' . strlen($output));
-        error_log('[ODCM DEBUG] Original output preview: ' . substr(strip_tags($output), 0, 100));
-        error_log('[ODCM DEBUG] Row keys: ' . (is_array($row) ? implode(', ', array_keys($row)) : 'not an array'));
-    }
-
     // Defensive check: Ensure we have a valid row array
     if (!is_array($row) || !isset($row['hook']) || !isset($row['args'])) {
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('[ODCM DEBUG] Invalid row structure or missing hook/args');
-        }
         return $output;
     }
 
     // Get the hook name from the row
     $hook = $row['hook'];
-    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-        error_log('[ODCM DEBUG] Hook name: ' . $hook);
-    }
 
     // Early return if hook is not a string or is empty
     if (!is_string($hook) || empty($hook)) {
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('[ODCM DEBUG] Hook is not a string or is empty');
-        }
         return $output;
     }
 
@@ -1281,32 +1409,20 @@ function odcm_format_as_args_column($output, $row) {
     foreach ($plugin_prefixes as $prefix) {
         if (strpos($hook, $prefix) === 0) {
             $is_our_action = true;
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('[ODCM DEBUG] Found our plugin action: ' . $hook);
-            }
             break;
         }
     }
 
     // If this action does not belong to our plugin, return original output unchanged
     if (!$is_our_action) {
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('[ODCM DEBUG] Not our plugin action, returning original output');
-        }
         return $output;
     }
 
     // Get the arguments from the row
     $args = $row['args'];
-    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-        error_log('[ODCM DEBUG] Args retrieved: ' . wp_json_encode($args));
-    }
 
     // If args are empty or not an array, return original output
     if (empty($args) || !is_array($args)) {
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('[ODCM DEBUG] Args are empty or not an array');
-        }
         return $output;
     }
 
@@ -1318,24 +1434,14 @@ function odcm_format_as_args_column($output, $row) {
     if (isset($args['event_data']) && is_array($args['event_data']) && isset($args['event_data']['summary'])) {
         $summary_text = $args['event_data']['summary'];
         $key_name = 'event_data';
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('[ODCM DEBUG] Found event_data summary: ' . $summary_text);
-        }
     }
     // Check for simple order_id structure
     elseif (isset($args['order_id']) && is_numeric($args['order_id'])) {
         $summary_text = "Order #{$args['order_id']}";
         $key_name = 'order_id';
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('[ODCM DEBUG] Found order_id: ' . $args['order_id']);
-        }
     }
     // Fallback: Unknown structure - return original output unchanged
     else {
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('[ODCM DEBUG] Unknown args structure, returning original output');
-            error_log('[ODCM DEBUG] Args keys: ' . implode(', ', array_keys($args)));
-        }
         return $output;
     }
 
@@ -1344,9 +1450,6 @@ function odcm_format_as_args_column($output, $row) {
     
     // If JSON encoding failed, return original output
     if ($formatted_args === false) {
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('[ODCM DEBUG] JSON encoding failed');
-        }
         return $output;
     }
     
@@ -1363,10 +1466,6 @@ function odcm_format_as_args_column($output, $row) {
         $escaped_args
     );
     
-    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-        error_log('[ODCM DEBUG] Generated new output: ' . substr($new_output, 0, 200) . '...');
-    }
-    
     return $new_output;
 }
 
@@ -1375,12 +1474,6 @@ function odcm_format_as_args_column($output, $row) {
 // 2 parameters: $output and $action object
 add_filter('action_scheduler_list_table_column_args', 'odcm_format_as_args_column', 10, 2);
 
-// DEBUG: Log filter registration
-if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-    add_action('init', function() {
-        error_log('[ODCM DEBUG] action_scheduler_list_table_column_args filter registered');
-    });
-}
 
 
 

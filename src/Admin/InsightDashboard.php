@@ -1394,13 +1394,8 @@ class InsightDashboard
                 </div>
 
                 <template x-for="(log, index) in logs" :key="log?.id || ('invalid-' + index)">
-                    <div class="odcm-log-entry" 
-                         x-show="log && log.id"
-                         :class="{ 
-                             'is-selected': selectedLog && selectedLog.id === log?.id,
-                             'is-checkbox-selected': log?.id && isLogSelected(log.id),
-                             'is-consolidated': log?.consolidation_data && log.consolidation_data.is_consolidated
-                         }">
+                    <div x-show="log && log.id"
+                         :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'">
                         
                         <div class="odcm-log-entry-checkbox" x-show="log && log.id">
                             <input type="checkbox" 
@@ -1417,10 +1412,15 @@ class InsightDashboard
                         <div class="odcm-log-entry-content" @click="log && selectLog(log)">
                             <div class="odcm-log-entry-header">
                                 <div class="odcm-log-summary">
-                                    <span x-show="log?.consolidation_data && log.consolidation_data.is_consolidated"
-                                          class="dashicons dashicons-networking odcm-consolidated-icon"
-                                          title="<?php echo esc_attr__('Consolidated Entry', Odcm_Config::$text_domain); ?>"></span>
+                                    <!-- Dynamic icon based on entry type -->
+                                    <span class="dashicons odcm-log-entry-icon"
+                                          :class="log ? getLogEntryIcon(log) : 'dashicons-admin-generic'"
+                                          :title="log && isConsolidatedEntry(log) ? '<?php echo esc_attr__('Consolidated Entry', Odcm_Config::$text_domain); ?>' : '<?php echo esc_attr__('Log Entry', Odcm_Config::$text_domain); ?>'"></span>
                                     <span x-text="log?.summary || 'No summary available'"></span>
+                                    <!-- Show consolidated event count -->
+                                    <span x-show="log && isConsolidatedEntry(log)"
+                                          class="odcm-consolidated-count"
+                                          x-text="getConsolidatedText(log)"></span>
                                 </div>
                                 <span class="odcm-status-pill" 
                                       :class="'odcm-status-pill--' + ((log?.status && typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')"
@@ -1432,8 +1432,14 @@ class InsightDashboard
                                 <span x-show="log?.order_id">
                                     <?php echo esc_html__('Order:', Odcm_Config::$text_domain); ?> #<span x-text="log.order_id"></span>
                                 </span>
-                                <span x-text="log?.event_type || ''"></span>
-                                <span x-text="log?.source || ''"></span>
+                                <span x-show="log?.event_type" x-text="log.event_type"></span>
+                                <span x-show="log?.source" x-text="log.source"></span>
+                                <!-- Show process representative indicator -->
+                                <span x-show="log?.is_process_representative"
+                                      class="odcm-process-representative-badge"
+                                      title="<?php echo esc_attr__('Process Timeline Available', Odcm_Config::$text_domain); ?>">
+                                    <?php echo esc_html__('Timeline', Odcm_Config::$text_domain); ?>
+                                </span>
                             </div>
                         </div>
                     </div>

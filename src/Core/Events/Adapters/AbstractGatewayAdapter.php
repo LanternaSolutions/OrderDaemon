@@ -300,31 +300,7 @@ abstract class AbstractGatewayAdapter implements GatewayEventAdapter
 
         return $sanitized;
     }
-
-    /**
-     * Log adapter activity for debugging
-     * 
-     * @param string $message Log message
-     * @param array $context Additional context
-     * @return void
-     */
-    protected function log(string $message, array $context = []): void
-    {
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            $log_message = sprintf(
-                'ODCM %s Adapter: %s',
-                ucfirst($this->gateway_name),
-                $message
-            );
-
-            if (!empty($context)) {
-                $log_message .= ' - Context: ' . wp_json_encode($context);
-            }
-
-            error_log($log_message);
-        }
-    }
-
+    
     /**
      * Extract gateway-specific metadata (to be implemented by subclasses)
      * 
