@@ -198,24 +198,20 @@ final class ProcessLogger
      */
     public function finish(string $final_status, string $summary)
     {
-        // DEBUG: Add echo statements to see where finish() fails
-        echo "DEBUG: ProcessLogger.finish() called with status=$final_status\n";
-        
         // 1) Recursion Guard
         if (self::$is_logging) {
-            echo "DEBUG: ProcessLogger.finish() blocked by recursion guard\n";
+            // Critical: Log recursion guard triggers as they indicate serious bugs
+            error_log('ODCM ProcessLogger: Recursion guard triggered in finish() - possible infinite loop');
             return false;
         }
 
         try {
             // 2) Set the Lock
             self::$is_logging = true;
-            echo "DEBUG: ProcessLogger.finish() passed recursion guard, continuing...\n";
 
             $final_status = in_array($final_status, ['success','failed','partial','canceled','warning','info'], true)
                 ? $final_status
                 : 'success';
-            echo "DEBUG: Status validated: $final_status\n";
 
             // Capture attribution context and measure performance (graceful fallback)
             $attribution = null;
@@ -229,7 +225,6 @@ final class ProcessLogger
             } catch (\Throwable $e) {
                 $attribution = null;
             }
-            echo "DEBUG: Attribution captured\n";
 
             // Infer source intelligently if not explicitly provided or set to system
             $existing_source = isset($this->context['source']) ? (string) $this->context['source'] : '';
@@ -238,16 +233,6 @@ final class ProcessLogger
             if ($final_source === '') {
                 $final_source = 'system';
             }
-            echo "DEBUG: Source determined: $final_source\n";
-
-            // Debug all properties before envelope creation
-            echo "DEBUG: Checking properties before envelope creation:\n";
-            echo "  type: " . ($this->type ?? 'NULL') . "\n";
-            echo "  correlation_id: " . ($this->correlation_id ?? 'NULL') . "\n";
-            echo "  order_id: " . ($this->context['order_id'] ?? 'NULL') . "\n";
-            echo "  actor: " . (isset($this->context['actor']) ? 'set' : 'NULL') . "\n";
-            echo "  started_at: " . ($this->started_at ?? 'NULL') . "\n";
-            echo "  components count: " . count($this->components) . "\n";
 
             $envelope = [
                 'type'        => $this->type,
@@ -263,7 +248,6 @@ final class ProcessLogger
                 'metrics'     => [ 'attribution_capture_ms' => $attr_ms ],
                 'components'  => $this->components,      // Optimized field name
             ];
-            echo "DEBUG: Envelope created successfully\n";
 
             // NEW: Merge deferred context into components before writing
             foreach ($this->components as &$component) {
@@ -279,20 +263,32 @@ final class ProcessLogger
             $envelope['components'] = $this->components; // Use optimized field name
             // Clear deferred context to free memory
             $this->deferred_context = [];
-            echo "DEBUG: Deferred context merged\n";
 
-            // Use odcm_log_event() instead of removed AuditTrailLogger
-            echo "DEBUG: About to call odcm_log_event()\n";
+            $simple_data = [
+                'process_type' => $this->type,
+                'correlation_id' => $this->correlation_id,
+                'status' => $final_status,
+                'source' => $final_source,
+                'component_count' => count($this->components),
+                'actor' => $this->context['actor']['name'] ?? 'system',
+                'metrics' => $envelope['metrics']
+            ];
+            
             $log_result = odcm_log_event(
                 sanitize_text_field($summary),
-                $envelope, // Pass the full envelope as event data
+                $simple_data, // Simplified data structure
                 $this->context['order_id'],
                 $this->map_status($final_status),
                 $this->type,
                 false, // not a test
                 $this->correlation_id // process_id for correlation
             );
-            echo "DEBUG: odcm_log_event() returned: " . ($log_result ?: 'false') . "\n";
+            
+            // Critical: Log logging failures as they indicate serious system issues
+            if (!$log_result) {
+                error_log('ODCM ProcessLogger: odcm_log_event() failed for process: ' . $this->type);
+            }
+            
             return $log_result;
         } catch (\Throwable $e) {
             // 3) Last Resort Error Handler

@@ -24,6 +24,9 @@ class DiagnosticRunner
      * Available diagnostic test categories
      */
     private const DIAGNOSTIC_CATEGORIES = [
+        'Core' => [
+            'CheckoutFlowDiagnostic'
+        ],
         'API' => [
             'RestApiDiagnostic',
             'NetworkDiagnostic'
@@ -297,7 +300,7 @@ class DiagnosticRunner
             'woocommerce_active' => class_exists('WooCommerce'),
             'order_daemon_active' => class_exists('OrderDaemon\\CompletionManager\\Plugin'),
             'current_user_can_manage_woocommerce' => current_user_can('manage_woocommerce'),
-            'rest_api_enabled' => !defined('XMLRPC_REQUEST') || !XMLRPC_REQUEST
+            'rest_api_enabled' => !(defined('XMLRPC_REQUEST') && XMLRPC_REQUEST)
         ];
     }
 

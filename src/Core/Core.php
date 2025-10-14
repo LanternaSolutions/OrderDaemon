@@ -51,6 +51,10 @@ class Core
         // NEW: Register the handler for our asynchronous reprocessing batch action.
         add_action('odcm_reprocess_orders_batch', [$this, 'schedule_orders_for_reprocessing'], 10, 1);
 
+        // FAIL-SAFE: Register background processing handlers for checkout protection
+        add_action('odcm_process_checkout_completion', [$this, 'background_checkout_processing'], 10, 1);
+        add_action('odcm_process_payment_completion', [$this, 'background_payment_processing'], 10, 1);
+
         // NOTE: The 'odcm_process_order_check' hook is handled by the global function
         // odcm_handle_order_check_processing() in actions.php, which properly handles
         // both array and integer arguments and delegates to the UniversalEventProcessor class.
@@ -414,15 +418,16 @@ class Core
 
 
     /**
-     * Handles WooCommerce payment completion events.
+     * Handles WooCommerce payment completion events - FAIL-SAFE IMPLEMENTATION
      *
-     * This method is triggered when a payment is completed and schedules
-     * the order for automatic completion rule processing.
+     * CRITICAL: This method implements the "Never Break Revenue" philosophy.
+     * All heavy processing is moved to background to ensure payment completion cannot be blocked.
      *
      * @param int $order_id The ID of the order that had payment completed.
      */
     public function handle_payment_complete(int $order_id): void
     {
+        $start_time = microtime(true);
         
         if ($order_id <= 0) {
             return;
@@ -434,24 +439,35 @@ class Core
         }
 
         try {
-            // Generate UniversalEvent from WooCommerce data
-            $universal_event = $this->synthesize_payment_complete_event($order);
-
-            // Process through universal event pipeline
-            $this->process_universal_event_from_hook($universal_event);
-
-            odcm_log_message("Payment completed for order #{$order_id}, processed as universal event", 'info');
-        } catch (\Throwable $e) {
-            // Log error but don't let it break the payment process
-            odcm_log_message('Payment complete event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
+            // Schedule for background processing
+            as_enqueue_async_action('odcm_process_payment_completion', [
+                'order_id' => $order_id,
+                'payment_gateway' => $order->get_payment_method(),
+                'scheduled_at' => current_time('c')
+            ], 'odcm-payment-processing');
             
-            // Fallback: still schedule traditional processing
-            $this->schedule_completion_check($order_id);
-            return;
+            // Minimal sync logging only - no heavy operations during payment
+            $this->log_checkout_event_minimal($order_id, 'payment_scheduled');
+            
+            // Record success for circuit breaker
+            $this->record_checkout_success();
+            
+        } catch (\Throwable $e) {
+            // NEVER break payment completion - log error and continue
+            $this->log_safe_error('payment_hook_failed', $e, [
+                'order_id' => $order_id,
+                'method' => 'handle_payment_complete'
+            ]);
+            
+            // Record failure for circuit breaker
+            $this->record_checkout_failure();
+            
+            // Emergency fallback processing
+            $this->emergency_fallback_processing($order_id);
+        } finally {
+            // Monitor execution time
+            $this->monitor_execution_time($start_time, 'payment_complete', $order_id);
         }
-
-        // Always schedule traditional order check for backward compatibility
-        $this->schedule_completion_check($order_id);
     }
 
     /**
@@ -1386,7 +1402,10 @@ class Core
     }
 
     /**
-     * Handle checkout order processed events
+     * Handle checkout order processed events - FAIL-SAFE IMPLEMENTATION
+     *
+     * CRITICAL: This method implements the "Never Break Revenue" philosophy.
+     * All heavy processing is moved to background to ensure checkout cannot be blocked.
      *
      * @param int $order_id The ID of the processed order
      * @param array $posted_data Posted checkout data
@@ -1395,21 +1414,41 @@ class Core
      */
     public function handle_checkout_order_processed(int $order_id, array $posted_data, \WC_Order $order): void
     {
+        $start_time = microtime(true);
+        
         if ($order_id <= 0 || !$order instanceof \WC_Order) {
             return;
         }
 
         try {
-            // Generate UniversalEvent for checkout completion
-            $universal_event = $this->synthesize_checkout_processed_event($order, $posted_data);
-
-            // Process through universal event pipeline
-            $this->process_universal_event_from_hook($universal_event);
-
-            odcm_log_message("Checkout processed for order #{$order_id}, processed as universal event", 'info');
+            // Schedule for background processing instead of sync processing
+            as_enqueue_async_action('odcm_process_checkout_completion', [
+                'order_id' => $order_id,
+                'checkout_type' => 'standard',
+                'scheduled_at' => current_time('c')
+            ], 'odcm-checkout-processing');
+            
+            // Minimal sync logging only - no heavy operations during checkout
+            $this->log_checkout_event_minimal($order_id, 'scheduled');
+            
+            // Record success for circuit breaker
+            $this->record_checkout_success();
+            
         } catch (\Throwable $e) {
-            // Log error but don't let it break the checkout process
-            odcm_log_message('Checkout processed event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
+            // NEVER break checkout - log error and continue
+            $this->log_safe_error('checkout_hook_failed', $e, [
+                'order_id' => $order_id,
+                'method' => 'handle_checkout_order_processed'
+            ]);
+            
+            // Record failure for circuit breaker
+            $this->record_checkout_failure();
+            
+            // Emergency fallback processing
+            $this->emergency_fallback_processing($order_id);
+        } finally {
+            // Monitor execution time
+            $this->monitor_execution_time($start_time, 'checkout_order_processed', $order_id);
         }
     }
 
@@ -1676,5 +1715,329 @@ class Core
         ]);
         
         return count($rules);
+    }
+
+    // ========================================================================
+    // FAIL-SAFE IMPLEMENTATION METHODS
+    // ========================================================================
+
+    /**
+     * Log checkout event with minimal overhead - FAIL-SAFE LOGGING
+     * 
+     * Only logs essential information to avoid heavy database operations during checkout.
+     *
+     * @param int $order_id Order ID
+     * @param string $status Processing status
+     * @return void
+     */
+    private function log_checkout_event_minimal(int $order_id, string $status): void
+    {
+        try {
+            // Use WordPress error_log to avoid database operations during checkout
+            error_log(sprintf(
+                'ODCM_CHECKOUT: Order #%d %s at %s',
+                $order_id,
+                $status,
+                current_time('c')
+            ));
+        } catch (\Throwable $e) {
+            // Even logging should not break checkout - complete silence on failure
+        }
+    }
+
+    /**
+     * Log safe error - FAIL-SAFE ERROR LOGGING
+     *
+     * Enhanced error logging that never throws exceptions and uses WordPress error_log
+     * to avoid additional database operations during checkout.
+     *
+     * @param string $context Error context
+     * @param \Throwable $exception The exception that occurred
+     * @param array $metadata Additional error metadata
+     * @return void
+     */
+    private function log_safe_error(string $context, \Throwable $exception, array $metadata = []): void
+    {
+        try {
+            $error_data = [
+                'context' => $context,
+                'error_message' => $exception->getMessage(),
+                'error_file' => $exception->getFile(),
+                'error_line' => $exception->getLine(),
+                'metadata' => $metadata,
+                'timestamp' => current_time('c'),
+                'memory_usage' => memory_get_usage(true),
+                'peak_memory' => memory_get_peak_usage(true)
+            ];
+            
+            // Use WordPress error logging to avoid additional DB operations
+            error_log('ODCM_SAFE_ERROR: ' . wp_json_encode($error_data));
+        } catch (\Throwable $e) {
+            // Even error logging should not break checkout - complete silence on failure
+        }
+    }
+
+    /**
+     * Record checkout success for circuit breaker - FAIL-SAFE CIRCUIT BREAKER
+     *
+     * @return void
+     */
+    private function record_checkout_success(): void
+    {
+        try {
+            delete_transient('odcm_checkout_failures');
+            
+            // Update success counter
+            $success_count = get_transient('odcm_checkout_successes') ?: 0;
+            set_transient('odcm_checkout_successes', $success_count + 1, 300); // 5 minutes
+            
+        } catch (\Throwable $e) {
+            // Circuit breaker should not break checkout - silence on failure
+        }
+    }
+
+    /**
+     * Record checkout failure for circuit breaker - FAIL-SAFE CIRCUIT BREAKER
+     *
+     * @return void
+     */
+    private function record_checkout_failure(): void
+    {
+        try {
+            $failures = get_transient('odcm_checkout_failures') ?: 0;
+            set_transient('odcm_checkout_failures', $failures + 1, 300); // 5 minutes
+            
+            // Log when circuit breaker threshold is reached
+            if ($failures >= 5) {
+                error_log('ODCM_CIRCUIT_BREAKER: Checkout failures threshold reached: ' . $failures);
+            }
+            
+        } catch (\Throwable $e) {
+            // Circuit breaker should not break checkout - silence on failure
+        }
+    }
+
+    /**
+     * Emergency fallback processing - FAIL-SAFE FALLBACK
+     *
+     * When all else fails, ensure the order is at least scheduled for basic processing.
+     *
+     * @param int $order_id Order ID
+     * @return void
+     */
+    private function emergency_fallback_processing(int $order_id): void
+    {
+        try {
+            // Last resort: schedule basic order check with minimal data
+            if (function_exists('as_enqueue_async_action')) {
+                as_enqueue_async_action('odcm_process_order_check', [
+                    'order_id' => $order_id
+                ], 'odcm-emergency-processing');
+                
+                error_log("ODCM_EMERGENCY: Scheduled fallback processing for order #{$order_id}");
+            }
+        } catch (\Throwable $e) {
+            // Even emergency fallback should not break checkout
+            error_log("ODCM_EMERGENCY: Final fallback failed for order #{$order_id}");
+        }
+    }
+
+    /**
+     * Monitor execution time - FAIL-SAFE PERFORMANCE MONITORING
+     *
+     * Tracks execution time and logs slow operations without breaking checkout.
+     *
+     * @param float $start_time Start time from microtime(true)
+     * @param string $operation_name Operation name for logging
+     * @param int $order_id Order ID for context
+     * @return void
+     */
+    private function monitor_execution_time(float $start_time, string $operation_name, int $order_id): void
+    {
+        try {
+            $execution_time = microtime(true) - $start_time;
+            
+            // Log slow operations (>0.5 seconds)
+            if ($execution_time > 0.5) {
+                error_log(sprintf(
+                    'ODCM_SLOW_OPERATION: %s took %.3fs for order #%d',
+                    $operation_name,
+                    $execution_time,
+                    $order_id
+                ));
+            }
+            
+            // Record performance metrics
+            $perf_key = 'odcm_perf_' . sanitize_key($operation_name);
+            $current_avg = get_transient($perf_key) ?: 0.0;
+            $new_avg = ($current_avg + $execution_time) / 2; // Simple rolling average
+            set_transient($perf_key, $new_avg, 3600); // 1 hour
+            
+        } catch (\Throwable $e) {
+            // Performance monitoring should not break checkout
+        }
+    }
+
+    /**
+     * Check if circuit breaker is open - FAIL-SAFE CIRCUIT BREAKER CHECK
+     *
+     * @return bool True if circuit breaker is open (too many failures)
+     */
+    private function is_circuit_breaker_open(): bool
+    {
+        try {
+            $failures = get_transient('odcm_checkout_failures');
+            return (int) $failures >= 5;
+        } catch (\Throwable $e) {
+            return false; // Default to allowing processing
+        }
+    }
+
+    /**
+     * Get checkout health status - FAIL-SAFE HEALTH CHECK
+     *
+     * @return array Health status information
+     */
+    public function get_checkout_health_status(): array
+    {
+        try {
+            $failures = get_transient('odcm_checkout_failures') ?: 0;
+            $successes = get_transient('odcm_checkout_successes') ?: 0;
+            $total = $failures + $successes;
+            
+            $success_rate = $total > 0 ? round(($successes / $total) * 100, 2) : 100;
+            
+            $health = 'healthy';
+            if ($failures >= 5) {
+                $health = 'critical';
+            } elseif ($failures >= 2) {
+                $health = 'warning';
+            }
+            
+            return [
+                'status' => $health,
+                'success_rate' => $success_rate,
+                'recent_failures' => (int) $failures,
+                'recent_successes' => (int) $successes,
+                'circuit_breaker_open' => $this->is_circuit_breaker_open(),
+                'last_check' => current_time('c')
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'status' => 'unknown',
+                'success_rate' => 0,
+                'recent_failures' => 0,
+                'recent_successes' => 0,
+                'circuit_breaker_open' => false,
+                'last_check' => current_time('c'),
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    // ========================================================================
+    // BACKGROUND PROCESSING METHODS - ASYNC PROCESSING
+    // ========================================================================
+
+    /**
+     * Background checkout completion processing - ASYNC PROCESSING
+     *
+     * This method performs the heavy checkout processing in the background
+     * that was originally done synchronously in handle_checkout_order_processed.
+     *
+     * Action Scheduler compatibility - handle both array and direct order ID
+     *
+     * @param array|int $args Arguments from Action Scheduler (can be array or direct order ID)
+     * @return void
+     */
+    public function background_checkout_processing($args): void
+    {
+        // Handle Action Scheduler calling convention
+        if (is_array($args)) {
+            $order_id = isset($args['order_id']) ? (int) $args['order_id'] : 0;
+            $checkout_type = isset($args['checkout_type']) ? sanitize_text_field($args['checkout_type']) : 'standard';
+        } else {
+            // Action Scheduler passes order ID directly
+            $order_id = (int) $args;
+            $checkout_type = 'standard';
+        }
+
+        if ($order_id <= 0) {
+            error_log('ODCM_BACKGROUND: Invalid order ID for checkout processing');
+            return;
+        }
+
+        $order = wc_get_order($order_id);
+        if (!$order instanceof \WC_Order) {
+            error_log("ODCM_BACKGROUND: Order #{$order_id} not found for checkout processing");
+            return;
+        }
+
+        try {
+            // Generate UniversalEvent for checkout completion
+            $universal_event = $this->synthesize_checkout_processed_event($order, []);
+
+            // Process through universal event pipeline
+            $this->process_universal_event_from_hook($universal_event);
+
+            error_log("ODCM_BACKGROUND: Checkout completion processed for order #{$order_id}");
+
+        } catch (\Throwable $e) {
+            error_log("ODCM_BACKGROUND: Checkout processing failed for order #{$order_id}: " . $e->getMessage());
+            
+            // Emergency fallback: schedule traditional order check if Universal Events fails
+            $this->emergency_fallback_processing($order_id);
+        }
+    }
+
+    /**
+     * Background payment completion processing - ASYNC PROCESSING
+     *
+     * This method performs the heavy payment processing in the background
+     * that was originally done synchronously in handle_payment_complete.
+     *
+     * Action Scheduler compatibility - handle both array and direct order ID
+     *
+     * @param array|int $args Arguments from Action Scheduler (can be array or direct order ID)
+     * @return void
+     */
+    public function background_payment_processing($args): void
+    {
+        // Handle Action Scheduler calling convention
+        if (is_array($args)) {
+            $order_id = isset($args['order_id']) ? (int) $args['order_id'] : 0;
+            $payment_gateway = isset($args['payment_gateway']) ? sanitize_text_field($args['payment_gateway']) : '';
+        } else {
+            // Action Scheduler passes order ID directly
+            $order_id = (int) $args;
+            $payment_gateway = '';
+        }
+
+        if ($order_id <= 0) {
+            error_log('ODCM_BACKGROUND: Invalid order ID for payment processing');
+            return;
+        }
+
+        $order = wc_get_order($order_id);
+        if (!$order instanceof \WC_Order) {
+            error_log("ODCM_BACKGROUND: Order #{$order_id} not found for payment processing");
+            return;
+        }
+
+        try {
+            // Generate UniversalEvent from WooCommerce data
+            $universal_event = $this->synthesize_payment_complete_event($order);
+
+            // Process through universal event pipeline
+            $this->process_universal_event_from_hook($universal_event);
+
+            error_log("ODCM_BACKGROUND: Payment completion processed for order #{$order_id}");
+
+        } catch (\Throwable $e) {
+            error_log("ODCM_BACKGROUND: Payment processing failed for order #{$order_id}: " . $e->getMessage());
+            
+            // Emergency fallback: schedule traditional order check if Universal Events fails
+            $this->emergency_fallback_processing($order_id);
+        }
     }
 }
