@@ -1,0 +1,461 @@
+/**
+ * Order Daemon Diagnostics Dashboard Styles
+ *
+ * Provides styling for the diagnostic dashboard interface, including
+ * layout, status indicators, buttons, and result displays.
+ */
+
+/* ===== MAIN LAYOUT ===== */
+
+.odcm-diagnostics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.odcm-diagnostics-content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 1200px) {
+    .odcm-diagnostics-content {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== HEALTH STATUS ===== */
+
+.odcm-health-status h2 {
+    margin: 0 0 5px 0;
+    font-size: 1.3em;
+}
+
+.odcm-health-status p {
+    margin: 0 0 3px 0;
+}
+
+.odcm-health-status .description {
+    margin: 5px 0 0 0;
+    color: #666;
+    font-size: 0.9em;
+}
+
+/* Health status colors */
+.odcm-status-healthy h2 {
+    color: #46b450;
+}
+
+.odcm-status-warning h2 {
+    color: #ffb900;
+}
+
+.odcm-status-critical h2 {
+    color: #dc3232;
+}
+
+/* ===== QUICK ACTIONS ===== */
+
+.odcm-quick-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.odcm-quick-actions .button {
+    min-width: 200px;
+}
+
+/* ===== CATEGORY SECTIONS ===== */
+
+.odcm-diagnostics-categories {
+    max-width: 100%;
+}
+
+.odcm-category-section {
+    margin-bottom: 30px;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.odcm-category-section h3 {
+    margin: 0;
+    padding: 15px;
+    background: #f1f1f1;
+    border-bottom: 1px solid #ddd;
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+.odcm-category-actions {
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+    background: #fafafa;
+}
+
+.odcm-diagnostics-list {
+    max-height: none;
+}
+
+/* ===== DIAGNOSTIC ITEMS ===== */
+
+.odcm-diagnostic-item {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s ease;
+}
+
+.odcm-diagnostic-item:last-child {
+    border-bottom: none;
+}
+
+.odcm-diagnostic-item:hover {
+    background-color: #f9f9f9;
+}
+
+.odcm-diagnostic-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.odcm-diagnostic-header h4 {
+    margin: 0;
+    font-size: 1em;
+    font-weight: 600;
+}
+
+.odcm-diagnostic-item .description {
+    margin: 5px 0 10px 0;
+    color: #666;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+/* ===== DIAGNOSTIC RESULTS ===== */
+
+.odcm-diagnostic-result {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 3px;
+}
+
+.odcm-single-result {
+    padding: 12px;
+    border-radius: 3px;
+    border-left: 4px solid #ccc;
+}
+
+.odcm-single-result.odcm-success {
+    background: #f0f8f0;
+    border-left-color: #46b450;
+}
+
+.odcm-single-result.odcm-error {
+    background: #fdf2f2;
+    border-left-color: #dc3232;
+}
+
+.odcm-single-result.odcm-warning {
+    background: #fffbf0;
+    border-left-color: #ffb900;
+}
+
+.odcm-single-result p {
+    margin: 0 0 8px 0;
+}
+
+.odcm-single-result p:last-child {
+    margin-bottom: 0;
+}
+
+/* ===== RECOMMENDATIONS ===== */
+
+.odcm-recommendations {
+    margin-top: 10px;
+}
+
+.odcm-recommendations strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.odcm-recommendations ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.odcm-recommendations li {
+    margin-bottom: 3px;
+    line-height: 1.4;
+}
+
+/* ===== RESULTS PANEL ===== */
+
+.odcm-results-panel {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    height: fit-content;
+    position: sticky;
+    top: 32px;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+}
+
+.odcm-results-panel h3 {
+    margin: 0 0 15px 0;
+    font-size: 1.1em;
+    font-weight: 600;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+}
+
+/* ===== REPORT SECTIONS ===== */
+
+.odcm-report {
+    line-height: 1.5;
+}
+
+.odcm-report-summary {
+    margin-bottom: 20px;
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 3px;
+}
+
+.odcm-report-summary h4 {
+    margin: 0 0 8px 0;
+    font-size: 1em;
+}
+
+.odcm-report-summary p {
+    margin: 0;
+}
+
+.odcm-critical-issues {
+    margin-bottom: 20px;
+    padding: 12px;
+    background: #fdf2f2;
+    border: 1px solid #f5c6cb;
+    border-radius: 3px;
+}
+
+.odcm-critical-issues h4 {
+    margin: 0 0 10px 0;
+    color: #dc3232;
+    font-size: 1em;
+}
+
+.odcm-critical-issues ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.odcm-critical-issues li {
+    margin-bottom: 5px;
+}
+
+/* ===== BUTTON STATES ===== */
+
+.button.odcm-loading {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.button.odcm-success {
+    background: #46b450;
+    border-color: #46b450;
+    color: #fff;
+}
+
+.button.odcm-error {
+    background: #dc3232;
+    border-color: #dc3232;
+    color: #fff;
+}
+
+.button.odcm-warning {
+    background: #ffb900;
+    border-color: #ffb900;
+    color: #fff;
+}
+
+.button.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ===== STATUS INDICATORS ===== */
+
+.odcm-success {
+    color: #46b450;
+}
+
+.odcm-warning {
+    color: #ffb900;
+}
+
+.odcm-error {
+    color: #dc3232;
+}
+
+/* ===== TECHNICAL DETAILS ===== */
+
+details {
+    margin-top: 10px;
+}
+
+details summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: #0073aa;
+    padding: 5px 0;
+}
+
+details summary:hover {
+    color: #005a87;
+}
+
+details pre {
+    background: #f6f7f7;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 10px;
+    margin: 10px 0 0 0;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.4;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+
+@media (max-width: 960px) {
+    .odcm-diagnostics-header {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .odcm-quick-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .odcm-quick-actions .button {
+        min-width: auto;
+        flex: 1;
+    }
+
+    .odcm-diagnostic-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .odcm-results-panel {
+        position: static;
+        max-height: none;
+    }
+}
+
+@media (max-width: 600px) {
+    .odcm-diagnostics-header {
+        padding: 10px;
+    }
+
+    .odcm-category-section {
+        margin-bottom: 20px;
+    }
+
+    .odcm-diagnostic-item {
+        padding: 10px;
+    }
+
+    .odcm-results-panel {
+        padding: 10px;
+    }
+}
+
+/* ===== LOADING ANIMATIONS ===== */
+
+.odcm-loading::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 8px;
+    border: 2px solid #ccc;
+    border-top-color: #666;
+    border-radius: 50%;
+    animation: odcm-spin 1s linear infinite;
+}
+
+@keyframes odcm-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ===== ACCESSIBILITY ===== */
+
+.button:focus,
+details summary:focus {
+    outline: 2px solid #0073aa;
+    outline-offset: 2px;
+}
+
+.odcm-diagnostic-item:focus-within {
+    background-color: #f9f9f9;
+}
+
+/* Screen reader only text */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ===== PRINT STYLES ===== */
+
+@media print {
+    .odcm-quick-actions,
+    .button {
+        display: none;
+    }
+
+    .odcm-diagnostics-content {
+        grid-template-columns: 1fr;
+    }
+
+    .odcm-results-panel {
+        position: static;
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+
+    .odcm-category-section {
+        break-inside: avoid;
+    }
+}

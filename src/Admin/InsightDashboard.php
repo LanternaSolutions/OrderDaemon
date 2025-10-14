@@ -51,7 +51,7 @@ class InsightDashboard
         $this->apply_debug_override();
         
         add_action('admin_menu', [$this, 'register_menu_page'], 15);
-        add_action('admin_menu', [$this, 'reorder_woocommerce_submenu'], 999); // Late priority to reorder after all items are added
+        add_action('admin_menu', [$this, 'remove_duplicate_submenu'], 999); // Late priority to ensure removal after WordPress processes menus
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets'], 10, 1);
         add_filter('admin_body_class', [$this, 'add_body_class']);
         
@@ -88,109 +88,76 @@ class InsightDashboard
     }
 
     /**
-     * Register the insight dashboard menu page
+     * Register the Order Daemon top-level menu and submenus
      */
     public function register_menu_page(): void
     {
-        add_submenu_page(
-            'woocommerce',
+        // Create top-level "Order Daemon" menu positioned between WooCommerce and Products
+        // WooCommerce uses position 55-56, Products around 57, so we use 56.5
+        add_menu_page(
             __('Order Daemon', Odcm_Config::$text_domain),
             __('Order Daemon', Odcm_Config::$text_domain),
             'manage_woocommerce',
             self::PAGE_SLUG,
+            [$this, 'render_dashboard_page'],
+            'dashicons-chart-line',
+            56.5
+        );
+
+        // Remove the auto-created submenu item that WordPress adds with the same name as the parent
+        remove_submenu_page(self::PAGE_SLUG, self::PAGE_SLUG);
+
+        // Add "All Order Rules" as first submenu item
+        add_submenu_page(
+            self::PAGE_SLUG,
+            __('All Order Rules', Odcm_Config::$text_domain),
+            __('All Order Rules', Odcm_Config::$text_domain),
+            'manage_woocommerce',
+            'edit.php?post_type=odcm_order_rule',
+            null
+        );
+
+        // Add "Insight Dashboard" as second submenu item
+        add_submenu_page(
+            self::PAGE_SLUG,
+            __('Insight Dashboard', Odcm_Config::$text_domain),
+            __('Insight Dashboard', Odcm_Config::$text_domain),
+            'manage_woocommerce',
+            self::PAGE_SLUG,
             [$this, 'render_dashboard_page']
+        );
+
+        // Add "Diagnostics" as third submenu item
+        add_submenu_page(
+            self::PAGE_SLUG,
+            __('Diagnostics', Odcm_Config::$text_domain),
+            __('Diagnostics', Odcm_Config::$text_domain),
+            'manage_woocommerce',
+            'odcm-diagnostics',
+            [$this, 'render_diagnostics_page']
         );
     }
 
     /**
-     * Reorder WooCommerce submenu to place Order Daemon directly after Order Rules
+     * Remove the duplicate submenu item that WordPress automatically creates
      * 
-     * This method runs with priority 999 to ensure it executes after all menu items are registered.
-     * It manually reorders the WooCommerce submenu array to achieve the desired positioning.
+     * This runs with high priority to ensure it executes after WordPress has
+     * fully processed all menu registrations.
      */
-    public function reorder_woocommerce_submenu(): void
+    public function remove_duplicate_submenu(): void
     {
-        global $submenu;
-        
-        // Check if WooCommerce submenu exists
-        if (!isset($submenu['woocommerce']) || !is_array($submenu['woocommerce'])) {
-            return;
-        }
-        
-        $wc_submenu = $submenu['woocommerce'];
-        $order_rules_item = null;
-        $order_daemon_item = null;
-        $order_rules_index = null;
-        $order_daemon_index = null;
-        
-        // Find the order rules and order daemon menu items
-        foreach ($wc_submenu as $index => $menu_item) {
-            if (isset($menu_item[2])) {
-                // Look for order rules (custom post type)
-                if (strpos($menu_item[2], 'edit.php?post_type=odcm_order_rule') !== false) {
-                    $order_rules_item = $menu_item;
-                    $order_rules_index = $index;
-                }
-                // Look for order daemon (our insight dashboard)
-                if ($menu_item[2] === self::PAGE_SLUG) {
-                    $order_daemon_item = $menu_item;
-                    $order_daemon_index = $index;
-                }
-            }
-        }
-        
-        // If both items are found, reorder them
-        if ($order_rules_item !== null && $order_daemon_item !== null && $order_rules_index !== null && $order_daemon_index !== null) {
-            // Remove both items from their current positions
-            unset($submenu['woocommerce'][$order_rules_index]);
-            unset($submenu['woocommerce'][$order_daemon_index]);
-            
-            // Re-index the array to avoid gaps
-            $submenu['woocommerce'] = array_values($submenu['woocommerce']);
-            
-            // Find the best insertion point (after WooCommerce core items but before other plugins)
-            $insert_position = $this->find_optimal_insertion_position($submenu['woocommerce']);
-            
-            // Insert order rules first
-            array_splice($submenu['woocommerce'], $insert_position, 0, [$order_rules_item]);
-            
-            // Insert order daemon right after order rules
-            array_splice($submenu['woocommerce'], $insert_position + 1, 0, [$order_daemon_item]);
-        }
-    }
-    
-    /**
-     * Find the optimal position to insert our menu items in the WooCommerce submenu
-     * 
-     * This method specifically looks for the "Orders" menu item and places our items
-     * immediately after it, which is the most logical placement for order completion functionality.
-     * 
-     * @param array $submenu_items The current WooCommerce submenu items
-     * @return int The index where our items should be inserted
-     */
-    private function find_optimal_insertion_position(array $submenu_items): int
-    {
-        $default_position = 2; // Fallback position
-        
-        foreach ($submenu_items as $index => $menu_item) {
-            if (isset($menu_item[2])) {
-                // Look for "Orders" menu item - we want to insert immediately after it
-                if (strpos($menu_item[2], 'edit.php?post_type=shop_order') !== false) {
-                    return $index + 1; // Insert right after Orders
-                }
-            }
-        }
-        
-        // If we can't find the Orders menu item, use the default position
-        return min($default_position, count($submenu_items));
+        // Remove the auto-created submenu item that has the same slug as the parent menu
+        remove_submenu_page(self::PAGE_SLUG, self::PAGE_SLUG);
     }
 
     /**
-     * Get the hook suffix for this page
+     * Render the diagnostics page using the DiagnosticDashboard
      */
-    private function get_hook_suffix(): string
+    public function render_diagnostics_page(): void
     {
-        return get_plugin_page_hookname(self::PAGE_SLUG, 'woocommerce');
+        // Initialize and render the diagnostic dashboard
+        $diagnostic_dashboard = new DiagnosticDashboard();
+        $diagnostic_dashboard->render_dashboard_page();
     }
 
     /**
@@ -1412,10 +1379,6 @@ class InsightDashboard
                         <div class="odcm-log-entry-content" @click="log && selectLog(log)">
                             <div class="odcm-log-entry-header">
                                 <div class="odcm-log-summary">
-                                    <!-- Dynamic icon based on entry type -->
-                                    <span class="dashicons odcm-log-entry-icon"
-                                          :class="log ? getLogEntryIcon(log) : 'dashicons-admin-generic'"
-                                          :title="log && isConsolidatedEntry(log) ? '<?php echo esc_attr__('Consolidated Entry', Odcm_Config::$text_domain); ?>' : '<?php echo esc_attr__('Log Entry', Odcm_Config::$text_domain); ?>'"></span>
                                     <span x-text="log?.summary || 'No summary available'"></span>
                                     <!-- Show consolidated event count -->
                                     <span x-show="log && isConsolidatedEntry(log)"

@@ -1088,9 +1088,7 @@ label.odcm-retention-option {
 .odcm-adapter-details small {
     font-size: var(--odcm-theme-font-size-xs);
     color: var(--odcm-theme-grey-600);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
     max-width: 100%;
 }
 
@@ -1755,6 +1753,7 @@ label.odcm-retention-option {
     flex: 1;
     cursor: pointer;
     min-width: 0; /* Allow content to shrink */
+    overflow: visible; /* Ensure content can expand */
 }
 
 .odcm-log-entry-header {
@@ -1769,6 +1768,10 @@ label.odcm-retention-option {
     line-height: 1.4;
     flex: 1;
     margin-right: var(--odcm-theme-spacing-sm);
+    overflow: visible;
+    white-space: normal;
+    word-wrap: break-word;
+    min-width: 0;
 }
 
 .odcm-log-meta {
@@ -1781,7 +1784,7 @@ label.odcm-retention-option {
 }
 
 .odcm-log-meta span {
-    white-space: nowrap;
+    white-space: normal;
 }
 
 .odcm-log-timestamp {
@@ -2580,28 +2583,6 @@ label.odcm-retention-option {
    - Timeline styles for consolidated detail rendering
    ====================================================================== */
 
-/* Log Entry Icons - Dynamic icons for different entry types */
-.odcm-log-entry-icon {
-    color: var(--odcm-theme-grey-600);
-    margin-right: var(--odcm-theme-spacing-xs);
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Consolidated entries get special icon color */
-.odcm-log-entry.is-consolidated .odcm-log-entry-icon {
-    color: var(--odcm-theme-blue-700);
-}
-
-/* Process representative entries get special icon color */
-.odcm-log-entry.is-process-representative .odcm-log-entry-icon {
-    color: var(--odcm-theme-purple-700);
-}
 
 /* Consolidated Count Badge */
 .odcm-consolidated-count {

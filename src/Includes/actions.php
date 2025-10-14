@@ -35,15 +35,13 @@ function odcm_handle_log_processing($args) {
     global $wpdb;
     
     // DEBUG: Log that function is being called
-    error_log("ODCM DEBUG: odcm_handle_log_processing() called with args: " . wp_json_encode($args));
-
+    
     // Handle both array and JSON string arguments from Action Scheduler
     if (is_string($args)) {
         // Action Scheduler is passing JSON string - decode it
         $args = json_decode($args, true);
         if (!is_array($args)) {
-            error_log("ODCM: Failed to decode JSON args in log processing");
-            error_log("ODCM DEBUG: Raw args: " . $args);
+            error_log("ODCM: Failed to decode JSON args in log processing. Raw args: " . var_export($args, true));
             return;
         }
     }
@@ -56,8 +54,7 @@ function odcm_handle_log_processing($args) {
     // SIMPLIFIED: Expect only compressed format
     // odcm_log_event() sends compressed data directly to Action Scheduler
     if (!isset($args['d']) || !is_array($args['d'])) {
-        error_log("ODCM: Invalid compressed payload structure");
-        error_log("ODCM DEBUG: Expected compressed format with 'd' key, got: " . wp_json_encode($args));
+        error_log("ODCM: Invalid compressed payload structure. Expected 'd' key with array value, got: " . wp_json_encode($args));
         return;
     }
 
@@ -118,7 +115,6 @@ function odcm_handle_log_processing($args) {
 
     // Sanitize and insert payload
     $sanitized_payload = odcm_sanitize_payload_for_logging($payload_to_store);
-    error_log("ODCM DEBUG: About to insert payload: " . json_encode($sanitized_payload));
     
     $payload_insert = $wpdb->insert(
         $wpdb->prefix . 'odcm_audit_log_payloads',
@@ -131,7 +127,6 @@ function odcm_handle_log_processing($args) {
     }
 
     $payload_id = $wpdb->insert_id;
-    error_log("ODCM DEBUG: Payload inserted with ID: " . $payload_id);
 
     // Prepare log data from extracted values
     $log_data = [

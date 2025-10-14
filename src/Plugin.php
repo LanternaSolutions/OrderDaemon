@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager;
 
 use OrderDaemon\CompletionManager\Admin\Admin;
+use OrderDaemon\CompletionManager\Admin\DiagnosticDashboard;
 use OrderDaemon\CompletionManager\Admin\InsightDashboard;
 use OrderDaemon\CompletionManager\API\AuditLogEndpoint;
 use OrderDaemon\CompletionManager\API\RuleBuilderApiController;
@@ -219,22 +220,7 @@ final class Plugin {
             // Store guard checker in global registry for access by other components
             $GLOBALS['odcm_guard_checker'] = $guard_checker;
 
-            // Log security system initialization
-            odcm_log_event(
-                'Security guard system initialized successfully',
-                [
-                    'guard_system_version' => '1.0.0',
-                    'initialization_context' => 'plugin_bootstrap',
-                    'available_guards' => [
-                        'NonceGuard',
-                        'CapabilityGuard',
-                        'CompositeGuard'
-                    ]
-                ],
-                null,
-                'success',
-                'security_system_initialized'
-            );
+            // Security system initialized
         } catch (\Throwable $e) {
             // Silently fail guard system initialization to prevent breaking the plugin
             // The guard system is optional and shouldn't break core functionality
@@ -261,6 +247,10 @@ final class Plugin {
 			// Initialize Insight Dashboard
 			$insight_dashboard = new InsightDashboard();
 			$insight_dashboard->init();
+
+			// Initialize Diagnostic Dashboard
+			$diagnostic_dashboard = new DiagnosticDashboard();
+			$diagnostic_dashboard->init();
 
 			// Initialize WordPress.org compliant upgrade prompts (educational messaging)
 			if (class_exists('OrderDaemon\\CompletionManager\\Includes\\UpgradePrompts')) {

@@ -225,7 +225,7 @@ class Admin
             'public'             => false,
             'publicly_queryable' => false,
             'show_ui'            => true,
-            'show_in_menu'       => 'woocommerce', // Show in WooCommerce submenu for WordPress editor access
+            'show_in_menu'       => false,          // Don't show in any menu, handled by InsightDashboard
             'show_in_admin_bar'  => false,          // Keep admin bar clean
             'query_var'          => false,
             'rewrite'            => false,

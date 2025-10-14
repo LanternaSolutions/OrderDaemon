@@ -21,16 +21,6 @@ use OrderDaemon\CompletionManager\Core\RuleComponents\RuleComponentRegistry;
 final class ComponentSummaryBuilder
 {
     /**
-     * Maximum summary length in characters to roughly fit ~2 lines in UI.
-     */
-    private const MAX_SUMMARY_LENGTH = 120;
-
-    /**
-     * Maximum number of list items to display before showing ellipsis.
-     */
-    private const MAX_LIST_ITEMS = 3;
-
-    /**
      * @var RuleComponentRegistry
      */
     private RuleComponentRegistry $component_registry;
@@ -251,20 +241,15 @@ final class ComponentSummaryBuilder
             return $value ? __('enabled', 'order-daemon') : __('disabled', 'order-daemon');
         }
 
-        // Numbers/strings fallback
-        $text = (string) $value;
-        if (strlen($text) > 60) {
-            $text = $this->truncate_string($text, 60);
-        }
-        return $text;
+        return (string) $value;
     }
 
     /**
-     * Format array values, mapping enums and truncating with ellipsis when necessary.
+     * Format array values, mapping enums to their display labels.
      *
      * @param array $values   Selected values.
      * @param array $property Property schema containing enum definitions.
-     * @return string Comma-separated list with possible truncation.
+     * @return string Comma-separated list of all values.
      */
     private function format_array_value(array $values, array $property): string
     {
@@ -285,29 +270,13 @@ final class ComponentSummaryBuilder
             $labels[] = isset($enum_options[$key]) ? (string) $enum_options[$key] : (string) $val;
         }
 
-        // Limit number of items for readability
-        return $this->truncate_list($labels);
+        // Return all items without truncation
+        return implode(', ', $labels);
     }
 
-    /**
-     * Truncate list to max items and add ellipsis with remaining count.
-     *
-     * @param array $items Labels to display.
-     * @return string
-     */
-    private function truncate_list(array $items): string
-    {
-        if (count($items) <= self::MAX_LIST_ITEMS) {
-            return implode(', ', $items);
-        }
-
-        $truncated = array_slice($items, 0, self::MAX_LIST_ITEMS);
-        $remaining = count($items) - self::MAX_LIST_ITEMS;
-        return implode(', ', $truncated) . ' ' . sprintf( /* translators: %d: remaining count */ __('... and %d more', 'order-daemon'), $remaining);
-    }
 
     /**
-     * Build final summary string with length control and graceful truncation.
+     * Build final summary string.
      *
      * @param array $parts { title: string, match_mode: string, details: string[] }
      * @return string
@@ -324,19 +293,11 @@ final class ComponentSummaryBuilder
         }
         if (!empty($parts['details']) && is_array($parts['details'])) {
             $details_str = implode(', ', $parts['details']);
-            $current_length = strlen(implode(' ', $segments));
-            $available = self::MAX_SUMMARY_LENGTH - $current_length - 1;
-            if ($available > 10 && strlen($details_str) > $available) {
-                $details_str = $this->truncate_string($details_str, $available);
-            }
             $segments[] = $details_str;
         }
         $summary = trim(implode(' ', $segments));
         if ($summary === '') {
             $summary = __('Component', 'order-daemon');
-        }
-        if (strlen($summary) > self::MAX_SUMMARY_LENGTH) {
-            $summary = $this->truncate_string($summary, self::MAX_SUMMARY_LENGTH);
         }
         return $summary;
     }
@@ -378,7 +339,7 @@ final class ComponentSummaryBuilder
     }
 
     /**
-     * Format details array into a readable string with truncation.
+     * Format details array into a readable string.
      *
      * @param array $details Array of detail strings.
      * @return string Formatted details string.
@@ -398,23 +359,7 @@ final class ComponentSummaryBuilder
             return '';
         }
 
-        // Truncate list if too many items
-        $displayed_details = array_slice($details, 0, self::MAX_LIST_ITEMS);
-        $remaining_count = count($details) - count($displayed_details);
-
-        $details_text = implode(', ', $displayed_details);
-
-        // Add ellipsis if there are more items
-        if ($remaining_count > 0) {
-            $details_text .= sprintf(' ' . __('and %d more', 'order-daemon'), $remaining_count);
-        }
-
-        // Truncate overall length if needed
-        if (strlen($details_text) > self::MAX_SUMMARY_LENGTH) {
-            $details_text = $this->truncate_string($details_text, self::MAX_SUMMARY_LENGTH);
-        }
-
-        return $details_text;
+        return implode(', ', $details);
     }
 
     /**
@@ -433,25 +378,6 @@ final class ComponentSummaryBuilder
         return wp_kses($html, $allowed_tags);
     }
 
-    /**
-     * Truncate string at a word boundary and add ellipsis.
-     *
-     * @param string $text
-     * @param int    $max_length
-     * @return string
-     */
-    private function truncate_string(string $text, int $max_length): string
-    {
-        if (strlen($text) <= $max_length) {
-            return $text;
-        }
-        $slice = substr($text, 0, max(0, $max_length - 3));
-        $last_space = strrpos($slice, ' ');
-        if ($last_space !== false && $last_space > (int) floor($max_length * 0.6)) {
-            $slice = substr($slice, 0, $last_space);
-        }
-        return rtrim($slice) . '...';
-    }
 
     /**
      * Retrieve a component by ID and type from the registry.

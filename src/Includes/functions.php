@@ -1127,9 +1127,17 @@ function odcm_log_event(
     // Add source encoding
     $compressed['d']['src'] = odcm_encode_source($event_data['source']);
 
+    // Action Scheduler has a hard limit on argument sizes - payloads that exceed this limit
+    // get silently hashed/truncated causing data loss. To prevent this, we enforce limits:
+    // - Total payload size must be under ACTION_SCHEDULER_PAYLOAD_LIMIT (includes all data)
+    // - Custom event summaries are limited to CUSTOM_SUMMARY_MAX_LENGTH to leave room for other data
+    // Built-in events use registry templates (no summary in payload) so they rarely hit limits
+    $action_scheduler_payload_limit = 190; // Hard limit imposed by Action Scheduler
+    $custom_summary_max_length = 60; // Maximum chars available for custom event summaries
+    
     // CHECK SIZE AND QUEUE - Send ONLY compressed data to Action Scheduler
     $encoded_size = strlen(json_encode($compressed));
-    if ($encoded_size < 190) {
+    if ($encoded_size < $action_scheduler_payload_limit) {
         // FIX: Action Scheduler uses call_user_func_array() which spreads array arguments
         // We need to pass the compressed data as a single argument in an array
         as_enqueue_async_action(
@@ -1138,20 +1146,11 @@ function odcm_log_event(
             'odcm-logs'
         );
     } else {
-        // Fallback: ultra-minimal payload
-        $minimal = [
-            'd' => [
-                's' => substr($summary, 0, 20) . '...',
-                'st' => odcm_encode_status($status),
-                'o' => $order_id,
-                'pid' => $event_data['process_id'] ?? null
-            ]
-        ];
-        as_enqueue_async_action(
-            'odcm_process_log_entry',
-            [$minimal], // Wrap in array to prevent spreading
-            'odcm-logs'
-        );
+        // Payload too large - skip logging to prevent Action Scheduler silent failure
+        // Built-in events use registry templates and shouldn't hit this limit
+        // Custom events should be written with summaries under {$custom_summary_max_length} chars
+        error_log("ODCM: Log entry payload too large ({$encoded_size} chars, limit: {$action_scheduler_payload_limit}), skipping to prevent silent failure. Custom summaries should be under {$custom_summary_max_length} characters.");
+        return false;
     }
 
     return true;

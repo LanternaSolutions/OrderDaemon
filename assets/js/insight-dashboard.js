@@ -1327,21 +1327,140 @@ function insightDashboard() {
         // =================================================================
         showToast(message, type = 'info') {
             try {
+                // Debug toast system availability
+                if (odcmIsDebug()) {
+                    console.log('ODCM: showToast called:', { message, type });
+                    console.log('ODCM: Toast system check:', {
+                        windowExists: typeof window !== 'undefined',
+                        ODCMToastsExists: !!window.ODCMToasts,
+                        addToastExists: window.ODCMToasts && typeof window.ODCMToasts.addToast === 'function'
+                    });
+                }
+
                 if (typeof window !== 'undefined' && window.ODCMToasts && typeof window.ODCMToasts.addToast === 'function') {
                     window.ODCMToasts.addToast(message, type);
+                    if (odcmIsDebug()) {
+                        console.log('ODCM: Toast added via ODCMToasts system');
+                    }
                 } else {
+                    // Enhanced fallback: try to create a simple toast notification
+                    if (odcmIsDebug()) {
+                        console.log('ODCM: ODCMToasts not available, using fallback');
+                    }
+                    
+                    this.createFallbackToast(message, type);
+                    
+                    // Also log to console as backup
                     if (type === 'error') {
-                        console.error(message);
-                    } else if (odcmIsDebug()) {
-                        console.log(message);
+                        console.error('ODCM Toast (Error):', message);
+                    } else {
+                        console.log('ODCM Toast (' + type + '):', message);
                     }
                 }
             } catch (e) {
+                console.error('ODCM: Toast system error:', e);
                 if (type === 'error') {
-                    console.error(message);
+                    console.error('ODCM Toast (Fallback Error):', message);
                 } else if (odcmIsDebug()) {
-                    console.log(message);
+                    console.log('ODCM Toast (Fallback):', message);
                 }
+            }
+        },
+
+        createFallbackToast(message, type = 'info') {
+            try {
+                // Create a simple toast notification as fallback
+                const toastContainer = document.getElementById('odcm-toast-container') || this.createToastContainer();
+                
+                const toast = document.createElement('div');
+                toast.className = `odcm-fallback-toast odcm-toast-${type}`;
+                toast.style.cssText = `
+                    background: ${type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#28a745'};
+                    color: white;
+                    padding: 12px 16px;
+                    margin: 8px 0;
+                    border-radius: 4px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                    animation: slideInRight 0.3s ease;
+                    cursor: pointer;
+                    position: relative;
+                    z-index: 10000;
+                `;
+                toast.textContent = message;
+                
+                // Auto-remove after 4 seconds
+                const timeoutId = setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.style.animation = 'slideOutRight 0.3s ease';
+                        setTimeout(() => {
+                            if (toast.parentNode) {
+                                toast.parentNode.removeChild(toast);
+                            }
+                        }, 300);
+                    }
+                }, 4000);
+                
+                // Allow manual dismissal
+                toast.addEventListener('click', () => {
+                    clearTimeout(timeoutId);
+                    if (toast.parentNode) {
+                        toast.style.animation = 'slideOutRight 0.3s ease';
+                        setTimeout(() => {
+                            if (toast.parentNode) {
+                                toast.parentNode.removeChild(toast);
+                            }
+                        }, 300);
+                    }
+                });
+                
+                toastContainer.appendChild(toast);
+                
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Fallback toast created');
+                }
+                
+            } catch (e) {
+                console.error('ODCM: Fallback toast creation failed:', e);
+            }
+        },
+
+        createToastContainer() {
+            try {
+                const container = document.createElement('div');
+                container.id = 'odcm-toast-container';
+                container.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 10001;
+                    max-width: 400px;
+                    pointer-events: none;
+                `;
+                
+                // Add CSS animations
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes slideInRight {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOutRight {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                    .odcm-fallback-toast { pointer-events: auto; }
+                `;
+                
+                if (!document.head.querySelector('#odcm-toast-animations')) {
+                    style.id = 'odcm-toast-animations';
+                    document.head.appendChild(style);
+                }
+                
+                document.body.appendChild(container);
+                return container;
+            } catch (e) {
+                console.error('ODCM: Toast container creation failed:', e);
+                return null;
             }
         },
         removeToast(id) {
@@ -1377,91 +1496,125 @@ function insightDashboard() {
         async deleteSelectedLogs() {
             if (!this.selectedLogIds.length) return;
 
-            // Store the count before we clear the array
+            // Store the count and create copy for processing
             const selectedCount = this.selectedLogIds.length;
-            const selectedIds = [...this.selectedLogIds]; // Create a copy for the request
+            const selectedIds = [...this.selectedLogIds];
+
+            // Clear selection immediately to prevent double-clicks
+            this.selectedLogIds = [];
+            this.selectAll = false;
 
             this.isDeleting = true;
 
-            // Debug logging
             console.log('ODCM: Starting batch delete:', {
                 selectedCount,
-                selectedIds,
+                totalIds: selectedIds.length,
                 apiUrl: this.config.apiUrl,
                 nonce: this.config.nonce ? 'present' : 'missing'
             });
 
+            // Split into chunks of 100 for server compatibility
+            const CHUNK_SIZE = 100;
+            const chunks = [];
+            for (let i = 0; i < selectedIds.length; i += CHUNK_SIZE) {
+                chunks.push(selectedIds.slice(i, i + CHUNK_SIZE));
+            }
+
+            console.log(`ODCM: Processing ${chunks.length} chunks of max ${CHUNK_SIZE} items each`);
+
+            let totalDeleted = 0;
+            let totalFailed = 0;
+            let failedChunks = [];
+
             try {
-                const requestUrl = `${this.config.apiUrl}batch-delete/`;
-                const requestBody = JSON.stringify({ log_ids: selectedIds });
+                // Process chunks sequentially for stability
+                for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+                    const chunk = chunks[chunkIndex];
+                    const chunkNumber = chunkIndex + 1;
 
-                console.log('ODCM: Making DELETE request to:', requestUrl);
-                console.log('ODCM: Request body:', requestBody);
+                    console.log(`ODCM: Processing chunk ${chunkNumber}/${chunks.length} (${chunk.length} items)`);
 
-                const response = await fetch(requestUrl, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-WP-Nonce': this.config.nonce
-                    },
-                    body: requestBody
+                    try {
+                        const requestUrl = `${this.config.apiUrl}batch-delete/`;
+                        const response = await fetch(requestUrl, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-WP-Nonce': this.config.nonce
+                            },
+                            body: JSON.stringify({
+                                log_ids: chunk
+                            })
+                        });
+
+                        const responseText = await response.text();
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${responseText}`);
+                        }
+
+                        const data = JSON.parse(responseText);
+
+                        if (data && data.success) {
+                            const deletedCount = data.deleted_count || chunk.length;
+                            totalDeleted += deletedCount;
+
+                            // Remove deleted items from UI immediately
+                            const toDelete = new Set(chunk);
+                            this.logs = this.logs.filter(l => !toDelete.has(l.id));
+
+                            // Show progress toast for each batch
+                            const progressMessage = chunks.length > 1 
+                                ? `Batch ${chunkNumber}/${chunks.length} completed (${deletedCount} items deleted)`
+                                : `Successfully deleted ${deletedCount} log entries`;
+                            
+                            this.showToast(progressMessage, 'success');
+
+                            console.log(`ODCM: Chunk ${chunkNumber} completed successfully:`, {
+                                deleted_count: deletedCount,
+                                chunk_size: chunk.length
+                            });
+                        } else {
+                            throw new Error(data.message || 'Unexpected response format');
+                        }
+
+                    } catch (chunkError) {
+                        console.error(`ODCM: Chunk ${chunkNumber} failed:`, chunkError);
+                        totalFailed += chunk.length;
+                        failedChunks.push({ chunk: chunkNumber, size: chunk.length, error: chunkError.message });
+                        
+                        // Show error toast for failed chunk
+                        this.showToast(`Batch ${chunkNumber} failed: ${chunkError.message}`, 'error');
+                    }
+                }
+
+                // Show final summary
+                if (chunks.length > 1) {
+                    if (totalDeleted > 0 && totalFailed === 0) {
+                        this.showToast(`All batches completed! Successfully deleted ${totalDeleted} log entries`, 'success');
+                    } else if (totalDeleted > 0 && totalFailed > 0) {
+                        this.showToast(`Partially completed: ${totalDeleted} deleted, ${totalFailed} failed`, 'warning');
+                    } else if (totalFailed > 0) {
+                        this.showToast(`All batches failed: ${totalFailed} entries could not be deleted`, 'error');
+                    }
+                }
+
+                console.log('ODCM: Batch delete process completed:', {
+                    total_selected: selectedCount,
+                    total_deleted: totalDeleted,
+                    total_failed: totalFailed,
+                    chunks_processed: chunks.length,
+                    failed_chunks: failedChunks.length
                 });
 
-                console.log('ODCM: Response status:', response.status);
-                console.log('ODCM: Response headers:', Object.fromEntries(response.headers.entries()));
-
-                // Try to get response text first to see what we're actually getting
-                const responseText = await response.text();
-                console.log('ODCM: Raw response text:', responseText);
-
-                if (!response.ok) {
-                    // Handle specific error cases
-                    let errorMessage = 'Failed to delete selected logs';
-                    if (response.status === 403) {
-                        errorMessage = 'Permission denied - you do not have sufficient privileges to delete logs';
-                    } else if (response.status === 404) {
-                        errorMessage = 'Selected logs not found or already deleted';
-                    } else if (response.status === 500) {
-                        errorMessage = 'Server error occurred while deleting logs';
-                    } else {
-                        errorMessage = `Failed to delete logs (HTTP ${response.status}): ${responseText}`;
-                    }
-                    throw new Error(errorMessage);
+                // Refresh log stream to show remaining entries and prevent empty state
+                if (totalDeleted > 0) {
+                    await this.fetchLogs();
                 }
 
-                // Parse the response
-                let data;
-                try {
-                    data = JSON.parse(responseText);
-                    console.log('ODCM: Parsed response data:', data);
-                } catch (parseError) {
-                    console.error('ODCM: Failed to parse response as JSON:', parseError);
-                    throw new Error(`Invalid JSON response: ${responseText}`);
-                }
-
-                if (data && data.success) {
-                    const toDelete = new Set(selectedIds);
-                    this.logs = this.logs.filter(l => !toDelete.has(l.id));
-                    this.selectedLogIds = [];
-                    this.selectAll = false;
-
-                    // Use the message from the server response if available
-                    const successMessage = data.message || `Successfully deleted ${data.deleted_count || selectedCount} log entries`;
-                    this.showToast(successMessage, 'success');
-
-                    console.log('ODCM: Batch delete completed successfully:', {
-                        deleted_count: data.deleted_count,
-                        requested_count: data.requested_count,
-                        selected_count: selectedCount
-                    });
-                } else {
-                    console.error('ODCM: Server returned unsuccessful response:', data);
-                    throw new Error(data.message || 'Unexpected response format');
-                }
-            } catch (e) {
-                console.error('ODCM: Batch delete error:', e);
-                console.error('ODCM: Error stack:', e.stack);
-                this.showToast(e.message || 'Failed to delete selected logs', 'error');
+            } catch (error) {
+                console.error('ODCM: Fatal error in batch delete process:', error);
+                this.showToast('Fatal error occurred during batch deletion', 'error');
             } finally {
                 this.isDeleting = false;
             }
@@ -1551,26 +1704,6 @@ function insightDashboard() {
                    (log.process_event_count && log.process_event_count > 1);
         },
         
-        /**
-         * Get the appropriate icon for a log entry
-         */
-        getLogEntryIcon(log) {
-            if (this.isConsolidatedEntry(log)) {
-                return 'dashicons-networking'; // Network/group icon for consolidated entries
-            }
-            
-            // Return different icons based on event type or status
-            const eventType = (log.event_type || '').toLowerCase();
-            const status = (log.status || '').toLowerCase();
-            
-            if (status === 'error') return 'dashicons-warning';
-            if (status === 'success') return 'dashicons-yes-alt';
-            if (eventType.includes('payment')) return 'dashicons-money-alt';
-            if (eventType.includes('order')) return 'dashicons-cart';
-            if (eventType.includes('webhook')) return 'dashicons-admin-links';
-            
-            return 'dashicons-admin-generic'; // Default icon
-        },
         
         /**
          * Get display text for consolidated entries
