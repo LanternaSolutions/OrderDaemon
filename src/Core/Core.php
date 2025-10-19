@@ -195,55 +195,61 @@ class Core
     }
 
     /**
-     * NEW: Finds all pending orders and schedules them for reprocessing in the background.
+     * Handle WooCommerce payment completion events - FAIL-SAFE IMPLEMENTATION
      *
-     * This method avoids performance issues by fetching only order IDs and handing them
-     * off to Action Scheduler for asynchronous processing.
+     * CRITICAL: This method implements the "Never Break Revenue" philosophy.
+     * All heavy processing is moved to background to ensure payment completion cannot be blocked.
      *
-     * @return int The number of orders scheduled for reprocessing.
+     * @param int $order_id The ID of the order that had payment completed.
      */
-    public function reprocess_pending_orders(): int
+    public function handle_payment_complete(int $order_id): void
     {
-        // Fetch only the IDs to keep memory usage extremely low.
-        $order_ids = wc_get_orders([
-            'status' => ['processing', 'on-hold'],
-            'limit'  => -1, // Get all matching orders.
-            'return' => 'ids',
-        ]);
-
-        if (empty($order_ids)) {
-            return 0;
-        }
-
-        // Schedule a single background action with all the IDs.
-        // Action Scheduler processes this asynchronously, preventing server timeouts.
-        as_enqueue_async_action(
-            'odcm_reprocess_orders_batch', // The hook our new function listens for.
-            ['order_ids' => $order_ids],
-            'odcm-order-processing'      // A custom group for our actions.
-        );
-
-        return count($order_ids);
-    }
-
-    /**
-     * REFACTORED: Schedules completion checks for a given batch of order IDs.
-     *
-     * This method is now executed in the background by Action Scheduler. It loops
-     * through the provided IDs and schedules an individual check for each one.
-     *
-     * @param array $order_ids An array of WooCommerce order IDs passed by Action Scheduler.
-     */
-    public function schedule_orders_for_reprocessing(array $order_ids)
-    {
-        if (empty($order_ids)) {
+        $start_time = microtime(true);
+        
+        if ($order_id <= 0) {
             return;
         }
 
-        foreach ($order_ids as $order_id) {
-            // Schedule an individual check for each order. This leverages the existing
-            // reliable, single-order processing logic of the plugin.
-            $this->schedule_completion_check((int) $order_id);
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            return;
+        }
+
+        try {
+            // Check circuit breaker first
+            if ($this->should_bypass_processing()) {
+                error_log("ODCM_CIRCUIT_BREAKER: Bypassing payment processing for order #{$order_id} - circuit breaker is open");
+                return;
+            }
+
+            // Schedule for background processing
+            as_enqueue_async_action('odcm_process_payment_completion', [
+                'order_id' => $order_id,
+                'payment_gateway' => $order->get_payment_method(),
+                'scheduled_at' => current_time('c')
+            ], 'odcm-payment-processing');
+            
+            // Minimal sync logging only - no heavy operations during payment
+            $this->log_checkout_event_minimal($order_id, 'payment_scheduled');
+            
+            // Record success for circuit breaker
+            $this->record_checkout_success();
+            
+        } catch (\Throwable $e) {
+            // NEVER break payment completion - log error and continue
+            $this->log_safe_error('payment_hook_failed', $e, [
+                'order_id' => $order_id,
+                'method' => 'handle_payment_complete'
+            ]);
+            
+            // Record failure for circuit breaker
+            $this->record_checkout_failure();
+            
+            // Emergency fallback processing
+            $this->emergency_fallback_processing($order_id);
+        } finally {
+            // Monitor execution time
+            $this->monitor_execution_time($start_time, 'payment_complete', $order_id);
         }
     }
 
@@ -417,58 +423,6 @@ class Core
     }
 
 
-    /**
-     * Handles WooCommerce payment completion events - FAIL-SAFE IMPLEMENTATION
-     *
-     * CRITICAL: This method implements the "Never Break Revenue" philosophy.
-     * All heavy processing is moved to background to ensure payment completion cannot be blocked.
-     *
-     * @param int $order_id The ID of the order that had payment completed.
-     */
-    public function handle_payment_complete(int $order_id): void
-    {
-        $start_time = microtime(true);
-        
-        if ($order_id <= 0) {
-            return;
-        }
-
-        $order = wc_get_order($order_id);
-        if (!$order) {
-            return;
-        }
-
-        try {
-            // Schedule for background processing
-            as_enqueue_async_action('odcm_process_payment_completion', [
-                'order_id' => $order_id,
-                'payment_gateway' => $order->get_payment_method(),
-                'scheduled_at' => current_time('c')
-            ], 'odcm-payment-processing');
-            
-            // Minimal sync logging only - no heavy operations during payment
-            $this->log_checkout_event_minimal($order_id, 'payment_scheduled');
-            
-            // Record success for circuit breaker
-            $this->record_checkout_success();
-            
-        } catch (\Throwable $e) {
-            // NEVER break payment completion - log error and continue
-            $this->log_safe_error('payment_hook_failed', $e, [
-                'order_id' => $order_id,
-                'method' => 'handle_payment_complete'
-            ]);
-            
-            // Record failure for circuit breaker
-            $this->record_checkout_failure();
-            
-            // Emergency fallback processing
-            $this->emergency_fallback_processing($order_id);
-        } finally {
-            // Monitor execution time
-            $this->monitor_execution_time($start_time, 'payment_complete', $order_id);
-        }
-    }
 
     /**
      * Handles WooCommerce order status change events.
@@ -675,12 +629,20 @@ class Core
         // Get matching rules for this status change
         $matching_rules = $this->get_matching_rules_for_status_change($from_slug, $to_slug);
 
+        // TEMPORARY DEBUG: Always log rule matching results
+        error_log("ODCM_DEBUG_TRACE: Order #{$order_id} ({$from_slug} → {$to_slug}) - Found " . count($matching_rules) . " matching rules");
+        
         if (empty($matching_rules)) {
-            // No rules match - log only in debug mode
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->log_no_rules_matched($order_id, $from_slug, $to_slug);
-            }
+            // TEMPORARY: Always log this, not just in debug mode
+            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - NO RULES MATCHED, exiting early");
+            $this->log_no_rules_matched($order_id, $from_slug, $to_slug);
             return; // Exit early - no rule processing needed
+        }
+
+        // TEMPORARY DEBUG: Log that we found matching rules
+        error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - RULES MATCHED, proceeding to universal event processing");
+        foreach ($matching_rules as $rule) {
+            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - Matching rule: {$rule['name']} (ID: {$rule['id']})");
         }
 
         // Rules match - ALWAYS log this (production + debug)
@@ -1785,12 +1747,7 @@ class Core
     private function record_checkout_success(): void
     {
         try {
-            delete_transient('odcm_checkout_failures');
-            
-            // Update success counter
-            $success_count = get_transient('odcm_checkout_successes') ?: 0;
-            set_transient('odcm_checkout_successes', $success_count + 1, 300); // 5 minutes
-            
+            CheckoutCircuitBreaker::instance()->recordSuccess();
         } catch (\Throwable $e) {
             // Circuit breaker should not break checkout - silence on failure
         }
@@ -1799,19 +1756,14 @@ class Core
     /**
      * Record checkout failure for circuit breaker - FAIL-SAFE CIRCUIT BREAKER
      *
+     * @param string $context Additional context about the failure
+     * @param array $metadata Additional failure metadata
      * @return void
      */
-    private function record_checkout_failure(): void
+    private function record_checkout_failure(string $context = '', array $metadata = []): void
     {
         try {
-            $failures = get_transient('odcm_checkout_failures') ?: 0;
-            set_transient('odcm_checkout_failures', $failures + 1, 300); // 5 minutes
-            
-            // Log when circuit breaker threshold is reached
-            if ($failures >= 5) {
-                error_log('ODCM_CIRCUIT_BREAKER: Checkout failures threshold reached: ' . $failures);
-            }
-            
+            CheckoutCircuitBreaker::instance()->recordFailure($context, $metadata);
         } catch (\Throwable $e) {
             // Circuit breaker should not break checkout - silence on failure
         }
@@ -1932,6 +1884,77 @@ class Core
                 'last_check' => current_time('c'),
                 'error' => $e->getMessage()
             ];
+        }
+    }
+
+    // ========================================================================
+    // ORDER PROCESSING HELPER METHODS
+    // ========================================================================
+
+    /**
+     * NEW: Finds all pending orders and schedules them for reprocessing in the background.
+     *
+     * This method avoids performance issues by fetching only order IDs and handing them
+     * off to Action Scheduler for asynchronous processing.
+     *
+     * @return int The number of orders scheduled for reprocessing.
+     */
+    public function reprocess_pending_orders(): int
+    {
+        // Fetch only the IDs to keep memory usage extremely low.
+        $order_ids = wc_get_orders([
+            'status' => ['processing', 'on-hold'],
+            'limit'  => -1, // Get all matching orders.
+            'return' => 'ids',
+        ]);
+
+        if (empty($order_ids)) {
+            return 0;
+        }
+
+        // Schedule a single background action with all the IDs.
+        // Action Scheduler processes this asynchronously, preventing server timeouts.
+        as_enqueue_async_action(
+            'odcm_reprocess_orders_batch', // The hook our new function listens for.
+            ['order_ids' => $order_ids],
+            'odcm-order-processing'      // A custom group for our actions.
+        );
+
+        return count($order_ids);
+    }
+
+    /**
+     * REFACTORED: Schedules completion checks for a given batch of order IDs.
+     *
+     * This method is now executed in the background by Action Scheduler. It loops
+     * through the provided IDs and schedules an individual check for each one.
+     *
+     * @param array $order_ids An array of WooCommerce order IDs passed by Action Scheduler.
+     */
+    public function schedule_orders_for_reprocessing(array $order_ids)
+    {
+        if (empty($order_ids)) {
+            return;
+        }
+
+        foreach ($order_ids as $order_id) {
+            // Schedule an individual check for each order. This leverages the existing
+            // reliable, single-order processing logic of the plugin.
+            $this->schedule_completion_check((int) $order_id);
+        }
+    }
+
+    /**
+     * Check if processing should be bypassed due to circuit breaker - FAIL-SAFE CIRCUIT BREAKER
+     *
+     * @return bool True if processing should be bypassed
+     */
+    private function should_bypass_processing(): bool
+    {
+        try {
+            return CheckoutCircuitBreaker::instance()->shouldBypassProcessing();
+        } catch (\Throwable $e) {
+            return false; // Default to allowing processing
         }
     }
 

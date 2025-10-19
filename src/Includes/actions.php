@@ -34,7 +34,8 @@ use function OrderDaemon\CompletionManager\Utils\odcm_sanitize_payload_for_loggi
 function odcm_handle_log_processing($args) {
     global $wpdb;
     
-    // DEBUG: Log that function is being called
+    // TEMPORARY DEBUG: Log that function is being called
+    error_log("ODCM_DEBUG_TRACE: odcm_handle_log_processing() called with args: " . wp_json_encode($args));
     
     // Handle both array and JSON string arguments from Action Scheduler
     if (is_string($args)) {
@@ -235,6 +236,11 @@ function odcm_handle_order_check_processing($args) {
     }
 
     try {
+        // TEMPORARY DEBUG: Log action handler execution
+        error_log("ODCM_DEBUG_TRACE: Action Handler - Processing Order #{$order_id}");
+        error_log("ODCM_DEBUG_TRACE: Action Handler - Order status: " . $order->get_status());
+        error_log("ODCM_DEBUG_TRACE: Action Handler - Payment method: " . $order->get_payment_method());
+        
         // Create a universal event for the order check
         $universal_event_data = [
             'eventType' => 'order_check_scheduled',
@@ -258,9 +264,13 @@ function odcm_handle_order_check_processing($args) {
             ]
         ];
 
+        error_log("ODCM_DEBUG_TRACE: Action Handler - Created universal event data");
+
         // Process through UniversalEventProcessor
         $processor = \OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor::instance();
+        error_log("ODCM_DEBUG_TRACE: Action Handler - About to call processEvent()");
         $result = $processor->processEvent($universal_event_data);
+        error_log("ODCM_DEBUG_TRACE: Action Handler - processEvent() returned: " . ($result ? 'TRUE' : 'FALSE'));
 
         // Log the result for debugging
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -395,3 +405,255 @@ function odcm_handle_universal_event_processing(array $args) {
 
 // Hook the universal event processing handler
 add_action('odcm_process_lifecycle_event', 'odcm_handle_universal_event_processing', 10, 1);
+
+/**
+ * Processes checkout completion in the background.
+ *
+ * This handler function is executed by Action Scheduler when a checkout completion is processed.
+ * It handles the heavy processing that was moved from the synchronous checkout hooks to protect revenue.
+ *
+ * @param mixed $args The arguments passed to the action (can be array or int).
+ * @return void
+ * @since 1.0.0
+ */
+function odcm_handle_checkout_completion_processing($args) {
+    // Handle Action Scheduler calling convention
+    if (is_array($args)) {
+        $order_id = isset($args['order_id']) ? (int) $args['order_id'] : 0;
+        $checkout_type = isset($args['checkout_type']) ? sanitize_text_field($args['checkout_type']) : 'standard';
+    } else {
+        // Action Scheduler passes order ID directly
+        $order_id = (int) $args;
+        $checkout_type = 'standard';
+    }
+
+    if ($order_id <= 0) {
+        error_log('ODCM_BACKGROUND: Invalid order ID for checkout completion processing');
+        return;
+    }
+
+    $order = wc_get_order($order_id);
+    if (!$order instanceof \WC_Order) {
+        error_log("ODCM_BACKGROUND: Order #{$order_id} not found for checkout completion processing");
+        return;
+    }
+
+    try {
+        // TEMPORARY DEBUG: Log background processing execution
+        error_log("ODCM_DEBUG_TRACE: Background Handler - Processing checkout completion for Order #{$order_id}");
+        error_log("ODCM_DEBUG_TRACE: Background Handler - Order status: " . $order->get_status());
+        error_log("ODCM_DEBUG_TRACE: Background Handler - Payment method: " . $order->get_payment_method());
+
+        // Create a universal event for checkout completion
+        $universal_event_data = [
+            'eventType' => 'checkout_processed',
+            'sourceGateway' => $order->get_payment_method() ?: 'unknown',
+            'channel' => 'system',
+            'primaryObjectType' => 'order',
+            'primaryObjectID' => $order_id,
+            'transactionID' => $order->get_transaction_id(),
+            'status' => $order->get_status(),
+            'amount' => (float) $order->get_total(),
+            'currency' => $order->get_currency(),
+            'occurredAt' => current_time('c'),
+            'receivedAt' => current_time('c'),
+            'idempotencyKey' => 'checkout_processed_' . $order_id . '_' . time(),
+            'rawData' => [
+                'order_status' => $order->get_status(),
+                'payment_method' => $order->get_payment_method(),
+                'customer_id' => $order->get_customer_id(),
+                'checkout_type' => $checkout_type,
+                'source' => 'checkout_completion',
+                'trigger' => 'background_processing'
+            ]
+        ];
+
+        error_log("ODCM_DEBUG_TRACE: Background Handler - Created checkout completion event data");
+
+        // Process through UniversalEventProcessor
+        $processor = \OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor::instance();
+        error_log("ODCM_DEBUG_TRACE: Background Handler - About to call processEvent() for checkout");
+        $result = $processor->processEvent($universal_event_data);
+        error_log("ODCM_DEBUG_TRACE: Background Handler - Checkout processEvent() returned: " . ($result ? 'TRUE' : 'FALSE'));
+
+        // Log successful background processing
+        error_log("ODCM_BACKGROUND: Checkout completion processed successfully for order #{$order_id}");
+
+        // Log the processing result for debugging
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_event(
+                $result ? 'Checkout completion processed successfully' : 'Checkout completion completed with no matching rules',
+                [
+                    'order_id' => $order_id,
+                    'processing_result' => $result,
+                    'checkout_type' => $checkout_type,
+                    'order_status' => $order->get_status(),
+                    'payment_method' => $order->get_payment_method(),
+                    'order_total' => $order->get_total()
+                ],
+                $order_id,
+                $result ? 'success' : 'info',
+                'checkout_completion_processed'
+            );
+        }
+
+    } catch (\Throwable $e) {
+        // Log processing error but don't let it break the system
+        error_log("ODCM_BACKGROUND: Checkout completion processing failed for order #{$order_id}: " . $e->getMessage());
+        
+        odcm_log_event(
+            'Checkout completion processing failed with exception: ' . $e->getMessage(),
+            [
+                'order_id' => $order_id,
+                'checkout_type' => $checkout_type,
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'order_status' => $order ? $order->get_status() : 'unknown'
+            ],
+            $order_id,
+            'error',
+            'checkout_completion_exception'
+        );
+        
+        // Emergency fallback: schedule traditional order check
+        try {
+            as_enqueue_async_action('odcm_process_order_check', [
+                'order_id' => $order_id
+            ], 'odcm-emergency-processing');
+            error_log("ODCM_BACKGROUND: Scheduled emergency fallback processing for order #{$order_id}");
+        } catch (\Throwable $fallback_error) {
+            error_log("ODCM_BACKGROUND: Emergency fallback failed for order #{$order_id}: " . $fallback_error->getMessage());
+        }
+    }
+}
+
+// Hook the checkout completion processing handler
+add_action('odcm_process_checkout_completion', 'odcm_handle_checkout_completion_processing', 10, 1);
+
+/**
+ * Processes payment completion in the background.
+ *
+ * This handler function is executed by Action Scheduler when a payment completion is processed.
+ * It handles the heavy processing that was moved from the synchronous payment hooks to protect revenue.
+ *
+ * @param mixed $args The arguments passed to the action (can be array or int).
+ * @return void
+ * @since 1.0.0
+ */
+function odcm_handle_payment_completion_processing($args) {
+    // Handle Action Scheduler calling convention
+    if (is_array($args)) {
+        $order_id = isset($args['order_id']) ? (int) $args['order_id'] : 0;
+        $payment_gateway = isset($args['payment_gateway']) ? sanitize_text_field($args['payment_gateway']) : '';
+    } else {
+        // Action Scheduler passes order ID directly
+        $order_id = (int) $args;
+        $payment_gateway = '';
+    }
+
+    if ($order_id <= 0) {
+        error_log('ODCM_BACKGROUND: Invalid order ID for payment completion processing');
+        return;
+    }
+
+    $order = wc_get_order($order_id);
+    if (!$order instanceof \WC_Order) {
+        error_log("ODCM_BACKGROUND: Order #{$order_id} not found for payment completion processing");
+        return;
+    }
+
+    try {
+        // TEMPORARY DEBUG: Log background processing execution
+        error_log("ODCM_DEBUG_TRACE: Background Handler - Processing payment completion for Order #{$order_id}");
+        error_log("ODCM_DEBUG_TRACE: Background Handler - Order status: " . $order->get_status());
+        error_log("ODCM_DEBUG_TRACE: Background Handler - Payment method: " . $order->get_payment_method());
+
+        // Use provided gateway or get from order
+        $gateway = $payment_gateway ?: $order->get_payment_method();
+
+        // Create a universal event for payment completion
+        $universal_event_data = [
+            'eventType' => 'payment_completed',
+            'sourceGateway' => $gateway ?: 'unknown',
+            'channel' => 'system',
+            'primaryObjectType' => 'order',
+            'primaryObjectID' => $order_id,
+            'transactionID' => $order->get_transaction_id(),
+            'status' => 'completed',
+            'amount' => (float) $order->get_total(),
+            'currency' => $order->get_currency(),
+            'occurredAt' => current_time('c'),
+            'receivedAt' => current_time('c'),
+            'idempotencyKey' => 'payment_completed_' . $order_id . '_' . time(),
+            'rawData' => [
+                'order_status' => $order->get_status(),
+                'payment_method' => $gateway,
+                'customer_id' => $order->get_customer_id(),
+                'source' => 'payment_completion',
+                'trigger' => 'background_processing'
+            ]
+        ];
+
+        error_log("ODCM_DEBUG_TRACE: Background Handler - Created payment completion event data");
+
+        // Process through UniversalEventProcessor
+        $processor = \OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor::instance();
+        error_log("ODCM_DEBUG_TRACE: Background Handler - About to call processEvent() for payment");
+        $result = $processor->processEvent($universal_event_data);
+        error_log("ODCM_DEBUG_TRACE: Background Handler - Payment processEvent() returned: " . ($result ? 'TRUE' : 'FALSE'));
+
+        // Log successful background processing
+        error_log("ODCM_BACKGROUND: Payment completion processed successfully for order #{$order_id}");
+
+        // Log the processing result for debugging
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_event(
+                $result ? 'Payment completion processed successfully' : 'Payment completion completed with no matching rules',
+                [
+                    'order_id' => $order_id,
+                    'processing_result' => $result,
+                    'payment_gateway' => $gateway,
+                    'order_status' => $order->get_status(),
+                    'payment_method' => $order->get_payment_method(),
+                    'order_total' => $order->get_total()
+                ],
+                $order_id,
+                $result ? 'success' : 'info',
+                'payment_completion_processed'
+            );
+        }
+
+    } catch (\Throwable $e) {
+        // Log processing error but don't let it break the system
+        error_log("ODCM_BACKGROUND: Payment completion processing failed for order #{$order_id}: " . $e->getMessage());
+        
+        odcm_log_event(
+            'Payment completion processing failed with exception: ' . $e->getMessage(),
+            [
+                'order_id' => $order_id,
+                'payment_gateway' => $payment_gateway,
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'order_status' => $order ? $order->get_status() : 'unknown'
+            ],
+            $order_id,
+            'error',
+            'payment_completion_exception'
+        );
+        
+        // Emergency fallback: schedule traditional order check
+        try {
+            as_enqueue_async_action('odcm_process_order_check', [
+                'order_id' => $order_id
+            ], 'odcm-emergency-processing');
+            error_log("ODCM_BACKGROUND: Scheduled emergency fallback processing for order #{$order_id}");
+        } catch (\Throwable $fallback_error) {
+            error_log("ODCM_BACKGROUND: Emergency fallback failed for order #{$order_id}: " . $fallback_error->getMessage());
+        }
+    }
+}
+
+// Hook the payment completion processing handler
+add_action('odcm_process_payment_completion', 'odcm_handle_payment_completion_processing', 10, 1);

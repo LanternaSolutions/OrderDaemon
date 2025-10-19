@@ -11,7 +11,7 @@ class Installer
     /**
      * The current database version.
      */
-    const DB_VERSION = '2.1';
+    const DB_VERSION = '1.0';
 
     /**
      * The option key for storing the database version.

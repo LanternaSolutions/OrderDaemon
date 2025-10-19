@@ -1128,23 +1128,35 @@ function odcm_log_event(
     $compressed['d']['src'] = odcm_encode_source($event_data['source']);
 
     // Action Scheduler has a hard limit on argument sizes - payloads that exceed this limit
-    // get silently hashed/truncated causing data loss. To prevent this, we enforce limits:
-    // - Total payload size must be under ACTION_SCHEDULER_PAYLOAD_LIMIT (includes all data)
-    // - Custom event summaries are limited to CUSTOM_SUMMARY_MAX_LENGTH to leave room for other data
-    // Built-in events use registry templates (no summary in payload) so they rarely hit limits
-    $action_scheduler_payload_limit = 190; // Hard limit imposed by Action Scheduler
-    $custom_summary_max_length = 60; // Maximum chars available for custom event summaries
+    // get silently rejected. We need MUCH more aggressive compression.
+    $action_scheduler_payload_limit = 180; // Conservative limit (was 190, now 180 for safety)
+    $custom_summary_max_length = 40;
     
     // CHECK SIZE AND QUEUE - Send ONLY compressed data to Action Scheduler
     $encoded_size = strlen(json_encode($compressed));
+    
+    // TEMPORARY DEBUG: Check both constant and database override option
+    $debug_enabled = (defined('ODCM_DEBUG') && ODCM_DEBUG) || get_option('odcm_dev_debug_override', 0);
+    if ($debug_enabled) {
+        error_log("ODCM_DEBUG_TRACE: odcm_log_event() called - Summary: '{$summary}', Event Type: '{$event_type}', Order ID: " . ($order_id ?: 'null'));
+        error_log("ODCM_DEBUG_TRACE: odcm_log_event() - Compressed payload size: {$encoded_size} bytes, limit: {$action_scheduler_payload_limit}");
+    }
+    
     if ($encoded_size < $action_scheduler_payload_limit) {
         // FIX: Action Scheduler uses call_user_func_array() which spreads array arguments
         // We need to pass the compressed data as a single argument in an array
-        as_enqueue_async_action(
+        $action_id = as_enqueue_async_action(
             'odcm_process_log_entry',
             [$compressed], // Wrap in array to prevent spreading
             'odcm-logs'
         );
+        
+        // TEMPORARY DEBUG: Log Action Scheduler result
+        if ($action_id) {
+            error_log("ODCM_DEBUG_TRACE: odcm_log_event() - Successfully scheduled Action Scheduler task ID: {$action_id}");
+        } else {
+            error_log("ODCM_DEBUG_TRACE: odcm_log_event() - FAILED to schedule Action Scheduler task!");
+        }
     } else {
         // Payload too large - skip logging to prevent Action Scheduler silent failure
         // Built-in events use registry templates and shouldn't hit this limit

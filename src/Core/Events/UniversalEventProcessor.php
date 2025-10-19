@@ -443,8 +443,14 @@ class UniversalEventProcessor
      */
     private function processUniversalEventRules(EvaluationContext $context, string $process_id): bool
     {
+        $order_id = $context->getOrderId();
+        
+        // TEMPORARY DEBUG: Log entry to universal event rule processing
+        error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Processing rules for Order #{$order_id}");
+        
         // Check if post type exists
         if (!post_type_exists('odcm_order_rule')) {
+            error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Order rule post type does not exist!");
             return false;
         }
 
@@ -457,7 +463,10 @@ class UniversalEventProcessor
             'order'          => 'ASC',
         ]);
 
+        error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Found " . $rules_query->found_posts . " published rules");
+
         if (!$rules_query->have_posts()) {
+            error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - No rules found, returning false");
             return false;
         }
 
