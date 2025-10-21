@@ -202,6 +202,7 @@ function odcm_get_payload_component_types(): array
             'renderer_class' => 'RuleEvaluationRenderer',
             'css_class'      => 'odcm-component--rule',
             'icon'           => 'dashicons-filter',
+            'aliases'        => ['rule_matched', 'rule_check', 'rule_evaluation_success'],
             'status_pill'    => [
                 'label' => __('Rule Match', 'order-daemon'),
                 'type'  => 'success'
@@ -240,12 +241,13 @@ function odcm_get_payload_component_types(): array
             'type'  => 'success'
         ],
     ],
-    'condition_failed' => [
+        'condition_failed' => [
         'id'             => 'condition_failed',
         'label'          => __('Condition Failed', 'order-daemon'),
         'renderer_class' => 'RuleEvaluationRenderer',
         'css_class'      => 'odcm-component--warning',
         'icon'           => 'dashicons-warning',
+        'aliases'        => ['rule_no_match', 'condition_not_met'],
         'status_pill'    => [
             'label' => __('Failed', 'order-daemon'),
             'type'  => 'warning'
@@ -351,6 +353,7 @@ function odcm_get_payload_component_types(): array
             'renderer_class' => 'SystemRenderer',
             'css_class'      => 'odcm-component--system',
             'icon'           => 'dashicons-controls-play',
+            'aliases'        => ['action_executed', 'action_complete'],
             'status_pill'    => [
                 'label' => __('Completed', 'order-daemon'),
                 'type'  => 'completed'
@@ -362,6 +365,7 @@ function odcm_get_payload_component_types(): array
             'renderer_class' => 'SystemRenderer',
             'css_class'      => 'odcm-component--system',
             'icon'           => 'dashicons-info',
+            'aliases'        => ['process_started', 'process_info'],
         ],
         'note_added' => [
             'id'             => 'note_added',
@@ -476,4 +480,118 @@ function odcm_get_payload_component_type(string $component_id): ?array
 {
     $components = odcm_get_payload_component_types();
     return $components[$component_id] ?? null;
+}
+
+/**
+ * Get Payload Component Type by Kind (including aliases)
+ *
+ * Looks up a component type by its kind, checking both the registry ID
+ * and any defined aliases. This allows flexible mapping of logging kinds
+ * to their appropriate renderers.
+ *
+ * @since 1.0.0
+ *
+ * @param string $kind The component kind from payload data.
+ * @return array|null Component definition array or null if not found.
+ *
+ * @example
+ * ```php
+ * // Direct match
+ * $component = odcm_get_payload_component_type_by_kind('rule_evaluated');
+ * 
+ * // Alias match (if 'rule_matched' is an alias for 'rule_evaluated')
+ * $component = odcm_get_payload_component_type_by_kind('rule_matched');
+ * // Returns the same 'rule_evaluated' component definition
+ * ```
+ */
+function odcm_get_payload_component_type_by_kind(string $kind): ?array
+{
+    $types = odcm_get_payload_component_types();
+    
+    // Direct match by registry ID
+    if (isset($types[$kind])) {
+        return $types[$kind];
+    }
+    
+    // Search aliases
+    foreach ($types as $type) {
+        if (isset($type['aliases']) && is_array($type['aliases']) && in_array($kind, $type['aliases'], true)) {
+            return $type;
+        }
+    }
+    
+    // No match found
+    return null;
+}
+
+/**
+ * Find best renderer for component data using smart three-tier lookup
+ *
+ * This function implements intelligent renderer selection by combining
+ * registry-based lookup with capability-based detection. It provides
+ * robust renderer selection even when component kinds don't exactly
+ * match registry entries.
+ *
+ * Three-tier lookup strategy:
+ * 1. Registry lookup (fast path for exact/alias matches)
+ * 2. Capability-based lookup (smart fallback using canHandle() methods)
+ * 3. Fallback renderer (guaranteed fallback)
+ *
+ * @since 1.0.0
+ *
+ * @param string $kind The component kind from payload data.
+ * @param array $data The component data to render.
+ * @return array|null Component definition array or null if no renderer found.
+ *
+ * @example
+ * ```php
+ * // Smart lookup that handles mismatches
+ * $def = odcm_find_best_renderer_for_data('info', $rule_data);
+ * if ($def) {
+ *     $renderer = new $def['renderer_class']();
+ *     echo $renderer->render($rule_data);
+ * }
+ * ```
+ */
+function odcm_find_best_renderer_for_data(string $kind, array $data): ?array
+{
+    // Tier 1: Registry lookup with aliases (fast path)
+    $def = odcm_get_payload_component_type_by_kind($kind);
+    if ($def) {
+        return $def;
+    }
+    
+    // Tier 2: Capability-based lookup (smart fallback)
+    $types = odcm_get_payload_component_types();
+    
+    foreach ($types as $type) {
+        if (!isset($type['renderer_class'])) {
+            continue;
+        }
+        
+        $renderer_class = $type['renderer_class'];
+        
+        // Add namespace if not fully qualified
+        if (strpos($renderer_class, '\\') === false) {
+            $renderer_class = 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\' . $renderer_class;
+        }
+        
+        // Check if renderer class exists and can handle the data
+        if (class_exists($renderer_class)) {
+            try {
+                $renderer = new $renderer_class();
+                
+                // Check if renderer implements canHandle() and can handle this data
+                if (method_exists($renderer, 'canHandle') && $renderer->canHandle($data)) {
+                    return $type;
+                }
+            } catch (\Throwable $e) {
+                // Skip renderer if instantiation fails
+                continue;
+            }
+        }
+    }
+    
+    // Tier 3: Fallback renderer (guaranteed fallback)
+    return odcm_get_payload_component_type('fallback');
 }

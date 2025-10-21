@@ -1380,10 +1380,6 @@ class InsightDashboard
                             <div class="odcm-log-entry-header">
                                 <div class="odcm-log-summary">
                                     <span x-text="log?.summary || 'No summary available'"></span>
-                                    <!-- Show consolidated event count -->
-                                    <span x-show="log && isConsolidatedEntry(log)"
-                                          class="odcm-consolidated-count"
-                                          x-text="getConsolidatedText(log)"></span>
                                 </div>
                                 <span class="odcm-status-pill" 
                                       :class="'odcm-status-pill--' + ((log?.status && typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')"

@@ -466,22 +466,17 @@ function insightDashboard() {
                     // The proper welcome scenario check happens in checkWelcomeScenario()
                     // which runs in parallel during initialization
 
-                    // Debug: consolidation diagnostics and page composition
-                    if (odcmIsDebug()) {
-                        if (data.meta?.consolidation_diag) {
-                            console.debug('ODCM Consolidation Diag:', data.meta.consolidation_diag);
-                            if (data.meta?.consolidation_diag?.enabled === false) {
-                                console.warn('ODCM: Consolidation disabled reason:', data.meta.consolidation_diag?.reason);
+                        // Debug: consolidation diagnostics
+                        if (odcmIsDebug()) {
+                            if (data.meta?.consolidation_diag) {
+                                console.debug('ODCM Consolidation Diag:', data.meta.consolidation_diag);
+                                if (data.meta?.consolidation_diag?.enabled === false) {
+                                    console.warn('ODCM: Consolidation disabled reason:', data.meta.consolidation_diag?.reason);
+                                }
+                            } else {
+                                console.debug('ODCM: No consolidation diagnostics present in response meta');
                             }
-                        } else {
-                            console.debug('ODCM: No consolidation diagnostics present in response meta');
                         }
-                        const counts = { consolidated: 0, individual: 0 };
-                        (this.logs || []).forEach(l => {
-                            if (l && l.consolidation_data && l.consolidation_data.is_consolidated) counts.consolidated++; else counts.individual++;
-                        });
-                        console.log(`ODCM: Page composition -> consolidated: ${counts.consolidated}, individual: ${counts.individual}, total: ${this.logs.length}`);
-                    }
 
                     // Log performance if debug mode
                     if (data.meta?.execution_time > 1) {
@@ -1705,19 +1700,6 @@ function insightDashboard() {
         },
         
         
-        /**
-         * Get display text for consolidated entries
-         */
-        getConsolidatedText(log) {
-            if (!this.isConsolidatedEntry(log)) return '';
-            
-            const count = log.process_event_count || 
-                         (log.consolidation_data && log.consolidation_data.timeline_events 
-                          ? log.consolidation_data.timeline_events.length 
-                          : 2);
-            
-            return `(${count} events)`;
-        },
 
         // =================================================================
         // DETAIL PANE

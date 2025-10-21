@@ -2584,39 +2584,11 @@ label.odcm-retention-option {
    ====================================================================== */
 
 
-/* Consolidated Count Badge */
-.odcm-consolidated-count {
-    display: inline-flex;
-    align-items: center;
-    background: var(--odcm-theme-blue-200);
-    color: var(--odcm-theme-grey-900);
-    padding: 2px 6px;
-    border-radius: var(--odcm-component-border-radius);
-    font-size: var(--odcm-theme-font-size-xs);
-    font-weight: 500;
-    margin-left: var(--odcm-theme-spacing-xs);
-    border: 1px solid var(--odcm-theme-blue-700);
-}
-
-/* Process Representative Badge */
-.odcm-process-representative-badge {
-    display: inline-flex;
-    align-items: center;
-    background: var(--odcm-theme-purple-200);
-    color: var(--odcm-theme-grey-900);
-    padding: 2px 6px;
-    border-radius: var(--odcm-component-border-radius);
-    font-size: var(--odcm-theme-font-size-xs);
-    font-weight: 500;
-    border: 1px solid var(--odcm-theme-purple-700);
-    text-transform: uppercase;
-}
 
 /* Stream: Enhanced styling for consolidated entries */
 .odcm-log-entry.is-consolidated {
     border-color: var(--odcm-theme-blue-700);
     background: var(--odcm-theme-blue-200);
-    border-left: 4px solid var(--odcm-theme-blue-700);
 }
 
 .odcm-log-entry.is-consolidated:hover {
@@ -2625,29 +2597,8 @@ label.odcm-retention-option {
     box-shadow: 0 3px 8px rgba(0, 123, 186, 0.2);
 }
 
-/* Process representative entries */
-.odcm-log-entry.is-process-representative {
-    border-color: var(--odcm-theme-purple-700);
-    background: var(--odcm-theme-purple-200);
-    border-left: 4px solid var(--odcm-theme-purple-700);
-}
-
-.odcm-log-entry.is-process-representative:hover {
-    border-color: var(--odcm-theme-purple-700);
-    background: var(--odcm-theme-purple-200);
-    box-shadow: 0 3px 8px rgba(111, 66, 194, 0.2);
-}
-
-/* Icon next to consolidated summary */
-.odcm-consolidated-icon {
-    color: var(--odcm-theme-blue-700);
-    margin-right: 6px;
-    vertical-align: middle;
-}
-
 /* Enhanced log summary layout for consolidated entries */
-.odcm-log-entry.is-consolidated .odcm-log-summary,
-.odcm-log-entry.is-process-representative .odcm-log-summary {
+.odcm-log-entry.is-consolidated .odcm-log-summary {
     display: flex;
     align-items: center;
     flex-wrap: wrap;

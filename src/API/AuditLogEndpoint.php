@@ -698,8 +698,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                 continue; // Skip empty components
             }
             
-            // Registry lookup for specialized renderer
-            $def = odcm_get_payload_component_type($kind);
+            // Smart renderer lookup with capability detection
+            $def = odcm_find_best_renderer_for_data($kind, $data);
             $renderer_html = '';
             
             if (is_array($def) && isset($def['renderer_class'])) {
@@ -1228,6 +1228,12 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Include consolidation data for UI rendering when available
             if (!empty($log['consolidation_data']) && is_array($log['consolidation_data'])) {
                 $formatted['consolidation_data'] = $log['consolidation_data'];
+            }
+
+            // Include constituent log IDs for bulk deletion support
+            if (!empty($log['constituent_log_ids']) && is_array($log['constituent_log_ids'])) {
+                $formatted['constituent_log_ids'] = $log['constituent_log_ids'];
+                $formatted['is_process_representative'] = true;
             }
 
             return $formatted;
@@ -3262,12 +3268,12 @@ class AuditLogEndpoint extends WP_REST_Controller
      */
     private function generateContextContent(string $kind, array $data): string
     {
-        // Load registry for renderer lookup
-        if (!function_exists('odcm_get_payload_component_type')) {
-            require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
-        }
+            // Load registry for renderer lookup
+            if (!function_exists('odcm_find_best_renderer_for_data')) {
+                require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
+            }
 
-        $def = function_exists('odcm_get_payload_component_type') ? \odcm_get_payload_component_type($kind) : null;
+            $def = function_exists('odcm_find_best_renderer_for_data') ? \odcm_find_best_renderer_for_data($kind, $data) : null;
 
         if (is_array($def) && isset($def['renderer_class'])) {
             $renderer_class = $def['renderer_class'];
@@ -3306,11 +3312,11 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function renderContextComponent(string $kind, array $data): string
     {
         // Load registry for renderer lookup
-        if (!function_exists('odcm_get_payload_component_type')) {
+        if (!function_exists('odcm_find_best_renderer_for_data')) {
             require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
         }
 
-        $def = function_exists('odcm_get_payload_component_type') ? \odcm_get_payload_component_type($kind) : null;
+        $def = function_exists('odcm_find_best_renderer_for_data') ? \odcm_find_best_renderer_for_data($kind, $data) : null;
 
         if (is_array($def) && isset($def['renderer_class'])) {
             $renderer_class = $def['renderer_class'];
@@ -4110,8 +4116,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                 error_log("ODCM RENDER_CONSOLIDATED: Embedded " . count($context_components) . " context components into $kind");
             }
             
-            // Lookup registry for renderer
-            $def = function_exists('odcm_get_payload_component_type') ? \odcm_get_payload_component_type($kind) : null;
+            // Smart renderer lookup with capability detection
+            $def = odcm_find_best_renderer_for_data($kind, $data);
             $renderer_html = '';
             
             if (is_array($def) && isset($def['renderer_class'])) {
@@ -4479,6 +4485,11 @@ class AuditLogEndpoint extends WP_REST_Controller
             $representative_entry['status'] = $this->determine_process_status($process_logs);
             $representative_entry['is_process_representative'] = true; // Simple flag for detail rendering
             $representative_entry['process_event_count'] = count($process_logs);
+            
+            // Track constituent log IDs for bulk deletion
+            $representative_entry['constituent_log_ids'] = array_map(function($log) {
+                return (int) $log['id'];
+            }, $process_logs);
 
             $representative_entries[] = $representative_entry;
         }
