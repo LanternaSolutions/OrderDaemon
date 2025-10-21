@@ -4404,7 +4404,10 @@ class AuditLogEndpoint extends WP_REST_Controller
      */
     private function apply_process_id_consolidation(array $logs): array
     {
+        error_log("ODCM CONSOLIDATION: apply_process_id_consolidation called with " . count($logs) . " logs");
+        
         if (empty($logs)) {
+            error_log("ODCM CONSOLIDATION: No logs to consolidate");
             return [];
         }
 
@@ -4417,12 +4420,17 @@ class AuditLogEndpoint extends WP_REST_Controller
         $families = $discovery->get_process_families();
         $lifecycle_family = $families['order_lifecycle'] ?? null;
 
+        error_log("ODCM CONSOLIDATION: Lifecycle family found: " . ($lifecycle_family ? 'YES' : 'NO'));
+        error_log("ODCM CONSOLIDATION: Consolidate UI enabled: " . (!empty($lifecycle_family['consolidate_ui']) ? 'YES' : 'NO'));
+
         if (!$lifecycle_family || empty($lifecycle_family['consolidate_ui'])) {
             // Consolidation disabled, return logs as-is
+            error_log("ODCM CONSOLIDATION: Consolidation disabled, returning logs as-is");
             return $logs;
         }
 
         $lifecycle_types = array_values(array_unique(array_filter((array) ($lifecycle_family['process_types'] ?? []))));
+        error_log("ODCM CONSOLIDATION: Lifecycle types: " . json_encode($lifecycle_types));
         
         // Group logs by process_id
         $by_process_id = [];
@@ -4430,16 +4438,20 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         foreach ($logs as $log) {
             $process_id = $log['process_id'] ?? '';
-            $event_type = $log['event_type'] ?? '';
 
-            // Only consolidate lifecycle events that have a process_id
-            if (!empty($process_id) && in_array($event_type, $lifecycle_types, true)) {
+            // Consolidate ALL events that have a process_id
+            // The process_id is the authoritative grouping mechanism - if an event has one,
+            // it should be part of that process group regardless of event_type
+            if (!empty($process_id)) {
                 $by_process_id[$process_id][] = $log;
             } else {
-                // Keep non-lifecycle events and events without process_id as individuals
+                // Keep events without process_id as individuals
                 $individual_entries[] = $log;
             }
         }
+        
+        error_log("ODCM CONSOLIDATION: Found " . count($by_process_id) . " unique process_ids");
+        error_log("ODCM CONSOLIDATION: Found " . count($individual_entries) . " individual entries");
 
         // Create representative entries for each process_id group (no consolidation data stored)
         $representative_entries = [];
@@ -4457,7 +4469,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Use the latest log as the representative entry with updated summary
             $last_log = $process_logs[count($process_logs) - 1];
-            $order_id = $process_logs[0]['order_id'] ?? 0;
+            $order_id = (int) ($process_logs[0]['order_id'] ?? 0);
 
             // Create representative entry (no consolidation_data stored!)
             $representative_entry = $last_log; // Start with the actual log entry
@@ -4486,11 +4498,13 @@ class AuditLogEndpoint extends WP_REST_Controller
      * Create a business-relevant summary for a process group
      *
      * @param array $process_logs Array of logs in the process
-     * @param int $order_id Order ID
+     * @param int|string $order_id Order ID (flexible for WordPress $wpdb compatibility)
      * @return string Process summary
      */
-    private function create_process_summary(array $process_logs, int $order_id): string
+    private function create_process_summary(array $process_logs, $order_id): string
     {
+        // Cast to int for use in summary (WordPress $wpdb returns strings)
+        $order_id = (int) $order_id;
         $event_count = count($process_logs);
         $has_completion = false;
         $has_error = false;

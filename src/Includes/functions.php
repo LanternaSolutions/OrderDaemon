@@ -1496,6 +1496,7 @@ function odcm_maybe_add_process_id(array $event_data): array
         'rule_execution',
         'order_completion',
         'process_started',
+        'no_rules_matched',  // Debug
     ];
     $lifecycle_union = array_values(array_unique(array_merge($lifecycle_types, $main_table_lifecycle)));
 

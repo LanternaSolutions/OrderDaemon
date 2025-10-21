@@ -1504,6 +1504,11 @@ class Core
     private function log_no_rules_matched(int $order_id, string $from, string $to): void
     {
         $rule_count = $this->count_active_rules();
+        
+        // Get or create process_id for this order to ensure consolidation
+        $process_id = \OrderDaemon\CompletionManager\Core\ProcessIdManager::instance()
+            ->get_or_create_process_id($order_id);
+        
         odcm_log_event(
             "No rules matched for Order #{$order_id} status change ({$from} → {$to})",
             [
@@ -1513,8 +1518,10 @@ class Core
                 'debug_mode' => true
             ],
             $order_id,
-            'info',
-            'no_rules_matched'
+            'debug',
+            'no_rules_matched',
+            false,  // is_test
+            $process_id
         );
     }
 

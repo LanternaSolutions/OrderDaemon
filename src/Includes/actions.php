@@ -321,14 +321,24 @@ add_action('odcm_process_order_check', 'odcm_handle_order_check_processing', 10,
  * @since 1.0.0
  */
 function odcm_handle_universal_event_processing(array $args) {
-    // Validate arguments
-    if (!is_array($args) || !isset($args['event'])) {
-        // Log error using unified logging system
+    // Action Scheduler can pass args in two formats:
+    // 1. Wrapped: ['event' => $event_data] (when explicitly structured)
+    // 2. Unwrapped: $event_data directly (when Action Scheduler optimizes single-element arrays)
+    
+    if (isset($args['event'])) {
+        // Format 1: Wrapped in 'event' key
+        $event_data = $args['event'];
+    } elseif (isset($args['eventType'])) {
+        // Format 2: Event data passed directly (Action Scheduler unwrapped it)
+        $event_data = $args;
+    } else {
+        // Invalid format - neither wrapped nor valid event structure
         odcm_log_event(
             'Payment gateway event processing error: Missing data',
             [
                 'args' => $args,
-                'error' => 'Missing event data in arguments'
+                'args_keys' => array_keys($args),
+                'error' => 'Missing event data - no event key and no eventType'
             ],
             null,
             'error',
@@ -336,8 +346,6 @@ function odcm_handle_universal_event_processing(array $args) {
         );
         return;
     }
-
-    $event_data = $args['event'];
 
     // Validate event data structure
     if (!is_array($event_data) || !isset($event_data['eventType'])) {
