@@ -657,3 +657,196 @@ function odcm_handle_payment_completion_processing($args) {
 
 // Hook the payment completion processing handler
 add_action('odcm_process_payment_completion', 'odcm_handle_payment_completion_processing', 10, 1);
+
+/**
+ * Process queued audit log entry (async handler)
+ * 
+ * @param mixed $args Contains 'queue_id' or queue_id string directly
+ * @return void
+ */
+function odcm_process_queued_log_entry($args): void
+{
+    global $wpdb;
+    
+    // Handle both array and direct string arguments from Action Scheduler
+    if (is_array($args)) {
+        if (empty($args['queue_id'])) {
+            error_log('ODCM: odcm_process_queued_log_entry called without queue_id in array');
+            return;
+        }
+        $queue_id = $args['queue_id'];
+    } elseif (is_string($args)) {
+        // Action Scheduler passed queue_id directly
+        $queue_id = $args;
+    } else {
+        error_log('ODCM: odcm_process_queued_log_entry called with invalid argument type: ' . gettype($args));
+        return;
+    }
+    
+    if (empty($queue_id)) {
+        error_log('ODCM: odcm_process_queued_log_entry called with empty queue_id');
+        return;
+    }
+    
+    // Retrieve queued event
+    $queue_entry = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}odcm_audit_log_queue 
+         WHERE queue_id = %s AND status = 'pending'",
+        $queue_id
+    ));
+    
+    if (!$queue_entry) {
+        error_log("ODCM: Queue entry {$queue_id} not found or already processed");
+        return;
+    }
+    
+    try {
+        // Decode event data
+        $event_data = json_decode($queue_entry->event_data, true);
+        
+        if (!is_array($event_data)) {
+            throw new \Exception('Invalid event_data JSON');
+        }
+        
+        // Extract envelope
+        $envelope = $event_data['envelope'] ?? [];
+        
+        // Create payload ID if we have envelope data
+        $payload_id = null;
+        if (!empty($envelope)) {
+            $payload_result = $wpdb->insert(
+                "{$wpdb->prefix}odcm_audit_log_payloads",
+                ['payload' => wp_json_encode($envelope)]
+            );
+            
+            if ($payload_result !== false) {
+                $payload_id = $wpdb->insert_id;
+            }
+        }
+        
+        // Create final audit log entry
+        $log_result = $wpdb->insert(
+            "{$wpdb->prefix}odcm_audit_log",
+            [
+                'timestamp' => $event_data['timestamp'],
+                'status' => $event_data['status'],
+                'summary' => $event_data['summary'],
+                'order_id' => $event_data['order_id'] ?? null,
+                'event_type' => $event_data['event_type'],
+                'source' => $event_data['source'] ?? 'system',
+                'log_category' => 'custom',
+                'is_test' => $event_data['is_test'] ? 1 : 0,
+                'process_id' => $event_data['process_id'] ?? null,
+                'payload_id' => $payload_id,
+            ]
+        );
+        
+        if ($log_result === false) {
+            throw new \Exception('Failed to insert audit log: ' . $wpdb->last_error);
+        }
+        
+        // Mark queue entry as processed
+        $wpdb->update(
+            "{$wpdb->prefix}odcm_audit_log_queue",
+            [
+                'status' => 'processed',
+                'processed_at' => current_time('mysql')
+            ],
+            ['queue_id' => $queue_id]
+        );
+        
+        // Debug logging
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM: Successfully processed queue entry {$queue_id}, created log ID: {$wpdb->insert_id}");
+        }
+        
+    } catch (\Throwable $e) {
+        // Update queue entry with error
+        $retry_count = (int) $queue_entry->retry_count + 1;
+        
+        $wpdb->update(
+            "{$wpdb->prefix}odcm_audit_log_queue",
+            [
+                'retry_count' => $retry_count,
+                'last_error' => $e->getMessage(),
+                'status' => $retry_count >= 3 ? 'failed' : 'pending'  // Max 3 retries
+            ],
+            ['queue_id' => $queue_id]
+        );
+        
+        error_log("ODCM: Error processing queue entry {$queue_id}: " . $e->getMessage());
+        
+        // Re-schedule if under retry limit
+        if ($retry_count < 3) {
+            as_schedule_single_action(
+                time() + (60 * $retry_count),  // Exponential backoff
+                'odcm_process_queued_log_entry',
+                ['queue_id' => $queue_id],
+                'odcm-logs'
+            );
+        }
+    }
+}
+
+// Register the handler
+add_action('odcm_process_queued_log_entry', 'odcm_process_queued_log_entry', 10, 1);
+
+/**
+ * Clean up old processed queue entries
+ * 
+ * Runs daily via Action Scheduler
+ * 
+ * @return void
+ */
+function odcm_cleanup_audit_log_queue(): void
+{
+    global $wpdb;
+    
+    // Delete processed entries older than 24 hours
+    $deleted = $wpdb->query(
+        "DELETE FROM {$wpdb->prefix}odcm_audit_log_queue 
+         WHERE status = 'processed' 
+         AND processed_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+    );
+    
+    if ($deleted !== false && $deleted > 0) {
+        error_log("ODCM: Cleaned up {$deleted} processed queue entries");
+    }
+    
+    // Delete failed entries older than 30 days
+    $deleted_failed = $wpdb->query(
+        "DELETE FROM {$wpdb->prefix}odcm_audit_log_queue 
+         WHERE status = 'failed' 
+         AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)"
+    );
+    
+    if ($deleted_failed !== false && $deleted_failed > 0) {
+        error_log("ODCM: Cleaned up {$deleted_failed} failed queue entries");
+    }
+}
+
+// Schedule daily cleanup
+add_action('odcm_cleanup_audit_log_queue', 'odcm_cleanup_audit_log_queue');
+
+/**
+ * Schedule the queue cleanup recurring action
+ * 
+ * @return void
+ */
+function odcm_schedule_queue_cleanup(): void
+{
+    if (!function_exists('as_next_scheduled_action')) {
+        return;
+    }
+    
+    if (!as_next_scheduled_action('odcm_cleanup_audit_log_queue')) {
+        as_schedule_recurring_action(
+            time(),
+            DAY_IN_SECONDS,
+            'odcm_cleanup_audit_log_queue',
+            [],
+            'odcm-maintenance'
+        );
+    }
+}
+add_action('init', 'odcm_schedule_queue_cleanup');

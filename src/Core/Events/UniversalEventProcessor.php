@@ -179,7 +179,7 @@ class UniversalEventProcessor
         $existing = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
              WHERE event_type = 'universal_event_processing' 
-             AND JSON_EXTRACT(payload, '$.idempotency_key') = %s
+             AND idempotency_key = %s
              AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)",
             $event->idempotencyKey
         ));

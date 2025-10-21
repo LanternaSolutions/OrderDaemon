@@ -1020,151 +1020,112 @@ function odcm_log_event(
     bool $is_test = false,
     ?string $process_id = null
 ): bool {
+    global $wpdb;
+    
     // Guard clause - ensure Action Scheduler is available
     if (!function_exists('as_enqueue_async_action')) {
         return false;
     }
 
-    // Validate and sanitize summary parameter
+    // Validate and sanitize summary
     if (empty($summary) || !is_string($summary)) {
-        $summary = 'Event logged'; // Default fallback
+        $summary = 'Event logged';
     }
 
-    // Validate status against registry and get encoding helper functions
+    // Validate status against registry
     $available_statuses = odcm_get_log_statuses();
     if (!array_key_exists($status, $available_statuses)) {
         $status = 'info';
     }
 
-    // Build payload_components structure for narrative timeline
+    // Build payload components for timeline
     $level = in_array($status, ['error','warning','info','debug','success'], true) ? $status : 'info';
-    if ($level === 'success') { $level = 'info'; } // Map success to info for timeline styling
+    if ($level === 'success') { 
+        $level = 'info'; 
+    }
     
     $component = [
-        'k'     => 'c' . time() . rand(10,99),
-        'kind'  => 'info',
-        'ts'    => time(),
+        'k' => 'c' . time() . rand(10,99),
+        'kind' => 'info',
+        'ts' => time(),
         'label' => $summary,
         'level' => $level,
-        'data'  => $data,
+        'data' => $data,
     ];
     
     $envelope = [
-        'type'       => 'event',
-        'cid'        => ($order_id ? (string)$order_id : 'na') . ':' . time(),
-        'oid'        => $order_id,
-        'actor'      => ['id' => get_current_user_id() ?: null, 'role' => null, 'name' => null],
-        'ts'         => time(),
-        'status'     => $status,
-        'summary'    => $summary,
+        'type' => 'event',
+        'cid' => ($order_id ? (string)$order_id : 'na') . ':' . time(),
+        'oid' => $order_id,
+        'actor' => [
+            'id' => get_current_user_id() ?: null,
+            'role' => null,
+            'name' => null
+        ],
+        'ts' => time(),
+        'status' => $status,
+        'summary' => $summary,
         'components' => [$component],
     ];
-
-    // Prepare event data for Action Scheduler
+    
+    // Prepare full event data
     $event_data = [
-        'summary'    => $summary,
-        'status'     => $status,
+        'summary' => $summary,
+        'status' => $status,
         'event_type' => $event_type,
-        'order_id'   => $order_id,
-        'is_test'    => $is_test,
-        'envelope'   => $envelope,
-        'source'     => 'logger',
+        'order_id' => $order_id,
+        'is_test' => $is_test,
+        'envelope' => $envelope,
+        'source' => 'logger',
+        'timestamp' => current_time('mysql'),
+        'data' => $data,
     ];
-
-    // Add process ID for lifecycle events
+    
+    // Add process ID if provided or auto-detect
     if ($process_id) {
-        // Use explicitly provided process_id
         $event_data['process_id'] = $process_id;
     } else {
-        // Auto-detect process_id for lifecycle events
-        if (!function_exists('odcm_maybe_add_process_id')) {
-            require_once __DIR__ . '/functions.php';
-        }
         $event_data = odcm_maybe_add_process_id($event_data);
     }
-
-    // SIMPLIFIED COMPRESSION FOR ACTION SCHEDULER
-    // Always store event_type + essential data
-    // Registry templates will be used during decompression
-    $event_types = odcm_get_log_event_types();
-    $has_template = isset($event_types[$event_type]['summary_template']);
     
-    $compressed = [
-        'd' => [
-            't' => $event_type,  // Always store event type
-            'st' => odcm_encode_status($status),
-            'o' => $order_id,
+    // Generate unique queue ID
+    $queue_id = uniqid('odcm_log_', true);
+    
+    // PHASE 1: Store in queue table
+    $queue_result = $wpdb->insert(
+        "{$wpdb->prefix}odcm_audit_log_queue",
+        [
+            'queue_id' => $queue_id,
+            'event_data' => wp_json_encode($event_data),
+            'created_at' => $event_data['timestamp'],
+            'status' => 'pending'
         ]
-    ];
+    );
     
-    // For custom events (no template), validate and store summary
-    if (!$has_template) {
-        $compressed['d']['s'] = odcm_validate_custom_summary($summary, 60); // 60 char limit
-    }
-    
-    // Store the original data array - this contains variables for templates
-    if (!empty($data)) {
-        $compressed['d']['data'] = $data;
-    }
-    
-    // Add test flag if needed
-    if ($is_test) {
-        $compressed['d']['test'] = 1;
-    }
-    
-    // Minimal envelope data
-    $compressed['d']['e'] = [
-        'st' => odcm_encode_status($envelope['status']),
-        'ts' => $envelope['ts'],
-        'cs' => count($envelope['components']),
-    ];
-
-    // Add process_id if available
-    if (!empty($event_data['process_id'])) {
-        $compressed['d']['pid'] = $event_data['process_id'];
-    }
-
-    // Add source encoding
-    $compressed['d']['src'] = odcm_encode_source($event_data['source']);
-
-    // Action Scheduler has a hard limit on argument sizes - payloads that exceed this limit
-    // get silently rejected. We need MUCH more aggressive compression.
-    $action_scheduler_payload_limit = 180; // Conservative limit (was 190, now 180 for safety)
-    $custom_summary_max_length = 40;
-    
-    // CHECK SIZE AND QUEUE - Send ONLY compressed data to Action Scheduler
-    $encoded_size = strlen(json_encode($compressed));
-    
-    // TEMPORARY DEBUG: Check both constant and database override option
-    $debug_enabled = (defined('ODCM_DEBUG') && ODCM_DEBUG) || get_option('odcm_dev_debug_override', 0);
-    if ($debug_enabled) {
-        error_log("ODCM_DEBUG_TRACE: odcm_log_event() called - Summary: '{$summary}', Event Type: '{$event_type}', Order ID: " . ($order_id ?: 'null'));
-        error_log("ODCM_DEBUG_TRACE: odcm_log_event() - Compressed payload size: {$encoded_size} bytes, limit: {$action_scheduler_payload_limit}");
-    }
-    
-    if ($encoded_size < $action_scheduler_payload_limit) {
-        // FIX: Action Scheduler uses call_user_func_array() which spreads array arguments
-        // We need to pass the compressed data as a single argument in an array
-        $action_id = as_enqueue_async_action(
-            'odcm_process_log_entry',
-            [$compressed], // Wrap in array to prevent spreading
-            'odcm-logs'
-        );
-        
-        // TEMPORARY DEBUG: Log Action Scheduler result
-        if ($action_id) {
-            error_log("ODCM_DEBUG_TRACE: odcm_log_event() - Successfully scheduled Action Scheduler task ID: {$action_id}");
-        } else {
-            error_log("ODCM_DEBUG_TRACE: odcm_log_event() - FAILED to schedule Action Scheduler task!");
-        }
-    } else {
-        // Payload too large - skip logging to prevent Action Scheduler silent failure
-        // Built-in events use registry templates and shouldn't hit this limit
-        // Custom events should be written with summaries under {$custom_summary_max_length} chars
-        error_log("ODCM: Log entry payload too large ({$encoded_size} chars, limit: {$action_scheduler_payload_limit}), skipping to prevent silent failure. Custom summaries should be under {$custom_summary_max_length} characters.");
+    if ($queue_result === false) {
+        error_log("ODCM: Failed to queue log entry: " . $wpdb->last_error);
         return false;
     }
-
+    
+    // PHASE 2: Schedule background processing
+    $action_id = as_enqueue_async_action(
+        'odcm_process_queued_log_entry',
+        ['queue_id' => $queue_id],  // Tiny! Always under 180 bytes
+        'odcm-logs'
+    );
+    
+    if (!$action_id) {
+        error_log("ODCM: Failed to schedule queue processing for {$queue_id}");
+        // Data is still in queue, will be picked up by cleanup job
+        return false;
+    }
+    
+    // Debug logging
+    $debug_enabled = (defined('ODCM_DEBUG') && ODCM_DEBUG) || get_option('odcm_dev_debug_override', 0);
+    if ($debug_enabled) {
+        error_log("ODCM: Queued log entry {$queue_id} for processing (Action ID: {$action_id})");
+    }
+    
     return true;
 }
 

@@ -11,7 +11,7 @@ class Installer
     /**
      * The current database version.
      */
-    const DB_VERSION = '1.0';
+    const DB_VERSION = '1.1';
 
     /**
      * The option key for storing the database version.
@@ -46,6 +46,7 @@ class Installer
             // Create both tables with their complete structure
             self::create_complete_audit_log_table();
             self::create_complete_audit_payloads_table();
+            self::create_audit_log_queue_table();
             
             // Update the database version
             self::update_db_version();
@@ -157,6 +158,38 @@ class Installer
         // Verify table creation
         if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
             throw new Exception("Failed to create complete audit payloads table: $table_name");
+        }
+    }
+
+    /**
+     * Creates the audit log queue table for two-phase logging.
+     * Stores full event data temporarily before async processing.
+     */
+    private static function create_audit_log_queue_table(): void
+    {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'odcm_audit_log_queue';
+        $charset_collate = $wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+            queue_id VARCHAR(50) NOT NULL,
+            event_data LONGTEXT NOT NULL,
+            created_at DATETIME NOT NULL,
+            processed_at DATETIME DEFAULT NULL,
+            status VARCHAR(20) DEFAULT 'pending',
+            retry_count INT DEFAULT 0,
+            last_error TEXT DEFAULT NULL,
+            PRIMARY KEY (queue_id),
+            KEY status_created (status, created_at),
+            KEY processed_at (processed_at)
+        ) $charset_collate;";
+
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        dbDelta($sql);
+        
+        // Verify table creation
+        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
+            throw new \Exception("Failed to create audit log queue table: $table_name");
         }
     }
 
