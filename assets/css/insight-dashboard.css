@@ -2586,14 +2586,9 @@ label.odcm-retention-option {
 
 
 /* Stream: Enhanced styling for consolidated entries */
-.odcm-log-entry.is-consolidated {
-    border-color: var(--odcm-theme-blue-700);
-    background: var(--odcm-theme-blue-200);
-}
-
 .odcm-log-entry.is-consolidated:hover {
     border-color: var(--odcm-theme-blue-700);
-    background: var(--odcm-theme-blue-200);
+    //background: var(--odcm-theme-blue-200);
     box-shadow: 0 3px 8px rgba(0, 123, 186, 0.2);
 }
 

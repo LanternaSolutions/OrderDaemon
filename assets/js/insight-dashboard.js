@@ -1501,9 +1501,34 @@ function insightDashboard() {
 
             this.isDeleting = true;
 
+            // EXPAND CONSOLIDATED ENTRIES TO THEIR CONSTITUENT LOG IDS
+            const expandedIds = [];
+            let consolidatedEntriesExpanded = 0;
+            
+            for (const selectedId of selectedIds) {
+                // Find the log entry in this.logs
+                const log = this.logs.find(l => l.id === selectedId);
+                
+                if (log && log.constituent_log_ids && Array.isArray(log.constituent_log_ids) && log.constituent_log_ids.length > 0) {
+                    // This is a consolidated entry - add all constituent IDs
+                    expandedIds.push(...log.constituent_log_ids);
+                    consolidatedEntriesExpanded++;
+                    console.log(`ODCM: Expanded consolidated entry ${selectedId} to ${log.constituent_log_ids.length} constituent IDs:`, log.constituent_log_ids);
+                } else {
+                    // Regular individual entry - add its ID
+                    expandedIds.push(selectedId);
+                }
+            }
+            
+            // Remove duplicates (in case of overlapping selections)
+            const uniqueIds = [...new Set(expandedIds)];
+
             console.log('ODCM: Starting batch delete:', {
                 selectedCount,
-                totalIds: selectedIds.length,
+                originalIds: selectedIds.length,
+                expandedIds: expandedIds.length,
+                uniqueIds: uniqueIds.length,
+                consolidatedEntriesExpanded,
                 apiUrl: this.config.apiUrl,
                 nonce: this.config.nonce ? 'present' : 'missing'
             });
@@ -1511,8 +1536,8 @@ function insightDashboard() {
             // Split into chunks of 100 for server compatibility
             const CHUNK_SIZE = 100;
             const chunks = [];
-            for (let i = 0; i < selectedIds.length; i += CHUNK_SIZE) {
-                chunks.push(selectedIds.slice(i, i + CHUNK_SIZE));
+            for (let i = 0; i < uniqueIds.length; i += CHUNK_SIZE) {
+                chunks.push(uniqueIds.slice(i, i + CHUNK_SIZE));
             }
 
             console.log(`ODCM: Processing ${chunks.length} chunks of max ${CHUNK_SIZE} items each`);
@@ -1596,10 +1621,12 @@ function insightDashboard() {
 
                 console.log('ODCM: Batch delete process completed:', {
                     total_selected: selectedCount,
+                    total_expanded: uniqueIds.length,
                     total_deleted: totalDeleted,
                     total_failed: totalFailed,
                     chunks_processed: chunks.length,
-                    failed_chunks: failedChunks.length
+                    failed_chunks: failedChunks.length,
+                    consolidated_entries_expanded: consolidatedEntriesExpanded
                 });
 
                 // Refresh log stream to show remaining entries and prevent empty state

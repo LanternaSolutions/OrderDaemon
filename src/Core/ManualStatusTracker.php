@@ -82,7 +82,12 @@ class ManualStatusTracker
         $external_service_name = (is_array($attr) && isset($attr['external_service']['name'])) ? sanitize_key((string) $attr['external_service']['name']) : null;
 
         // Map attribution into canonical 'source' values used by premium filters
-        if (is_user_logged_in()) {
+        // First check if this is Order Daemon automation via backtrace
+        $is_odcm_automation = self::is_automation_context();
+
+        if ($is_odcm_automation) {
+            $source = 'automation';
+        } elseif (is_user_logged_in()) {
             $source = 'manual';
         } elseif ($request_type === 'webhook' || !empty($external_service_name)) {
             $source = 'webhook';
@@ -104,7 +109,8 @@ class ManualStatusTracker
                                 $automatic_workflow_transitions[$from] === $to;
 
         // Backward compatibility: do not log non-manual changes unless debugging is enabled
-        if ($source !== 'manual' && (!defined('ODCM_DEBUG') || !ODCM_DEBUG)) {
+        // Exception: Always log automation events (even without DEBUG mode)
+        if ($source !== 'manual' && $source !== 'automation' && (!defined('ODCM_DEBUG') || !ODCM_DEBUG)) {
             return;
         }
         // For automatic workflow transitions, only log when ODCM_DEBUG is enabled
@@ -244,19 +250,30 @@ class ManualStatusTracker
         );
 
         // Only add order notes for truly manual changes, not automatic workflow transitions
-        if (!$is_automatic_workflow && $source === 'manual') {
-            $note_message = sprintf(
-                'Order status manually changed from "%s" to "%s" by %s.',
-                wc_get_order_status_name($from),
-                wc_get_order_status_name($to),
-                $user_display_name
-            );
+        if (!$is_automatic_workflow) {
+            if ($source === 'manual') {
+                $note_message = sprintf(
+                    'Order status manually changed from "%s" to "%s" by %s.',
+                    wc_get_order_status_name($from),
+                    wc_get_order_status_name($to),
+                    $user_display_name
+                );
 
-            if ($bypassed_automation) {
-                $note_message .= ' This change may have bypassed automatic completion rules.';
+                if ($bypassed_automation) {
+                    $note_message .= ' This change may have bypassed automatic completion rules.';
+                }
+
+                $order->add_order_note($note_message, false, true);
+            } elseif ($source === 'automation') {
+                // Automated change - simple informational note
+                $note_message = sprintf(
+                    'Order status automatically changed from "%s" to "%s" via Order Daemon rules.',
+                    wc_get_order_status_name($from),
+                    wc_get_order_status_name($to)
+                );
+                
+                $order->add_order_note($note_message, false, true);
             }
-
-            $order->add_order_note($note_message, false, true);
         }
     }
 
@@ -341,6 +358,42 @@ class ManualStatusTracker
         }
 
         // For other status changes, assume no automation bypass
+        return false;
+    }
+
+    /**
+     * Detect if current execution context is Order Daemon automation.
+     * 
+     * Uses backtrace to check if we're being called from Order Daemon's
+     * rule action execution, following WordPress core pattern for context detection.
+     *
+     * @return bool True if this is Order Daemon automation.
+     */
+    private static function is_automation_context(): bool
+    {
+        // Get backtrace, limited depth for performance
+        // DEBUG_BACKTRACE_IGNORE_ARGS reduces memory usage
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 20);
+        
+        foreach ($backtrace as $trace) {
+            if (!isset($trace['class'])) {
+                continue;
+            }
+            
+            $class = $trace['class'];
+            
+            // Check if we're being called from Order Daemon rule components
+            // Specifically: RuleActions namespace (where CompleteOrderAction lives)
+            if (strpos($class, 'OrderDaemon\\CompletionManager\\Core\\RuleComponents\\RuleActions\\') === 0) {
+                return true;
+            }
+            
+            // Also check for Evaluator execution context
+            if ($class === 'OrderDaemon\\CompletionManager\\Core\\Evaluator') {
+                return true;
+            }
+        }
+        
         return false;
     }
 

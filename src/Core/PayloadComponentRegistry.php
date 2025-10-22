@@ -149,7 +149,93 @@ function odcm_get_payload_component_types(): array
     return [
         // === NARRATIVE-ONLY REGISTRY: Kinds == Component IDs ===
 
-        // Rule evaluation domain (FIRST PRIORITY - must be tested before WooCommerce)
+        // Payment Event parent entry for PaymentEventRenderer
+        'payment_event' => [
+            'id'             => 'payment_event',
+            'label'          => __('Payment Event', 'order-daemon'),
+            'renderer_class' => 'PaymentEventRenderer',
+            'css_class'      => 'odcm-component--payment',
+            'icon'           => 'dashicons-money-alt',
+            'aliases'        => [
+                'payment_completed', 
+                'payment_failed', 
+                'refund_created',
+                'payment_succeeded',
+                'payment_processed',
+                'charge_succeeded'
+            ],
+            'status_pill'    => [
+                'label' => __('Payment', 'order-daemon'),
+                'type'  => 'info'
+            ],
+        ],
+        
+        // Payment Events (UNIVERSAL - handles all gateway payments)
+        'payment_completed' => [
+            'id'             => 'payment_completed',
+            'label'          => __('Payment Completed', 'order-daemon'),
+            'renderer_class' => 'PaymentEventRenderer',
+            'css_class'      => 'odcm-component--payment',
+            'icon'           => 'dashicons-money-alt',
+            'aliases'        => [
+                'payment_succeeded',
+                'payment_processed',
+                'charge_succeeded',
+                'payment_event' // Add parent as an alias for consistent lookup
+            ],
+            'status_pill'    => [
+                'label' => __('Payment', 'order-daemon'),
+                'type'  => 'success'
+            ],
+        ],
+        'payment_failed' => [
+            'id'             => 'payment_failed',
+            'label'          => __('Payment Failed', 'order-daemon'),
+            'renderer_class' => 'PaymentEventRenderer',
+            'css_class'      => 'odcm-component--payment',
+            'icon'           => 'dashicons-warning',
+            'aliases'        => [
+                'payment_error',
+                'charge_failed',
+                'payment_declined',
+                'payment_event' // Add parent as an alias for consistent lookup
+            ],
+            'status_pill'    => [
+                'label' => __('Payment Failed', 'order-daemon'),
+                'type'  => 'error'
+            ],
+        ],
+        'refund_created' => [
+            'id'             => 'refund_created',
+            'label'          => __('Refund Created', 'order-daemon'),
+            'renderer_class' => 'PaymentEventRenderer',
+            'css_class'      => 'odcm-component--payment',
+            'icon'           => 'dashicons-undo',
+            'aliases'        => [
+                'refund_issued',
+                'refund_processed',
+                'payment_event' // Add parent as an alias for consistent lookup
+            ],
+            'status_pill'    => [
+                'label' => __('Refund', 'order-daemon'),
+                'type'  => 'warning'
+            ],
+        ],
+
+        // Rule evaluation parent entry for RuleEvaluationRenderer
+        'rule_evaluation' => [
+            'id'             => 'rule_evaluation',
+            'label'          => __('Rule Evaluation', 'order-daemon'),
+            'renderer_class' => 'RuleEvaluationRenderer',
+            'css_class'      => 'odcm-component--rule',
+            'icon'           => 'dashicons-filter',
+            'status_pill'    => [
+                'label' => __('Rule', 'order-daemon'),
+                'type'  => 'info'
+            ],
+        ],
+        
+        // Rule evaluation domain
         'rule_evaluated' => [
             'id'             => 'rule_evaluated',
             'label'          => __('Rule Evaluated', 'order-daemon'),
@@ -160,9 +246,9 @@ function odcm_get_payload_component_types(): array
                 'rule_matched', 
                 'rule_check', 
                 'rule_evaluation_success',
-                'no_rules_matched',
                 'rule_evaluation_started',
-                'rule_evaluation_result'
+                'rule_evaluation_result',
+                'rule_evaluation' // Parent as an alias for consistent lookup
             ],
             'status_pill'    => [
                 'label' => __('Rule Match', 'order-daemon'),
@@ -175,6 +261,9 @@ function odcm_get_payload_component_types(): array
             'renderer_class' => 'RuleEvaluationRenderer',
             'css_class'      => 'odcm-component--rule',
             'icon'           => 'dashicons-yes',
+            'aliases'        => [
+                'rule_evaluation' // Parent as an alias for consistent lookup
+            ],
             'status_pill'    => [
                 'label' => __('Decision', 'order-daemon'),
                 'type'  => 'info'
@@ -197,6 +286,9 @@ function odcm_get_payload_component_types(): array
         'renderer_class' => 'RuleEvaluationRenderer',
         'css_class'      => 'odcm-component--success',
         'icon'           => 'dashicons-yes',
+        'aliases'        => [
+            'rule_evaluation' // Parent as an alias for consistent lookup
+        ],
         'status_pill'    => [
             'label' => __('Passed', 'order-daemon'),
             'type'  => 'success'
@@ -208,13 +300,33 @@ function odcm_get_payload_component_types(): array
         'renderer_class' => 'RuleEvaluationRenderer',
         'css_class'      => 'odcm-component--warning',
         'icon'           => 'dashicons-warning',
-        'aliases'        => ['rule_no_match', 'condition_not_met'],
+        'aliases'        => ['rule_no_match', 'condition_not_met', 'no_rules_matched'],
         'status_pill'    => [
             'label' => __('Failed', 'order-daemon'),
             'type'  => 'warning'
         ],
     ],
 
+        // WooCommerce parent entry for WooCommerceRenderer
+        'woocommerce_data' => [
+            'id'             => 'woocommerce_data',
+            'label'          => __('WooCommerce Data', 'order-daemon'),
+            'renderer_class' => 'WooCommerceRenderer',
+            'css_class'      => 'odcm-component--woocommerce',
+            'icon'           => 'dashicons-cart',
+            'aliases'        => [
+                'order_loaded',
+                'block_checkout_processed',
+                'status_changed',
+                'stock_adjusted',
+                'meta_updated'
+            ],
+            'status_pill'    => [
+                'label' => __('WooCommerce', 'order-daemon'),
+                'type'  => 'woocommerce'
+            ],
+        ],
+        
         // WooCommerce domain (AFTER rule evaluation - less priority in canHandle() testing)
         'order_loaded' => [
             'id'             => 'order_loaded',
@@ -222,8 +334,26 @@ function odcm_get_payload_component_types(): array
             'renderer_class' => 'WooCommerceRenderer',
             'css_class'      => 'odcm-component--woocommerce',
             'icon'           => 'dashicons-cart',
+            'aliases'        => [
+                'order_created',
+                'woocommerce_data' // Parent as an alias for consistent lookup
+            ],
             'status_pill'    => [
                 'label' => __('WooCommerce', 'order-daemon'),
+                'type'  => 'woocommerce'
+            ],
+        ],
+        'block_checkout_processed' => [
+            'id'             => 'block_checkout_processed',
+            'label'          => __('Block Checkout Processed', 'order-daemon'),
+            'renderer_class' => 'WooCommerceRenderer',
+            'css_class'      => 'odcm-component--woocommerce',
+            'icon'           => 'dashicons-cart',
+            'aliases'        => [
+                'woocommerce_data' // Parent as an alias for consistent lookup
+            ],
+            'status_pill'    => [
+                'label' => __('Checkout', 'order-daemon'),
                 'type'  => 'woocommerce'
             ],
         ],
@@ -235,7 +365,8 @@ function odcm_get_payload_component_types(): array
             'icon'           => 'dashicons-randomize',
             'aliases'        => [
                 'status_change_processing',
-                'status_evaluation'
+                'status_evaluation',
+                'woocommerce_data' // Parent as an alias for consistent lookup
             ],
             'status_pill'    => [
                 'label' => __('WooCommerce', 'order-daemon'),
@@ -248,6 +379,9 @@ function odcm_get_payload_component_types(): array
             'renderer_class' => 'WooCommerceRenderer',
             'css_class'      => 'odcm-component--woocommerce',
             'icon'           => 'dashicons-archive',
+            'aliases'        => [
+                'woocommerce_data' // Parent as an alias for consistent lookup
+            ],
             'status_pill'    => [
                 'label' => __('WooCommerce', 'order-daemon'),
                 'type'  => 'woocommerce'
@@ -259,6 +393,9 @@ function odcm_get_payload_component_types(): array
             'renderer_class' => 'WooCommerceRenderer',
             'css_class'      => 'odcm-component--woocommerce',
             'icon'           => 'dashicons-admin-generic',
+            'aliases'        => [
+                'woocommerce_data' // Parent as an alias for consistent lookup
+            ],
             'status_pill'    => [
                 'label' => __('WooCommerce', 'order-daemon'),
                 'type'  => 'woocommerce'
@@ -353,6 +490,9 @@ function odcm_get_payload_component_types(): array
             'renderer_class' => 'SystemRenderer',
             'css_class'      => 'odcm-component--system',
             'icon'           => 'dashicons-clock',
+            'aliases'        => [
+                'order_check_scheduled'
+            ],
             'status_pill'    => [
                 'label' => __('Scheduled', 'order-daemon'),
                 'type'  => 'pending'
@@ -572,41 +712,106 @@ function odcm_get_payload_component_type_by_event_type(string $event_type): ?arr
  */
 function odcm_find_best_renderer_for_data(string $event_type, array $data): ?array
 {
+    // Enhanced debug logging for renderer selection process
+    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+        error_log("ODCM RENDERER DEBUG: Starting lookup for event_type='$event_type'");
+        error_log("ODCM RENDERER DEBUG: Data keys: " . implode(', ', array_keys($data)));
+        error_log("ODCM RENDERER DEBUG: Data sample: " . substr(json_encode($data), 0, 200) . (strlen(json_encode($data)) > 200 ? '...' : ''));
+    }
+    
     // Tier 1: Registry lookup with aliases (fast path)
     $def = odcm_get_payload_component_type_by_event_type($event_type);
     if ($def) {
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $renderer_class = $def['renderer_class'] ?? 'none';
+            error_log("ODCM RENDERER DEBUG: Tier 1 SUCCESS - Found registry match: event_type='$event_type' -> renderer='$renderer_class'");
+        }
         return $def;
+    }
+    
+    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+        error_log("ODCM RENDERER DEBUG: Tier 1 FAILED - No registry match for event_type='$event_type'");
+        error_log("ODCM RENDERER DEBUG: Starting Tier 2 capability-based lookup...");
     }
     
     // Tier 2: Capability-based lookup (smart fallback)
     $types = odcm_get_payload_component_types();
     
-    foreach ($types as $type) {
+    // Include event_type in data for canHandle() calls to provide complete context
+    $data_with_event_type = array_merge($data, ['event_type' => $event_type]);
+    
+    $tier2_attempts = 0;
+    foreach ($types as $type_id => $type) {
         if (!isset($type['renderer_class'])) {
             continue;
         }
         
         $renderer_class = $type['renderer_class'];
+        $original_renderer_class = $renderer_class;
         
         // Add namespace if not fully qualified
         if (strpos($renderer_class, '\\') === false) {
             $renderer_class = 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\' . $renderer_class;
         }
         
+        $tier2_attempts++;
+        
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM RENDERER DEBUG: Tier 2 attempt #$tier2_attempts - Testing type_id='$type_id', renderer='$original_renderer_class'");
+            error_log("ODCM RENDERER DEBUG: Full renderer class: '$renderer_class'");
+        }
+        
         // Check if renderer class exists and can handle the data
         if (class_exists($renderer_class)) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM RENDERER DEBUG: Class exists, attempting instantiation...");
+            }
+            
             try {
                 $renderer = new $renderer_class();
                 
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $has_canHandle = method_exists($renderer, 'canHandle');
+                    error_log("ODCM RENDERER DEBUG: Instantiated successfully, has canHandle(): " . ($has_canHandle ? 'YES' : 'NO'));
+                }
+                
                 // Check if renderer implements canHandle() and can handle this data
-                if (method_exists($renderer, 'canHandle') && $renderer->canHandle($data)) {
-                    return $type;
+                // Pass data with event_type so renderers have complete context for matching
+                if (method_exists($renderer, 'canHandle')) {
+                    $can_handle_result = $renderer->canHandle($data_with_event_type);
+                    
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        error_log("ODCM RENDERER DEBUG: canHandle() result: " . ($can_handle_result ? 'TRUE' : 'FALSE'));
+                    }
+                    
+                    if ($can_handle_result) {
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            error_log("ODCM RENDERER DEBUG: Tier 2 SUCCESS - Renderer '$original_renderer_class' can handle event_type='$event_type'");
+                        }
+                        return $type;
+                    }
+                } else {
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        error_log("ODCM RENDERER DEBUG: Renderer has no canHandle() method, skipping");
+                    }
                 }
             } catch (\Throwable $e) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    error_log("ODCM RENDERER DEBUG: Instantiation failed: " . $e->getMessage());
+                }
                 // Skip renderer if instantiation fails
                 continue;
             }
+        } else {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM RENDERER DEBUG: Class '$renderer_class' does not exist");
+            }
         }
+    }
+    
+    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+        error_log("ODCM RENDERER DEBUG: Tier 2 FAILED - No capable renderer found after $tier2_attempts attempts");
+        error_log("ODCM RENDERER DEBUG: Tier 3 FALLBACK - Using fallback renderer for event_type='$event_type'");
     }
     
     // Tier 3: Fallback renderer (guaranteed fallback)

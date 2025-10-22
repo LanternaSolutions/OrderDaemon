@@ -1150,11 +1150,6 @@ class InsightDashboard
      */
     private function log_debug_mode_change(bool $enabled): void
     {
-        $message = sprintf(
-            'Global debug mode %s via Insight Dashboard',
-            $enabled ? 'enabled' : 'disabled'
-        );
-
         $context = [
             'action_type' => 'debug_mode_change',
             'debug_enabled' => $enabled,
@@ -1163,6 +1158,15 @@ class InsightDashboard
             'user_login' => wp_get_current_user()->user_login,
             'timestamp' => current_time('mysql'),
         ];
+
+        // Generate dynamic source label from context
+        $source_label = $this->get_debug_source_label($context['source']);
+
+        $message = sprintf(
+            'Global debug mode %s via %s',
+            $enabled ? 'enabled' : 'disabled',
+            $source_label
+        );
 
         // Use Order Daemon custom event logging if available
         if (function_exists('odcm_log_event')) {
@@ -1173,6 +1177,34 @@ class InsightDashboard
                 'info', // Log level
                 'insight_debug_toggle' // Event type
             );
+        }
+    }
+
+    /**
+     * Get human-readable label for debug source
+     * 
+     * @param string $source The technical source identifier
+     * @return string Human-readable source label
+     */
+    private function get_debug_source_label(string $source): string
+    {
+        // Map known public source values to human-readable labels
+        // Exclude internal dev tools like 'dev_toolbar' since that's not for public use
+        $source_labels = apply_filters('odcm_debug_source_labels', [
+            'insight_dashboard' => 'Insight Dashboard',
+            'api' => 'API',
+            'cli' => 'CLI',
+            'webhook' => 'Webhook',
+            // 3rd party devs can add their sources via the filter
+        ]);
+
+        // Get label from map, or auto-format the source value
+        if (isset($source_labels[$source])) {
+            return $source_labels[$source];
+        } else {
+            // Auto-format: 'my_custom_source' -> 'My Custom Source'
+            // Convert underscores and hyphens to spaces, then apply title case
+            return ucwords(str_replace(['_', '-'], ' ', $source));
         }
     }
 
