@@ -436,7 +436,7 @@ final class RefundDeletionDiagnostics
         $level = $level_override ?: $this->decide_perf_level($execution_ms, $memory_bytes, $db_timings);
         return [
             'key'   => 'performance-' . uniqid('', true),
-            'kind'  => 'metrics',
+            'event_type'  => 'metrics',
             'ts'    => odcm_iso8601_now(),
             'label' => $label,
             'level' => $level,
@@ -544,7 +544,7 @@ final class RefundDeletionDiagnostics
                 $components = [
                     [
                         'key'   => 'refund_details-' . uniqid('', true),
-                        'kind'  => 'refund_analysis',
+                        'event_type'  => 'refund_analysis',
                         'ts'    => $now,
                         'label' => 'Refund Details',
                         'level' => $status,
@@ -554,7 +554,7 @@ final class RefundDeletionDiagnostics
                 if (!empty($context['impact'])) {
                     $components[] = [
                         'key'   => 'order_impact-' . uniqid('', true),
-                        'kind'  => 'woocommerce_analysis',
+                        'event_type'  => 'woocommerce_analysis',
                         'ts'    => $now,
                         'label' => 'Order Impact',
                         'level' => 'info',
@@ -657,7 +657,7 @@ final class RefundDeletionDiagnostics
                 $components = [
                     [
                         'key'   => 'refund_details-' . uniqid('', true),
-                        'kind'  => 'refund_analysis',
+                        'event_type'  => 'refund_analysis',
                         'ts'    => $now,
                         'label' => 'Refund Details',
                         'level' => 'warning',
@@ -667,7 +667,7 @@ final class RefundDeletionDiagnostics
                 if (!empty($context['impact'])) {
                     $components[] = [
                         'key'   => 'order_impact-' . uniqid('', true),
-                        'kind'  => 'woocommerce_analysis',
+                        'event_type'  => 'woocommerce_analysis',
                         'ts'    => $now,
                         'label' => 'Order Impact',
                         'level' => 'info',
@@ -768,7 +768,7 @@ final class RefundDeletionDiagnostics
                 $components = [
                     [
                         'key'   => 'refund_details-' . uniqid('', true),
-                        'kind'  => 'refund_analysis',
+                        'event_type'  => 'refund_analysis',
                         'ts'    => $now,
                         'label' => 'Refund Details',
                         'level' => 'warning',
@@ -778,7 +778,7 @@ final class RefundDeletionDiagnostics
                 if (!empty($context['impact'])) {
                     $components[] = [
                         'key'   => 'order_impact-' . uniqid('', true),
-                        'kind'  => 'woocommerce_analysis',
+                        'event_type'  => 'woocommerce_analysis',
                         'ts'    => $now,
                         'label' => 'Order Impact',
                         'level' => 'info',
@@ -868,7 +868,7 @@ final class RefundDeletionDiagnostics
                 $components = [
                     [
                         'key'   => 'refund_details-' . uniqid('', true),
-                        'kind'  => 'refund_analysis',
+                        'event_type'  => 'refund_analysis',
                         'ts'    => $now,
                         'label' => 'Refund Details',
                         'level' => 'info',
@@ -878,7 +878,7 @@ final class RefundDeletionDiagnostics
                 if (!empty($context['impact'])) {
                     $components[] = [
                         'key'   => 'order_impact-' . uniqid('', true),
-                        'kind'  => 'woocommerce_analysis',
+                        'event_type'  => 'woocommerce_analysis',
                         'ts'    => $now,
                         'label' => 'Order Impact',
                         'level' => 'info',
@@ -967,7 +967,7 @@ final class RefundDeletionDiagnostics
                 $components = [
                     [
                         'key'   => 'refund_details-' . uniqid('', true),
-                        'kind'  => 'refund_analysis',
+                        'event_type'  => 'refund_analysis',
                         'ts'    => $now,
                         'label' => 'Refund Details',
                         'level' => 'warning',
@@ -977,7 +977,7 @@ final class RefundDeletionDiagnostics
                 if (!empty($context['impact'])) {
                     $components[] = [
                         'key'   => 'order_impact-' . uniqid('', true),
-                        'kind'  => 'woocommerce_analysis',
+                        'event_type'  => 'woocommerce_analysis',
                         'ts'    => $now,
                         'label' => 'Order Impact',
                         'level' => 'info',
@@ -1260,7 +1260,7 @@ final class RefundDeletionDiagnostics
         $components = [
             [
                 'key'   => 'refund-details-' . uniqid('', true),
-                'kind'  => 'warning',
+                'event_type'  => 'warning',
                 'ts'    => odcm_iso8601_now(),
                 'label' => 'Refund Details',
                 'level' => $status,
@@ -1270,7 +1270,7 @@ final class RefundDeletionDiagnostics
         if (is_array($refund_context) && !empty($refund_context['impact'])) {
             $components[] = [
                 'key'   => 'order-impact-' . uniqid('', true),
-                'kind'  => 'fallback',
+                'event_type'  => 'fallback',
                 'ts'    => odcm_iso8601_now(),
                 'label' => 'Order Impact',
                 'level' => 'info',
@@ -1280,7 +1280,7 @@ final class RefundDeletionDiagnostics
         if (is_array($refund_context) && !empty($refund_context['items'])) {
             $components[] = [
                 'key'   => 'refunded-items-' . uniqid('', true),
-                'kind'  => 'fallback',
+                'event_type'  => 'fallback',
                 'ts'    => odcm_iso8601_now(),
                 'label' => 'Refunded Items',
                 'level' => 'info',
@@ -1337,14 +1337,14 @@ final class RefundDeletionDiagnostics
         $order   = ($order_id > 0 && function_exists('wc_get_order')) ? wc_get_order($order_id) : null;
         $o_valid = $order instanceof WC_Order;
 
-        // Determine notice component kind based on event type (canonical kinds)
-        $notice_kind = ($event_type === 'order_restored') ? 'system_info' : 'order_deletion';
+        // Determine notice component event_type based on event type (canonical event_types)
+        $notice_event_type = ($event_type === 'order_restored') ? 'system_info' : 'order_deletion';
         $label = ($event_type === 'order_restored') ? 'Order Restoration' : 'Order Deletion';
 
         $components = [
             [
                 'key'   => 'deletion-notice-' . uniqid('', true),
-                'kind'  => $notice_kind,
+                'event_type'  => $notice_event_type,
                 'ts'    => odcm_iso8601_now(),
                 'label' => $label . ($phase ? ' - ' . $phase : ''),
                 'level' => $status,
@@ -1359,7 +1359,7 @@ final class RefundDeletionDiagnostics
         if (is_array($snapshot) && !empty($snapshot)) {
             $components[] = [
                 'key'   => 'order-snapshot-' . uniqid('', true),
-                'kind'  => 'fallback',
+                'event_type'  => 'fallback',
                 'ts'    => odcm_iso8601_now(),
                 'label' => 'Order Snapshot',
                 'level' => 'info',
@@ -1368,7 +1368,7 @@ final class RefundDeletionDiagnostics
             if (!empty($snapshot['customer'])) {
                 $components[] = [
                     'key'   => 'customer-info-' . uniqid('', true),
-                    'kind'  => 'fallback',
+                    'event_type'  => 'fallback',
                     'ts'    => odcm_iso8601_now(),
                     'label' => 'Customer Info',
                     'level' => 'info',

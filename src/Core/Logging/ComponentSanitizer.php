@@ -6,7 +6,7 @@ namespace OrderDaemon\CompletionManager\Core\Logging;
 /**
  * Class ComponentSanitizer
  *
- * Sanitizes component data by kind to ensure safe, consistent logging payloads.
+ * Sanitizes component data by event_type to ensure safe, consistent logging payloads.
  * All scalar fields are sanitized, IDs are cast with absint, and enums are validated.
  * Unknown kinds are sanitized best-effort by scalarizing values.
  *
@@ -17,13 +17,13 @@ final class ComponentSanitizer
     /**
      * Sanitize known component data shapes.
      *
-     * @param string $kind Component kind (e.g., 'status_changed').
+     * @param string $event_type Component event_type (e.g., 'status_changed').
      * @param array  $data Raw component data.
      * @return array Sanitized data array.
      */
-    public function sanitize(string $kind, array $data): array
+    public function sanitize(string $event_type, array $data): array
     {
-        switch ($kind) {
+        switch ($event_type) {
             case 'status_changed':
                 return [
                     'from' => sanitize_text_field($data['from'] ?? ''),

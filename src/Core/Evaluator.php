@@ -345,7 +345,7 @@ final class Evaluator
             return;
         }
         $order_id = $order->get_id();
-        $kind  = $passed ? 'condition_passed' : 'condition_failed';
+        $event_type  = $passed ? 'condition_passed' : 'condition_failed';
         $label = $component->get_label();
         $data  = [
             'order_id'         => (int) $order_id,
@@ -355,7 +355,7 @@ final class Evaluator
             'actual_value'     => $this->formatValueForLogging($actual),
             'result'           => $passed ? 'pass' : 'fail',
         ];
-        $this->process_logger->add_component($kind, $label, $data, 'info');
+        $this->process_logger->add_component($event_type, $label, $data, 'info');
     }
 
     /**
@@ -558,7 +558,7 @@ final class Evaluator
         }
 
         $order_id = $context->getOrderId();
-        $kind = $passed ? 'condition_passed' : 'condition_failed';
+        $event_type = $passed ? 'condition_passed' : 'condition_failed';
         $label = $component->get_label();
         
         $data = [
@@ -573,6 +573,6 @@ final class Evaluator
             'context_type' => 'universal_event',
         ];
 
-        $this->process_logger->add_component($kind, $label, $data, 'info');
+        $this->process_logger->add_component($event_type, $label, $data, 'info');
     }
 }

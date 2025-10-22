@@ -533,7 +533,7 @@ final class BlockCheckoutCompatibility
         $components = [
             [
                 'k'     => 'c' . time() . rand(10,99),
-                'kind'  => 'info',
+                'event_type'  => 'info',
                 'ts'    => time(),
                 'label' => 'Block Checkout Processed',
                 'level' => 'info',
@@ -545,7 +545,7 @@ final class BlockCheckoutCompatibility
             ],
             [
                 'k'     => 'c' . time() . rand(10,99),
-                'kind'  => 'fallback',
+                'event_type'  => 'order_loaded',
                 'ts'    => time(),
                 'label' => 'Cart Analysis',
                 'level' => 'info',
@@ -553,7 +553,7 @@ final class BlockCheckoutCompatibility
             ],
             [
                 'k'     => 'c' . time() . rand(10,99),
-                'kind'  => 'fallback',
+                'event_type'  => 'stripe_event',
                 'ts'    => time(),
                 'label' => 'Payment Context',
                 'level' => 'info',

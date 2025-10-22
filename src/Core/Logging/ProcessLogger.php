@@ -126,7 +126,7 @@ final class ProcessLogger
             // Add process started as first component with debug flag (bypass recursion guard safely)
             $this->components[] = [
                 'k'     => $this->generate_component_key('process_started'),
-                'kind'  => 'process_started',
+                'event_type'  => 'process_started',
                 'ts'    => time(),
                 'label' => 'Process started',
                 'level' => 'debug',
@@ -151,14 +151,14 @@ final class ProcessLogger
     /**
      * Append a sanitized component and return its key.
      *
-     * @param string      $kind  Component kind.
+     * @param string      $event_type  Component event type.
      * @param string      $label Human-readable label.
      * @param array       $data  Component data.
      * @param string      $level info|warning|error|debug
      * @param string|null $key   Optional stable key override.
      * @return string The component key for deferred context attachment.
      */
-    public function add_component(string $kind, string $label, array $data, string $level = 'info', ?string $key = null): string
+    public function add_component(string $event_type, string $label, array $data, string $level = 'info', ?string $key = null): string
     {
         // 1) Recursion Guard
         if (self::$is_logging) {
@@ -169,14 +169,14 @@ final class ProcessLogger
             // 2) Set the Lock
             self::$is_logging = true;
 
-            $component_key = $key ?: $this->generate_component_key($kind);
+            $component_key = $key ?: $this->generate_component_key($event_type);
             $this->components[] = [
                 'k'     => $component_key,         // Optimized field name
-                'kind'  => sanitize_key($kind),
+                'event_type'  => sanitize_key($event_type),
                 'ts'    => time(),                 // Use Unix timestamp for optimization
                 'label' => sanitize_text_field($label),
                 'level' => sanitize_key($level),
-                'data'  => $this->sanitizer->sanitize($kind, $data),
+                'data'  => $this->sanitizer->sanitize($event_type, $data),
             ];
             return $component_key;
         } catch (\Throwable $e) {
@@ -338,10 +338,10 @@ final class ProcessLogger
      * Generate a unique component key.
      * Uses optimized format: c{timestamp}{random}
      *
-     * @param string $kind
+     * @param string $event_type
      * @return string
      */
-    private function generate_component_key(string $kind): string
+    private function generate_component_key(string $event_type): string
     {
         return 'c' . time() . rand(10, 99); // Optimized format
     }

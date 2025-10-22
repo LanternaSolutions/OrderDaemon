@@ -4,6 +4,12 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\API;
 
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
+use OrderDaemon\CompletionManager\API\Timeline\TimelineBuilderInterface;
+use OrderDaemon\CompletionManager\API\Timeline\TimelineRendererInterface;
+use OrderDaemon\CompletionManager\API\Timeline\TimelineRequest;
+use OrderDaemon\CompletionManager\API\Timeline\DatabaseTimelineBuilder;
+use OrderDaemon\CompletionManager\API\Timeline\ProcessLoggerComponentExtractor;
+use OrderDaemon\CompletionManager\API\Timeline\RegistryTimelineRenderer;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_REST_Request;
@@ -34,6 +40,23 @@ class AuditLogEndpoint extends WP_REST_Controller
      * API base route
      */
     const BASE_ROUTE = 'audit-log';
+    
+    private TimelineBuilderInterface $timelineBuilder;
+    private TimelineRendererInterface $timelineRenderer;
+    
+    /**
+     * Constructor with dependency injection
+     */
+    public function __construct(
+        TimelineBuilderInterface $timelineBuilder = null,
+        TimelineRendererInterface $timelineRenderer = null
+    ) {
+        // Dependency injection with sensible defaults
+        $this->timelineBuilder = $timelineBuilder ?? new DatabaseTimelineBuilder(
+            new ProcessLoggerComponentExtractor()
+        );
+        $this->timelineRenderer = $timelineRenderer ?? new RegistryTimelineRenderer();
+    }
 
     /**
      * Register REST API routes
@@ -431,64 +454,39 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Render log components for detail view
-     * SIMPLIFIED ARCHITECTURE: Single decision point using process_id
+     * CLEAN ARCHITECTURE: Uses dependency injection and immutable data objects
      */
-    public function render_components(WP_REST_Request $request): WP_REST_Response
+    public function render_components(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         try {
-            $log_id = $request->get_param('log_id');
-            $include_debug = $request->get_param('include_debug');
-            
-            // Normalize include_debug
-            if (!is_bool($include_debug)) {
-                if (is_string($include_debug)) {
-                    $include_debug = in_array(strtolower($include_debug), ['1','true','yes'], true);
-                } else {
-                    $include_debug = (bool) $include_debug;
-                }
-            }
-
-            // Get log entry
-            $log = $this->get_log_by_id((int)$log_id);
-            if (!$log) {
-                return new WP_Error(
-                    'odcm_log_not_found',
-                    __('Log entry not found', Odcm_Config::$text_domain),
-                    ['status' => 404]
-                );
-            }
-
             // Start performance monitoring
             $start_time = microtime(true);
-
-            // ===== SINGLE DECISION POINT =====
-            // Check if this represents a process timeline (multiple events)
-            if (!empty($log['is_process_representative']) && !empty($log['process_id'])) {
-                // Render timeline for all events in this process
-                $html = $this->render_process_timeline($log['process_id'], $include_debug);
-            } else {
-                // Render individual entry
-                $html = $this->render_individual_entry($log, $include_debug);
-            }
-
+            
+            // Create immutable request object
+            $timelineRequest = TimelineRequest::fromRestRequest($request);
+            
+            // Build timeline data using injected services
+            $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
+            
+            // Render timeline using injected renderer
+            $html = $this->timelineRenderer->renderTimeline($timelineData);
+            
             // Performance monitoring
             $execution_time = microtime(true) - $start_time;
             $this->log_api_performance('render_components', $execution_time, [
-                'log_id' => $log_id,
-                'is_process_timeline' => !empty($log['process_id']),
+                'log_id' => $timelineRequest->logId,
+                'is_process_timeline' => $timelineData->isProcessGroup(),
+                'component_count' => $timelineData->getComponentCount(),
                 'html_size' => strlen($html)
             ]);
 
             return new WP_REST_Response([
                 'html' => $html,
-                'meta' => [
-                    'log_id' => (int)$log_id,
-                    'is_process_timeline' => !empty($log['process_id']),
-                    'process_id' => $log['process_id'] ?? null,
-                    'components_filtered' => !$include_debug,
+                'meta' => array_merge($timelineData->metadata, [
                     'execution_time' => $execution_time,
                     'timestamp' => current_time('mysql'),
-                ],
+                    'components_filtered' => !$timelineRequest->includeDebug,
+                ]),
             ], 200);
 
         } catch (\Exception $e) {
@@ -496,7 +494,10 @@ class AuditLogEndpoint extends WP_REST_Controller
                 error_log("ODCM: Exception in render_components: " . $e->getMessage());
             }
             
-            $this->log_api_error('render_components', $e, ['log_id' => $log_id ?? null]);
+            $this->log_api_error('render_components', $e, [
+                'log_id' => $request->get_param('log_id'),
+                'include_debug' => $request->get_param('include_debug')
+            ]);
 
             return new WP_Error(
                 'odcm_render_error',
@@ -609,7 +610,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         if (empty($payload_raw)) {
             // Create synthetic component for empty payload
             return [[
-                'kind' => 'info',
+                'event_type' => 'info',
                 'label' => $event['summary'] ?? 'Event',
                 'ts' => $event['timestamp'] ?? current_time('mysql'),
                 'level' => $event['status'] ?? 'info',
@@ -654,7 +655,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         
         // Legacy/unknown format: create generic component
         return [[
-            'kind' => 'info',
+            'event_type' => 'info',
             'label' => 'Event Data',
             'ts' => current_time('mysql'),
             'level' => 'info',
@@ -688,8 +689,8 @@ class AuditLogEndpoint extends WP_REST_Controller
         $html = '<div class="odcm-narrative-timeline">';
         
         foreach ($components as $component) {
-            $kind = sanitize_key($component['kind'] ?? 'info');
-            $label = (string) ($component['label'] ?? ucfirst($kind));
+            $event_type = sanitize_key($component['event_type'] ?? 'info');
+            $label = (string) ($component['label'] ?? ucfirst($event_type));
             $ts = (string) ($component['ts'] ?? '');
             $level = sanitize_key($component['level'] ?? 'info');
             $data = is_array($component['data'] ?? null) ? $component['data'] : [];
@@ -699,7 +700,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
             
             // Smart renderer lookup with capability detection
-            $def = odcm_find_best_renderer_for_data($kind, $data);
+            $def = odcm_find_best_renderer_for_data($event_type, $data);
             $renderer_html = '';
             
             if (is_array($def) && isset($def['renderer_class'])) {
@@ -713,7 +714,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                         $renderer = new $renderer_class();
                         
                         if (method_exists($renderer, 'renderTimelineItem')) {
-                            $renderer_html = $renderer->renderTimelineItem($kind, $label, $ts ?: null, $level, $data);
+                            $renderer_html = $renderer->renderTimelineItem($event_type, $label, $ts ?: null, $level, $data);
                         } elseif (method_exists($renderer, 'render')) {
                             $renderer_html = $renderer->render($data);
                         }
@@ -727,7 +728,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             if (!empty($renderer_html)) {
                 $html .= $renderer_html;
             } else {
-                $html .= $this->render_fallback_component($kind, $label, $data);
+                $html .= $this->render_fallback_component($event_type, $label, $data);
             }
         }
         
@@ -769,12 +770,12 @@ class AuditLogEndpoint extends WP_REST_Controller
     /**
      * Render fallback component when renderer fails
      * 
-     * @param string $kind Component kind
+     * @param string $event_type Component event type
      * @param string $label Component label
      * @param array $data Component data
      * @return string HTML output
      */
-    private function render_fallback_component(string $kind, string $label, array $data): string
+    private function render_fallback_component(string $event_type, string $label, array $data): string
     {
         if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
             require_once dirname(__DIR__) . '/View/PayloadRenderer/PayloadComponentUIToolkit.php';
@@ -802,7 +803,7 @@ class AuditLogEndpoint extends WP_REST_Controller
      * Batch render log components for multiple log IDs.
      *
      * Accepts up to 50 IDs and returns an array of per-item results,
-     * reusing the same renderer pipeline as render_components().
+     * using the same timeline system as render_components().
      *
      * @param WP_REST_Request $request
      * @return WP_REST_Response
@@ -814,77 +815,88 @@ class AuditLogEndpoint extends WP_REST_Controller
             if (!is_array($log_ids) || empty($log_ids)) {
                 return new WP_Error('odcm_invalid_log_ids', __('Invalid log IDs provided', Odcm_Config::$text_domain), ['status' => 400]);
             }
+            
             // Normalize IDs (absint, unique, cap to 50)
-            $ids = array_values(array_unique(array_map('absint', array_filter($log_ids, function($v){ return is_numeric($v) && (int)$v > 0; }))));
+            $ids = array_values(array_unique(array_map('absint', array_filter($log_ids, function($v){ 
+                return is_numeric($v) && (int)$v > 0; 
+            }))));
+            
             if (empty($ids)) {
                 return new WP_Error('odcm_no_valid_ids', __('No valid log IDs provided', Odcm_Config::$text_domain), ['status' => 400]);
             }
+            
             if (count($ids) > 50) {
                 $ids = array_slice($ids, 0, 50);
             }
 
-            // Normalize include_debug similar to render_components()
-            $include_debug = $request->get_param('include_debug');
-            if (!is_bool($include_debug)) {
-                if (is_string($include_debug)) {
-                    $include_debug = in_array(strtolower($include_debug), ['1','true','yes'], true);
-                } else {
-                    $include_debug = (bool) $include_debug;
-                }
-            }
-
             $t0 = microtime(true);
-            $logs_map = $this->fetch_logs_by_ids($ids);
             $items = [];
 
+            // Process each ID using the same timeline system as render_components()
             foreach ($ids as $id) {
-                if (!isset($logs_map[$id])) {
-                    $items[] = [
-                        'log_id' => (int) $id,
-                        'success' => false,
-                        'error' => [ 'code' => 'not_found', 'message' => __('Log entry not found', Odcm_Config::$text_domain) ]
-                    ];
-                    continue;
-                }
-                $log = $logs_map[$id];
-                $payload_raw = $log['payload'] ?? '';
-                $details = is_string($payload_raw) ? json_decode($payload_raw, true) : null;
-                if (!is_array($details)) { $details = []; }
-
-                // Respect debug-only visibility per item
-                if ($this->is_process_logger_entry($details) && !$include_debug && $this->is_debug_only_process($details)) {
-                    $items[] = [
-                        'log_id' => (int) $id,
-                        'success' => false,
-                        'error' => [ 'code' => 'debug_filtered', 'message' => __('Debug log entry filtered', Odcm_Config::$text_domain) ]
-                    ];
-                    continue;
-                }
-
-                // Filter debug components when include_debug is false
-                if (isset($details['components']) && is_array($details['components']) && !$include_debug) {
-                    $filtered = [];
-                    foreach ($details['components'] as $component) {
-                        if (!is_array($component)) { continue; }
-                        if ($this->is_debug_component($component)) { continue; }
-                        $filtered[] = $component;
-                    }
-                    $details['components'] = $filtered;
-                }
-
-                // Render using the same logic as single-item
                 try {
-                    if ($this->is_process_logger_entry($details)) {
-                        $html = $this->render_narrative_timeline($details, $include_debug);
-                    } else {
-                        $html = $this->render_log_components($log);
-                    }
-                    $items[] = [ 'log_id' => (int) $id, 'success' => true, 'html' => $html ];
+                    // Create a mock request for each individual log ID
+                    $mockRequest = new class($id, $request->get_param('include_debug')) implements WP_REST_Request {
+                        private $log_id;
+                        private $include_debug;
+                        
+                        public function __construct($log_id, $include_debug) {
+                            $this->log_id = $log_id;
+                            $this->include_debug = $include_debug;
+                        }
+                        
+                        public function get_param($key) {
+                            if ($key === 'log_id') return $this->log_id;
+                            if ($key === 'include_debug') return $this->include_debug;
+                            return null;
+                        }
+                        
+                        // Implement required interface methods as no-ops since we only need get_param()
+                        public function get_params() { return []; }
+                        public function set_param($key, $value) {}
+                        public function get_attributes() { return []; }
+                        public function set_attributes($attributes) {}
+                        public function get_headers() { return []; }
+                        public function get_content_type() { return []; }
+                        public function get_method() { return 'POST'; }
+                        public function get_route() { return ''; }
+                        public function set_route($route) {}
+                        public function get_url_params() { return []; }
+                        public function set_url_params($params) {}
+                        public function get_file_params() { return []; }
+                        public function set_file_params($params) {}
+                        public function get_body() { return null; }
+                        public function set_body($data) {}
+                        public function get_json_params() { return []; }
+                        public function set_headers($headers) {}
+                        public function get_header($key) { return null; }
+                        public function get_header_as_array($key) { return []; }
+                        public function has_valid_params() { return true; }
+                        public function sanitize_params() { return true; }
+                        public function has_param($key) { return in_array($key, ['log_id', 'include_debug']); }
+                        public function set_default_params($defaults) {}
+                        public function get_default_params() { return []; }
+                    };
+
+                    // Use the timeline system (same as render_components)
+                    $timelineRequest = TimelineRequest::fromRestRequest($mockRequest);
+                    $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
+                    $html = $this->timelineRenderer->renderTimeline($timelineData);
+                    
+                    $items[] = [
+                        'log_id' => (int) $id,
+                        'success' => true,
+                        'html' => $html
+                    ];
+                    
                 } catch (\Throwable $e) {
                     $items[] = [
                         'log_id' => (int) $id,
                         'success' => false,
-                        'error' => [ 'code' => 'render_error', 'message' => __('Failed to render components', Odcm_Config::$text_domain) ]
+                        'error' => [
+                            'code' => 'render_error',
+                            'message' => __('Failed to render components', Odcm_Config::$text_domain)
+                        ]
                     ];
                 }
             }
@@ -898,8 +910,9 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'timestamp' => current_time('mysql'),
                 ],
             ], 200);
+            
         } catch (\Throwable $e) {
-            $this->log_api_error('render_components_batch', $e, [ 'ids' => $request->get_param('log_ids') ]);
+            $this->log_api_error('render_components_batch', $e, ['ids' => $request->get_param('log_ids')]);
             return new WP_Error('odcm_render_batch_error', __('Failed to render batch components', Odcm_Config::$text_domain), ['status' => 500]);
         }
     }
@@ -1343,155 +1356,73 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
-     * Render log components using existing system
+     * Render log components using clean timeline system
      */
     private function render_log_components(array $log): string
     {
-        if (empty($log['payload'])) {
-            // Render a single fallback timeline item instead of empty message
-            if (!function_exists('odcm_get_payload_component_type')) {
-                require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
-            }
-            $def = function_exists('odcm_get_payload_component_type') ? \odcm_get_payload_component_type('fallback') : null;
-            if (is_array($def) && isset($def['renderer_class'])) {
-                $renderer_class = $def['renderer_class'];
-                if (strpos($renderer_class, '\\') === false) {
-                    $renderer_class = 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\' . $renderer_class;
+        try {
+            // Create a mock request for the log ID
+            $mockRequest = new class($log['id'] ?? 0, false) implements WP_REST_Request {
+                private $log_id;
+                private $include_debug;
+                
+                public function __construct($log_id, $include_debug) {
+                    $this->log_id = $log_id;
+                    $this->include_debug = $include_debug;
                 }
-                if (class_exists($renderer_class)) {
-                    try {
-                        $renderer = new $renderer_class();
-                        $item_html = method_exists($renderer, 'renderTimelineItem')
-                            ? $renderer->renderTimelineItem('fallback', __('Additional Data', Odcm_Config::$text_domain), null, 'info', [])
-                            : (method_exists($renderer, 'renderWithComponentId')
-                                ? $renderer->renderWithComponentId('fallback', [])
-                                : $renderer->render([]));
-                        $html  = '<div class="odcm-narrative-timeline">';
-                        $html .= '<ul class="odcm-timeline-list">';
-                        $html .= '<li class="odcm-timeline-item odcm-level-info"><div class="odcm-timeline-item-inner">' . $item_html . '</div></li>';
-                        $html .= '</ul></div>';
-                        return $html;
-                    } catch (\Throwable $e) {
-                        // Fall through to minimal message on renderer failure
-                    }
+                
+                public function get_param($key) {
+                    if ($key === 'log_id') return $this->log_id;
+                    if ($key === 'include_debug') return $this->include_debug;
+                    return null;
                 }
-            }
-            // Final safeguard: use FallbackRenderer directly if registry lookup failed
-            $renderer_fqcn = 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer';
-            if (class_exists($renderer_fqcn)) {
-                try {
-                    $renderer = new $renderer_fqcn();
-                    $item_html = method_exists($renderer, 'renderTimelineItem')
-                        ? $renderer->renderTimelineItem('fallback', __('Additional Data', Odcm_Config::$text_domain), null, 'info', [])
-                        : $renderer->render([]);
-                    $html  = '<div class="odcm-narrative-timeline">';
-                    $html .= '<ul class="odcm-timeline-list">';
-                    $html .= '<li class="odcm-timeline-item odcm-level-info"><div class="odcm-timeline-item-inner">' . $item_html . '</div></li>';
-                    $html .= '</ul></div>';
-                    return $html;
-                } catch (\Throwable $e) {
-                    // fall through to minimal placeholder
-                }
-            }
-            // Minimal placeholder component using UIToolkit for consistent structure
-            if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
-                require_once dirname(__DIR__) . '/View/PayloadRenderer/PayloadComponentUIToolkit.php';
-            }
-            $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
-            $content = '<em>' . esc_html__('No timeline data available', Odcm_Config::$text_domain) . '</em>';
-            return $toolkit->render_component_shell(
-                esc_html__('Additional Data', Odcm_Config::$text_domain),
-                'fallback',
-                $content
-            );
-        }
+                
+                // Implement required interface methods as no-ops since we only need get_param()
+                public function get_params() { return []; }
+                public function set_param($key, $value) {}
+                public function get_attributes() { return []; }
+                public function set_attributes($attributes) {}
+                public function get_headers() { return []; }
+                public function get_content_type() { return []; }
+                public function get_method() { return 'POST'; }
+                public function get_route() { return ''; }
+                public function set_route($route) {}
+                public function get_url_params() { return []; }
+                public function set_url_params($params) {}
+                public function get_file_params() { return []; }
+                public function set_file_params($params) {}
+                public function get_body() { return null; }
+                public function set_body($data) {}
+                public function get_json_params() { return []; }
+                public function set_headers($headers) {}
+                public function get_header($key) { return null; }
+                public function get_header_as_array($key) { return []; }
+                public function has_valid_params() { return true; }
+                public function sanitize_params() { return true; }
+                public function has_param($key) { return in_array($key, ['log_id', 'include_debug']); }
+                public function set_default_params($defaults) {}
+                public function get_default_params() { return []; }
+            };
 
-        // Decode payload if it's JSON
-        $data = json_decode($log['payload'], true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            $data = ['raw_data' => $log['payload']];
+            // Use the clean timeline system
+            $timelineRequest = TimelineRequest::fromRestRequest($mockRequest);
+            $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
+            return $this->timelineRenderer->renderTimeline($timelineData);
+            
+        } catch (\Throwable $e) {
+            // Fallback for completely broken entries
+            error_log('ODCM: render_log_components failed: ' . $e->getMessage());
+            return '<div class="odcm-empty-data">' . esc_html__('No timeline data available', Odcm_Config::$text_domain) . '</div>';
         }
-
-        // Always use narrative timeline rendering for both consolidated and legacy entries
-        if (is_array($data) && !empty($data)) {
-            return $this->render_narrative_timeline($data);
-        }
-
-        // If no payload data at all, show empty message
-        return '<div class="odcm-empty-data">' . esc_html__('No timeline data', Odcm_Config::$text_domain) . '</div>';
     }
 
     /**
-     * Render a narrative timeline for components.
-     *
-     * @param array $envelope The decoded payload envelope containing components and metadata.
-     * @return string HTML output for the details pane.
+     * LEGACY METHOD REMOVED - Use clean timeline system instead
      */
     private function render_narrative_timeline(array $envelope, bool $include_debug = false): string
     {
-        // Always log method entry with basic info
-        error_log("ODCM TIMELINE: render_narrative_timeline called with envelope keys: " . json_encode(array_keys($envelope)));
-        
-        try {
-        // Check if we have components
-        if (!isset($envelope['components']) || !is_array($envelope['components'])) {
-            error_log("ODCM TIMELINE: No components found, using fallback");
-            return $this->render_fallback_timeline($envelope);
-        }
-
-        $components = $envelope['components'];
-            error_log("ODCM TIMELINE: Found " . count($components) . " components");
-
-            // Filter debug components if needed
-            if (!$include_debug) {
-                $filtered = [];
-                foreach ($components as $component) {
-                    if (!is_array($component)) { continue; }
-                    if (!$this->is_debug_component($component)) {
-                        $filtered[] = $component;
-                    }
-                }
-                $components = $filtered;
-                error_log("ODCM TIMELINE: After debug filtering: " . count($components) . " components");
-            }
-
-            // If no components after filtering, return appropriate message
-            if (empty($components)) {
-                error_log("ODCM TIMELINE: No components after filtering, returning empty message");
-                if (!$include_debug) {
-                    return '<div class="odcm-empty-data">' . esc_html__('All events filtered (debug mode disabled)', Odcm_Config::$text_domain) . '</div>';
-                } else {
-                    return '<div class="odcm-empty-data">' . esc_html__('No timeline components available', Odcm_Config::$text_domain) . '</div>';
-                }
-            }
-
-            // Try to render using the existing timeline logic
-            if (!class_exists('OrderDaemon\\CompletionManager\\Core\\ProcessLifecycleDiscovery')) {
-                require_once dirname(__DIR__) . '/Core/ProcessLifecycleDiscovery.php';
-            }
-            $discovery = \OrderDaemon\CompletionManager\Core\ProcessLifecycleDiscovery::instance();
-            $families = $discovery->get_process_families();
-
-            // Group logs by business families
-            $grouped_logs = $this->group_logs_by_families($envelope, $families, $include_debug);
-            error_log("ODCM TIMELINE: Grouped into " . count($grouped_logs) . " groups");
-
-            // Render consolidated or individual entries
-            $result = $this->render_grouped_timeline($grouped_logs, $include_debug);
-            error_log("ODCM TIMELINE: render_grouped_timeline returned " . strlen($result) . " characters");
-
-            // If the result is just an empty timeline div, use fallback
-            if ($result === '<div class="odcm-narrative-timeline"></div>' || empty(trim($result))) {
-                error_log("ODCM TIMELINE: Empty result from render_grouped_timeline, using fallback");
-                return $this->render_fallback_timeline($envelope);
-            }
-
-            return $result;
-
-        } catch (\Throwable $e) {
-            error_log("ODCM TIMELINE: Exception in render_narrative_timeline: " . $e->getMessage());
-            return $this->render_fallback_timeline($envelope);
-        }
+        error_log("ODCM: Legacy render_narrative_timeline called - this should use clean timeline system");
+        return '<div class="odcm-error">Legacy rendering method called. Please use clean timeline system.</div>';
     }
 
     /**
@@ -1539,15 +1470,15 @@ class AuditLogEndpoint extends WP_REST_Controller
             $content .= '<p><strong>Components:</strong> ' . $component_count . ' components</p>';
             
             // Show component types
-            $component_kinds = [];
+            $component_event_types = [];
             foreach ($envelope['components'] as $component) {
-                if (is_array($component) && isset($component['kind'])) {
-                    $component_kinds[] = $component['kind'];
+                if (is_array($component) && isset($component['event_type'])) {
+                    $component_event_types[] = $component['event_type'];
                 }
             }
-            if (!empty($component_kinds)) {
-                $unique_kinds = array_unique($component_kinds);
-                $content .= '<p><strong>Component Types:</strong> ' . esc_html(implode(', ', $unique_kinds)) . '</p>';
+            if (!empty($component_event_types)) {
+                $unique_event_types = array_unique($component_event_types);
+                $content .= '<p><strong>Component Types:</strong> ' . esc_html(implode(', ', $unique_event_types)) . '</p>';
             }
         } else {
             $content .= '<p><em>No components found in envelope.</em></p>';
@@ -1670,8 +1601,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                 foreach ($pcs as $pc) {
                     if (!$include_debug) {
                         $lvl = isset($pc['level']) ? (string)$pc['level'] : '';
-                        $kind = isset($pc['kind']) ? (string)$pc['kind'] : '';
-                        if ($lvl === 'debug' || $kind === 'process_started') { continue; }
+                        $event_type = isset($pc['event_type']) ? (string)$pc['event_type'] : '';
+                        if ($lvl === 'debug' || $event_type === 'process_started') { continue; }
                     }
                     $components[] = $pc;
                 }
@@ -1679,7 +1610,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 // Handle custom event entries (without components) using existing renderer system
                 // Create a timeline component that uses the existing registry-driven renderers
                 $custom_component = [
-                    'kind' => 'custom_event',
+                    'event_type' => 'custom_event',
                     'label' => 'Custom Event Data',
                     'ts' => current_time('mysql'),
                     'level' => 'info',
@@ -1716,8 +1647,8 @@ class AuditLogEndpoint extends WP_REST_Controller
         $context_components = [];
 
         foreach ($components as $component) {
-            $kind = sanitize_key($component['kind'] ?? 'info');
-            if ($this->isContextOnlyComponent($kind)) {
+            $event_type = sanitize_key($component['event_type'] ?? 'info');
+            if ($this->isContextOnlyComponent($event_type)) {
                 $context_components[] = $component;
             } else {
                 $primary_events[] = $component;
@@ -1739,8 +1670,8 @@ class AuditLogEndpoint extends WP_REST_Controller
         $meta_env = !empty($envelopes) ? $envelopes[0] : [];
 
         foreach ($enriched_events as $event) {
-            $kind  = sanitize_key($event['kind'] ?? 'info');
-            $label = (string) ($event['label'] ?? ucfirst($kind));
+            $event_type  = sanitize_key($event['event_type'] ?? 'info');
+            $label = (string) ($event['label'] ?? ucfirst($event_type));
             $ts    = (string) ($event['ts'] ?? '');
             $level = sanitize_key($event['level'] ?? 'info');
             $data  = is_array($event['data'] ?? null) ? $event['data'] : [];
@@ -1756,7 +1687,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             // Lookup registry for renderer
-            $def = function_exists('odcm_get_payload_component_type') ? \odcm_get_payload_component_type($kind) : null;
+            $def = function_exists('odcm_find_best_renderer_for_data') ? \odcm_find_best_renderer_for_data($event_type, $data) : null;
 
             $renderer = null;
             $renderer_html = '';
@@ -1774,10 +1705,10 @@ class AuditLogEndpoint extends WP_REST_Controller
                             $renderer->setTimelineMeta($startedAt, $trigger);
                         }
                         if (method_exists($renderer, 'renderTimelineItem')) {
-                            $renderer_html = $renderer->renderTimelineItem($kind, $label, $ts !== '' ? $ts : null, $level, $data);
+                            $renderer_html = $renderer->renderTimelineItem($event_type, $label, $ts !== '' ? $ts : null, $level, $data);
                             if ($first_meta) { $first_meta = false; }
                         } elseif (method_exists($renderer, 'renderWithComponentId')) {
-                            $renderer_html = $renderer->renderWithComponentId($kind, $data);
+                            $renderer_html = $renderer->renderWithComponentId($event_type, $data);
                         } else {
                             $renderer_html = $renderer->render($data);
                         }
@@ -1798,7 +1729,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
                 $content = '<em>' . esc_html__('No renderer output', 'order-daemon') . '</em>';
                 $html .= $toolkit->render_component_shell(
-                    esc_html(ucfirst($kind)),
+                    esc_html(ucfirst($event_type)),
                     'fallback',
                     $content,
                     []
@@ -2532,17 +2463,17 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
-     * Determine if a payload component kind is context-only and should not render as a standalone timeline item.
+     * Determine if a payload component event_type is context-only and should not render as a standalone timeline item.
      *
-     * Context-only kinds carry supplemental data that is embedded into primary events (e.g., status change)
+     * Context-only event_types carry supplemental data that is embedded into primary events (e.g., status change)
      * and must be skipped from standalone rendering in the consolidated timeline.
      *
-     * @param string $kind Component kind slug.
+     * @param string $event_type Component event_type slug.
      * @return bool True when the component is context-only.
      */
-    private function isContextOnlyComponent(string $kind): bool
+    private function isContextOnlyComponent(string $event_type): bool
     {
-        $contextOnlyKinds = [
+        $contextOnlyEventTypes = [
             'attribution',      // Attribution badges - embed in parent events
             'performance',      // Performance metrics - embed in parent events
             'user_context',     // User context data - embed in parent events
@@ -2550,7 +2481,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             'action_executed',  // Action execution details - embed in parent events
             'process_started',  // Debug-only, skip entirely
         ];
-        return in_array($kind, $contextOnlyKinds, true);
+        return in_array($event_type, $contextOnlyEventTypes, true);
     }
 
     /**
@@ -2562,8 +2493,8 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function is_debug_component(array $component): bool
     {
         $level = isset($component['level']) ? (string)$component['level'] : '';
-        $kind  = isset($component['kind']) ? (string)$component['kind'] : '';
-        return ($level === 'debug') || ($kind === 'process_started');
+        $event_type  = isset($component['event_type']) ? (string)$component['event_type'] : '';
+        return ($level === 'debug') || ($event_type === 'process_started');
     }
 
     /**
@@ -2719,7 +2650,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 } else {
                     // Handle non-ProcessLogger entries by creating synthetic components
                     $synthetic_component = [
-                        'kind' => 'process_event',
+                        'event_type' => 'process_event',
                         'label' => $event['summary'] ?? ($event['event_type'] ?? 'Event'),
                         'ts' => $event['timestamp'] ?? current_time('mysql'),
                         'level' => $event['status'] ?? 'info',
@@ -2815,7 +2746,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             } else {
                 // Handle non-ProcessLogger entries by creating synthetic components
                 $synthetic_component = [
-                    'kind' => 'order_event',
+                    'event_type' => 'order_event',
                     'label' => $entry['summary'] ?? ($entry['event_type'] ?? 'Event'),
                     'ts' => $entry['timestamp'] ?? current_time('mysql'),
                     'level' => $entry['status'] ?? 'info',
@@ -3086,7 +3017,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             } else {
                 // Handle non-ProcessLogger entries by creating synthetic components
                 $synthetic_component = [
-                    'kind' => 'lifecycle_event',
+                    'event_type' => 'lifecycle_event',
                     'label' => $entry['summary'] ?? ($entry['event_type'] ?? 'Event'),
                     'ts' => $entry['timestamp'] ?? current_time('mysql'),
                     'level' => $entry['status'] ?? 'info',
@@ -3200,7 +3131,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         foreach ($primary_events as $event) {
             $event_ts = strtotime($event['ts'] ?? '');
-            $event_kind = $event['kind'] ?? '';
+            $event_event_type = $event['event_type'] ?? '';
 
             // Find context components that should be embedded in this event
             $relevant_context = [];
@@ -3208,7 +3139,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             foreach ($context_components as $context) {
                 $context_ts = strtotime($context['ts'] ?? '');
-                $context_kind = $context['kind'] ?? '';
+                $context_event_type = $context['event_type'] ?? '';
                 $context_data = is_array($context['data'] ?? null) ? $context['data'] : [];
 
                 // Embed context based on temporal proximity and logical relevance
@@ -3219,18 +3150,18 @@ class AuditLogEndpoint extends WP_REST_Controller
                     $should_embed = true;
                 }
                 // Embed info and action_executed into status changes
-                elseif ($event_kind === 'status_change' && in_array($context_kind, ['info', 'action_executed'])) {
+                elseif ($event_event_type === 'status_change' && in_array($context_event_type, ['info', 'action_executed'])) {
                     // Embed if context is within 5 seconds of the status change
                     if (abs($event_ts - $context_ts) <= 5) {
                         $should_embed = true;
                     }
                 }
                 // Embed attribution data into any primary event within 10 seconds
-                elseif ($context_kind === 'attribution' && abs($event_ts - $context_ts) <= 10) {
+                elseif ($context_event_type === 'attribution' && abs($event_ts - $context_ts) <= 10) {
                     $should_embed = true;
                 }
                 // Embed performance data into any primary event within 2 seconds
-                elseif ($context_kind === 'performance' && abs($event_ts - $context_ts) <= 2) {
+                elseif ($context_event_type === 'performance' && abs($event_ts - $context_ts) <= 2) {
                     $should_embed = true;
                 }
 
@@ -3238,7 +3169,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     $relevant_context[] = $context;
 
                     // Generate context content using direct renderContent() call
-                    $context_html = $this->generateContextContent($context_kind, $context_data);
+                    $context_html = $this->generateContextContent($context_event_type, $context_data);
                     if (!empty($context_html)) {
                         $context_content[] = $context_html;
                     }
@@ -3262,18 +3193,18 @@ class AuditLogEndpoint extends WP_REST_Controller
      * This method looks up the appropriate renderer for a context component
      * and calls its renderContent() method directly to get content without wrapper.
      *
-     * @param string $kind The component kind (info, action_executed, etc.)
+     * @param string $event_type The component event_type (info, action_executed, etc.)
      * @param array $data The component data
      * @return string HTML content for embedding within primary events
      */
-    private function generateContextContent(string $kind, array $data): string
+    private function generateContextContent(string $event_type, array $data): string
     {
             // Load registry for renderer lookup
             if (!function_exists('odcm_find_best_renderer_for_data')) {
                 require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
             }
 
-            $def = function_exists('odcm_find_best_renderer_for_data') ? \odcm_find_best_renderer_for_data($kind, $data) : null;
+            $def = function_exists('odcm_find_best_renderer_for_data') ? \odcm_find_best_renderer_for_data($event_type, $data) : null;
 
         if (is_array($def) && isset($def['renderer_class'])) {
             $renderer_class = $def['renderer_class'];
@@ -3305,18 +3236,18 @@ class AuditLogEndpoint extends WP_REST_Controller
      * This method renders context-only components (like info or action_executed)
      * as compact HTML fragments that can be embedded within primary timeline events.
      *
-     * @param string $kind The component kind (info, action_executed, etc.)
+     * @param string $event_type The component event_type (info, action_executed, etc.)
      * @param array $data The component data
      * @return string HTML fragment for the context component
      */
-    private function renderContextComponent(string $kind, array $data): string
+    private function renderContextComponent(string $event_type, array $data): string
     {
         // Load registry for renderer lookup
         if (!function_exists('odcm_find_best_renderer_for_data')) {
             require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
         }
 
-        $def = function_exists('odcm_find_best_renderer_for_data') ? \odcm_find_best_renderer_for_data($kind, $data) : null;
+        $def = function_exists('odcm_find_best_renderer_for_data') ? \odcm_find_best_renderer_for_data($event_type, $data) : null;
 
         if (is_array($def) && isset($def['renderer_class'])) {
             $renderer_class = $def['renderer_class'];
@@ -3766,8 +3697,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                     continue;
                 }
                 
-                $kind = sanitize_key($component['kind'] ?? 'info');
-                $label = (string) ($component['label'] ?? ucfirst($kind));
+                $event_type = sanitize_key($component['event_type'] ?? 'info');
+                $label = (string) ($component['label'] ?? ucfirst($event_type));
                 $level = sanitize_key($component['level'] ?? 'info');
                 $data = is_array($component['data'] ?? null) ? $component['data'] : [];
 
@@ -3777,7 +3708,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 }
 
                 // Lookup registry for renderer
-                $def = function_exists('odcm_get_payload_component_type') ? \odcm_get_payload_component_type($kind) : null;
+                $def = odcm_find_best_renderer_for_data($event_type, $data);
 
                 $renderer_html = '';
                 if (is_array($def) && isset($def['renderer_class'])) {
@@ -3812,7 +3743,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     
                     $renderer_html = $toolkit->render_component_shell(
                         $label,
-                        $kind,
+                        $event_type,
                         $content,
                         ['status' => $level]
                     );
@@ -3910,8 +3841,8 @@ class AuditLogEndpoint extends WP_REST_Controller
         $event_type = $event['event_type'] ?? 'unknown';
         $source = $event['source'] ?? 'system';
         
-        // Determine appropriate component kind based on event characteristics
-        $kind = $this->determine_synthetic_component_kind($event, $event_details);
+        // Determine appropriate component event_type based on event characteristics
+        $component_event_type = $this->determine_synthetic_component_event_type($event, $event_details);
         
         // Build component data from available event information
         $data = [
@@ -3933,7 +3864,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         }
         
         $synthetic_component = [
-            'kind' => $kind,
+            'event_type' => $component_event_type,
             'label' => $summary,
             'ts' => $timestamp,
             'level' => $status,
@@ -3942,27 +3873,27 @@ class AuditLogEndpoint extends WP_REST_Controller
             'is_synthetic' => true,
         ];
         
-        error_log("ODCM EXTRACT: Created synthetic component of kind '$kind' for event $event_id");
+        error_log("ODCM EXTRACT: Created synthetic component of event_type '$component_event_type' for event $event_id");
         
         return [$synthetic_component];
     }
     
     /**
-     * Determine appropriate component kind for synthetic components
+     * Determine appropriate component event_type for synthetic components
      *
      * @param array $event Timeline event
      * @param array|null $event_details Parsed event details
-     * @return string Component kind
+     * @return string Component event_type
      */
-    private function determine_synthetic_component_kind(array $event, ?array $event_details): string
+    private function determine_synthetic_component_event_type(array $event, ?array $event_details): string
     {
         $event_type = strtolower($event['event_type'] ?? '');
         $summary = strtolower($event['summary'] ?? '');
         $status = strtolower($event['status'] ?? '');
         
-        // Map event types to appropriate component kinds
+        // Map event types to appropriate component event_types
         if (strpos($event_type, 'status') !== false || strpos($summary, 'status') !== false) {
-            return 'status_changed';
+            return 'status_change_processing';
         }
         
         if (strpos($event_type, 'payment') !== false || strpos($summary, 'payment') !== false) {
@@ -3970,11 +3901,11 @@ class AuditLogEndpoint extends WP_REST_Controller
         }
         
         if (strpos($event_type, 'order') !== false || strpos($summary, 'order') !== false) {
-            return 'order_loaded';
+            return 'order_processing';
         }
         
         if (strpos($event_type, 'rule') !== false || strpos($summary, 'rule') !== false) {
-            return 'rule_evaluated';
+            return 'rule_evaluation';
         }
         
         if ($status === 'error' || strpos($summary, 'error') !== false || strpos($summary, 'failed') !== false) {
@@ -4046,7 +3977,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         }
         
         $fallback_component = [
-            'kind' => 'error',
+            'event_type' => 'error',
             'label' => 'Event Processing Error',
             'ts' => $event['timestamp'] ?? current_time('mysql'),
             'level' => 'warning',
@@ -4098,26 +4029,26 @@ class AuditLogEndpoint extends WP_REST_Controller
             $primary_component = $group['primary'];
             $context_components = $group['context'] ?? [];
             
-            $kind = sanitize_key($primary_component['kind'] ?? 'info');
-            $label = (string) ($primary_component['label'] ?? ucfirst($kind));
+            $event_type = sanitize_key($primary_component['event_type'] ?? 'info');
+            $label = (string) ($primary_component['label'] ?? ucfirst($event_type));
             $ts = (string) ($primary_component['ts'] ?? '');
             $level = sanitize_key($primary_component['level'] ?? 'info');
             $data = is_array($primary_component['data'] ?? null) ? $primary_component['data'] : [];
             
             // Skip rendering if data is empty
             if (empty($data)) {
-                error_log("ODCM RENDER_CONSOLIDATED: Skipping component $group_index ($kind) - empty data");
+                error_log("ODCM RENDER_CONSOLIDATED: Skipping component $group_index ($event_type) - empty data");
                 continue;
             }
             
             // Embed context components into primary component data
             if (!empty($context_components)) {
                 $data['embedded_context'] = $this->render_embedded_context_components($context_components);
-                error_log("ODCM RENDER_CONSOLIDATED: Embedded " . count($context_components) . " context components into $kind");
+                error_log("ODCM RENDER_CONSOLIDATED: Embedded " . count($context_components) . " context components into $event_type");
             }
             
             // Smart renderer lookup with capability detection
-            $def = odcm_find_best_renderer_for_data($kind, $data);
+            $def = odcm_find_best_renderer_for_data($event_type, $data);
             $renderer_html = '';
             
             if (is_array($def) && isset($def['renderer_class'])) {
@@ -4132,14 +4063,14 @@ class AuditLogEndpoint extends WP_REST_Controller
                         
                         // Try different rendering methods in order of preference
                         if (method_exists($renderer, 'renderTimelineItem')) {
-                            $renderer_html = $renderer->renderTimelineItem($kind, $label, $ts !== '' ? $ts : null, $level, $data);
+                            $renderer_html = $renderer->renderTimelineItem($event_type, $label, $ts !== '' ? $ts : null, $level, $data);
                         } elseif (method_exists($renderer, 'render')) {
                             $renderer_html = $renderer->render($data);
                         }
                         
                         if (!empty($renderer_html)) {
                             $rendered_count++;
-                            error_log("ODCM RENDER_CONSOLIDATED: Successfully rendered component $group_index ($kind) using $renderer_class");
+                            error_log("ODCM RENDER_CONSOLIDATED: Successfully rendered component $group_index ($event_type) using $renderer_class");
                         }
                         
                     } catch (\Throwable $e) {
@@ -4150,8 +4081,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             
             // Fallback rendering using UIToolkit
             if (empty($renderer_html)) {
-                error_log("ODCM RENDER_CONSOLIDATED: Using fallback UIToolkit rendering for component $group_index ($kind)");
-                $renderer_html = $this->render_component_using_ui_toolkit($kind, $label, $data, $level, $ts);
+                error_log("ODCM RENDER_CONSOLIDATED: Using fallback UIToolkit rendering for component $group_index ($event_type)");
+                $renderer_html = $this->render_component_using_ui_toolkit($event_type, $label, $data, $level, $ts);
                 if (!empty($renderer_html)) {
                     $rendered_count++;
                 }
@@ -4187,9 +4118,9 @@ class AuditLogEndpoint extends WP_REST_Controller
         
         // Separate primary components from context-only components
         foreach ($all_components as $component) {
-            $kind = $component['kind'] ?? 'info';
+            $event_type = $component['event_type'] ?? 'info';
             
-            if ($this->isContextOnlyComponent($kind)) {
+            if ($this->isContextOnlyComponent($event_type)) {
                 $context_components[] = $component;
             } else {
                 // Each primary component gets its own group
@@ -4227,14 +4158,14 @@ class AuditLogEndpoint extends WP_REST_Controller
         }
         
         $context_ts = strtotime($context_component['ts'] ?? '');
-        $context_kind = $context_component['kind'] ?? '';
+        $context_event_type = $context_component['event_type'] ?? '';
         $best_score = -1;
         $best_index = null;
         
         foreach ($groups as $index => $group) {
             $primary = $group['primary'];
             $primary_ts = strtotime($primary['ts'] ?? '');
-            $primary_kind = $primary['kind'] ?? '';
+            $primary_event_type = $primary['event_type'] ?? '';
             
             $score = 0;
             
@@ -4251,11 +4182,11 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
             
             // Logical relevance scoring
-            if ($context_kind === 'attribution' || $context_kind === 'performance') {
+            if ($context_event_type === 'attribution' || $context_event_type === 'performance') {
                 $score += 3; // These are generally relevant to any primary event
             }
             
-            if ($context_kind === 'info' && strpos($primary_kind, 'status') !== false) {
+            if ($context_event_type === 'info' && strpos($primary_event_type, 'status') !== false) {
                 $score += 5; // Info components are especially relevant to status changes
             }
             
@@ -4280,7 +4211,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         $embedded_html = '';
         
         foreach ($context_components as $context) {
-            $kind = $context['kind'] ?? '';
+            $event_type = $context['event_type'] ?? '';
             $data = is_array($context['data'] ?? null) ? $context['data'] : [];
             
             if (empty($data)) {
@@ -4288,7 +4219,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
             
             // Use simplified rendering for context components
-            $context_html = $this->generateContextContent($kind, $data);
+            $context_html = $this->generateContextContent($event_type, $data);
             if (!empty($context_html)) {
                 $embedded_html .= '<div class="odcm-embedded-context">' . $context_html . '</div>';
             }

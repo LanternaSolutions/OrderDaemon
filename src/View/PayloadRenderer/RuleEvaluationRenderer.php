@@ -139,9 +139,9 @@ class RuleEvaluationRenderer extends PayloadComponentRenderer
         $toolkit = new PayloadComponentUIToolkit();
         $html_parts = [];
 
-        // Narrative-first: branch for specific rule kinds when present
-        $kind = $this->getCurrentComponentId();
-        if ($kind === 'rule_evaluated') {
+        // Narrative-first: branch for specific rule event_types when present
+        $event_type = $this->getCurrentComponentId();
+        if ($event_type === 'rule_evaluated') {
             $rule_id = isset($data['rule_id']) ? absint($data['rule_id']) : null;
             $priority = isset($data['priority']) ? (int)$data['priority'] : null;
             $matched = isset($data['matched']) ? (bool)$data['matched'] : null;
@@ -154,7 +154,7 @@ class RuleEvaluationRenderer extends PayloadComponentRenderer
             if (!empty($kv)) {
                 return $toolkit->render_key_value_list($kv, __('Rule Evaluated', 'order-daemon'));
             }
-        } elseif ($kind === 'decision') {
+        } elseif ($event_type === 'decision') {
             $subject = isset($data['subject']) ? sanitize_text_field((string)$data['subject']) : '';
             $outcome = isset($data['outcome']) ? sanitize_text_field((string)$data['outcome']) : '';
             $reason  = isset($data['reason']) ? sanitize_text_field((string)$data['reason']) : '';
@@ -165,7 +165,7 @@ class RuleEvaluationRenderer extends PayloadComponentRenderer
             if (!empty($kv)) {
                 return $toolkit->render_key_value_list($kv, __('Decision', 'order-daemon'));
             }
-        } elseif ($kind === 'validation') {
+        } elseif ($event_type === 'validation') {
             $name   = isset($data['name']) ? sanitize_text_field((string)$data['name']) : '';
             $step   = isset($data['step']) ? sanitize_text_field((string)$data['step']) : '';
             $result = isset($data['result']) ? sanitize_text_field((string)$data['result']) : '';
@@ -184,13 +184,13 @@ class RuleEvaluationRenderer extends PayloadComponentRenderer
             if ($content !== '') {
                 return $content;
             }
-        } elseif ($kind === 'condition_passed' || $kind === 'condition_failed') {
+        } elseif ($event_type === 'condition_passed' || $event_type === 'condition_failed') {
             $condition_label = isset($data['condition_label']) ? sanitize_text_field((string)$data['condition_label']) : '';
             $expected_value  = isset($data['expected_value']) ? sanitize_text_field((string)$data['expected_value']) : '';
             $actual_value    = isset($data['actual_value']) ? sanitize_text_field((string)$data['actual_value']) : '';
             $operator        = isset($data['operator']) ? sanitize_text_field((string)$data['operator']) : '';
             $order_id        = isset($data['order_id']) ? absint($data['order_id']) : 0;
-            $result_text     = $kind === 'condition_passed' ? '✓ Passed' : '⚠ Failed';
+            $result_text     = $event_type === 'condition_passed' ? '✓ Passed' : '⚠ Failed';
 
             $kv = [];
             if ($condition_label !== '') { $kv['Condition'] = $condition_label; }
@@ -656,15 +656,61 @@ class RuleEvaluationRenderer extends PayloadComponentRenderer
      */
     public function canHandle(array $data): bool
     {
-        // Check for rule-related keys
+        // Primary: Check for explicit rule-related keys
         $rule_keys = [
             'rule', 'rule_id', 'rule_name', 'conditions', 'actions',
-            'evaluation_result', 'trigger', 'trigger_type', 'rule_evaluation'
+            'evaluation_result', 'trigger', 'trigger_type', 'rule_evaluation',
+            'matched', 'reason', 'outcome', 'condition_label', 'expected_value',
+            'actual_value', 'operator', 'result'
         ];
         
         foreach ($rule_keys as $key) {
             if (array_key_exists($key, $data)) {
                 return true;
+            }
+        }
+        
+        // Secondary: Detect rule evaluation patterns in text content
+        $text_fields = ['message', 'summary', 'description', 'label', 'text'];
+        foreach ($text_fields as $field) {
+            if (isset($data[$field]) && is_string($data[$field])) {
+                $text = strtolower($data[$field]);
+                
+                // Strong rule evaluation indicators
+                $rule_patterns = [
+                    'rule evaluated',
+                    'rule matched',
+                    'rule check',
+                    'no rules matched',
+                    'rules matched',
+                    'condition passed',
+                    'condition failed',
+                    'condition not met',
+                    'decision made',
+                    'validation result',
+                    'trigger fired',
+                    'evaluation complete',
+                    'rule processing'
+                ];
+                
+                foreach ($rule_patterns as $pattern) {
+                    if (strpos($text, $pattern) !== false) {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        // Tertiary: Check for nested rule data structures
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                // Check if nested array contains rule indicators
+                if (strpos($key, 'rule') !== false || 
+                    isset($value['rule_id']) || 
+                    isset($value['conditions']) ||
+                    isset($value['evaluation_result'])) {
+                    return true;
+                }
             }
         }
         

@@ -149,60 +149,21 @@ function odcm_get_payload_component_types(): array
     return [
         // === NARRATIVE-ONLY REGISTRY: Kinds == Component IDs ===
 
-        // WooCommerce domain (single renderer handles several kinds)
-        'order_loaded' => [
-            'id'             => 'order_loaded',
-            'label'          => __('Order Loaded', 'order-daemon'),
-            'renderer_class' => 'WooCommerceRenderer',
-            'css_class'      => 'odcm-component--woocommerce',
-            'icon'           => 'dashicons-cart',
-            'status_pill'    => [
-                'label' => __('WooCommerce', 'order-daemon'),
-                'type'  => 'woocommerce'
-            ],
-        ],
-        'status_changed' => [
-            'id'             => 'status_changed',
-            'label'          => __('Order Status Changed', 'order-daemon'),
-            'renderer_class' => 'WooCommerceRenderer',
-            'css_class'      => 'odcm-component--woocommerce',
-            'icon'           => 'dashicons-randomize',
-            'status_pill'    => [
-                'label' => __('WooCommerce', 'order-daemon'),
-                'type'  => 'woocommerce'
-            ],
-        ],
-        'stock_adjusted' => [
-            'id'             => 'stock_adjusted',
-            'label'          => __('Stock Adjusted', 'order-daemon'),
-            'renderer_class' => 'WooCommerceRenderer',
-            'css_class'      => 'odcm-component--woocommerce',
-            'icon'           => 'dashicons-archive',
-            'status_pill'    => [
-                'label' => __('WooCommerce', 'order-daemon'),
-                'type'  => 'woocommerce'
-            ],
-        ],
-        'meta_updated' => [
-            'id'             => 'meta_updated',
-            'label'          => __('Order Meta Updated', 'order-daemon'),
-            'renderer_class' => 'WooCommerceRenderer',
-            'css_class'      => 'odcm-component--woocommerce',
-            'icon'           => 'dashicons-admin-generic',
-            'status_pill'    => [
-                'label' => __('WooCommerce', 'order-daemon'),
-                'type'  => 'woocommerce'
-            ],
-        ],
-
-        // Rule evaluation domain
+        // Rule evaluation domain (FIRST PRIORITY - must be tested before WooCommerce)
         'rule_evaluated' => [
             'id'             => 'rule_evaluated',
             'label'          => __('Rule Evaluated', 'order-daemon'),
             'renderer_class' => 'RuleEvaluationRenderer',
             'css_class'      => 'odcm-component--rule',
             'icon'           => 'dashicons-filter',
-            'aliases'        => ['rule_matched', 'rule_check', 'rule_evaluation_success'],
+            'aliases'        => [
+                'rule_matched', 
+                'rule_check', 
+                'rule_evaluation_success',
+                'no_rules_matched',
+                'rule_evaluation_started',
+                'rule_evaluation_result'
+            ],
             'status_pill'    => [
                 'label' => __('Rule Match', 'order-daemon'),
                 'type'  => 'success'
@@ -253,6 +214,56 @@ function odcm_get_payload_component_types(): array
             'type'  => 'warning'
         ],
     ],
+
+        // WooCommerce domain (AFTER rule evaluation - less priority in canHandle() testing)
+        'order_loaded' => [
+            'id'             => 'order_loaded',
+            'label'          => __('Order Loaded', 'order-daemon'),
+            'renderer_class' => 'WooCommerceRenderer',
+            'css_class'      => 'odcm-component--woocommerce',
+            'icon'           => 'dashicons-cart',
+            'status_pill'    => [
+                'label' => __('WooCommerce', 'order-daemon'),
+                'type'  => 'woocommerce'
+            ],
+        ],
+        'status_changed' => [
+            'id'             => 'status_changed',
+            'label'          => __('Order Status Changed', 'order-daemon'),
+            'renderer_class' => 'WooCommerceRenderer',
+            'css_class'      => 'odcm-component--woocommerce',
+            'icon'           => 'dashicons-randomize',
+            'aliases'        => [
+                'status_change_processing',
+                'status_evaluation'
+            ],
+            'status_pill'    => [
+                'label' => __('WooCommerce', 'order-daemon'),
+                'type'  => 'woocommerce'
+            ],
+        ],
+        'stock_adjusted' => [
+            'id'             => 'stock_adjusted',
+            'label'          => __('Stock Adjusted', 'order-daemon'),
+            'renderer_class' => 'WooCommerceRenderer',
+            'css_class'      => 'odcm-component--woocommerce',
+            'icon'           => 'dashicons-archive',
+            'status_pill'    => [
+                'label' => __('WooCommerce', 'order-daemon'),
+                'type'  => 'woocommerce'
+            ],
+        ],
+        'meta_updated' => [
+            'id'             => 'meta_updated',
+            'label'          => __('Order Meta Updated', 'order-daemon'),
+            'renderer_class' => 'WooCommerceRenderer',
+            'css_class'      => 'odcm-component--woocommerce',
+            'icon'           => 'dashicons-admin-generic',
+            'status_pill'    => [
+                'label' => __('WooCommerce', 'order-daemon'),
+                'type'  => 'woocommerce'
+            ],
+        ],
 
         // PayPal Events (Universal Event gateway-specific rendering)
         'paypal_event' => [
@@ -365,7 +376,13 @@ function odcm_get_payload_component_types(): array
             'renderer_class' => 'SystemRenderer',
             'css_class'      => 'odcm-component--system',
             'icon'           => 'dashicons-info',
-            'aliases'        => ['process_started', 'process_info'],
+            'aliases'        => [
+                'process_started', 
+                'process_info',
+                'admin_action',
+                'event',
+                'custom_event'
+            ],
         ],
         'note_added' => [
             'id'             => 'note_added',
@@ -483,39 +500,39 @@ function odcm_get_payload_component_type(string $component_id): ?array
 }
 
 /**
- * Get Payload Component Type by Kind (including aliases)
+ * Get Payload Component Type by Event Type (including aliases)
  *
- * Looks up a component type by its kind, checking both the registry ID
- * and any defined aliases. This allows flexible mapping of logging kinds
+ * Looks up a component type by its event_type, checking both the registry ID
+ * and any defined aliases. This allows flexible mapping of event types
  * to their appropriate renderers.
  *
  * @since 1.0.0
  *
- * @param string $kind The component kind from payload data.
+ * @param string $event_type The event type from payload data.
  * @return array|null Component definition array or null if not found.
  *
  * @example
  * ```php
  * // Direct match
- * $component = odcm_get_payload_component_type_by_kind('rule_evaluated');
+ * $component = odcm_get_payload_component_type_by_event_type('rule_evaluated');
  * 
  * // Alias match (if 'rule_matched' is an alias for 'rule_evaluated')
- * $component = odcm_get_payload_component_type_by_kind('rule_matched');
+ * $component = odcm_get_payload_component_type_by_event_type('rule_matched');
  * // Returns the same 'rule_evaluated' component definition
  * ```
  */
-function odcm_get_payload_component_type_by_kind(string $kind): ?array
+function odcm_get_payload_component_type_by_event_type(string $event_type): ?array
 {
     $types = odcm_get_payload_component_types();
     
     // Direct match by registry ID
-    if (isset($types[$kind])) {
-        return $types[$kind];
+    if (isset($types[$event_type])) {
+        return $types[$event_type];
     }
     
     // Search aliases
     foreach ($types as $type) {
-        if (isset($type['aliases']) && is_array($type['aliases']) && in_array($kind, $type['aliases'], true)) {
+        if (isset($type['aliases']) && is_array($type['aliases']) && in_array($event_type, $type['aliases'], true)) {
             return $type;
         }
     }
@@ -529,7 +546,7 @@ function odcm_get_payload_component_type_by_kind(string $kind): ?array
  *
  * This function implements intelligent renderer selection by combining
  * registry-based lookup with capability-based detection. It provides
- * robust renderer selection even when component kinds don't exactly
+ * robust renderer selection even when event types don't exactly
  * match registry entries.
  *
  * Three-tier lookup strategy:
@@ -539,7 +556,7 @@ function odcm_get_payload_component_type_by_kind(string $kind): ?array
  *
  * @since 1.0.0
  *
- * @param string $kind The component kind from payload data.
+ * @param string $event_type The event type from payload data.
  * @param array $data The component data to render.
  * @return array|null Component definition array or null if no renderer found.
  *
@@ -553,10 +570,10 @@ function odcm_get_payload_component_type_by_kind(string $kind): ?array
  * }
  * ```
  */
-function odcm_find_best_renderer_for_data(string $kind, array $data): ?array
+function odcm_find_best_renderer_for_data(string $event_type, array $data): ?array
 {
     // Tier 1: Registry lookup with aliases (fast path)
-    $def = odcm_get_payload_component_type_by_kind($kind);
+    $def = odcm_get_payload_component_type_by_event_type($event_type);
     if ($def) {
         return $def;
     }

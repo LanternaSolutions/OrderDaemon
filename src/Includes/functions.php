@@ -1043,10 +1043,10 @@ function odcm_log_event(
     if ($level === 'success') { 
         $level = 'info'; 
     }
-    
+        
     $component = [
         'k' => 'c' . time() . rand(10,99),
-        'kind' => 'info',
+        'event_type' => $event_type,
         'ts' => time(),
         'label' => $summary,
         'level' => $level,

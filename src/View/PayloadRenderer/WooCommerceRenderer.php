@@ -196,9 +196,9 @@ class WooCommerceRenderer extends PayloadComponentRenderer
             $embedded_context = implode('', array_filter($data['embedded_context_content'], 'is_string'));
         }
 
-        // Narrative-first: branch for specific WooCommerce kinds when present
-        $kind = $this->getCurrentComponentId();
-        if ($kind === 'order_loaded') {
+        // Narrative-first: branch for specific WooCommerce event_types when present
+        $event_type = $this->getCurrentComponentId();
+        if ($event_type === 'order_loaded') {
             $order_id = isset($data['id']) ? absint($data['id']) : null;
             $status   = isset($data['status']) ? sanitize_text_field((string)$data['status']) : '';
             $kv = [];
@@ -209,7 +209,7 @@ class WooCommerceRenderer extends PayloadComponentRenderer
                 return $content . $embedded_context;
             }
             // fall through to generic adapters if minimal fields absent
-        } elseif ($kind === 'status_changed') {
+        } elseif ($event_type === 'status_changed') {
             $from = isset($data['from']) ? sanitize_text_field((string)$data['from']) : '';
             $to   = isset($data['to']) ? sanitize_text_field((string)$data['to']) : '';
             $kv = [];
@@ -220,7 +220,7 @@ class WooCommerceRenderer extends PayloadComponentRenderer
                 return $content . $embedded_context;
             }
             // fall through
-        } elseif ($kind === 'stock_adjusted') {
+        } elseif ($event_type === 'stock_adjusted') {
             $product_id = isset($data['product_id']) ? absint($data['product_id']) : null;
             $delta      = isset($data['delta']) ? (int)$data['delta'] : null;
             $fromQty    = isset($data['from']) ? (int)$data['from'] : null;
@@ -234,7 +234,7 @@ class WooCommerceRenderer extends PayloadComponentRenderer
                 $content = $toolkit->render_key_value_list($kv, __('Stock Adjustment', 'order-daemon'));
                 return $content . $embedded_context;
             }
-        } elseif ($kind === 'meta_updated') {
+        } elseif ($event_type === 'meta_updated') {
             $key  = isset($data['key']) ? sanitize_text_field((string)$data['key']) : '';
             $from = array_key_exists('from', $data) ? $data['from'] : null;
             $to   = array_key_exists('to', $data) ? $data['to'] : null;
@@ -833,11 +833,11 @@ class WooCommerceRenderer extends PayloadComponentRenderer
      */
     public function canHandle(array $data): bool
     {
-        // Check for WooCommerce-related keys
+        // Check for actual WooCommerce operation keys
         $woo_keys = [
-            'order', 'order_id', 'product', 'product_id', 'customer', 'customer_id',
-            'order_status', 'payment_method', 'shipping_method', 'woocommerce',
-            'wc_order', 'wc_product', 'order_total', 'order_items'
+            'order', 'product', 'customer', 'woocommerce',
+            'wc_order', 'wc_product', 'order_items', 'order_total',
+            'payment_method', 'shipping_method', 'order_status'
         ];
         
         foreach ($woo_keys as $key) {

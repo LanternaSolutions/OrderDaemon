@@ -145,7 +145,7 @@ class ManualStatusTracker
         $status_data = $sanitizer->sanitize('status_changed', ['from' => $from, 'to' => $to]);
         $components[] = [
             'k' => 'c' . time() . rand(10,99),
-            'kind' => 'status_changed',
+            'event_type' => 'status_changed',
             'ts' => time(),
             'label' => 'Status changed',
             'level' => 'info',
@@ -157,7 +157,7 @@ class ManualStatusTracker
             $info_data = $sanitizer->sanitize('info', ['message' => 'Standard WooCommerce workflow transition detected']);
             $components[] = [
                 'k' => 'c' . time() . rand(10,99),
-                'kind' => 'info',
+                'event_type' => 'info',
                 'ts' => time(),
                 'label' => 'Automatic workflow transition',
                 'level' => 'info',
@@ -189,7 +189,7 @@ class ManualStatusTracker
             
             $components[] = [
                 'k' => 'c' . time() . rand(10,99),
-                'kind' => 'info',
+                'event_type' => 'info',
                 'ts' => time(),
                 'label' => 'Attribution context',
                 'level' => 'info',
@@ -205,7 +205,7 @@ class ManualStatusTracker
             ]);
             $components[] = [
                 'k' => 'c' . time() . rand(10,99),
-                'kind' => 'warning',
+                'event_type' => 'warning',
                 'ts' => time(),
                 'label' => 'Automation bypass context',
                 'level' => 'warning',
@@ -441,7 +441,7 @@ class ManualStatusTracker
         $payload_components = [
             [
                 'key' => 'manual-trigger-' . wp_generate_uuid4(),
-                'kind' => 'info',
+                'event_type' => 'info',
                 'ts' => odcm_iso8601_now(),
                 'label' => 'Manual trigger invoked',
                 'level' => 'info',

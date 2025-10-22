@@ -385,7 +385,7 @@ class Core
         $components = [
             [
                 'k' => 'c' . time() . rand(10,99),
-                'kind' => 'admin_action',
+                'event_type' => 'admin_action',
                 'ts' => time(),
                 'label' => sprintf(__('Admin reprocessed %d orders', 'order-daemon'), $count),
                 'level' => 'info',
@@ -528,7 +528,7 @@ class Core
             $status_data = $sanitizer->sanitize('status_changed', ['from' => 'unknown', 'to' => $status_slug]);
             $components[] = [
                 'k' => 'c' . time() . rand(10,99),
-                'kind' => 'status_changed',
+                'event_type' => 'status_changed',
                 'ts' => odcm_iso8601_now(),
                 'label' => 'Status changed',
                 'level' => 'info',
@@ -559,7 +559,7 @@ class Core
                 
                 $components[] = [
                     'k' => 'c' . time() . rand(10,99),
-                    'kind' => 'info',
+                    'event_type' => 'info',
                     'ts' => odcm_iso8601_now(),
                     'label' => 'Attribution context',
                     'level' => 'info',
