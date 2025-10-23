@@ -2405,6 +2405,83 @@ label.odcm-retention-option {
     --odcm-key-bg: var(--odcm-theme-grey-200);
 }
 
+/* Rule Events Theme */
+.odcm-component--rule {
+    --odcm-component-bg: var(--odcm-theme-blue-200);
+    --odcm-component-border-color: var(--odcm-theme-blue-700);
+    --odcm-component-header-border-color: var(--odcm-theme-blue-700);
+    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+    --odcm-component-text-color-body: var(--odcm-theme-grey-900);
+    --odcm-component-value-bg: var(--odcm-theme-white);
+    --odcm-key-bg: var(--odcm-theme-blue-200);
+}
+
+/* Payment Events Theme */
+.odcm-component--payment {
+    --odcm-component-bg: var(--odcm-theme-green-200);
+    --odcm-component-border-color: var(--odcm-theme-green-700);
+    --odcm-component-header-border-color: var(--odcm-theme-green-700);
+    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+    --odcm-component-text-color-body: var(--odcm-theme-grey-900);
+    --odcm-component-value-bg: var(--odcm-theme-white);
+    --odcm-key-bg: var(--odcm-theme-green-200);
+}
+
+/* Order Events Theme */
+.odcm-component--order {
+    --odcm-component-bg: var(--odcm-theme-purple-200);
+    --odcm-component-border-color: var(--odcm-theme-purple-700);
+    --odcm-component-header-border-color: var(--odcm-theme-purple-700);
+    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+    --odcm-component-text-color-body: var(--odcm-theme-grey-900);
+    --odcm-component-value-bg: var(--odcm-theme-white);
+    --odcm-key-bg: var(--odcm-theme-purple-200);
+}
+
+/* System Events Theme */
+.odcm-component--system {
+    --odcm-component-bg: var(--odcm-theme-grey-200);
+    --odcm-component-border-color: var(--odcm-theme-grey-700);
+    --odcm-component-header-border-color: var(--odcm-theme-grey-700);
+    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+    --odcm-component-text-color-body: var(--odcm-theme-grey-900);
+    --odcm-component-value-bg: var(--odcm-theme-white);
+    --odcm-key-bg: var(--odcm-theme-grey-200);
+}
+
+/* Analysis Events Theme */
+.odcm-component--analysis {
+    --odcm-component-bg: var(--odcm-theme-indigo-200);
+    --odcm-component-border-color: var(--odcm-theme-indigo-700);
+    --odcm-component-header-border-color: var(--odcm-theme-indigo-700);
+    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+    --odcm-component-text-color-body: var(--odcm-theme-grey-900);
+    --odcm-component-value-bg: var(--odcm-theme-white);
+    --odcm-key-bg: var(--odcm-theme-indigo-200);
+}
+
+/* Error Events Theme */
+.odcm-component--error {
+    --odcm-component-bg: var(--odcm-theme-red-200);
+    --odcm-component-border-color: var(--odcm-theme-red-700);
+    --odcm-component-header-border-color: var(--odcm-theme-red-700);
+    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+    --odcm-component-text-color-body: var(--odcm-theme-grey-900);
+    --odcm-component-value-bg: var(--odcm-theme-white);
+    --odcm-key-bg: var(--odcm-theme-red-200);
+}
+
+/* Default Theme (Fallback) */
+.odcm-component--default {
+    --odcm-component-bg: var(--odcm-theme-grey-100);
+    --odcm-component-border-color: var(--odcm-theme-grey-300);
+    --odcm-component-header-border-color: var(--odcm-theme-grey-300);
+    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+    --odcm-component-text-color-body: var(--odcm-theme-grey-800);
+    --odcm-component-value-bg: var(--odcm-theme-white);
+    --odcm-key-bg: var(--odcm-theme-grey-200);
+}
+
 /* Subtle Semantic Icon Colors in Component Headers */
 .odcm-component--error .odcm-component__header .dashicons {
     color: var(--odcm-theme-red-700);

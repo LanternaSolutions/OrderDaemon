@@ -272,21 +272,9 @@ function odcm_handle_order_check_processing($args) {
         $result = $processor->processEvent($universal_event_data);
         error_log("ODCM_DEBUG_TRACE: Action Handler - processEvent() returned: " . ($result ? 'TRUE' : 'FALSE'));
 
-        // Log the result for debugging
+        // Debug logging only
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            odcm_log_event(
-                $result ? 'Order check processed successfully' : 'Order check completed with no matching rules',
-                [
-                    'order_id' => $order_id,
-                    'processing_result' => $result,
-                    'order_status' => $order->get_status(),
-                    'payment_method' => $order->get_payment_method(),
-                    'order_total' => $order->get_total()
-                ],
-                $order_id,
-                $result ? 'success' : 'info',
-                'order_check_completed'
-            );
+            error_log("ODCM_DEBUG: Order check completed for #{$order_id} - Result: " . ($result ? 'TRUE' : 'FALSE'));
         }
 
     } catch (\Throwable $e) {
@@ -378,18 +366,7 @@ function odcm_handle_universal_event_processing(array $args) {
                 "{$gateway} {$event_type} processed successfully" : 
                 "{$gateway} {$event_type} completed with no action";
                 
-            odcm_log_event(
-                $message,
-                [
-                    'event_type' => $event_data['eventType'] ?? 'unknown',
-                    'source_gateway' => $event_data['sourceGateway'] ?? 'unknown',
-                    'result' => $result,
-                    'idempotency_key' => $event_data['idempotencyKey'] ?? 'unknown'
-                ],
-                null,
-                $result ? 'success' : 'info',
-                'universal_event_processing_result'
-            );
+            error_log("ODCM_DEBUG: {$message}");
         }
 
     } catch (\Throwable $e) {
@@ -850,7 +827,7 @@ function odcm_schedule_queue_cleanup(): void
     if (!as_next_scheduled_action('odcm_cleanup_audit_log_queue')) {
         as_schedule_recurring_action(
             time(),
-            DAY_IN_SECONDS,
+            86400, // 24 hours in seconds
             'odcm_cleanup_audit_log_queue',
             [],
             'odcm-maintenance'

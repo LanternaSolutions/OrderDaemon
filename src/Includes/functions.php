@@ -1488,16 +1488,16 @@ function odcm_maybe_add_process_id(array $event_data): array
         : [];
 
     // Known main-table lifecycle slugs used by our logging pipeline
-    $main_table_lifecycle = [
-        'checkout_processing',
-        'block_checkout_processed',
-        'status_change_processing',
-        'manual_status_change',
-        'rule_execution',
-        'order_completion',
-        'process_started',
-        'no_rules_matched',  // Debug
-    ];
+$main_table_lifecycle = [
+    'checkout_processing',
+    'block_checkout_processed',
+    'status_change_processing',
+    'manual_status_change',
+    'rule_execution',
+    'order_completion',
+    'process_started',
+    'no_rules_matched',  // Debug
+];
     $lifecycle_union = array_values(array_unique(array_merge($lifecycle_types, $main_table_lifecycle)));
 
     $event_type = (string) $event_data['event_type'];

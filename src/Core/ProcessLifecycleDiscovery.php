@@ -160,7 +160,6 @@ final class ProcessLifecycleDiscovery
             'automatic_workflow_transition',
             'rule_execution',
             'order_completion',
-            'order_check_completed',
             'order_processing',
             'universal_event_processing', // Universal events are part of order lifecycle
             'universal_event_reception',

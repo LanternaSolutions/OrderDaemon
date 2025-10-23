@@ -70,30 +70,18 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             return '';
         }
         
-        // Use the existing smart lookup system
+        // Use new direct mapping system
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM TIMELINE DEBUG: Calling odcm_find_best_renderer_for_data()...");
+            error_log("ODCM TIMELINE DEBUG: Getting renderer for event_type: '$event_type'");
         }
         
-        $rendererDefinition = odcm_find_best_renderer_for_data($event_type, $data);
+        $rendererClass = odcm_get_renderer_for_event_type($event_type);
+        $originalRendererClass = $rendererClass;
         
         // Debug logging for renderer selection result
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            $renderer_class_name = $rendererDefinition['renderer_class'] ?? 'none';
-            $renderer_id = $rendererDefinition['id'] ?? 'none';
-            error_log("ODCM TIMELINE DEBUG: Renderer lookup result - ID: '$renderer_id', Class: '$renderer_class_name'");
+            error_log("ODCM TIMELINE DEBUG: Renderer class selected: '$rendererClass'");
         }
-        
-        if (!$rendererDefinition || !isset($rendererDefinition['renderer_class'])) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM TIMELINE DEBUG: ERROR - No renderer definition or missing renderer_class");
-                error_log("ODCM TIMELINE DEBUG: Using fallback renderer for event_type='$event_type'");
-            }
-            return $this->renderFallbackComponent($event_type, $label, $data, $level);
-        }
-        
-        $rendererClass = $rendererDefinition['renderer_class'];
-        $originalRendererClass = $rendererClass;
         
         // Ensure full namespace if not provided
         if (strpos($rendererClass, '\\') === false) {
@@ -111,7 +99,13 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 error_log("ODCM TIMELINE DEBUG: ERROR - Renderer class '$rendererClass' does not exist");
                 error_log("ODCM TIMELINE DEBUG: Using fallback renderer");
             }
-            return $this->renderFallbackComponent($event_type, $label, $data, $level);
+            $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
+            $timeline = [
+                'label' => $label,
+                'ts' => $ts,
+                'level' => $level
+            ];
+            return $renderer->render($data, $event_type, $timeline);
         }
         
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -129,37 +123,25 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 error_log("ODCM TIMELINE DEBUG: Has render(): " . ($has_render ? 'YES' : 'NO'));
             }
             
-            // Try different rendering methods in order of preference
-            if (method_exists($renderer, 'renderTimelineItem')) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log("ODCM TIMELINE DEBUG: Using renderTimelineItem() method");
-                }
-                $result = $renderer->renderTimelineItem($event_type, $label, $ts, $level, $data);
-                
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $result_length = strlen($result);
-                    error_log("ODCM TIMELINE DEBUG: renderTimelineItem() completed, result length: $result_length");
-                    if ($result_length > 0) {
-                        error_log("ODCM TIMELINE DEBUG: SUCCESS - Component rendered with specialized renderer");
-                    } else {
-                        error_log("ODCM TIMELINE DEBUG: WARNING - Renderer returned empty result");
-                    }
-                }
-                
-                return $result;
-            }
-            
+            // Use unified render method with timeline data
             if (method_exists($renderer, 'render')) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log("ODCM TIMELINE DEBUG: Using render() method (fallback)");
+                    error_log("ODCM TIMELINE DEBUG: Using render() method with timeline data");
                 }
-                $result = $renderer->render($data);
+
+                $timeline = [
+                    'label' => $label,
+                    'ts' => $ts,
+                    'level' => $level
+                ];
+
+                $result = $renderer->render($data, $event_type, $timeline);
                 
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                     $result_length = strlen($result);
                     error_log("ODCM TIMELINE DEBUG: render() completed, result length: $result_length");
                     if ($result_length > 0) {
-                        error_log("ODCM TIMELINE DEBUG: SUCCESS - Component rendered with basic renderer");
+                        error_log("ODCM TIMELINE DEBUG: SUCCESS - Component rendered with timeline data");
                     } else {
                         error_log("ODCM TIMELINE DEBUG: WARNING - Renderer returned empty result");
                     }
@@ -173,7 +155,13 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 error_log("ODCM TIMELINE DEBUG: ERROR - Renderer '$rendererClass' has no render methods");
                 error_log("ODCM TIMELINE DEBUG: Using fallback renderer");
             }
-            return $this->renderFallbackComponent($event_type, $label, $data, $level);
+            $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
+            $timeline = [
+                'label' => $label,
+                'ts' => $ts,
+                'level' => $level
+            ];
+            return $renderer->render($data, $event_type, $timeline);
             
         } catch (\Throwable $e) {
             // Log error and use fallback
@@ -184,54 +172,16 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 error_log("ODCM TIMELINE DEBUG: Using fallback renderer");
             }
             error_log("ODCM Timeline Renderer Error for {$rendererClass}: " . $e->getMessage());
-            return $this->renderFallbackComponent($event_type, $label, $data, $level);
+            $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
+            $timeline = [
+                'label' => $label,
+                'ts' => $ts,
+                'level' => $level
+            ];
+            return $renderer->render($data, $event_type, $timeline);
         }
     }
     
-    /**
-     * Render fallback component when specific renderer fails or is unavailable
-     */
-    private function renderFallbackComponent(string $event_type, string $label, array $data, string $level): string
-    {
-        // Load UI toolkit for consistent rendering
-        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
-            require_once dirname(__DIR__, 2) . '/View/PayloadRenderer/PayloadComponentUIToolkit.php';
-        }
-        
-        try {
-            $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
-            
-            $content = '<div class="odcm-fallback-component">';
-            
-            foreach ($data as $key => $value) {
-                if (is_scalar($value) && $value !== '') {
-                    $formattedKey = ucfirst(str_replace('_', ' ', $key));
-                    $content .= '<p><strong>' . esc_html($formattedKey) . ':</strong> ' . esc_html((string)$value) . '</p>';
-                } elseif (is_array($value) && !empty($value)) {
-                    $formattedKey = ucfirst(str_replace('_', ' ', $key));
-                    $content .= '<p><strong>' . esc_html($formattedKey) . ':</strong></p>';
-                    $content .= '<pre class="odcm-json-data">' . esc_html(json_encode($value, JSON_PRETTY_PRINT)) . '</pre>';
-                }
-            }
-            
-            $content .= '</div>';
-            
-            return $toolkit->render_component_shell(
-                $label,
-                'fallback',
-                $content,
-                ['status' => $level]
-            );
-            
-        } catch (\Throwable $e) {
-            error_log("ODCM Timeline Fallback Renderer Error: " . $e->getMessage());
-            // Ultra-minimal fallback
-            return '<div class="odcm-error-component">' . 
-                   '<p><strong>' . esc_html($label) . '</strong></p>' .
-                   '<p>Error rendering component</p>' .
-                   '</div>';
-        }
-    }
     
     /**
      * Render empty timeline message
@@ -250,11 +200,10 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
      */
     private function ensureRegistryLoaded(): void
     {
-        if (!function_exists('odcm_find_best_renderer_for_data')) {
-            require_once dirname(__DIR__, 2) . '/Core/PayloadComponentRegistry.php';
-        }
+        // Load the new registry system
+        require_once dirname(__DIR__, 2) . '/Core/PayloadComponentRegistry.php';
         
-        // Also ensure all payload renderer classes are available
+        // Load UI toolkit
         $renderer_dir = dirname(__DIR__, 2) . '/View/PayloadRenderer/';
         if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
             require_once $renderer_dir . 'PayloadComponentUIToolkit.php';
