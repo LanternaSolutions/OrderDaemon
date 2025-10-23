@@ -29,6 +29,17 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
 class OrderRenderer extends BaseRenderer
 {
     /**
+     * Constructor
+     *
+     * Sets the WooCommerce-specific theme.
+     */
+    public function __construct()
+    {
+        parent::__construct();
+        $this->theme = 'woocommerce';
+    }
+
+    /**
      * Render Content
      *
      * Uses switch/case to delegate to specific rendering methods based on event type.
@@ -147,11 +158,6 @@ class OrderRenderer extends BaseRenderer
      * @param string $event_type The type of event
      * @return string Theme identifier
      */
-    protected function getTheme(string $event_type): string
-    {
-        return 'woocommerce';
-    }
-
     /**
      * Render Status Change
      *
@@ -346,10 +352,84 @@ class OrderRenderer extends BaseRenderer
      */
     private function renderGenericOrder(array $data, PayloadComponentUIToolkit $toolkit): string
     {
-        return $toolkit->render_code_block(
-            json_encode($data, JSON_PRETTY_PRINT),
-            'json'
-        );
+        // Handle status change processing events
+        if (isset($data['type']) && in_array($data['type'], ['status_change_processing', 'manual_status_change'])) {
+            $order_data = [
+                'Order ID' => isset($data['order_id']) ? '#' . $data['order_id'] : '',
+                'Correlation ID' => $data['cid'] ?? '',
+                'Actor' => isset($data['actor']['name']) ? ucfirst($data['actor']['name']) : 'System',
+            ];
+
+            $content = $toolkit->render_key_value_list($order_data, 'Status Change Details');
+
+            // Render each component in the components array
+            if (!empty($data['components']) && is_array($data['components'])) {
+                foreach ($data['components'] as $component) {
+                    if (!is_array($component)) {
+                        continue;
+                    }
+
+                    $component_data = [];
+
+                    // Extract status change info
+                    if ($component['event_type'] === 'status_changed' && isset($component['data'])) {
+                        $component_data['From Status'] = ucfirst($component['data']['from'] ?? 'unknown');
+                        $component_data['To Status'] = ucfirst($component['data']['to'] ?? 'unknown');
+                    }
+
+                    // Extract attribution info
+                    if ($component['event_type'] === 'info' && isset($component['data']['attribution'])) {
+                        $attribution = $component['data']['attribution'];
+                        $component_data['Source'] = ucfirst($attribution['source'] ?? '');
+                        $component_data['Request Type'] = ucfirst($attribution['request_type'] ?? '');
+                        if (isset($attribution['source_plugin'])) {
+                            $component_data['Source Plugin'] = $attribution['source_plugin']['slug'] ?? '';
+                        }
+                    }
+
+                    // Extract warning info
+                    if ($component['event_type'] === 'warning' && isset($component['data'])) {
+                        $component_data['Warning'] = $component['data']['message'] ?? '';
+                        $component_data['Code'] = $component['data']['code'] ?? '';
+                    }
+
+                    if (!empty($component_data)) {
+                        $content .= $toolkit->render_key_value_list(
+                            $component_data,
+                            ucfirst($component['label'] ?? $component['event_type'])
+                        );
+                    }
+                }
+            }
+
+            return $content;
+        }
+
+        // For other data, render as key-value list
+        $scalar_data = [];
+        foreach ($data as $key => $value) {
+            if (is_scalar($value) && $value !== '') {
+                $formattedKey = ucfirst(str_replace('_', ' ', $key));
+                $scalar_data[$formattedKey] = (string)$value;
+            }
+        }
+        
+        $content = '';
+        if (!empty($scalar_data)) {
+            $content .= $toolkit->render_key_value_list($scalar_data, 'Details');
+        }
+        
+        // Add complex data in expandable sections
+        foreach ($data as $key => $value) {
+            if (is_array($value) && !empty($value)) {
+                $formattedKey = ucfirst(str_replace('_', ' ', $key));
+                $json = json_encode($value, JSON_PRETTY_PRINT);
+                $code_block = $toolkit->render_code_block($json, 'json');
+                $content .= $toolkit->render_expandable_section($formattedKey, $code_block);
+            }
+        }
+        
+        return $content;
     }
 
     /**

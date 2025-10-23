@@ -16,6 +16,21 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
 class BaseRenderer
 {
     /**
+     * Component theme
+     *
+     * @var string|null
+     */
+    protected $theme = null;
+
+    /**
+     * Constructor
+     *
+     * Initializes the renderer with theme as null. Specialized renderers will set their
+     * specific themes in their constructors, or it will fall back to 'default' in render().
+     */
+    public function __construct() {}
+
+    /**
      * Render Component
      *
      * Template Method that defines the rendering algorithm. Specialized renderers
@@ -48,14 +63,30 @@ class BaseRenderer
         $label = $this->getLabel($data, $event_type) ?: $label;
         
         $statusPill = $this->getStatusPill($data, $event_type);
-        $theme = $this->getTheme($event_type);
         
-        // Debug log the theme being used
+        // Theme resolution logging and fallback
         error_log(sprintf(
-            "ODCM Debug - Component theme: event_type=%s, theme=%s",
+            "ODCM Debug - Theme resolution start: event_type=%s, current_theme=%s, renderer=%s",
             $event_type,
-            $theme
+            $this->theme ?? 'null',
+            get_class($this)
         ));
+
+        if ($this->theme === null) {
+            $this->theme = 'default';
+            error_log(sprintf(
+                "ODCM Debug - Using default theme: event_type=%s, renderer=%s",
+                $event_type,
+                get_class($this)
+            ));
+        } else {
+            error_log(sprintf(
+                "ODCM Debug - Using specialized theme: event_type=%s, theme=%s, renderer=%s",
+                $event_type,
+                $this->theme,
+                get_class($this)
+            ));
+        }
         
         // Build options array
         $options = [];
@@ -78,7 +109,7 @@ class BaseRenderer
         }
         
         // Debug log the final HTML classes that will be used
-        $finalClasses = sprintf('odcm-component odcm-component--%s', esc_attr($theme));
+        $finalClasses = sprintf('odcm-component odcm-component--%s', esc_attr($this->theme));
         error_log(sprintf(
             "ODCM Debug - Final HTML classes: %s",
             $finalClasses
@@ -87,7 +118,7 @@ class BaseRenderer
         // Assemble final component
         $result = $toolkit->render_component_shell(
             $label,
-            $theme,
+            $this->theme,
             $content,
             $options
         );
@@ -113,15 +144,6 @@ class BaseRenderer
      */
     protected function renderContent(array $data, string $event_type): string
     {
-        // Debug log the theme calculation
-        $theme = $this->getTheme($event_type);
-        error_log(sprintf(
-            "ODCM Debug - BaseRenderer renderContent: event_type=%s, theme=%s, renderer=%s",
-            $event_type,
-            $theme,
-            get_class($this)
-        ));
-
         // Create a default text block for base renderer
         $toolkit = new PayloadComponentUIToolkit();
         return $toolkit->render_text_block(
@@ -157,28 +179,6 @@ class BaseRenderer
     protected function getStatusPill(array $data, string $event_type): ?array
     {
         return null;
-    }
-
-    /**
-     * Get Theme
-     *
-     * Gets theme identifier for the component. Can be overridden by specialized
-     * renderers to provide event-specific themes.
-     *
-     * @param string $event_type The type of event
-     * @return string Theme identifier
-     */
-    protected function getTheme(string $event_type): string
-    {
-        // Debug log the theme calculation
-        $theme = 'default';
-        error_log(sprintf(
-            "ODCM Debug - Theme calculation: event_type=%s, calculated_theme=%s, renderer=%s",
-            $event_type,
-            $theme,
-            get_class($this)
-        ));
-        return $theme;
     }
 
     /**

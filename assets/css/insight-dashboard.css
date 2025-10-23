@@ -2474,7 +2474,7 @@ label.odcm-retention-option {
 /* Default Theme (Fallback) */
 .odcm-component--default {
     --odcm-component-bg: var(--odcm-theme-grey-100);
-    --odcm-component-border-color: var(--odcm-theme-grey-300);
+    --odcm-component-border-color: var(--odcm-theme-grey-400);
     --odcm-component-header-border-color: var(--odcm-theme-grey-300);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-800);

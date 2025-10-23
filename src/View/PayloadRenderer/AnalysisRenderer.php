@@ -20,6 +20,18 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
 class AnalysisRenderer extends BaseRenderer
 {
     /**
+     * Constructor
+     *
+     * Sets the default theme as 'system'. This will be overridden in renderContent
+     * based on the specific event type.
+     */
+    public function __construct()
+    {
+        parent::__construct();
+        $this->theme = 'system';
+    }
+
+    /**
      * Render Content
      *
      * Uses switch/case to delegate to specific rendering methods based on event type.
@@ -32,18 +44,20 @@ class AnalysisRenderer extends BaseRenderer
     {
         $toolkit = new PayloadComponentUIToolkit();
 
+        // Set theme based on event type
         switch ($event_type) {
             case 'refund_analysis':
+                $this->theme = 'payment';
                 return $this->renderRefundAnalysis($data, $toolkit);
 
             case 'woocommerce_analysis':
+                $this->theme = 'woocommerce';
                 return $this->renderWooCommerceAnalysis($data, $toolkit);
 
             case 'dedup':
-                return $this->renderDedupAnalysis($data, $toolkit);
-
             default:
-                return $this->renderGenericAnalysis($data, $toolkit);
+                $this->theme = 'system';
+                return $this->renderDedupAnalysis($data, $toolkit);
         }
     }
 
@@ -111,20 +125,6 @@ class AnalysisRenderer extends BaseRenderer
      * @param string $event_type The type of event
      * @return string Theme identifier
      */
-    protected function getTheme(string $event_type): string
-    {
-        switch ($event_type) {
-            case 'refund_analysis':
-                return 'payment';
-
-            case 'woocommerce_analysis':
-                return 'woocommerce';
-
-            default:
-                return 'system';
-        }
-    }
-
     /**
      * Render Refund Analysis
      *

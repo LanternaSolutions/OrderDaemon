@@ -21,6 +21,17 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
 class SystemRenderer extends BaseRenderer
 {
     /**
+     * Constructor
+     *
+     * Sets the system-specific theme.
+     */
+    public function __construct()
+    {
+        parent::__construct();
+        $this->theme = 'system';
+    }
+
+    /**
      * Render Content
      *
      * Uses switch/case to delegate to specific rendering methods based on event type.
@@ -161,11 +172,6 @@ class SystemRenderer extends BaseRenderer
      * @param string $event_type The type of event
      * @return string Theme identifier
      */
-    protected function getTheme(string $event_type): string
-    {
-        return 'system';
-    }
-
     /**
      * Render Message
      *

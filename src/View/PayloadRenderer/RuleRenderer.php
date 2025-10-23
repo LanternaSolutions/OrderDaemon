@@ -19,6 +19,17 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
 class RuleRenderer extends BaseRenderer
 {
     /**
+     * Constructor
+     *
+     * Sets the rule-specific theme.
+     */
+    public function __construct()
+    {
+        parent::__construct();
+        $this->theme = 'rule';
+    }
+
+    /**
      * Render Content
      *
      * Uses switch/case to delegate to specific rendering methods based on event type.
@@ -127,19 +138,6 @@ class RuleRenderer extends BaseRenderer
             default:
                 return null;
         }
-    }
-
-    /**
-     * Get Theme
-     *
-     * All rule events use the 'rule' theme for consistent styling.
-     *
-     * @param string $event_type The type of event
-     * @return string Theme identifier
-     */
-    protected function getTheme(string $event_type): string
-    {
-        return 'rule';
     }
 
     /**
@@ -293,9 +291,52 @@ class RuleRenderer extends BaseRenderer
      */
     private function renderGenericRule(array $data, PayloadComponentUIToolkit $toolkit): string
     {
-        return $toolkit->render_code_block(
-            json_encode($data, JSON_PRETTY_PRINT),
-            'json'
-        );
+        // If this is a rule execution event, render it nicely
+        if (isset($data['process_type']) && $data['process_type'] === 'rule_execution') {
+            $rule_data = [
+                'Status' => $data['status'] ?? '',
+                'Source' => $data['source'] ?? '',
+                'Component Count' => $data['component_count'] ?? '',
+                'Actor' => $data['actor'] ?? '',
+                'Correlation ID' => $data['correlation_id'] ?? '',
+            ];
+
+            $content = $toolkit->render_key_value_list($rule_data, 'Rule Execution Details');
+
+            // Add metrics in expandable section if available
+            if (!empty($data['metrics'])) {
+                $metrics_json = json_encode($data['metrics'], JSON_PRETTY_PRINT);
+                $code_block = $toolkit->render_code_block($metrics_json, 'json');
+                $content .= $toolkit->render_expandable_section('Performance Metrics', $code_block);
+            }
+
+            return $content;
+        }
+
+        // For other data, render as key-value list
+        $scalar_data = [];
+        foreach ($data as $key => $value) {
+            if (is_scalar($value) && $value !== '') {
+                $formattedKey = ucfirst(str_replace('_', ' ', $key));
+                $scalar_data[$formattedKey] = (string)$value;
+            }
+        }
+        
+        $content = '';
+        if (!empty($scalar_data)) {
+            $content .= $toolkit->render_key_value_list($scalar_data, 'Details');
+        }
+        
+        // Add complex data in expandable sections
+        foreach ($data as $key => $value) {
+            if (is_array($value) && !empty($value)) {
+                $formattedKey = ucfirst(str_replace('_', ' ', $key));
+                $json = json_encode($value, JSON_PRETTY_PRINT);
+                $code_block = $toolkit->render_code_block($json, 'json');
+                $content .= $toolkit->render_expandable_section($formattedKey, $code_block);
+            }
+        }
+        
+        return $content;
     }
 }

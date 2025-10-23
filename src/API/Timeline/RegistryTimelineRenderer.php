@@ -42,9 +42,17 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
      */
     private function renderComponent(array $component): string
     {
-        $event_type = $component['event_type'] ?? 'info';
         $data = $component['data'] ?? [];
-        $label = $component['label'] ?? ucfirst($event_type);
+        
+        // If this is a universal event, extract the real event type from the data
+        if (isset($data['event_type'])) {
+            $event_type = $data['event_type'];
+            $label = ucfirst(str_replace('_', ' ', $event_type));
+        } else {
+            $event_type = $component['event_type'] ?? 'info';
+            $label = $component['label'] ?? ucfirst($event_type);
+        }
+        
         $ts = $component['ts'] ?? null;
         $level = $component['level'] ?? 'info';
         

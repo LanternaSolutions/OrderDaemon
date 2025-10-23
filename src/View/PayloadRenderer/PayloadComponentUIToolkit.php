@@ -792,7 +792,9 @@ class PayloadComponentUIToolkit
             'rule'            => 'dashicons-admin-settings',
             'rule-management' => 'dashicons-edit',
             'system'          => 'dashicons-admin-tools',
+            'payment'         => 'dashicons-money-alt',
             'fallback'        => 'dashicons-text-page',
+            'default'         => 'dashicons-admin-generic',
         ];
         
         return $icon_map[$theme] ?? 'dashicons-admin-generic';

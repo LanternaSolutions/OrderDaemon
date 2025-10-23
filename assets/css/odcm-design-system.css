@@ -69,7 +69,7 @@
   /* --- Theme: Fallback/Default (Reuses Greyscale) --- */
   --odcm-theme-default-200: var(--odcm-theme-white); /* No background tint for default */
   --odcm-theme-default-400: var(--odcm-theme-grey-400);
-  --odcm-theme-default-700: var(--odcm-theme-grey-300); /* Uses border color */
+  --odcm-theme-default-700: var(--odcm-theme-grey-700); /* Testing with red border */
 
   /* --- Font Sizes --- */
   --odcm-theme-font-size-xs: 11px;

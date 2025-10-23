@@ -37,6 +37,11 @@ if (!defined('WPINC')) {
 function odcm_get_renderer_for_event_type(string $event_type): string
 {
     $renderers = [
+        // Process events -> Appropriate Renderers
+        'rule_execution' => RuleRenderer::class,
+        'status_change_processing' => OrderRenderer::class,
+        'manual_status_change' => OrderRenderer::class,
+
         // Rule events -> RuleRenderer
         'rule_matched' => RuleRenderer::class,
         'rule_no_match' => RuleRenderer::class,
@@ -114,6 +119,11 @@ function odcm_get_renderer_for_event_type(string $event_type): string
 function odcm_get_component_theme(string $event_type): string
 {
     $themes = [
+        // Process events use appropriate themes
+        'rule_execution' => 'rule',
+        'status_change_processing' => 'woocommerce',
+        'manual_status_change' => 'woocommerce',
+
         // Rule events use rule theme
         'rule_matched' => 'rule',
         'rule_no_match' => 'rule',
@@ -191,6 +201,11 @@ function odcm_get_component_theme(string $event_type): string
 function odcm_get_status_pill_config(string $event_type): ?array
 {
     $pills = [
+        // Process events
+        'rule_execution' => ['label' => 'RULE', 'type' => 'info'],
+        'status_change_processing' => ['label' => 'STATUS', 'type' => 'woocommerce'],
+        'manual_status_change' => ['label' => 'STATUS', 'type' => 'woocommerce'],
+
         // Rule events
         'rule_matched' => ['label' => 'MATCHED', 'type' => 'success'],
         'rule_no_match' => ['label' => 'NOT MATCHED', 'type' => 'notice'],

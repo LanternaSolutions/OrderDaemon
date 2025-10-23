@@ -18,6 +18,17 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
 class PaymentRenderer extends BaseRenderer
 {
     /**
+     * Constructor
+     *
+     * Sets the payment-specific theme.
+     */
+    public function __construct()
+    {
+        parent::__construct();
+        $this->theme = 'payment';
+    }
+
+    /**
      * Render Content
      *
      * Uses switch/case to delegate to specific rendering methods based on event type.
@@ -141,11 +152,6 @@ class PaymentRenderer extends BaseRenderer
      * @param string $event_type The type of event
      * @return string Theme identifier
      */
-    protected function getTheme(string $event_type): string
-    {
-        return 'payment';
-    }
-
     /**
      * Render Payment
      *
