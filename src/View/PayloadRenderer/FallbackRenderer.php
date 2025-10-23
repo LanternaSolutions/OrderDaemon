@@ -23,7 +23,18 @@ class FallbackRenderer extends BaseRenderer
      * @param string $event_type The type of event being rendered
      * @return string HTML content
      */
-    protected function renderContent(array $data, string $event_type): string
+    /**
+     * Render Specific Content
+     *
+     * Implements the template method to provide fallback rendering logic.
+     * Handles theme resolution from registry and renders data in a generic format.
+     *
+     * @param array                    $data       The payload data to render
+     * @param string                   $event_type The type of event being rendered
+     * @param PayloadComponentUIToolkit $toolkit    UI toolkit instance
+     * @return string HTML content
+     */
+    protected function renderSpecificContent(array $data, string $event_type, PayloadComponentUIToolkit $toolkit): string
     {
         // Theme resolution from registry
         error_log(sprintf(
@@ -52,8 +63,6 @@ class FallbackRenderer extends BaseRenderer
                 $event_type
             ));
         }
-        
-        $toolkit = new PayloadComponentUIToolkit();
         
         // Create separate arrays for different data types
         $scalar_data = [];

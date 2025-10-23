@@ -30,18 +30,18 @@ class RuleRenderer extends BaseRenderer
     }
 
     /**
-     * Render Content
+     * Render Specific Content
      *
+     * Implements the template method to provide rule-specific rendering logic.
      * Uses switch/case to delegate to specific rendering methods based on event type.
      *
-     * @param array  $data       The payload data to render
-     * @param string $event_type The type of event being rendered
+     * @param array                    $data       The payload data to render
+     * @param string                   $event_type The type of event being rendered
+     * @param PayloadComponentUIToolkit $toolkit    UI toolkit instance
      * @return string HTML content
      */
-    protected function renderContent(array $data, string $event_type): string
+    protected function renderSpecificContent(array $data, string $event_type, PayloadComponentUIToolkit $toolkit): string
     {
-        $toolkit = new PayloadComponentUIToolkit();
-
         switch ($event_type) {
             case 'condition_passed':
             case 'condition_failed':
@@ -302,13 +302,6 @@ class RuleRenderer extends BaseRenderer
             ];
 
             $content = $toolkit->render_key_value_list($rule_data, 'Rule Execution Details');
-
-            // Add metrics in expandable section if available
-            if (!empty($data['metrics'])) {
-                $metrics_json = json_encode($data['metrics'], JSON_PRETTY_PRINT);
-                $code_block = $toolkit->render_code_block($metrics_json, 'json');
-                $content .= $toolkit->render_expandable_section('Performance Metrics', $code_block);
-            }
 
             return $content;
         }

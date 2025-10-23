@@ -40,18 +40,18 @@ class OrderRenderer extends BaseRenderer
     }
 
     /**
-     * Render Content
+     * Render Specific Content
      *
+     * Implements the template method to provide order-specific rendering logic.
      * Uses switch/case to delegate to specific rendering methods based on event type.
      *
-     * @param array  $data       The payload data to render
-     * @param string $event_type The type of event being rendered
+     * @param array                    $data       The payload data to render
+     * @param string                   $event_type The type of event being rendered
+     * @param PayloadComponentUIToolkit $toolkit    UI toolkit instance
      * @return string HTML content
      */
-    protected function renderContent(array $data, string $event_type): string
+    protected function renderSpecificContent(array $data, string $event_type, PayloadComponentUIToolkit $toolkit): string
     {
-        $toolkit = new PayloadComponentUIToolkit();
-
         // Handle subscription events
         if ($this->isSubscriptionEvent($event_type) || $this->hasSubscriptionData($data)) {
             return $this->renderSubscriptionEvent($data, $event_type, $toolkit);

@@ -40,10 +40,19 @@ class AnalysisRenderer extends BaseRenderer
      * @param string $event_type The type of event being rendered
      * @return string HTML content
      */
-    protected function renderContent(array $data, string $event_type): string
+    /**
+     * Render Specific Content
+     *
+     * Implements the template method to provide analysis-specific rendering logic.
+     * Uses switch/case to delegate to specific rendering methods based on event type.
+     *
+     * @param array                    $data       The payload data to render
+     * @param string                   $event_type The type of event being rendered
+     * @param PayloadComponentUIToolkit $toolkit    UI toolkit instance
+     * @return string HTML content
+     */
+    protected function renderSpecificContent(array $data, string $event_type, PayloadComponentUIToolkit $toolkit): string
     {
-        $toolkit = new PayloadComponentUIToolkit();
-
         // Set theme based on event type
         switch ($event_type) {
             case 'refund_analysis':

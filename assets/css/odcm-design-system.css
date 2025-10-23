@@ -103,7 +103,7 @@
 
   /* --- Key-Value Layout Primitives --- */
   --odcm-theme-key-value-gap: var(--odcm-theme-gap-horizontal);
-  --odcm-theme-key-value-row-gap: var(--odcm-theme-gap-vertical);
+  --odcm-theme-key-value-row-gap: var(--odcm-theme-gap-);
   --odcm-theme-key-border-color: var(--odcm-theme-grey-400);
   --odcm-theme-value-bg: var(--odcm-theme-grey-200);
 

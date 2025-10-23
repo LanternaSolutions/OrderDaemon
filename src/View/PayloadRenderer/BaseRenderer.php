@@ -142,10 +142,46 @@ class BaseRenderer
      * @param string $event_type The type of event being rendered
      * @return string HTML content
      */
-    protected function renderContent(array $data, string $event_type): string
+    /**
+     * Render Content - Template Method
+     *
+     * This is the template method that defines the rendering algorithm.
+     * Child classes MUST NOT override this method directly.
+     *
+     * @param array  $data       The payload data to render
+     * @param string $event_type The type of event being rendered
+     * @return string HTML content
+     */
+    final public function renderContent(array $data, string $event_type): string
     {
-        // Create a default text block for base renderer
         $toolkit = new PayloadComponentUIToolkit();
+        $content = '';
+        
+        // 1. Call to specialized content rendering - implemented by child classes
+        $content .= $this->renderSpecificContent($data, $event_type, $toolkit);
+        
+        // 2. Always render metrics at the end if they exist - centralized logic
+        if (!empty($data['metrics'])) {
+            $content .= $this->renderMetrics($data['metrics'], $toolkit);
+        }
+        
+        return $content;
+    }
+
+    /**
+     * Render Specific Content
+     *
+     * This method should be implemented by child classes to provide
+     * event-specific rendering logic.
+     *
+     * @param array                    $data       The payload data to render
+     * @param string                   $event_type The type of event being rendered
+     * @param PayloadComponentUIToolkit $toolkit    UI toolkit instance
+     * @return string HTML content
+     */
+    protected function renderSpecificContent(array $data, string $event_type, PayloadComponentUIToolkit $toolkit): string
+    {
+        // Default implementation for base renderer
         return $toolkit->render_text_block(
             sprintf('Event type: %s', $event_type)
         );
@@ -238,6 +274,30 @@ class BaseRenderer
      * @param string    $unit  Unit of measurement
      * @return string Formatted value with unit
      */
+    /**
+     * Render Metrics
+     *
+     * Renders metrics data as key-value pairs with proper formatting.
+     *
+     * @param array                    $metrics  The metrics data to render
+     * @param PayloadComponentUIToolkit $toolkit  UI toolkit instance
+     * @param string                   $title    Optional section title, defaults to 'Performance Metrics'
+     * @return string HTML content
+     */
+    protected function renderMetrics(array $metrics, PayloadComponentUIToolkit $toolkit, string $title = 'Performance Metrics'): string
+    {
+        $metrics_data = [];
+        foreach ($metrics as $key => $value) {
+            $formattedKey = ucwords(str_replace('_', ' ', $key));
+            // Format millisecond values to be more readable
+            if (is_float($value) && strpos($key, '_ms') !== false) {
+                $value = number_format($value, 4) . ' ms';
+            }
+            $metrics_data[$formattedKey] = (string)$value;
+        }
+        return $toolkit->render_key_value_list($metrics_data, $title);
+    }
+
     protected function formatMetricValue($value, string $unit = ''): string
     {
         switch ($unit) {

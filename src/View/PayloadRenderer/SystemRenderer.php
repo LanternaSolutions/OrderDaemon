@@ -40,10 +40,19 @@ class SystemRenderer extends BaseRenderer
      * @param string $event_type The type of event being rendered
      * @return string HTML content
      */
-    protected function renderContent(array $data, string $event_type): string
+    /**
+     * Render Specific Content
+     *
+     * Implements the template method to provide system-specific rendering logic.
+     * Uses switch/case to delegate to specific rendering methods based on event type.
+     *
+     * @param array                    $data       The payload data to render
+     * @param string                   $event_type The type of event being rendered
+     * @param PayloadComponentUIToolkit $toolkit    UI toolkit instance
+     * @return string HTML content
+     */
+    protected function renderSpecificContent(array $data, string $event_type, PayloadComponentUIToolkit $toolkit): string
     {
-        $toolkit = new PayloadComponentUIToolkit();
-
         switch ($event_type) {
             case 'info':
             case 'warning':
@@ -212,23 +221,33 @@ class SystemRenderer extends BaseRenderer
      * @param PayloadComponentUIToolkit $toolkit UI toolkit instance
      * @return string HTML content
      */
-    private function renderMetrics(array $data, PayloadComponentUIToolkit $toolkit): string
+    /**
+     * Render Metrics
+     *
+     * Renders performance metrics with proper formatting.
+     *
+     * @param array                    $metrics  The metrics data to render
+     * @param PayloadComponentUIToolkit $toolkit  UI toolkit instance
+     * @param string                   $title    Optional section title, defaults to 'Performance Metrics'
+     * @return string HTML content
+     */
+    protected function renderMetrics(array $metrics, PayloadComponentUIToolkit $toolkit, string $title = 'Performance Metrics'): string
     {
         $metric_data = [
-            'Metric' => $data['name'] ?? 'Unnamed Metric',
-            'Value' => $this->formatMetricValue($data['value'] ?? 0, $data['unit'] ?? ''),
+            'Metric' => $metrics['name'] ?? 'Unnamed Metric',
+            'Value' => $this->formatMetricValue($metrics['value'] ?? 0, $metrics['unit'] ?? ''),
         ];
 
         // Add any additional context
-        if (!empty($data['context']) && is_array($data['context'])) {
-            foreach ($data['context'] as $key => $value) {
+        if (!empty($metrics['context']) && is_array($metrics['context'])) {
+            foreach ($metrics['context'] as $key => $value) {
                 if (is_scalar($value)) {
                     $metric_data[ucfirst($key)] = (string)$value;
                 }
             }
         }
 
-        return $toolkit->render_key_value_list($metric_data, 'Performance Metric');
+        return $toolkit->render_key_value_list($metric_data, $title);
     }
 
     /**

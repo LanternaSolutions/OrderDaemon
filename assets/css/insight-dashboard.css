@@ -103,8 +103,8 @@
   --odcm-theme-side-pane-width: 300px;
 
   /* --- Key-Value Layout Primitives --- */
-  --odcm-theme-key-value-gap: var(--odcm-theme-gap-horizontal);
-  --odcm-theme-key-value-row-gap: var(--odcm-theme-gap-vertical);
+  --odcm-theme-key-value-gap: var(--odcm-theme-spacing-sm);
+  --odcm-theme-key-value-row-gap: var(--odcm-theme-spacing-sm);
   --odcm-theme-key-border-color: var(--odcm-theme-grey-400);
   --odcm-theme-value-bg: var(--odcm-theme-grey-200);
 
@@ -1996,10 +1996,10 @@ label.odcm-retention-option {
     height: auto; /* Content-based sizing */
     border: var(--odcm-component-border-width) solid var(--odcm-component-border-color);
     border-radius: var(--odcm-component-border-radius);
-    padding: var(--odcm-theme-spacing-md);
+    padding: var(--odcm-theme-spacing-xs);
     margin-bottom: var(--odcm-theme-spacing-md);
     overflow: hidden;
-    background-color: var(--odcm-theme-grey-100);
+    background-color: var(--odcm-theme-white);
     transition: var(--odcm-component-transition);
 }
 
@@ -2226,18 +2226,17 @@ label.odcm-retention-option {
     word-break: break-word;
 }
 
-/* Value Styling */
 .odcm-value {
     padding: var(--odcm-value-padding);
     margin: 0px var(--odcm-key-value-gap);
-    border: var(--odcm-value-border);
     border-radius: var(--odcm-component-border-radius);
-    background-color: var(--odcm-component-value-bg);
+    background-color: var(--odcm-key-bg);
     font-size: var(--odcm-theme-font-size-md);
     color: var(--odcm-component-text-color-body);
     word-break: break-word;
     overflow-wrap: break-word;
 }
+/* Value Styling */
 
 /* Special value types *
 .odcm-value--code {
@@ -2268,7 +2267,7 @@ label.odcm-retention-option {
     font-weight: var(--odcm-section-title-font-weight);
     color: var(--odcm-component-text-color-header);
     margin-bottom: var(--odcm-section-margin-bottom);
-    padding-bottom: var(--odcm-theme-spacing-xs);
+    padding: var(--odcm-theme-spacing-sm) 0;
     border-bottom: 1px solid var(--odcm-component-border-color);
 }
 
@@ -2408,34 +2407,31 @@ label.odcm-retention-option {
 /* Rule Events Theme */
 .odcm-component--rule {
     --odcm-component-bg: var(--odcm-theme-blue-200);
-    --odcm-component-border-color: var(--odcm-theme-blue-700);
+    --odcm-component-border-color: var(--odcm-theme-blue-200);
     --odcm-component-header-border-color: var(--odcm-theme-blue-700);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-900);
     --odcm-component-value-bg: var(--odcm-theme-white);
-    --odcm-key-bg: var(--odcm-theme-blue-200);
 }
 
 /* Payment Events Theme */
 .odcm-component--payment {
     --odcm-component-bg: var(--odcm-theme-green-200);
-    --odcm-component-border-color: var(--odcm-theme-green-700);
+    --odcm-component-border-color: var(--odcm-theme-green-200);
     --odcm-component-header-border-color: var(--odcm-theme-green-700);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-900);
     --odcm-component-value-bg: var(--odcm-theme-white);
-    --odcm-key-bg: var(--odcm-theme-green-200);
 }
 
 /* Order Events Theme */
 .odcm-component--order {
     --odcm-component-bg: var(--odcm-theme-purple-200);
-    --odcm-component-border-color: var(--odcm-theme-purple-700);
+    --odcm-component-border-color: var(--odcm-theme-purple-200);
     --odcm-component-header-border-color: var(--odcm-theme-purple-700);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-900);
     --odcm-component-value-bg: var(--odcm-theme-white);
-    --odcm-key-bg: var(--odcm-theme-purple-200);
 }
 
 /* System Events Theme */
@@ -2446,7 +2442,6 @@ label.odcm-retention-option {
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-900);
     --odcm-component-value-bg: var(--odcm-theme-white);
-    --odcm-key-bg: var(--odcm-theme-grey-200);
 }
 
 /* Analysis Events Theme */
@@ -2457,7 +2452,6 @@ label.odcm-retention-option {
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-900);
     --odcm-component-value-bg: var(--odcm-theme-white);
-    --odcm-key-bg: var(--odcm-theme-indigo-200);
 }
 
 /* Error Events Theme */
@@ -2468,7 +2462,6 @@ label.odcm-retention-option {
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-900);
     --odcm-component-value-bg: var(--odcm-theme-white);
-    --odcm-key-bg: var(--odcm-theme-red-200);
 }
 
 /* Default Theme (Fallback) */
@@ -2479,7 +2472,6 @@ label.odcm-retention-option {
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-800);
     --odcm-component-value-bg: var(--odcm-theme-white);
-    --odcm-key-bg: var(--odcm-theme-grey-200);
 }
 
 /* Subtle Semantic Icon Colors in Component Headers */

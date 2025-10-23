@@ -68,6 +68,7 @@ function odcm_get_renderer_for_event_type(string $event_type): string
         'block_checkout_processed' => OrderRenderer::class,
         'meta_updated' => OrderRenderer::class,
         'woocommerce_data' => OrderRenderer::class,
+        'no_rules_matched' => OrderRenderer::class,
         
         // Subscription events -> OrderRenderer
         'subscription_created' => OrderRenderer::class,
@@ -150,6 +151,7 @@ function odcm_get_component_theme(string $event_type): string
         'block_checkout_processed' => 'woocommerce',
         'meta_updated' => 'woocommerce',
         'woocommerce_data' => 'woocommerce',
+        'no_rules_matched' => 'woocommerce',
         
         // Subscription events use woocommerce theme
         'subscription_created' => 'woocommerce',
