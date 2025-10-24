@@ -350,7 +350,7 @@ class BaseRenderer
     /**
      * Format Currency
      *
-     * Formats currency values consistently.
+     * Formats currency values using WooCommerce's built-in currency formatting.
      *
      * @param float|string $amount   Amount to format
      * @param string       $currency Currency code
@@ -358,21 +358,7 @@ class BaseRenderer
      */
     protected function formatCurrency($amount, string $currency): string
     {
-        // Use WooCommerce formatting if available
-        if (function_exists('wc_price')) {
-            return wc_price($amount, ['currency' => $currency]);
-        }
-        
-        // Basic fallback formatting
-        $symbols = [
-            'USD' => '$',
-            'EUR' => '€',
-            'GBP' => '£',
-            // TODO: Use WooCommerce' currencies directly. 
-        ];
-        
-        $symbol = $symbols[$currency] ?? $currency . ' ';
-        return $symbol . number_format((float)$amount, 2);
+        return wc_price($amount, ['currency' => $currency]);
     }
 
     /**

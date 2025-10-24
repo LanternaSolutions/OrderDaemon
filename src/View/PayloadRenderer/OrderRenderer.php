@@ -70,6 +70,7 @@ class OrderRenderer extends BaseRenderer
             case 'order_loaded':
                 return $this->renderOrderLoaded($data, $toolkit);
 
+            case 'checkout_processed':
             case 'block_checkout_processed':
                 return $this->renderBlockCheckout($data, $toolkit);
 
@@ -112,6 +113,7 @@ class OrderRenderer extends BaseRenderer
                     ? "Order #{$data['order_id']}"
                     : 'Order Loaded';
 
+            case 'checkout_processed': // Added to handle all checkout types
             case 'block_checkout_processed':
                 return 'Checkout Completed';
 
@@ -159,6 +161,7 @@ class OrderRenderer extends BaseRenderer
             case 'order_loaded':
                 return ['label' => 'LOADED', 'type' => 'info'];
 
+            case 'checkout_processed': // Added to handle all checkout types
             case 'block_checkout_processed':
                 return ['label' => 'PROCESSED', 'type' => 'woocommerce'];
 

@@ -424,11 +424,9 @@ function odcm_handle_checkout_completion_processing($args) {
     }
 
     try {
-        // TEMPORARY DEBUG: Log background processing execution
-        error_log("ODCM_DEBUG_TRACE: Background Handler - Processing checkout completion for Order #{$order_id}");
-        error_log("ODCM_DEBUG_TRACE: Background Handler - Order status: " . $order->get_status());
-        error_log("ODCM_DEBUG_TRACE: Background Handler - Payment method: " . $order->get_payment_method());
-
+        // Get checkout context using the shared context builder
+        $checkout_context = \OrderDaemon\CompletionManager\Core\CheckoutContextBuilder::buildCheckoutContext($order, $checkout_type);
+        
         // Create a universal event for checkout completion
         $universal_event_data = [
             'eventType' => 'checkout_processed',
@@ -443,14 +441,7 @@ function odcm_handle_checkout_completion_processing($args) {
             'occurredAt' => current_time('c'),
             'receivedAt' => current_time('c'),
             'idempotencyKey' => 'checkout_processed_' . $order_id . '_' . time(),
-            'rawData' => [
-                'order_status' => $order->get_status(),
-                'payment_method' => $order->get_payment_method(),
-                'customer_id' => $order->get_customer_id(),
-                'checkout_type' => $checkout_type,
-                'source' => 'checkout_completion',
-                'trigger' => 'background_processing'
-            ]
+            'rawData' => $checkout_context // Use the entire context as rawData for consistency
         ];
 
         error_log("ODCM_DEBUG_TRACE: Background Handler - Created checkout completion event data");

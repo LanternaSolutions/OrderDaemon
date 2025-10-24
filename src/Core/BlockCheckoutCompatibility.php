@@ -119,58 +119,8 @@ final class BlockCheckoutCompatibility
      */
     private function capture_block_checkout_context(WC_Order $order): array
     {
-        $context = [
-            'checkout_type'     => 'block_checkout',
-            'capture_timestamp' => wp_date('c'),
-            'order_id'          => $order->get_id(),
-        ];
-
-        // Cart analysis
-        try {
-            $context['cart_analysis'] = $this->analyze_cart_composition($order);
-        } catch (\Throwable $e) {
-            $context['cart_analysis'] = [
-                'error' => 'cart_analysis_failed: ' . $e->getMessage(),
-            ];
-        }
-
-        // Payment context
-        try {
-            $context['payment_context'] = $this->capture_payment_context($order);
-        } catch (\Throwable $e) {
-            $context['payment_context'] = [
-                'error' => 'payment_context_failed: ' . $e->getMessage(),
-            ];
-        }
-
-        // Shipping analysis
-        try {
-            $context['shipping_analysis'] = $this->analyze_shipping_requirements($order);
-        } catch (\Throwable $e) {
-            $context['shipping_analysis'] = [
-                'error' => 'shipping_analysis_failed: ' . $e->getMessage(),
-            ];
-        }
-
-        // Customer context
-        try {
-            $context['customer_context'] = $this->capture_customer_context($order);
-        } catch (\Throwable $e) {
-            $context['customer_context'] = [
-                'error' => 'customer_context_failed: ' . $e->getMessage(),
-            ];
-        }
-
-        // Technical context
-        try {
-            $context['technical_context'] = $this->capture_technical_context();
-        } catch (\Throwable $e) {
-            $context['technical_context'] = [
-                'error' => 'technical_context_failed: ' . $e->getMessage(),
-            ];
-        }
-
-        return $context;
+        // Use the shared context builder for consistency with legacy checkout
+        return CheckoutContextBuilder::buildCheckoutContext($order, 'block_checkout');
     }
 
     /**
@@ -179,37 +129,12 @@ final class BlockCheckoutCompatibility
      * @param WC_Order $order Order object
      * @return array<string, mixed> Cart analysis
      */
+    /**
+     * @deprecated Use CheckoutContextBuilder::analyzeCartComposition() instead
+     */
     private function analyze_cart_composition(WC_Order $order): array
     {
-        $items = $order->get_items();
-        $analysis = [
-            'total_items'             => is_array($items) ? count($items) : 0,
-            'product_types'           => [],
-            'requires_shipping'       => false,
-            'has_virtual_products'    => false,
-            'has_downloadable_products' => false,
-            'mixed_cart'              => false,
-        ];
-
-        foreach ($items as $item) {
-            $product = method_exists($item, 'get_product') ? $item->get_product() : null;
-            if ($product) {
-                $analysis['product_types'][] = $product->get_type();
-                if ($product->is_virtual()) {
-                    $analysis['has_virtual_products'] = true;
-                }
-                if ($product->is_downloadable()) {
-                    $analysis['has_downloadable_products'] = true;
-                }
-                if (!$product->is_virtual()) {
-                    $analysis['requires_shipping'] = true;
-                }
-            }
-        }
-
-        $analysis['mixed_cart']   = $analysis['has_virtual_products'] && $analysis['requires_shipping'];
-        $analysis['product_types'] = array_values(array_unique($analysis['product_types']));
-        return $analysis;
+        return CheckoutContextBuilder::analyzeCartComposition($order);
     }
 
     /**
@@ -218,17 +143,12 @@ final class BlockCheckoutCompatibility
      * @param WC_Order $order Order object
      * @return array<string, mixed> Payment context
      */
+    /**
+     * @deprecated Use CheckoutContextBuilder::capturePaymentContext() instead
+     */
     private function capture_payment_context(WC_Order $order): array
     {
-        return [
-            'payment_method'       => $order->get_payment_method(),
-            'payment_method_title' => $order->get_payment_method_title(),
-            'payment_status'       => $order->get_status(),
-            'transaction_id'       => $order->get_transaction_id(),
-            'currency'             => $order->get_currency(),
-            'total_amount'         => (float) $order->get_total(),
-            'gateway_context'      => $this->capture_gateway_specific_context($order),
-        ];
+        return CheckoutContextBuilder::capturePaymentContext($order);
     }
 
     /**
@@ -246,117 +166,12 @@ final class BlockCheckoutCompatibility
      * @param WC_Order $order Order object
      * @return array<string, mixed> Gateway-specific context
      */
+    /**
+     * @deprecated Use CheckoutContextBuilder::captureGatewaySpecificContext() instead
+     */
     private function capture_gateway_specific_context(WC_Order $order): array
     {
-        $gateway_id = (string) $order->get_payment_method();
-        $context = [
-            'payment_method' => $gateway_id,
-            'gateway_id'     => $gateway_id,
-        ];
-
-        $gateway_instance = null;
-        // Dynamically discover gateway instance
-        try {
-            if (function_exists('WC') && is_object(WC()) && method_exists(WC(), 'payment_gateways')) {
-                $pg = \WC()->payment_gateways();
-                if ($pg && method_exists($pg, 'get_available_payment_gateways')) {
-                    $available = $pg->get_available_payment_gateways();
-                    if (is_array($available) && isset($available[$gateway_id])) {
-                        $gateway_instance = $available[$gateway_id];
-                    }
-                }
-            }
-            if (!$gateway_instance && class_exists('WC_Payment_Gateways')) {
-                $inst = \WC_Payment_Gateways::instance();
-                if ($inst && method_exists($inst, 'payment_gateways')) {
-                    $all = $inst->payment_gateways();
-                    if (is_array($all) && isset($all[$gateway_id])) {
-                        $gateway_instance = $all[$gateway_id];
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            $context['discovery_error'] = 'gateway_discovery_failed: ' . $e->getMessage();
-        }
-
-        if (is_object($gateway_instance)) {
-            // Enrich with generic gateway info
-            try {
-                if (property_exists($gateway_instance, 'title') && !empty($gateway_instance->title)) {
-                    $context['gateway_title'] = (string) $gateway_instance->title;
-                }
-                $context['gateway_class'] = get_class($gateway_instance);
-                if (method_exists($gateway_instance, 'supports')) {
-                    $context['supports'] = (array) $gateway_instance->supports;
-                }
-            } catch (\Throwable $e) {
-                $context['gateway_info_error'] = 'gateway_info_failed: ' . $e->getMessage();
-            }
-        }
-
-        // Allow gateways/plugins to provide their own detailed context
-        if (function_exists('apply_filters')) {
-            $filter_name = 'odcm_capture_gateway_context_' . sanitize_key($gateway_id);
-            try {
-                $filtered = apply_filters($filter_name, $context, $order, $gateway_instance);
-                if (is_array($filtered)) {
-                    $context = $filtered;
-                }
-            } catch (\Throwable $e) {
-                $context['filter_error'] = 'gateway_filter_failed: ' . $e->getMessage();
-            }
-        }
-
-        // Generic meta scanning fallback for common transaction keys
-        $meta_keys = [
-            '_transaction_id',
-            '_intent_id',
-            '_charge_id',
-            '_authorization_id',
-            '_capture_id',
-            '_payment_id',
-            '_payment_token',
-            '_paypal_transaction_id',
-            '_ppcp_order_id',
-            '_stripe_intent_id',
-            '_stripe_charge_id',
-            '_wcpay_intent_id',
-        ];
-        $meta_context = [];
-        foreach ($meta_keys as $key) {
-            try {
-                $val = $order->get_meta($key, true);
-                if ($val !== '' && $val !== null) {
-                    $meta_context[$key] = $val;
-                }
-            } catch (\Throwable $e) {
-                // ignore per-key errors
-            }
-        }
-        if (!empty($meta_context)) {
-            if (!isset($context['meta']) || !is_array($context['meta'])) {
-                $context['meta'] = $meta_context;
-            } else {
-                // Merge without overwriting existing keys
-                foreach ($meta_context as $k => $v) {
-                    if (!array_key_exists($k, $context['meta'])) {
-                        $context['meta'][$k] = $v;
-                    }
-                }
-            }
-        }
-
-        // Ensure transaction_id surfaced if available
-        try {
-            $tx = $order->get_transaction_id();
-            if (!empty($tx) && empty($context['transaction_id'])) {
-                $context['transaction_id'] = $tx;
-            }
-        } catch (\Throwable $e) {
-            // ignore
-        }
-
-        return $context;
+        return CheckoutContextBuilder::captureGatewaySpecificContext($order);
     }
 
     /**
@@ -365,32 +180,12 @@ final class BlockCheckoutCompatibility
      * @param WC_Order $order Order object
      * @return array<string, mixed> Shipping analysis
      */
+    /**
+     * @deprecated Use CheckoutContextBuilder::analyzeShippingRequirements() instead
+     */
     private function analyze_shipping_requirements(WC_Order $order): array
     {
-        $needs_shipping = $order->get_shipping_total() > 0 || $order->needs_shipping_address();
-
-        $shipping_methods = [];
-        foreach ($order->get_shipping_methods() as $method) {
-            $shipping_methods[] = [
-                'id'    => $method->get_id(),
-                'method_id' => method_exists($method, 'get_method_id') ? $method->get_method_id() : null,
-                'total' => (float) $method->get_total(),
-            ];
-        }
-
-        $shipping_address = [
-            'country' => $order->get_shipping_country(),
-            'state'   => $order->get_shipping_state(),
-            'postcode'=> $order->get_shipping_postcode(),
-            'city'    => $order->get_shipping_city(),
-        ];
-
-        return [
-            'requires_shipping' => $needs_shipping,
-            'shipping_methods'  => $shipping_methods,
-            'has_shipping_address' => !empty($order->get_shipping_address_1()),
-            'shipping_address'  => $shipping_address,
-        ];
+        return CheckoutContextBuilder::analyzeShippingRequirements($order);
     }
 
     /**
@@ -399,17 +194,12 @@ final class BlockCheckoutCompatibility
      * @param WC_Order $order Order object
      * @return array<string, mixed> Customer context
      */
+    /**
+     * @deprecated Use CheckoutContextBuilder::captureCustomerContext() instead
+     */
     private function capture_customer_context(WC_Order $order): array
     {
-        $user_id = (int) $order->get_user_id();
-        return [
-            'is_guest'      => $user_id === 0,
-            'user_id'       => $user_id,
-            'email'         => $order->get_billing_email(),
-            'first_name'    => $order->get_billing_first_name(),
-            'last_name'     => $order->get_billing_last_name(),
-            'billing_phone' => $order->get_billing_phone(),
-        ];
+        return CheckoutContextBuilder::captureCustomerContext($order);
     }
 
     /**
@@ -417,27 +207,12 @@ final class BlockCheckoutCompatibility
      *
      * @return array<string, mixed> Technical context
      */
+    /**
+     * @deprecated Use CheckoutContextBuilder::captureTechnicalContext() instead
+     */
     private function capture_technical_context(): array
     {
-        $wc_version = function_exists('get_option') ? get_option('woocommerce_version') : null;
-        $wp_version = function_exists('get_bloginfo') ? get_bloginfo('version') : null;
-
-        $blocks_version = null;
-        if (class_exists('Automattic\\WooCommerce\\Blocks\\Package')) {
-            try {
-                $blocks_version = \Automattic\WooCommerce\Blocks\Package::get_version();
-            } catch (\Throwable $e) {
-                $blocks_version = null;
-            }
-        }
-
-        return [
-            'wp_version'     => $wp_version,
-            'wc_version'     => $wc_version,
-            'wc_blocks_version' => $blocks_version,
-            'is_store_api'   => did_action('woocommerce_store_api_init') > 0,
-            'theme'          => function_exists('wp_get_theme') ? wp_get_theme()->get('Name') : null,
-        ];
+        return CheckoutContextBuilder::captureTechnicalContext('block_checkout');
     }
 
     /**
@@ -602,7 +377,7 @@ final class BlockCheckoutCompatibility
     private function synthesize_block_checkout_event(\WC_Order $order, array $checkout_context): UniversalEvent
     {
         return new UniversalEvent([
-            'eventType' => 'block_checkout_processed',
+            'eventType' => 'checkout_processed', // Changed to match traditional checkout event type
             'sourceGateway' => $this->normalize_gateway_name($order->get_payment_method()),
             'channel' => 'system',
             'primaryObjectType' => 'order',
@@ -612,15 +387,7 @@ final class BlockCheckoutCompatibility
             'amount' => (float) $order->get_total(),
             'currency' => $order->get_currency(),
             'occurredAt' => current_time('c'),
-            'rawData' => [
-                'checkout_type' => 'woocommerce_blocks',
-                'order_status' => $order->get_status(),
-                'payment_method' => $order->get_payment_method(),
-                'customer_id' => $order->get_customer_id(),
-                'requires_shipping' => $checkout_context['shipping_analysis']['requires_shipping'] ?? false,
-                'total_items' => $checkout_context['cart_analysis']['total_items'] ?? 0,
-                'source' => $this->determine_change_source()
-            ]
+            'rawData' => $checkout_context // Use the entire context as rawData for consistency
         ]);
     }
 

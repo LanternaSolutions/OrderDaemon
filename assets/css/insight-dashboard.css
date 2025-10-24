@@ -505,11 +505,13 @@
     grid-area: details;
     border-left: 0px;
     transition: all 0.3s ease;
-    overflow-y: auto; /* Enable internal scrolling */
+    overflow: hidden; /* Hide overflow completely in the outer container */
     height: 100%; /* Fill available grid space */
     min-height: 0; /* Allow shrinking below content size */
     max-height: 100%; /* Prevent growing beyond available space */
     transform: translateX(0);
+    display: flex; /* Use flexbox layout */
+    flex-direction: column; /* Stack children vertically */
 }
 
 /* Details pane overlay expansion - expands leftward from right edge over log stream */
@@ -1925,6 +1927,8 @@ label.odcm-retention-option {
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0; /* Required for Firefox to allow child elements to scroll */
+    max-height: 100%; /* Limit to container height */
 }
 
 .odcm-detail-loading,
@@ -1945,10 +1949,15 @@ label.odcm-retention-option {
 }
 
 .odcm-detail-content {
-    flex: 1;
-    overflow-y: auto;
+    flex: 1 1 auto; /* Grow and shrink as needed, with auto basis */
+    overflow-y: auto; /* Enable vertical scrolling */
+    overflow-x: hidden; /* Hide horizontal scrollbar */
     padding: var(--odcm-theme-spacing-sm);
-    min-height: 0; /* Allow flex item to shrink below content size */
+    min-height: 0; /* Critical for Firefox - allows flex items to be smaller than content */
+    height: 0; /* Forces the content to be scrollable in Firefox */
+    box-sizing: border-box; /* Include padding in height calculation */
+    scrollbar-width: auto; /* "auto", "thin", or "none" */
+    scrollbar-color: var(--odcm-theme-grey-600) transparent;
 }
 
 .odcm-timeline-list {
