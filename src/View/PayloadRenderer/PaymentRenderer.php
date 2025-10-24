@@ -172,6 +172,7 @@ class PaymentRenderer extends BaseRenderer
      */
     private function renderPayment(array $data, PayloadComponentUIToolkit $toolkit): string
     {
+        // Business-relevant payment information
         $payment_data = [
             'Amount' => isset($data['amount'], $data['currency']) 
                 ? $this->formatCurrency($data['amount'], $data['currency']) 
@@ -190,14 +191,23 @@ class PaymentRenderer extends BaseRenderer
         if (isset($data['error'])) {
             $payment_data['Error'] = $data['error'];
         }
+        
+        // Determine section title based on status
+        $sectionTitle = isset($data['error']) ? 'Payment Failed' : 'Payment Completed';
 
-        $content = $toolkit->render_key_value_list($payment_data, 'Payment Details');
+        $content = $toolkit->render_key_value_list($payment_data, $sectionTitle);
 
-        // Add gateway response in expandable section if available
+        // Move technical details to debug section
+        $data['technical_details'] = [
+            'raw_status' => $data['status'] ?? '',
+            'event_id' => $data['event_id'] ?? '',
+            'correlation_id' => $data['correlation_id'] ?? '',
+            'request_id' => $data['request_id'] ?? '',
+        ];
+        
+        // Add gateway response to the debug section
         if (!empty($data['gateway_response'])) {
-            $response_json = json_encode($data['gateway_response'], JSON_PRETTY_PRINT);
-            $code_block = $toolkit->render_code_block($response_json, 'json');
-            $content .= $toolkit->render_expandable_section('Gateway Response', $code_block);
+            $data['technical_details']['gateway_response'] = $data['gateway_response'];
         }
 
         return $content;
@@ -247,6 +257,7 @@ class PaymentRenderer extends BaseRenderer
      */
     private function renderStripeEvent(array $data, PayloadComponentUIToolkit $toolkit): string
     {
+        // Business-relevant Stripe information (keep original event type as-is)
         $stripe_data = [
             'Event Type' => $data['type'] ?? '',
             'Event ID' => $data['id'] ?? '',
@@ -254,14 +265,25 @@ class PaymentRenderer extends BaseRenderer
                 ? $this->formatCurrency($data['amount'], $data['currency']) 
                 : '',
         ];
+        
+        // Add order information if available
+        if (isset($data['order_id'])) {
+            $stripe_data['Order'] = '#' . $data['order_id'];
+        }
 
         $content = $toolkit->render_key_value_list($stripe_data, 'Stripe Event');
 
-        // Add event data in expandable section
+        // Move technical details to debug section
+        $data['technical_details'] = [
+            'stripe_object' => $data['object'] ?? '',
+            'api_version' => $data['api_version'] ?? '',
+            'created' => $data['created'] ?? '',
+            'livemode' => $data['livemode'] ?? '',
+        ];
+        
+        // Add full event data to debug section
         if (!empty($data['event_data'])) {
-            $event_json = json_encode($data['event_data'], JSON_PRETTY_PRINT);
-            $code_block = $toolkit->render_code_block($event_json, 'json');
-            $content .= $toolkit->render_expandable_section('Event Data', $code_block);
+            $data['technical_details']['event_data'] = $data['event_data'];
         }
 
         return $content;
@@ -278,6 +300,7 @@ class PaymentRenderer extends BaseRenderer
      */
     private function renderPayPalEvent(array $data, PayloadComponentUIToolkit $toolkit): string
     {
+        // Business-relevant PayPal information (keep original event type as-is)
         $paypal_data = [
             'Event Type' => $data['event_type'] ?? '',
             'Resource Type' => $data['resource_type'] ?? '',
@@ -285,14 +308,25 @@ class PaymentRenderer extends BaseRenderer
                 ? $this->formatCurrency($data['amount'], $data['currency']) 
                 : '',
         ];
+        
+        // Add order information if available
+        if (isset($data['order_id'])) {
+            $paypal_data['Order'] = '#' . $data['order_id'];
+        }
 
         $content = $toolkit->render_key_value_list($paypal_data, 'PayPal Event');
 
-        // Add resource data in expandable section
+        // Move technical details to debug section
+        $data['technical_details'] = [
+            'webhook_id' => $data['webhook_id'] ?? '',
+            'create_time' => $data['create_time'] ?? '',
+            'resource_id' => $data['resource_id'] ?? '',
+            'api_version' => $data['api_version'] ?? '',
+        ];
+        
+        // Add full resource data to debug section
         if (!empty($data['resource'])) {
-            $resource_json = json_encode($data['resource'], JSON_PRETTY_PRINT);
-            $code_block = $toolkit->render_code_block($resource_json, 'json');
-            $content .= $toolkit->render_expandable_section('Resource Data', $code_block);
+            $data['technical_details']['resource'] = $data['resource'];
         }
 
         return $content;
@@ -322,14 +356,35 @@ class PaymentRenderer extends BaseRenderer
         if (!$is_full && isset($data['impact']['refund_percentage'])) {
             $refund_data['Percentage'] = $data['impact']['refund_percentage'] . '%';
         }
+        
+        // Add refund reason if available
+        if (!empty($data['reason'])) {
+            $refund_data['Reason'] = $data['reason'];
+        }
+        
+        // Add user info if available
+        if (!empty($data['user_id']) || !empty($data['created_by'])) {
+            $userId = $data['user_id'] ?? $data['created_by'] ?? '';
+            $refund_data['Processed By'] = $this->getUserName($userId);
+        }
 
-        $content = $toolkit->render_key_value_list($refund_data, 'Order Refund');
+        $title = $is_full ? 'Full Refund' : 'Partial Refund';
+        $content = $toolkit->render_key_value_list($refund_data, $title);
 
-        // Add refunded items in expandable section if available
+        // Move technical details to debug section
+        $data['technical_details'] = [
+            'transaction_id' => $data['transaction_id'] ?? '',
+            'gateway' => $data['gateway'] ?? '',
+            'correlation_id' => $data['correlation_id'] ?? '',
+        ];
+        
+        // Add refunded items to debug section
         if (!empty($data['impact']['items_refunded'])) {
-            $items_json = json_encode($data['impact']['items_refunded'], JSON_PRETTY_PRINT);
-            $code_block = $toolkit->render_code_block($items_json, 'json');
-            $content .= $toolkit->render_expandable_section('Refunded Items', $code_block);
+            $data['technical_details']['items_refunded'] = $data['impact']['items_refunded'];
+        }
+        
+        if (!empty($data['impact'])) {
+            $data['technical_details']['impact'] = $data['impact'];
         }
 
         return $content;

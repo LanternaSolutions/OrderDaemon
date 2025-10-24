@@ -129,6 +129,9 @@ class ManualStatusTracker
         // Determine the appropriate event type and context (kept for compatibility)
         $event_type = $is_automatic_workflow ? 'automatic_workflow_transition' : 'manual_status_change';
         $context = $is_automatic_workflow ? 'automatic_workflow' : 'manual_status_change';
+        
+        // Generate a consistent correlation ID for all related events
+        $correlation_id = $order_id . ':' . time();
 
         // Generate UniversalEvent for manual status changes
         if ($source === 'manual' && !$is_automatic_workflow) {
@@ -154,8 +157,9 @@ class ManualStatusTracker
             'event_type' => 'status_changed',
             'ts' => time(),
             'label' => 'Status changed',
-            'level' => 'info',
+            'level' => 'info', // Business-relevant component, remains info level
             'data' => $status_data,
+            'correlation_id' => $correlation_id,
         ];
         
         // Add workflow info if automatic
@@ -166,8 +170,9 @@ class ManualStatusTracker
                 'event_type' => 'info',
                 'ts' => time(),
                 'label' => 'Automatic workflow transition',
-                'level' => 'info',
+                'level' => 'debug', // Technical implementation detail, mark as debug
                 'data' => $info_data,
+                'correlation_id' => $correlation_id,
             ];
         }
         
@@ -198,8 +203,9 @@ class ManualStatusTracker
                 'event_type' => 'info',
                 'ts' => time(),
                 'label' => 'Attribution context',
-                'level' => 'info',
+                'level' => 'debug', // Technical implementation detail, mark as debug
                 'data' => ['attribution' => $attribution_data],
+                'correlation_id' => $correlation_id,
             ];
         }
         
@@ -214,8 +220,9 @@ class ManualStatusTracker
                 'event_type' => 'warning',
                 'ts' => time(),
                 'label' => 'Automation bypass context',
-                'level' => 'warning',
+                'level' => 'warning', // Relevant warning, remains warning level
                 'data' => $warning_data,
+                'correlation_id' => $correlation_id,
             ];
         }
         
@@ -234,7 +241,7 @@ class ManualStatusTracker
             $final_summary,
             [
                 'type' => $event_type,
-                'cid' => $order_id . ':' . time(),
+                'cid' => $correlation_id,
                 'oid' => $order_id,
                 'actor' => [
                     'id' => $source === 'manual' ? $user_id : null,
@@ -509,7 +516,7 @@ class ManualStatusTracker
             $summary,
             [
                 'type' => 'admin_action',
-                'cid' => $order_id . ':' . time(),
+                'cid' => $order_id . ':' . time(), // This is a separate event type, so keep unique correlation ID
                 'oid' => $order_id,
                 'actor' => [
                     'id' => $current_user->ID,

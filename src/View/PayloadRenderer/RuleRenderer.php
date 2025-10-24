@@ -66,6 +66,62 @@ class RuleRenderer extends BaseRenderer
     }
 
     /**
+     * Creates a precise, context-specific summary for rule execution debugging
+     * 
+     * Generates clear, actionable summaries that show exactly which event triggered the rule
+     * 
+     * @param array $data The rule execution data containing event context
+     * @return string A detailed, context-aware summary for debugging
+     */
+    private function createDebugRuleSummary(array $data): string
+    {
+        $order_id = $data['order_id'] ?? 0;
+        $rule_name = $data['rule_name'] ?? 'unnamed rule';
+        $event_type = $data['event_type'] ?? '';
+        $gateway = isset($data['source_gateway']) ? ucfirst($data['source_gateway']) : 'Unknown gateway';
+        
+        // Create different summary formats based on event type
+        switch ($event_type) {
+            case 'payment_completed':
+            case 'payment_processing':
+            case 'payment_pending':
+            case 'payment_failed':
+                // Payment-related events
+                $amount_display = '';
+                if (isset($data['amount']) && isset($data['currency'])) {
+                    $amount_display = ' of ' . strtoupper($data['currency']) . ' ' . number_format((float)$data['amount'], 2);
+                }
+                return sprintf('Rule "%s" evaluated on %s payment%s for Order #%d', 
+                    $rule_name, $gateway, $amount_display, $order_id);
+                
+            case 'order_created':
+                return sprintf('Rule "%s" evaluated on new order creation for Order #%d', 
+                    $rule_name, $order_id);
+                
+            case 'checkout_completed':
+            case 'block_checkout_processed':
+                return sprintf('Rule "%s" evaluated on checkout completion for Order #%d', 
+                    $rule_name, $order_id);
+                
+            case 'order_status_changed':
+                // Try to extract status change from raw data
+                $from_status = $data['from_status'] ?? 'unknown';
+                $to_status = $data['to_status'] ?? 'unknown';
+                return sprintf('Rule "%s" evaluated on order status change (%s → %s) for Order #%d', 
+                    $rule_name, $from_status, $to_status, $order_id);
+                
+            case 'order_check_scheduled':
+                return sprintf('Rule "%s" evaluated on scheduled order check for Order #%d', 
+                    $rule_name, $order_id);
+                
+            default:
+                // Generic fallback for any other event type
+                return sprintf('Rule "%s" evaluated on %s event for Order #%d', 
+                    $rule_name, $event_type ?: 'unknown', $order_id);
+        }
+    }
+
+    /**
      * Get Label
      *
      * Provides event-specific labels based on event type and data.
@@ -83,16 +139,35 @@ class RuleRenderer extends BaseRenderer
 
             case 'rule_matched':
             case 'rule_no_match':
-                return $data['rule_name'] ?? 'Rule Evaluation';
+                if (!empty($data['rule_name'])) {
+                    return 'Rule: ' . $data['rule_name'];
+                }
+                return $data['result'] === 'matched' ? 'Rule Matched' : 'Rule Not Matched';
 
             case 'action_executed':
-                return 'Action: ' . ($data['action_id'] ?? 'Executed');
+                if (!empty($data['action_label'])) {
+                    return 'Action: ' . $data['action_label'];
+                }
+                return 'Action Executed';
 
             case 'decision':
                 return 'Decision: ' . ($data['outcome'] ?? 'Evaluated');
 
             case 'validation':
                 return 'Validation: ' . ($data['name'] ?? 'Result');
+                
+            case 'rule_execution':
+                // Generate a detailed context summary for rule execution events
+                if (!empty($data['event_type']) || !empty($data['source_gateway']) || !empty($data['order_id'])) {
+                    return $this->createDebugRuleSummary($data);
+                } else if (!empty($data['summary'])) {
+                    // Use provided summary if available
+                    return $data['summary'];
+                } else if (!empty($data['rule_name'])) {
+                    return 'Rule: ' . $data['rule_name'];
+                }
+                // More specific than just "Rule Applied"
+                return 'Rule Evaluation';
 
             default:
                 return parent::getLabel($data, $event_type);
@@ -103,6 +178,7 @@ class RuleRenderer extends BaseRenderer
      * Get Status Pill
      *
      * Provides event-specific status pills based on event type and outcome.
+     * Prioritizes debug pills for debug events.
      *
      * @param array  $data       The payload data
      * @param string $event_type The type of event
@@ -110,6 +186,12 @@ class RuleRenderer extends BaseRenderer
      */
     protected function getStatusPill(array $data, string $event_type): ?array
     {
+        // First, check if this is a debug event - if so, return debug pill
+        if ($this->isDebugEvent($data)) {
+            return ['label' => 'DEBUG', 'type' => 'debug'];
+        }
+        
+        // Otherwise, use event-specific pills
         switch ($event_type) {
             case 'condition_passed':
                 return ['label' => 'PASSED', 'type' => 'success'];
@@ -291,18 +373,77 @@ class RuleRenderer extends BaseRenderer
      */
     private function renderGenericRule(array $data, PayloadComponentUIToolkit $toolkit): string
     {
-        // If this is a rule execution event, render it nicely
+        // If this is a rule execution event, render it with all details
         if (isset($data['process_type']) && $data['process_type'] === 'rule_execution') {
+            // Organize data - business-relevant details first, followed by technical details
             $rule_data = [
                 'Status' => $data['status'] ?? '',
-                'Source' => $data['source'] ?? '',
-                'Component Count' => $data['component_count'] ?? '',
-                'Actor' => $data['actor'] ?? '',
-                'Correlation ID' => $data['correlation_id'] ?? '',
             ];
-
-            $content = $toolkit->render_key_value_list($rule_data, 'Rule Execution Details');
-
+            
+            // Add rule name if available (business-relevant)
+            if (!empty($data['rule_name'])) {
+                $rule_data['Rule'] = $data['rule_name'];
+            }
+            
+            // Add event context if available (critical for debugging)
+            if (!empty($data['event_type'])) {
+                $rule_data['Event Type'] = $data['event_type'];
+            }
+            
+            // Add source gateway if available
+            if (!empty($data['source_gateway'])) {
+                $rule_data['Gateway'] = ucfirst($data['source_gateway']);
+            }
+            
+            // Add payment amount if available
+            if (!empty($data['amount']) && !empty($data['currency'])) {
+                $rule_data['Amount'] = strtoupper($data['currency']) . ' ' . number_format((float)$data['amount'], 2);
+            }
+            
+            // Add from/to status if available (for status changes)
+            if (!empty($data['from_status']) && !empty($data['to_status'])) {
+                $rule_data['Status Change'] = $data['from_status'] . ' → ' . $data['to_status'];
+            }
+            
+            // Add rule ID if available (business-relevant)
+            if (!empty($data['rule_id'])) {
+                $rule_data['Rule ID'] = '#' . $data['rule_id'];
+            }
+            
+            // Add order ID if available (business-relevant)
+            if (!empty($data['order_id'])) {
+                $rule_data['Order'] = '#' . $data['order_id'];
+            }
+            
+            // Add technical details to the debug_data array (for debug section)
+            $data['technical_details'] = [
+                'source' => $data['source'] ?? '',
+                'component_count' => $data['component_count'] ?? '',
+                'actor' => $data['actor'] ?? '',
+                'correlation_id' => $data['correlation_id'] ?? '',
+                'process_id' => $data['process_id'] ?? $data['correlation_id'] ?? '',
+            ];
+            
+            // Use a more descriptive section title based on the data
+            $section_title = 'Rule Evaluation Context';
+            if (!empty($data['event_type'])) {
+                $event_type = $data['event_type'];
+                if (strpos($event_type, 'payment') === 0) {
+                    $section_title = 'Payment Rule Evaluation';
+                } elseif (strpos($event_type, 'checkout') !== false) {
+                    $section_title = 'Checkout Rule Evaluation';
+                } elseif ($event_type === 'order_created') {
+                    $section_title = 'Order Creation Rule Evaluation';
+                } elseif (strpos($event_type, 'status') !== false) {
+                    $section_title = 'Status Change Rule Evaluation';
+                } elseif ($event_type === 'order_check_scheduled') {
+                    $section_title = 'Scheduled Order Check Evaluation';
+                }
+            }
+            
+            $content = $toolkit->render_key_value_list($rule_data, $section_title);
+            
+            // Technical details will be automatically added to the debug section by BaseRenderer
             return $content;
         }
 

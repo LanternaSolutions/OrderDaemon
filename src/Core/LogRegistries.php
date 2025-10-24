@@ -165,7 +165,7 @@ function odcm_get_log_event_types(): array
             'label'            => __('Order Processing Started', 'order-daemon'),
             'summary_template' => __('Started processing order #%d', 'order-daemon'),
             'default_status'   => 'info',
-            'category'         => 'core',
+            'category'         => 'debug',
         ],
         
         'rule_matched' => [
@@ -173,7 +173,7 @@ function odcm_get_log_event_types(): array
             'label'            => __('Rule Matched', 'order-daemon'),
             'summary_template' => __('Order #%d matched completion rule: %s', 'order-daemon'),
             'default_status'   => 'info',
-            'category'         => 'core',
+            'category'         => 'debug',
         ],
         
         'rule_skipped' => [
@@ -181,7 +181,7 @@ function odcm_get_log_event_types(): array
             'label'            => __('Rule Skipped', 'order-daemon'),
             'summary_template' => __('Order #%d skipped rule "%s": %s', 'order-daemon'),
             'default_status'   => 'info',
-            'category'         => 'core',
+            'category'         => 'debug',
         ],
         
         'invalid_order' => [
@@ -233,7 +233,7 @@ function odcm_get_log_event_types(): array
             'label'            => __('Condition Passed', 'order-daemon'),
             'summary_template' => __('Condition "%s" passed for order #%d with value "%s"', 'order-daemon'),
             'default_status'   => 'info',
-            'category'         => 'core',
+            'category'         => 'debug',
         ],
         
         'condition_failed' => [
@@ -388,7 +388,7 @@ function odcm_get_log_event_types(): array
             'label'            => __('No Rules Matched', 'order-daemon'),
             'summary_template' => __('No completion rules matched for order #%d', 'order-daemon'),
             'default_status'   => 'info',
-            'category'         => 'core',
+            'category'         => 'debug',
         ],
         
         'rule_evaluation_start' => [
@@ -480,7 +480,7 @@ function odcm_get_log_event_types(): array
             'label'            => __('Settings Updated', 'order-daemon'),
             'summary_template' => __('Plugin settings updated by user %s', 'order-daemon'),
             'default_status'   => 'info',
-            'category'         => 'core',
+            'category'         => 'debug',
         ],
         
         'cleanup_task' => [
@@ -501,7 +501,7 @@ function odcm_get_log_event_types(): array
         
         // === TESTING EVENTS: Comprehensive status and component validation ===
         
-        // SUCCESS STATUS EVENTS (3 events)
+        // SUCCESS STATUS EVENTS
         'api_call_report' => [
             'id'               => 'api_call_report',
             'label'            => __('Test: API Call Success', 'order-daemon'),
@@ -526,13 +526,13 @@ function odcm_get_log_event_types(): array
             'category'         => 'test',
         ],
         
-        // ERROR STATUS EVENTS (2 events)
+        // ERROR STATUS EVENTS
         'error_report_stack_trace' => [
             'id'               => 'error_report_stack_trace',
             'label'            => __('Test: Critical Error', 'order-daemon'),
             'summary_template' => __('Critical system error with stack trace for order #%d', 'order-daemon'),
             'default_status'   => 'error',
-            'category'         => 'test',
+            'category'         => 'debug',
         ],
         
         'db_query_failed' => [
@@ -540,10 +540,10 @@ function odcm_get_log_event_types(): array
             'label'            => __('Test: Database Error', 'order-daemon'),
             'summary_template' => __('Database operation failed with error', 'order-daemon'),
             'default_status'   => 'error',
-            'category'         => 'test',
+            'category'         => 'debug',
         ],
         
-        // WARNING STATUS EVENTS (2 events)
+        // WARNING STATUS EVENTS
         'error_report_simple_string' => [
             'id'               => 'error_report_simple_string',
             'label'            => __('Test: Warning Message', 'order-daemon'),
@@ -560,7 +560,7 @@ function odcm_get_log_event_types(): array
             'category'         => 'test',
         ],
         
-        // INFO STATUS EVENTS (2 events)
+        // INFO STATUS EVENTS
         'performance_report' => [
             'id'               => 'performance_report',
             'label'            => __('Test: Performance Info', 'order-daemon'),
@@ -577,7 +577,7 @@ function odcm_get_log_event_types(): array
             'category'         => 'test',
         ],
         
-        // NOTICE STATUS EVENTS (2 events)
+        // NOTICE STATUS EVENTS
         'system_info_report' => [
             'id'               => 'system_info_report',
             'label'            => __('Test: System Notice', 'order-daemon'),
@@ -594,16 +594,16 @@ function odcm_get_log_event_types(): array
             'category'         => 'test',
         ],
         
-        // CRITICAL STATUS EVENTS (1 event)
+        // CRITICAL STATUS EVENTS
         'error_report_wp_error' => [
             'id'               => 'error_report_wp_error',
             'label'            => __('Test: Critical WP Error', 'order-daemon'),
             'summary_template' => __('Critical WordPress error requiring immediate attention', 'order-daemon'),
             'default_status'   => 'critical',
-            'category'         => 'test',
+            'category'         => 'debug',
         ],
         
-        // COMPLETED STATUS EVENTS (1 event)
+        // COMPLETED STATUS EVENTS
         'fallback_data' => [
             'id'               => 'fallback_data',
             'label'            => __('Test: Operation Completed', 'order-daemon'),
@@ -612,7 +612,7 @@ function odcm_get_log_event_types(): array
             'category'         => 'test',
         ],
         
-        // DEBUG STATUS EVENTS (1 event)
+        // DEBUG STATUS EVENTS
         'debug_trace_report' => [
             'id'               => 'debug_trace_report',
             'label'            => __('Test: Debug Trace', 'order-daemon'),
@@ -621,7 +621,7 @@ function odcm_get_log_event_types(): array
             'category'         => 'test',
         ],
         
-        // PENDING STATUS EVENTS (1 event)
+        // PENDING STATUS EVENTS
         'async_operation_pending' => [
             'id'               => 'async_operation_pending',
             'label'            => __('Test: Pending Operation', 'order-daemon'),
@@ -630,7 +630,7 @@ function odcm_get_log_event_types(): array
             'category'         => 'test',
         ],
         
-        // SKIPPED STATUS EVENTS (1 event)
+        // SKIPPED STATUS EVENTS
         'operation_skipped' => [
             'id'               => 'operation_skipped',
             'label'            => __('Test: Operation Skipped', 'order-daemon'),
@@ -1164,5 +1164,6 @@ function odcm_decode_source(int $code): string
             $reverse_map[$data['code']] = $source;
         }
     }
-    return $reverse_map[$code] ?? 'system';
+    $result = $reverse_map[$code] ?? 'system';
+    return (string) $result; // Ensure we always return a string
 }

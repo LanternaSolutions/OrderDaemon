@@ -47,11 +47,6 @@ class UniversalEventProcessor
     {
         $this->registry = new RuleComponentRegistry();
         $this->evaluator = new Evaluator();
-        
-        // Inject ProcessLogger into Evaluator for audit trail creation
-        $sanitizer = new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer();
-        $process_logger = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger($sanitizer);
-        $this->evaluator->set_process_logger($process_logger);
     }
 
     /**
@@ -245,7 +240,7 @@ class UniversalEventProcessor
                 'duplicate_detection' => true,
             ],
             null,
-            'info',
+            'debug',
             'universal_event_duplicate',
             false,
             $process_id
@@ -264,39 +259,72 @@ class UniversalEventProcessor
     private function logProcessingResult(EvaluationContext $context, bool $result, float $execution_time, string $process_id): void
     {
         $event = $context->event;
-        $status = $result ? 'success' : 'info';
         
-        // Use the event's getSummary() method for better user-facing descriptions
-        $summary = $event->getSummary();
-        $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
-        $message = $result 
-            ? (!empty($summary) ? "Successfully processed: {$summary}" : sprintf('%s %s processed successfully', $gateway, $event->eventType))
-            : (!empty($summary) ? "No matching rules for: {$summary}" : sprintf('%s %s completed with no matching rules', $gateway, $event->eventType));
-
-        \odcm_log_event(
-            $message,
-            [
-                'event_type' => $event->eventType,
-                'source_gateway' => $event->sourceGateway,
-                'channel' => $event->channel,
-                'primary_object_type' => $event->primaryObjectType,
-                'primary_object_id' => $event->primaryObjectID,
-                'transaction_id' => $event->transactionID,
-                'amount' => $event->amount,
-                'currency' => $event->currency,
-                'idempotency_key' => $event->idempotencyKey,
-                'processing_result' => $result,
-                'execution_time_ms' => round($execution_time * 1000, 2),
-                'has_order' => $context->order !== null,
-                'has_subscription' => $context->subscription !== null,
-                'customer_id' => $context->getCustomerId(),
-            ],
-            $context->getOrderId(),
-            $status,
-            'universal_event_processing',
-            false,
-            $process_id
-        );
+        if ($result) {
+            // Log successful rule matches at success level
+            $status = 'success';
+            
+            // Use the event's getSummary() method for better user-facing descriptions
+            $summary = $event->getSummary();
+            $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
+            $message = !empty($summary) ? "Successfully processed: {$summary}" : sprintf('%s %s processed successfully', $gateway, $event->eventType);
+    
+            \odcm_log_event(
+                $message,
+                [
+                    'event_type' => $event->eventType,
+                    'source_gateway' => $event->sourceGateway,
+                    'channel' => $event->channel,
+                    'primary_object_type' => $event->primaryObjectType,
+                    'primary_object_id' => $event->primaryObjectID,
+                    'transaction_id' => $event->transactionID,
+                    'amount' => $event->amount,
+                    'currency' => $event->currency,
+                    'idempotency_key' => $event->idempotencyKey,
+                    'processing_result' => true,
+                    'execution_time_ms' => round($execution_time * 1000, 2),
+                    'has_order' => $context->order !== null,
+                    'has_subscription' => $context->subscription !== null,
+                    'customer_id' => $context->getCustomerId(),
+                ],
+                $context->getOrderId(),
+                $status,
+                'universal_event_processing',
+                false,
+                $process_id
+            );
+        } else if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            // Only log non-matches when in debug mode
+            $summary = $event->getSummary();
+            $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
+            $message = !empty($summary) ? "No matching rules for: {$summary}" : sprintf('%s %s completed with no matching rules', $gateway, $event->eventType);
+            
+            \odcm_log_event(
+                $message,
+                [
+                    'event_type' => $event->eventType,
+                    'source_gateway' => $event->sourceGateway,
+                    'channel' => $event->channel,
+                    'primary_object_type' => $event->primaryObjectType,
+                    'primary_object_id' => $event->primaryObjectID,
+                    'transaction_id' => $event->transactionID,
+                    'amount' => $event->amount,
+                    'currency' => $event->currency,
+                    'idempotency_key' => $event->idempotencyKey,
+                    'processing_result' => false,
+                    'execution_time_ms' => round($execution_time * 1000, 2),
+                    'has_order' => $context->order !== null,
+                    'has_subscription' => $context->subscription !== null,
+                    'customer_id' => $context->getCustomerId(),
+                ],
+                $context->getOrderId(),
+                'debug', // Explicitly mark as debug level
+                'universal_event_processing_debug',
+                false,
+                $process_id
+            );
+        }
+        // No log entry created for non-matches when not in debug mode
     }
 
     /**
@@ -445,12 +473,16 @@ class UniversalEventProcessor
     {
         $order_id = $context->getOrderId();
         
-        // TEMPORARY DEBUG: Log entry to universal event rule processing
-        error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Processing rules for Order #{$order_id}");
+        // Log entry to universal event rule processing
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Processing rules for Order #{$order_id}");
+        }
         
         // Check if post type exists
         if (!post_type_exists('odcm_order_rule')) {
-            error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Order rule post type does not exist!");
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Order rule post type does not exist!");
+            }
             return false;
         }
 
@@ -463,10 +495,14 @@ class UniversalEventProcessor
             'order'          => 'ASC',
         ]);
 
-        error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Found " . $rules_query->found_posts . " published rules");
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Found " . $rules_query->found_posts . " published rules");
+        }
 
         if (!$rules_query->have_posts()) {
-            error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - No rules found, returning false");
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - No rules found, returning false");
+            }
             return false;
         }
 
@@ -480,33 +516,56 @@ class UniversalEventProcessor
                 continue;
             }
 
-            // Start ProcessLogger for this rule evaluation
-            $sanitizer = new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer();
-            $rule_logger = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger($sanitizer);
-            $this->evaluator->set_process_logger($rule_logger);
+            // Evaluate rule against universal event context 
+            // Debug log the evaluation for troubleshooting purposes
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Evaluating rule '{$rule->post_title}' (ID: {$rule->ID}) for event type: {$context->event->eventType}");
+            }
             
-            $rule_logger->start('rule_execution', [
-                'order_id' => $context->getOrderId(),
-                'summary' => sprintf('Evaluating rule: %s', $rule->post_title),
-                'source' => 'universal_event_processor'
-            ]);
-
-            // Evaluate rule against universal event context
             $trace = $this->evaluator->evaluateRuleAgainstUniversalEvent($context, $rule_data, $this->registry);
 
             if ($trace['matched']) {
-                // Log rule match
-                $rule_logger->add_component('rule_matched', 
-                    sprintf('Rule "%s" matched', $rule->post_title), 
-                    ['rule_id' => $rule->ID, 'rule_name' => $rule->post_title]
-                );
+                // Only create logger when rule actually matches and only in debug mode
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $sanitizer = new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer();
+                    $rule_logger = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger($sanitizer);
+                    $this->evaluator->set_process_logger($rule_logger);
+                    
+                    // Build complete context for the renderer to use (moved summary creation to RuleRenderer)
+                    $rule_logger->start('rule_execution', [
+                        'order_id' => $context->getOrderId(),
+                        'rule_name' => $rule->post_title,
+                        'rule_id' => $rule->ID,
+                        'source' => 'universal_event_processor',
+                        'event_type' => $context->event->eventType,
+                        'source_gateway' => $context->event->sourceGateway,
+                        'amount' => $context->event->amount,
+                        'currency' => $context->event->currency,
+                        'event_timestamp' => current_time('timestamp'),
+                        // Include raw data for status changes
+                        'from_status' => isset($context->event->rawData['from_status']) ? $context->event->rawData['from_status'] : null,
+                        'to_status' => isset($context->event->rawData['to_status']) ? $context->event->rawData['to_status'] : null,
+                    ]);
+                }
 
+                // Log rule match (only in debug mode)
+                if (isset($rule_logger)) {
+                    $rule_logger->add_component('rule_matched', 
+                        sprintf('Rule "%s" matched', $rule->post_title), 
+                        ['rule_id' => $rule->ID, 'rule_name' => $rule->post_title],
+                        'info'
+                    );
+                }
+                
                 // Execute primary action
                 if (isset($rule_data['primaryAction']['id'])) {
-                    $rule_logger->add_component('action_executed', 
-                        sprintf('Executing primary action: %s', $rule_data['primaryAction']['id']), 
-                        ['action_id' => $rule_data['primaryAction']['id']]
-                    );
+                    if (isset($rule_logger)) {
+                        $rule_logger->add_component('action_executed', 
+                            sprintf('Executing primary action: %s', $rule_data['primaryAction']['id']), 
+                            ['action_id' => $rule_data['primaryAction']['id']],
+                            'info'
+                        );
+                    }
                     $this->executeUniversalEventAction($context, $rule_data['primaryAction']);
                 }
 
@@ -514,29 +573,65 @@ class UniversalEventProcessor
                 if (!empty($rule_data['secondaryActions']) && is_array($rule_data['secondaryActions'])) {
                     foreach ($rule_data['secondaryActions'] as $actionDef) {
                         if (isset($actionDef['id'])) {
-                            $rule_logger->add_component('action_executed', 
-                                sprintf('Executing secondary action: %s', $actionDef['id']), 
-                                ['action_id' => $actionDef['id']]
-                            );
+                            if (isset($rule_logger)) {
+                                $rule_logger->add_component('action_executed', 
+                                    sprintf('Executing secondary action: %s', $actionDef['id']), 
+                                    ['action_id' => $actionDef['id']],
+                                    'info'
+                                );
+                            }
                             $this->executeUniversalEventAction($context, $actionDef);
                         }
                     }
                 }
 
-                // Finish with success
-                $rule_logger->finish('success', sprintf('Rule "%s" executed successfully', $rule->post_title));
+                // Finish with success (only in debug mode)
+                if (isset($rule_logger)) {
+                    $rule_logger->finish('success', sprintf('Rule "%s" executed successfully', $rule->post_title));
+                }
 
                 // First Match Wins - stop processing
                 return true;
             } else {
-                // Log rule non-match
-                $rule_logger->add_component('rule_no_match', 
-                    sprintf('Rule "%s" did not match', $rule->post_title), 
-                    ['rule_id' => $rule->ID, 'rule_name' => $rule->post_title, 'conditions' => $trace['conditions']]
-                );
+                // For debug purposes only, log non-match information
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    // Find the failed condition for more detailed logging
+                    $failed_condition = null;
+                    foreach ($trace['conditions'] as $condition) {
+                        if ($condition['result'] === 'fail') {
+                            $failed_condition = $condition;
+                            break;
+                        }
+                    }
+                    
+                    $message = sprintf('Rule "%s" did not match conditions', $rule->post_title);
+                    if ($failed_condition) {
+                        $message .= sprintf(' (Failed on: %s)', $failed_condition['label']);
+                    }
+                    
+                    // Enhanced debug logging with detailed condition information
+                    error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Rule '{$rule->post_title}' didn't match - " . 
+                              "Event type: {$context->event->eventType}, Order ID: {$context->getOrderId()}");
+                    
+                    // Log non-match at debug level directly to the audit log
+                    \odcm_log_event(
+                        $message,
+                        [
+                            'rule_id' => $rule->ID,
+                            'rule_name' => $rule->post_title,
+                            'conditions' => $trace['conditions'],
+                            'failed_condition' => $failed_condition ? $failed_condition['label'] : null,
+                            'event_type' => $context->event->eventType,
+                            'source_gateway' => $context->event->sourceGateway,
+                        ],
+                        $context->getOrderId(),
+                        'debug', // Explicitly debug level
+                        'rule_no_match',
+                        false
+                    );
+                }
                 
-                // Finish with info status
-                $rule_logger->finish('info', sprintf('Rule "%s" did not match conditions', $rule->post_title));
+                // No need to create a ProcessLogger or call finish() for non-matches
             }
         }
 
@@ -600,6 +695,7 @@ class UniversalEventProcessor
             );
         }
     }
+
 
     /**
      * Create business-friendly error message from technical error

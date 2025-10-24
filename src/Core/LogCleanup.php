@@ -155,9 +155,9 @@ class LogCleanup
         // Narrative-based single process entry for cleanup activity
         $pl = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger(new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer());
         $pl->start('admin_action', [ 'summary' => 'Audit log cleanup' ]);
-        $pl->add_component('metrics', 'Records deleted', [ 'name' => 'deleted_count', 'value' => (float)$deleted_count ]);
-        $pl->add_component('metrics', 'Retention days', [ 'name' => 'retention_days', 'value' => (float)$retention_days, 'unit' => 'days' ]);
-        $pl->add_component('info', 'Cleanup details', [ 'message' => sprintf('Type: %s', esc_html($retention_type)) ]);
+        $pl->add_component('metrics', 'Records deleted', [ 'name' => 'deleted_count', 'value' => (float)$deleted_count ], 'debug');
+        $pl->add_component('metrics', 'Retention days', [ 'name' => 'retention_days', 'value' => (float)$retention_days, 'unit' => 'days' ], 'debug');
+        $pl->add_component('info', 'Cleanup details', [ 'message' => sprintf('Type: %s', esc_html($retention_type)) ], 'info');
         $pl->finish('success', sprintf('Deleted %d old log records (retention %d days)', $deleted_count, $retention_days));
 
     }//end log_cleanup_activity()

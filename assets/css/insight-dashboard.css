@@ -129,7 +129,7 @@
   --odcm-component-text-color-header: var(--odcm-theme-grey-900);
   --odcm-component-text-color-body: var(--odcm-theme-grey-800);
   --odcm-component-padding: var(--odcm-theme-spacing-sm);
-  --odcm-component-margin: var(--odcm-theme-spacing-xs);
+  --odcm-component-margin: var(--odcm-theme-spacing-sm);
   --odcm-component-border-width: 1px;
   --odcm-component-border-radius: var(--odcm-theme-border-radius);
   --odcm-component-section-margin: var(--odcm-theme-spacing-xs);
@@ -144,7 +144,7 @@
   --odcm-key-value-gap: var(--odcm-theme-key-value-gap);
   --odcm-key-value-row-gap: var(--odcm-theme-key-value-row-gap);
   --odcm-key-padding: var(--odcm-theme-spacing-xs);
-  --odcm-key-bg: var(--odcm-theme-grey-300);
+  --odcm-key-bg: var(--odcm-theme-grey-100);
   --odcm-value-border: 1px solid var(--odcm-theme-grey-300);
   --odcm-value-padding: var(--odcm-theme-spacing-xs);
   --odcm-section-title-font-size: var(--odcm-theme-font-size-md);
@@ -409,8 +409,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: var(--odcm-icon-button-size);
-    min-height: var(--odcm-icon-button-size);
+    min-width: var(--odcm-icon-button-icon-size);
+    min-height: var(--odcm-icon-button-icon-size);
     text-decoration: none;
 }
 
@@ -758,7 +758,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--odcm-theme-spacing-md);
+    padding: var(--odcm-theme-spacing-sm);
     background: var(--odcm-theme-grey-100);
     border-bottom: 1px solid var(--odcm-component-border-color);
     cursor: pointer;
@@ -776,8 +776,8 @@
 
 .odcm-settings-accordion-label {
     display: block;
-    font-weight: 600;
-    font-size: 14px;
+    font-weight: 500;
+    font-size: 13px;
     color: var(--odcm-component-text-color-header);
     margin-bottom: 4px;
 }
@@ -808,7 +808,7 @@
 }
 
 .odcm-settings-section-inner {
-    padding: var(--odcm-theme-spacing-md);
+    padding: var(--odcm-theme-spacing-sm);
 }
 
 /* Accordion Transitions */
@@ -1996,7 +1996,7 @@ label.odcm-retention-option {
     height: auto; /* Content-based sizing */
     border: var(--odcm-component-border-width) solid var(--odcm-component-border-color);
     border-radius: var(--odcm-component-border-radius);
-    padding: var(--odcm-theme-spacing-xs);
+    padding: 0px;
     margin-bottom: var(--odcm-theme-spacing-md);
     overflow: hidden;
     background-color: var(--odcm-theme-white);
@@ -2186,12 +2186,34 @@ label.odcm-retention-option {
     color: var(--odcm-component-text-color-body);
     font-size: var(--odcm-theme-font-size-md);
     height: auto;
-    overflow-y: auto; /* Scrollable if content exceeds available space */
+    overflow-y: scroll; /* Always show scrollbar */
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 0; /* Allow flex item to shrink below content size */
-    margin: var(--odcm-component-margin)
+    padding: var(--odcm-component-margin);
+    background-color: var(--odcm-theme-grey-100);
+    scrollbar-width: auto; /* Firefox */
+    scrollbar-color: var(--odcm-theme-grey-400) transparent; /* Firefox */
+}
+
+/* Webkit scrollbar styling */
+.odcm-component__body::-webkit-scrollbar {
+    width: 8px;
+    height: auto;
+}
+
+.odcm-component__body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.odcm-component__body::-webkit-scrollbar-thumb {
+    background-color: var(--odcm-theme-grey-400);
+    border-radius: 4px;
+}
+
+.odcm-component__body::-webkit-scrollbar-thumb:hover {
+    background-color: var(--odcm-theme-grey-500);
 }
 
 /* ==========================================================================
@@ -2401,23 +2423,16 @@ label.odcm-retention-option {
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-800);
     --odcm-component-value-bg: var(--odcm-theme-grey-100);
-    --odcm-key-bg: var(--odcm-theme-grey-200);
+    --odcm-key-bg: var(--odcm-theme-white);
 }
 
 /* Rule Events Theme */
 .odcm-component--rule {
-    --odcm-component-bg: var(--odcm-theme-blue-200);
-    --odcm-component-border-color: var(--odcm-theme-blue-200);
-    --odcm-component-header-border-color: var(--odcm-theme-blue-700);
-    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
-    --odcm-component-text-color-body: var(--odcm-theme-grey-900);
-    --odcm-component-value-bg: var(--odcm-theme-white);
 }
 
 /* Payment Events Theme */
 .odcm-component--payment {
     --odcm-component-bg: var(--odcm-theme-green-200);
-    --odcm-component-border-color: var(--odcm-theme-green-200);
     --odcm-component-header-border-color: var(--odcm-theme-green-700);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-900);
@@ -2491,7 +2506,7 @@ label.odcm-retention-option {
     color: var(--odcm-theme-purple-700);
 }
 
-.odcm-component--completion .odcm-component__header .dashicons {
+.odcm-component--rule .odcm-component__header .dashicons {
     color: var(--odcm-theme-blue-700);
 }
 

@@ -550,6 +550,14 @@ class InsightDashboard
                                 title="<?php echo esc_attr__('Settings', Odcm_Config::$text_domain); ?>">
                             <span class="dashicons dashicons-admin-generic"></span>
                         </button>
+
+                        <!-- Documentation link -->
+                        <a href="<?php echo esc_url(ODCM_DOCS_URL); ?>"
+                           target="_blank"
+                           class="odcm-docs-link"
+                           title="<?php echo esc_attr__('View Documentation', Odcm_Config::$text_domain); ?>">
+                            <span class="dashicons dashicons-editor-help"></span>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -558,12 +566,6 @@ class InsightDashboard
             <div class="odcm-unified-header-section odcm-unified-header-stream">
                 <div class="odcm-stream-header-content">
                     <h3><?php echo esc_html__('Log Stream', Odcm_Config::$text_domain); ?></h3>
-                    <a href="<?php echo esc_url(ODCM_DOCS_URL); ?>" 
-                       target="_blank" 
-                       class="odcm-docs-link"
-                       title="<?php echo esc_attr__('View Documentation', Odcm_Config::$text_domain); ?>">
-                        <span class="dashicons dashicons-editor-help"></span>
-                    </a>
                 </div>
                 <div class="odcm-stream-controls">
                     <div class="odcm-refresh-controls">
@@ -1174,7 +1176,7 @@ class InsightDashboard
                 $message,
                 $context,
                 null, // No order ID
-                'info', // Log level
+                'debug', // Debug level
                 'insight_debug_toggle' // Event type
             );
         }

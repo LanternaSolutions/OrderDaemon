@@ -118,7 +118,8 @@ class FallbackRenderer extends BaseRenderer
     /**
      * Get Status Pill
      *
-     * Gets status pill configuration from registry.
+     * Gets status pill configuration from registry or returns a debug pill for debug events.
+     * Prioritizes debug pills for debug events.
      *
      * @param array  $data       The payload data
      * @param string $event_type The type of event
@@ -126,6 +127,12 @@ class FallbackRenderer extends BaseRenderer
      */
     protected function getStatusPill(array $data, string $event_type): ?array
     {
+        // First, check if this is a debug event - if so, return debug pill
+        if ($this->isDebugEvent($data)) {
+            return ['label' => 'DEBUG', 'type' => 'debug'];
+        }
+        
+        // Otherwise, try to get status pill from registry
         if (function_exists('odcm_get_status_pill_config')) {
             return odcm_get_status_pill_config($event_type);
         }

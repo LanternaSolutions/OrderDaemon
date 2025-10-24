@@ -160,9 +160,39 @@ class BaseRenderer
         // 1. Call to specialized content rendering - implemented by child classes
         $content .= $this->renderSpecificContent($data, $event_type, $toolkit);
         
-        // 2. Always render metrics at the end if they exist - centralized logic
+        // 2. Collect all debug-like data for a unified debug section
+        $debug_data = [];
+        
+        // Add metrics to debug data if they exist
         if (!empty($data['metrics'])) {
-            $content .= $this->renderMetrics($data['metrics'], $toolkit);
+            $debug_data = array_merge($debug_data, $data['metrics']);
+        }
+        
+        // Add correlation ID to debug data if it exists
+        if (!empty($data['correlation_id'])) {
+            $debug_data['correlation_id'] = $data['correlation_id'];
+        }
+        
+        // Add component counts to debug data if they exist
+        if (!empty($data['component_count'])) {
+            $debug_data['component_count'] = $data['component_count'];
+        }
+        
+        // Add processing time to debug data if it exists
+        if (!empty($data['processing_time'])) {
+            $debug_data['processing_time'] = $data['processing_time'];
+        }
+        
+        // Add technical details to debug data if they exist
+        if (!empty($data['technical_details'])) {
+            foreach ($data['technical_details'] as $key => $value) {
+                $debug_data[$key] = $value;
+            }
+        }
+        
+        // 3. Render the unified debug section if we have debug data
+        if (!empty($debug_data)) {
+            $content .= $this->renderDebugSection($debug_data, $toolkit);
         }
         
         return $content;
@@ -199,14 +229,97 @@ class BaseRenderer
      */
     protected function getLabel(array $data, string $event_type): string
     {
+        // Map technical event types to business-friendly terms
+        $event_type_mapping = [
+            'rule_execution' => 'Rule Evaluation',
+            'order_status_changed' => 'Order Status Changed',
+            'payment_completed' => 'Payment Completed',
+            'payment_failed' => 'Payment Failed',
+            'block_checkout_processed' => 'Checkout Completed',
+            'manual_status_change' => 'Status Updated',
+            'process_started' => 'Process Started',
+            'process_ended' => 'Process Completed'
+        ];
+        
+        if (isset($event_type_mapping[$event_type])) {
+            return $event_type_mapping[$event_type];
+        }
+        
+        // Use rule name directly if available for rule events
+        if ($event_type === 'rule_execution' && !empty($data['rule_name'])) {
+            return 'Rule: ' . $data['rule_name'];
+        }
+        
+        // Fall back to generic formatting
         return ucwords(str_replace('_', ' ', $event_type));
+    }
+
+    /**
+     * Check if an event is a debug event
+     *
+     * Examines payload data to determine if this is a debug event.
+     * Debug events are identified by specific flags in their data
+     * or by their classification in the event registry.
+     *
+     * @param array $data The payload data to check
+     * @return bool True if this is a debug event
+     */
+    protected function isDebugEvent(array $data): bool
+    {
+        // Check for explicit debug flag
+        if (isset($data['is_debug']) && $data['is_debug'] === true) {
+            return true;
+        }
+
+        // Check for debug level
+        if (isset($data['level']) && strtolower($data['level']) === 'debug') {
+            return true;
+        }
+
+        // Check for debug context
+        if (isset($data['context']['debug']) && $data['context']['debug'] === true) {
+            return true;
+        }
+
+        // Check for debug source
+        if (isset($data['source']) && strpos(strtolower($data['source']), 'debug_') === 0) {
+            return true;
+        }
+
+        // Check for debug event type
+        if (isset($data['event_type']) && strpos(strtolower($data['event_type']), 'debug_') === 0) {
+            return true;
+        }
+
+        // Check for debug components
+        if (isset($data['components']) && is_array($data['components'])) {
+            foreach ($data['components'] as $component) {
+                if (is_array($component) && isset($component['level']) && strtolower($component['level']) === 'debug') {
+                    return true;
+                }
+            }
+        }
+        
+        // Check event registry for events categorized as debug
+        if (isset($data['event_type']) && function_exists('odcm_get_log_event_types')) {
+            $event_types = odcm_get_log_event_types();
+            $event_type = $data['event_type'];
+            
+            if (isset($event_types[$event_type]) && 
+                isset($event_types[$event_type]['category']) && 
+                $event_types[$event_type]['category'] === 'debug') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
      * Get Status Pill
      *
-     * Gets status pill configuration. Can be overridden by specialized renderers
-     * to provide event-specific status pills.
+     * Gets status pill configuration. Debug events always get a DEBUG pill.
+     * Otherwise, falls back to event-specific status pills.
      *
      * @param array  $data       The payload data
      * @param string $event_type The type of event
@@ -214,6 +327,23 @@ class BaseRenderer
      */
     protected function getStatusPill(array $data, string $event_type): ?array
     {
+        // Debug events always get a DEBUG pill
+        if ($this->isDebugEvent($data)) {
+            return ['label' => 'DEBUG', 'type' => 'debug'];
+        }
+
+        // Check for explicit status
+        if (isset($data['status'])) {
+            $status = strtolower($data['status']);
+            return ['label' => ucfirst($status), 'type' => $status];
+        }
+
+        // Check for level-based status
+        if (isset($data['level'])) {
+            $level = strtolower($data['level']);
+            return ['label' => ucfirst($level), 'type' => $level];
+        }
+
         return null;
     }
 
@@ -275,27 +405,45 @@ class BaseRenderer
      * @return string Formatted value with unit
      */
     /**
-     * Render Metrics
+     * Render Debug Section
      *
-     * Renders metrics data as key-value pairs with proper formatting.
+     * Renders a unified debug section that can include various types of debug data:
+     * - Performance metrics
+     * - Correlation IDs
+     * - Technical implementation details
+     * - Component counts
+     * - Other debug information
      *
-     * @param array                    $metrics  The metrics data to render
-     * @param PayloadComponentUIToolkit $toolkit  UI toolkit instance
-     * @param string                   $title    Optional section title, defaults to 'Performance Metrics'
+     * @param array                    $debug_data  The debug data to render (metrics, correlation IDs, etc)
+     * @param PayloadComponentUIToolkit $toolkit    UI toolkit instance
+     * @param string                   $title      Optional section title, defaults to 'Debug'
      * @return string HTML content
      */
-    protected function renderMetrics(array $metrics, PayloadComponentUIToolkit $toolkit, string $title = 'Performance Metrics'): string
+    protected function renderDebugSection(array $debug_data, PayloadComponentUIToolkit $toolkit, string $title = 'Debug'): string
     {
-        $metrics_data = [];
-        foreach ($metrics as $key => $value) {
+        $formatted_data = [];
+        foreach ($debug_data as $key => $value) {
             $formattedKey = ucwords(str_replace('_', ' ', $key));
+            
             // Format millisecond values to be more readable
             if (is_float($value) && strpos($key, '_ms') !== false) {
                 $value = number_format($value, 4) . ' ms';
             }
-            $metrics_data[$formattedKey] = (string)$value;
+            // Format correlation IDs to be more readable
+            elseif (is_string($value) && (strpos($key, 'correlation') !== false || strpos($key, 'process_id') !== false)) {
+                // Truncate long correlation IDs for readability if needed
+                if (strlen($value) > 20) {
+                    $value = substr($value, 0, 8) . '...' . substr($value, -8);
+                }
+            }
+            // Format arrays as comma-separated values
+            elseif (is_array($value)) {
+                $value = implode(', ', array_map('strval', $value));
+            }
+            
+            $formatted_data[$formattedKey] = (string)$value;
         }
-        return $toolkit->render_key_value_list($metrics_data, $title);
+        return $toolkit->render_key_value_list($formatted_data, $title);
     }
 
     protected function formatMetricValue($value, string $unit = ''): string

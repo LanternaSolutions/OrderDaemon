@@ -57,6 +57,11 @@ class OrderRenderer extends BaseRenderer
             return $this->renderSubscriptionEvent($data, $event_type, $toolkit);
         }
 
+        // Check for event_type in data if not provided directly
+        if ($event_type === '' && isset($data['event_type']) && is_string($data['event_type'])) {
+            $event_type = $data['event_type'];
+        }
+
         // Handle regular order events
         switch ($event_type) {
             case 'status_changed':
@@ -73,6 +78,12 @@ class OrderRenderer extends BaseRenderer
 
             case 'woocommerce_data':
                 return $this->renderWooCommerceData($data, $toolkit);
+                
+            case 'order_created':
+                return $this->renderOrderCreated($data, $toolkit);
+                
+            case 'order_check_scheduled':
+                return $this->renderOrderCheckScheduled($data, $toolkit);
 
             default:
                 return $this->renderGenericOrder($data, $toolkit);
@@ -94,23 +105,29 @@ class OrderRenderer extends BaseRenderer
             case 'status_changed':
                 $from = ucfirst($data['from'] ?? 'unknown');
                 $to = ucfirst($data['to'] ?? 'unknown');
-                return "New Status: {$to}, Was: {$from}";
+                return "Status Changed to {$to}";
 
             case 'order_loaded':
                 return isset($data['order_id']) 
-                    ? "Order #{$data['order_id']} Loaded"
+                    ? "Order #{$data['order_id']}"
                     : 'Order Loaded';
 
             case 'block_checkout_processed':
-                return 'Block Checkout Processed';
+                return 'Checkout Completed';
 
             case 'meta_updated':
-                return isset($data['meta_key'])
-                    ? "Meta Updated: {$data['meta_key']}"
-                    : 'Meta Updated';
+                if (isset($data['meta_key'])) {
+                    // Make meta keys more user-friendly
+                    $meta_label = str_replace('_', ' ', $data['meta_key']);
+                    return ucwords($meta_label) . " Updated";
+                }
+                return 'Order Updated';
 
             case 'woocommerce_data':
-                return 'WooCommerce Data';
+                if (isset($data['type']) && $data['type'] === 'order') {
+                    return 'Order Information';
+                }
+                return 'Order Details';
 
             default:
                 return parent::getLabel($data, $event_type);
@@ -121,6 +138,7 @@ class OrderRenderer extends BaseRenderer
      * Get Status Pill
      *
      * Provides event-specific status pills based on event type and outcome.
+     * Prioritizes debug pills for debug events.
      *
      * @param array  $data       The payload data
      * @param string $event_type The type of event
@@ -128,6 +146,11 @@ class OrderRenderer extends BaseRenderer
      */
     protected function getStatusPill(array $data, string $event_type): ?array
     {
+        // First, check if this is a debug event - if so, return debug pill
+        if ($this->isDebugEvent($data)) {
+            return ['label' => 'DEBUG', 'type' => 'debug'];
+        }
+        
         switch ($event_type) {
             case 'status_changed':
                 $status = $data['to'] ?? '';
@@ -169,9 +192,26 @@ class OrderRenderer extends BaseRenderer
      */
     private function renderStatusChange(array $data, PayloadComponentUIToolkit $toolkit): string
     {
+        // Fix "Unknown" previous status
+        $from_status = $data['from'] ?? '';
+        if (empty($from_status) || strtolower($from_status) === 'unknown') {
+            // Try to infer from order context if available
+            if (isset($data['order_id']) && function_exists('wc_get_order')) {
+                $order = wc_get_order($data['order_id']);
+                if ($order) {
+                    // Check order notes for previous status
+                    $from_status = $this->getPreviousStatusFromOrder($order) ?? 'pending';
+                } else {
+                    $from_status = 'pending'; // Default for new orders
+                }
+            } else {
+                $from_status = 'pending'; // Reasonable default for WooCommerce
+            }
+        }
+
         $status_data = [
             'New Status' => ucfirst($data['to'] ?? ''),
-            'Was Status' => ucfirst($data['from'] ?? ''),
+            'Prev Status' => ucfirst($from_status),
             'Order ID' => isset($data['order_id']) ? '#' . $data['order_id'] : '',
         ];
 
@@ -183,14 +223,44 @@ class OrderRenderer extends BaseRenderer
 
         $content = $toolkit->render_key_value_list($status_data, 'Status Change');
 
-        // Add status change details in expandable section if available
+        // Add technical details to debug section
+        $data['technical_details'] = [
+            'correlation_id' => $data['correlation_id'] ?? '',
+            'timestamp' => $data['timestamp'] ?? '',
+            'manual' => $data['manual'] ?? false,
+            'status_code' => $data['status_code'] ?? '',
+        ];
+        
+        // Add status change details in debug section if available
         if (!empty($data['details'])) {
-            $details_json = json_encode($data['details'], JSON_PRETTY_PRINT);
-            $code_block = $toolkit->render_code_block($details_json, 'json');
-            $content .= $toolkit->render_expandable_section('Change Details', $code_block);
+            $data['technical_details']['details'] = $data['details'];
         }
 
         return $content;
+    }
+    
+    /**
+     * Helper method to get previous status from order history
+     */
+    private function getPreviousStatusFromOrder($order): ?string
+    {
+        if (!method_exists($order, 'get_status_transition_notes')) {
+            return null;
+        }
+        
+        $notes = $order->get_status_transition_notes();
+        if (empty($notes)) {
+            return null;
+        }
+        
+        // Parse the most recent note before current status
+        foreach ($notes as $note) {
+            if (preg_match('/Status changed from (.*?) to /', $note, $matches)) {
+                return trim($matches[1]);
+            }
+        }
+        
+        return null;
     }
 
     /**
@@ -238,6 +308,7 @@ class OrderRenderer extends BaseRenderer
      */
     private function renderBlockCheckout(array $data, PayloadComponentUIToolkit $toolkit): string
     {
+        // Business-relevant checkout information
         $checkout_data = [
             'Order ID' => isset($data['order_id']) ? '#' . $data['order_id'] : '',
             'Status' => ucfirst($data['status'] ?? ''),
@@ -246,21 +317,49 @@ class OrderRenderer extends BaseRenderer
                 ? $this->formatCurrency($data['total'], $data['currency']) 
                 : '',
         ];
-
-        $content = $toolkit->render_key_value_list($checkout_data, 'Checkout Details');
-
-        // Add customer data in expandable section if available
-        if (!empty($data['customer_data'])) {
-            $customer_json = json_encode($data['customer_data'], JSON_PRETTY_PRINT);
-            $code_block = $toolkit->render_code_block($customer_json, 'json');
-            $content .= $toolkit->render_expandable_section('Customer Data', $code_block);
+        
+        // Look for payment data in nested structures if not in top level
+        if (empty($checkout_data['Payment Method']) && isset($data['payment']) && is_array($data['payment'])) {
+            $checkout_data['Payment Method'] = $data['payment']['method'] ?? '';
+        }
+        
+        if (empty($checkout_data['Total'])) {
+            // Try to find total in order data if available
+            if (isset($data['order']) && is_array($data['order'])) {
+                if (isset($data['order']['total'], $data['order']['currency'])) {
+                    $checkout_data['Total'] = $this->formatCurrency(
+                        $data['order']['total'],
+                        $data['order']['currency']
+                    );
+                }
+            }
+            // Alternative location for total data
+            elseif (isset($data['amount'], $data['currency'])) {
+                $checkout_data['Total'] = $this->formatCurrency($data['amount'], $data['currency']);
+            }
         }
 
-        // Add cart data in expandable section if available
+        $content = $toolkit->render_key_value_list($checkout_data, 'Checkout Completed');
+
+        // Move technical details to debug section (expanded to include more fields)
+        $data['technical_details'] = [
+            'checkout_type' => $data['checkout_type'] ?? 'standard',
+            'source' => $data['source'] ?? '',
+            'correlation_id' => $data['correlation_id'] ?? '',
+            'component_count' => $data['component_count'] ?? '',
+            'performance_ms' => $data['performance_ms'] ?? '',
+            'idempotency_key' => $data['idempotency_key'] ?? '',
+            'processing_result' => $data['processing_result'] ?? '',
+            'execution_time_ms' => $data['execution_time_ms'] ?? '',
+        ];
+        
+        // Add technical cart & customer data to debug details
+        if (!empty($data['customer_data'])) {
+            $data['technical_details']['customer_data'] = $data['customer_data'];
+        }
+        
         if (!empty($data['cart_data'])) {
-            $cart_json = json_encode($data['cart_data'], JSON_PRETTY_PRINT);
-            $code_block = $toolkit->render_code_block($cart_json, 'json');
-            $content .= $toolkit->render_expandable_section('Cart Data', $code_block);
+            $data['technical_details']['cart_data'] = $data['cart_data'];
         }
 
         return $content;
@@ -352,81 +451,125 @@ class OrderRenderer extends BaseRenderer
      */
     private function renderGenericOrder(array $data, PayloadComponentUIToolkit $toolkit): string
     {
+        // Special case for order_created events
+        if (isset($data['event_type']) && $data['event_type'] === 'order_created') {
+            return $this->renderOrderCreated($data, $toolkit);
+        }
+        
+        // Special case for order_check_scheduled events
+        if (isset($data['event_type']) && $data['event_type'] === 'order_check_scheduled') {
+            return $this->renderOrderCheckScheduled($data, $toolkit);
+        }
+
         // Handle status change processing events
         if (isset($data['type']) && in_array($data['type'], ['status_change_processing', 'manual_status_change'])) {
+            // Business-relevant status change information
             $order_data = [
                 'Order ID' => isset($data['order_id']) ? '#' . $data['order_id'] : '',
-                'Correlation ID' => $data['cid'] ?? '',
-                'Actor' => isset($data['actor']['name']) ? ucfirst($data['actor']['name']) : 'System',
+                'Status' => 'Status Update',
             ];
+            
+            // Add actor if human-initiated
+            if (isset($data['actor']['name']) && $data['actor']['name'] !== 'system') {
+                $order_data['Updated By'] = ucfirst($data['actor']['name']);
+            }
 
-            $content = $toolkit->render_key_value_list($order_data, 'Status Change Details');
+            $content = $toolkit->render_key_value_list($order_data, 'Order Status Update');
 
-            // Render each component in the components array
+            // Find status info in components
+            $status_from = 'unknown';
+            $status_to = 'unknown';
+            
             if (!empty($data['components']) && is_array($data['components'])) {
                 foreach ($data['components'] as $component) {
                     if (!is_array($component)) {
                         continue;
                     }
-
-                    $component_data = [];
-
+                    
                     // Extract status change info
                     if ($component['event_type'] === 'status_changed' && isset($component['data'])) {
-                        $component_data['From Status'] = ucfirst($component['data']['from'] ?? 'unknown');
-                        $component_data['To Status'] = ucfirst($component['data']['to'] ?? 'unknown');
-                    }
-
-                    // Extract attribution info
-                    if ($component['event_type'] === 'info' && isset($component['data']['attribution'])) {
-                        $attribution = $component['data']['attribution'];
-                        $component_data['Source'] = ucfirst($attribution['source'] ?? '');
-                        $component_data['Request Type'] = ucfirst($attribution['request_type'] ?? '');
-                        if (isset($attribution['source_plugin'])) {
-                            $component_data['Source Plugin'] = $attribution['source_plugin']['slug'] ?? '';
+                        // Try to get a better previous status if "unknown"
+                        $status_from = ucfirst($component['data']['from'] ?? 'unknown');
+                        if ($status_from === 'Unknown' && isset($data['order_id']) && function_exists('wc_get_order')) {
+                            $order = wc_get_order($data['order_id']);
+                            if ($order) {
+                                $previous = $this->getPreviousStatusFromOrder($order);
+                                if ($previous) {
+                                    $status_from = ucfirst($previous);
+                                }
+                            }
                         }
-                    }
-
-                    // Extract warning info
-                    if ($component['event_type'] === 'warning' && isset($component['data'])) {
-                        $component_data['Warning'] = $component['data']['message'] ?? '';
-                        $component_data['Code'] = $component['data']['code'] ?? '';
-                    }
-
-                    if (!empty($component_data)) {
-                        $content .= $toolkit->render_key_value_list(
-                            $component_data,
-                            ucfirst($component['label'] ?? $component['event_type'])
-                        );
+                        
+                        $status_to = ucfirst($component['data']['to'] ?? 'unknown');
+                        
+                        // Add the status change as primary business information
+                        $status_info = [
+                            'New Status' => $status_to,
+                            'Prev Status' => $status_from
+                        ];
+                        
+                        $content .= $toolkit->render_key_value_list($status_info, 'Status Change');
+                        break;
                     }
                 }
             }
-
+            
+            // Move technical details to debug section
+            $data['technical_details'] = [
+                'correlation_id' => $data['cid'] ?? '',
+                'process_type' => $data['type'] ?? '',
+                'actor_id' => isset($data['actor']['id']) ? $data['actor']['id'] : null,
+                'actor_role' => isset($data['actor']['role']) ? $data['actor']['role'] : null,
+                'components_count' => is_array($data['components'] ?? null) ? count($data['components']) : 0,
+            ];
+            
             return $content;
         }
 
-        // For other data, render as key-value list
-        $scalar_data = [];
+        // For other generic data, separate business vs. technical
+        $business_data = [];
+        $technical_data = [];
+        
+        // List of keys that should appear in the main business section
+        $business_keys = ['order_id', 'status', 'total', 'currency', 'amount', 'customer', 
+                         'payment_method', 'gateway', 'payment_status'];
+        
+        // First pass: collect simple scalar data
         foreach ($data as $key => $value) {
             if (is_scalar($value) && $value !== '') {
                 $formattedKey = ucfirst(str_replace('_', ' ', $key));
-                $scalar_data[$formattedKey] = (string)$value;
+                
+                // Determine if this is business or technical data
+                if (in_array($key, $business_keys)) {
+                    // Business data goes in main section
+                    $business_data[$formattedKey] = (string)$value;
+                } else {
+                    // Technical data goes in debug section
+                    $technical_data[$key] = $value;
+                }
             }
+        }
+        
+        // Special handling for Order ID
+        if (isset($data['order_id'])) {
+            $business_data['Order ID'] = '#' . $data['order_id'];
         }
         
         $content = '';
-        if (!empty($scalar_data)) {
-            $content .= $toolkit->render_key_value_list($scalar_data, 'Details');
+        if (!empty($business_data)) {
+            $content .= $toolkit->render_key_value_list($business_data, 'Order Details');
         }
         
-        // Add complex data in expandable sections
+        // Add complex data to technical details
         foreach ($data as $key => $value) {
             if (is_array($value) && !empty($value)) {
-                $formattedKey = ucfirst(str_replace('_', ' ', $key));
-                $json = json_encode($value, JSON_PRETTY_PRINT);
-                $code_block = $toolkit->render_code_block($json, 'json');
-                $content .= $toolkit->render_expandable_section($formattedKey, $code_block);
+                $technical_data[$key] = $value;
             }
+        }
+        
+        // Add all technical data to the debug section
+        if (!empty($technical_data)) {
+            $data['technical_details'] = $technical_data;
         }
         
         return $content;
@@ -450,6 +593,84 @@ class OrderRenderer extends BaseRenderer
         ];
 
         return in_array($event_type, $subscription_events, true);
+    }
+    
+    /**
+     * Render Order Created
+     *
+     * Renders order creation details.
+     *
+     * @param array                    $data    The order creation data
+     * @param PayloadComponentUIToolkit $toolkit UI toolkit instance
+     * @return string HTML content
+     */
+    private function renderOrderCreated(array $data, PayloadComponentUIToolkit $toolkit): string
+    {
+        // Extract business-relevant information
+        $order_data = [
+            'Order ID' => isset($data['primary_object_id']) ? '#' . $data['primary_object_id'] : 
+                         (isset($data['order_id']) ? '#' . $data['order_id'] : ''),
+            'Amount' => isset($data['amount'], $data['currency']) 
+                       ? $this->formatCurrency($data['amount'], $data['currency']) 
+                       : '',
+            'Payment Gateway' => ucfirst($data['source_gateway'] ?? ''),
+            'Customer ID' => $data['customer_id'] ?? '',
+        ];
+
+        $content = $toolkit->render_key_value_list($order_data, 'Order Created');
+
+        // Move all technical details to debug section
+        $data['technical_details'] = [
+            'event_type' => $data['event_type'] ?? '',
+            'channel' => $data['channel'] ?? '',
+            'primary_object_type' => $data['primary_object_type'] ?? '',
+            'idempotency_key' => $data['idempotency_key'] ?? '',
+            'processing_result' => $data['processing_result'] ?? '',
+            'execution_time_ms' => $data['execution_time_ms'] ?? '',
+            'has_order' => $data['has_order'] ?? '',
+            'has_subscription' => $data['has_subscription'] ?? '',
+        ];
+
+        return $content;
+    }
+    
+    /**
+     * Render Order Check Scheduled
+     *
+     * Renders order check scheduled details.
+     *
+     * @param array                    $data    The order check data
+     * @param PayloadComponentUIToolkit $toolkit UI toolkit instance
+     * @return string HTML content
+     */
+    private function renderOrderCheckScheduled(array $data, PayloadComponentUIToolkit $toolkit): string
+    {
+        // Extract business-relevant information
+        $order_data = [
+            'Order ID' => isset($data['primary_object_id']) ? '#' . $data['primary_object_id'] : 
+                         (isset($data['order_id']) ? '#' . $data['order_id'] : ''),
+            'Amount' => isset($data['amount'], $data['currency']) 
+                       ? $this->formatCurrency($data['amount'], $data['currency']) 
+                       : '',
+            'Payment Gateway' => ucfirst($data['source_gateway'] ?? ''),
+        ];
+
+        $content = $toolkit->render_key_value_list($order_data, 'Order Check Scheduled');
+
+        // Move all technical details to debug section
+        $data['technical_details'] = [
+            'event_type' => $data['event_type'] ?? '',
+            'channel' => $data['channel'] ?? '',
+            'primary_object_type' => $data['primary_object_type'] ?? '',
+            'idempotency_key' => $data['idempotency_key'] ?? '',
+            'processing_result' => $data['processing_result'] ?? '',
+            'execution_time_ms' => $data['execution_time_ms'] ?? '',
+            'has_order' => $data['has_order'] ?? '',
+            'has_subscription' => $data['has_subscription'] ?? '',
+            'customer_id' => $data['customer_id'] ?? '',
+        ];
+
+        return $content;
     }
 
     /**

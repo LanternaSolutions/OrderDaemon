@@ -629,20 +629,26 @@ class Core
         // Get matching rules for this status change
         $matching_rules = $this->get_matching_rules_for_status_change($from_slug, $to_slug);
 
-        // TEMPORARY DEBUG: Always log rule matching results
-        error_log("ODCM_DEBUG_TRACE: Order #{$order_id} ({$from_slug} → {$to_slug}) - Found " . count($matching_rules) . " matching rules");
+        // Log rule matching results when debug mode is enabled
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} ({$from_slug} → {$to_slug}) - Found " . count($matching_rules) . " matching rules");
+        }
         
         if (empty($matching_rules)) {
-            // TEMPORARY: Always log this, not just in debug mode
-            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - NO RULES MATCHED, exiting early");
+            // Log when no rules match (only in debug mode)
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - NO RULES MATCHED, exiting early");
+            }
             $this->log_no_rules_matched($order_id, $from_slug, $to_slug);
             return; // Exit early - no rule processing needed
         }
 
-        // TEMPORARY DEBUG: Log that we found matching rules
-        error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - RULES MATCHED, proceeding to universal event processing");
-        foreach ($matching_rules as $rule) {
-            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - Matching rule: {$rule['name']} (ID: {$rule['id']})");
+        // Log that we found matching rules (only in debug mode)
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - RULES MATCHED, proceeding to universal event processing");
+            foreach ($matching_rules as $rule) {
+                error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - Matching rule: {$rule['name']} (ID: {$rule['id']})");
+            }
         }
 
         // Rules match - ALWAYS log this (production + debug)
@@ -732,7 +738,7 @@ class Core
                     ]
                 ]);
             }
-            $pl->add_component('dedup', 'Dedup checks', [ 'specific_hook' => (bool) ($this->has_specific_status_processed($order_id, $to_slug, 30) ?? false) ], 'info');
+            $pl->add_component('dedup', 'Dedup checks', [ 'specific_hook' => (bool) ($this->has_specific_status_processed($order_id, $to_slug, 30) ?? false) ], 'debug');
         } catch (\Throwable $e) {
             // ignore
         }

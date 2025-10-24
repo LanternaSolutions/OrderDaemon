@@ -101,25 +101,35 @@ class SystemRenderer extends BaseRenderer
                 return ucfirst($event_type) . ': ' . ($data['message'] ?? 'System Event');
 
             case 'metrics':
-                return 'Metrics: ' . ($data['name'] ?? 'Performance Data');
+                return 'Performance: ' . ($data['name'] ?? 'System Metrics');
 
             case 'admin_action':
-                return 'Admin Action: ' . ($data['action'] ?? 'Performed');
+                $action = isset($data['action']) ? ucfirst(str_replace('_', ' ', $data['action'])) : 'Performed';
+                return 'Admin: ' . $action;
 
             case 'process_started':
-                return 'Process Started: ' . ($data['process_type'] ?? 'System Process');
+                return $this->getBusinessFriendlyProcessType($data['process_type'] ?? 'System Process') . ' Started';
 
             case 'process_event':
-                return 'Process Event: ' . ($data['event'] ?? 'System Event');
+                // Make process events more user-friendly
+                if (!empty($data['summary'])) {
+                    return $data['summary'];
+                }
+                if (!empty($data['event'])) {
+                    return ucfirst(str_replace('_', ' ', $data['event']));
+                }
+                return 'Process: ' . $this->getBusinessFriendlyProcessType($data['process_type'] ?? 'System Process');
 
             case 'lifecycle_event':
-                return 'Lifecycle: ' . ($data['stage'] ?? 'Event');
+                $stage = isset($data['stage']) ? ucfirst(str_replace('_', ' ', $data['stage'])) : 'Event';
+                return 'Lifecycle: ' . $stage;
 
             case 'custom_event':
                 return $data['label'] ?? 'Custom Event';
 
             case 'action_scheduled':
-                return 'Action Scheduled: ' . ($data['hook'] ?? 'System Action');
+                $hook = isset($data['hook']) ? ucwords(str_replace('_', ' ', $data['hook'])) : 'Action';
+                return 'Scheduled: ' . $hook;
 
             default:
                 return parent::getLabel($data, $event_type);
@@ -130,6 +140,7 @@ class SystemRenderer extends BaseRenderer
      * Get Status Pill
      *
      * Provides event-specific status pills based on event type and outcome.
+     * Prioritizes debug pills for debug events.
      *
      * @param array  $data       The payload data
      * @param string $event_type The type of event
@@ -137,6 +148,11 @@ class SystemRenderer extends BaseRenderer
      */
     protected function getStatusPill(array $data, string $event_type): ?array
     {
+        // First, check if this is a debug event - if so, return debug pill
+        if ($this->isDebugEvent($data)) {
+            return ['label' => 'DEBUG', 'type' => 'debug'];
+        }
+        
         switch ($event_type) {
             case 'info':
                 return ['label' => 'INFO', 'type' => 'info'];
@@ -212,33 +228,25 @@ class SystemRenderer extends BaseRenderer
         return $content;
     }
 
+   
     /**
-     * Render Metrics
+     * Render System Metrics
      *
-     * Renders performance metrics with proper formatting.
-     *
-     * @param array                    $data    The metrics data
-     * @param PayloadComponentUIToolkit $toolkit UI toolkit instance
-     * @return string HTML content
-     */
-    /**
-     * Render Metrics
-     *
-     * Renders performance metrics with proper formatting.
+     * Renders performance metrics with proper formatting. By default, system
+     * metrics are considered technical details, so add them to the debug_data.
      *
      * @param array                    $metrics  The metrics data to render
      * @param PayloadComponentUIToolkit $toolkit  UI toolkit instance
-     * @param string                   $title    Optional section title, defaults to 'Performance Metrics'
      * @return string HTML content
      */
-    protected function renderMetrics(array $metrics, PayloadComponentUIToolkit $toolkit, string $title = 'Performance Metrics'): string
+    private function renderMetrics(array $metrics, PayloadComponentUIToolkit $toolkit): string
     {
         $metric_data = [
             'Metric' => $metrics['name'] ?? 'Unnamed Metric',
             'Value' => $this->formatMetricValue($metrics['value'] ?? 0, $metrics['unit'] ?? ''),
         ];
 
-        // Add any additional context
+        // Add any additional business-relevant context
         if (!empty($metrics['context']) && is_array($metrics['context'])) {
             foreach ($metrics['context'] as $key => $value) {
                 if (is_scalar($value)) {
@@ -246,8 +254,17 @@ class SystemRenderer extends BaseRenderer
                 }
             }
         }
-
-        return $toolkit->render_key_value_list($metric_data, $title);
+        
+        // Add technical details to the debug_data array
+        $metrics['technical_details'] = [
+            'raw_value' => $metrics['value'] ?? 0,
+            'unit' => $metrics['unit'] ?? '',
+            'collection_method' => $metrics['collection_method'] ?? 'direct',
+            'timestamp_ms' => $metrics['timestamp_ms'] ?? time() * 1000,
+        ];
+        
+        // Render the basic metrics information
+        return $toolkit->render_key_value_list($metric_data, 'System Metrics');
     }
 
     /**
@@ -285,22 +302,57 @@ class SystemRenderer extends BaseRenderer
      */
     private function renderProcess(array $data, PayloadComponentUIToolkit $toolkit): string
     {
+        // Business-relevant process information
         $process_data = [
-            'Process Type' => $data['process_type'] ?? '',
+            'Process Type' => $this->getBusinessFriendlyProcessType($data['process_type'] ?? ''),
             'Status' => $data['status'] ?? '',
-            'Event' => $data['event'] ?? '',
+            'Summary' => $data['summary'] ?? $data['event'] ?? '',
         ];
+        
+        // Add order ID if available (business-relevant)
+        if (!empty($data['order_id'])) {
+            $process_data['Order'] = '#' . $data['order_id'];
+        }
 
-        $content = $toolkit->render_key_value_list($process_data, 'Process Details');
+        $content = $toolkit->render_key_value_list($process_data, 'Process Information');
 
-        // Add process data in expandable section if available
+        // Move technical details to debug section
+        $data['technical_details'] = [
+            'raw_process_type' => $data['process_type'] ?? '',
+            'component_count' => $data['component_count'] ?? '',
+            'correlation_id' => $data['correlation_id'] ?? '',
+            'source' => $data['source'] ?? '',
+        ];
+        
+        // Add process data to the debug section if available
         if (!empty($data['process_data'])) {
-            $process_json = json_encode($data['process_data'], JSON_PRETTY_PRINT);
-            $code_block = $toolkit->render_code_block($process_json, 'json');
-            $content .= $toolkit->render_expandable_section('Process Data', $code_block);
+            $data['technical_details']['process_data'] = $data['process_data'];
         }
 
         return $content;
+    }
+    
+    /**
+     * Get business-friendly process type name
+     * 
+     * Converts technical process type names to user-friendly terms
+     *
+     * @param string $process_type Technical process type
+     * @return string Business-friendly process name
+     */
+    private function getBusinessFriendlyProcessType(string $process_type): string
+    {
+        $mapping = [
+            'rule_execution' => 'Rule Processing',
+            'order_processing' => 'Order Processing',
+            'payment_processing' => 'Payment Processing',
+            'checkout_completion' => 'Checkout Completion',
+            'status_change_processing' => 'Status Change',
+            'webhook_processing' => 'Webhook Processing',
+            'admin_action' => 'Admin Action',
+        ];
+        
+        return $mapping[$process_type] ?? $process_type;
     }
 
     /**

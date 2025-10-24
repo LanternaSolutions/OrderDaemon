@@ -355,7 +355,8 @@ final class Evaluator
             'actual_value'     => $this->formatValueForLogging($actual),
             'result'           => $passed ? 'pass' : 'fail',
         ];
-        $this->process_logger->add_component($event_type, $label, $data, 'info');
+        // Technical evaluation details should be debug level
+        $this->process_logger->add_component($event_type, $label, $data, 'debug');
     }
 
     /**
@@ -573,6 +574,7 @@ final class Evaluator
             'context_type' => 'universal_event',
         ];
 
-        $this->process_logger->add_component($event_type, $label, $data, 'info');
+        // Technical evaluation details should be debug level
+        $this->process_logger->add_component($event_type, $label, $data, 'debug');
     }
 }
