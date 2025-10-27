@@ -66,6 +66,7 @@ function odcm_get_renderer_for_event_type(string $event_type): string
         'status_changed' => OrderRenderer::class,
         'order_loaded' => OrderRenderer::class,
         'block_checkout_processed' => OrderRenderer::class,
+        'checkout_processed' => OrderRenderer::class,  // UniversalEvent checkout events
         'meta_updated' => OrderRenderer::class,
         'woocommerce_data' => OrderRenderer::class,
         'no_rules_matched' => OrderRenderer::class,
@@ -149,6 +150,7 @@ function odcm_get_component_theme(string $event_type): string
         'status_changed' => 'woocommerce',
         'order_loaded' => 'woocommerce',
         'block_checkout_processed' => 'woocommerce',
+        'checkout_processed' => 'woocommerce',  // UniversalEvent checkout events
         'meta_updated' => 'woocommerce',
         'woocommerce_data' => 'woocommerce',
         'no_rules_matched' => 'woocommerce',
@@ -228,6 +230,7 @@ function odcm_get_status_pill_config(string $event_type): ?array
         'status_changed' => null, // Dynamic based on status
         'order_loaded' => ['label' => 'LOADED', 'type' => 'info'],
         'block_checkout_processed' => ['label' => 'CHECKOUT', 'type' => 'woocommerce'],
+        'checkout_processed' => ['label' => 'CHECKOUT', 'type' => 'woocommerce'],  // UniversalEvent checkout events
         'meta_updated' => ['label' => 'UPDATED', 'type' => 'info'],
         'woocommerce_data' => ['label' => 'WOOCOMMERCE', 'type' => 'woocommerce'],
         
@@ -302,6 +305,7 @@ function odcm_get_component_label(string $event_type): string
         'status_changed' => 'Status Changed',
         'order_loaded' => 'Order Loaded',
         'block_checkout_processed' => 'Checkout Processed (Block)',
+        'checkout_processed' => 'Checkout Completed',  // UniversalEvent checkout events
         'meta_updated' => 'Meta Updated',
         'woocommerce_data' => 'WooCommerce Data',
         

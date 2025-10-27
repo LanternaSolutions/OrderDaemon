@@ -39,12 +39,12 @@ class BaseRenderer
      * This method handles both regular rendering and timeline rendering, using the
      * same code path for maintainability and consistency.
      *
-     * @param array  $data       The payload data to render
-     * @param string $event_type The type of event being rendered
-     * @param array  $timeline   Optional timeline data (label, ts, level)
-     * @return string Complete HTML component
+     * @param array  $payload    The full event payload including rawData and other context.
+     * @param string $event_type The type of event being rendered.
+     * @param array  $timeline   Optional timeline data (label, ts, level).
+     * @return string Complete HTML component.
      */
-    public function render(array $data, string $event_type, array $timeline = []): string
+    public function render(array $payload, string $event_type, array $timeline = []): string
     {
         $toolkit = new PayloadComponentUIToolkit();
         
@@ -56,13 +56,13 @@ class BaseRenderer
         ));
         
         // Get renderer-specific content
-        $content = $this->renderContent($data, $event_type);
+        $content = $this->renderContent($payload, $event_type);
         
         // Get component metadata - use provided label but allow override
         $label = $timeline['label'] ?? null;
-        $label = $this->getLabel($data, $event_type) ?: $label;
+        $label = $this->getLabel($payload, $event_type) ?: $label;
         
-        $statusPill = $this->getStatusPill($data, $event_type);
+        $statusPill = $this->getStatusPill($payload, $event_type);
         
         // Theme resolution logging and fallback
         error_log(sprintf(
@@ -108,6 +108,9 @@ class BaseRenderer
             $options['status_pill'] = $statusPill;
         }
         
+        // Add event_type for debugging display in header
+        $options['event_type'] = $event_type;
+        
         // Debug log the final HTML classes that will be used
         $finalClasses = sprintf('odcm-component odcm-component--%s', esc_attr($this->theme));
         error_log(sprintf(
@@ -152,40 +155,40 @@ class BaseRenderer
      * @param string $event_type The type of event being rendered
      * @return string HTML content
      */
-    final public function renderContent(array $data, string $event_type): string
+    final public function renderContent(array $payload, string $event_type): string
     {
         $toolkit = new PayloadComponentUIToolkit();
         $content = '';
         
         // 1. Call to specialized content rendering - implemented by child classes
-        $content .= $this->renderSpecificContent($data, $event_type, $toolkit);
+        $content .= $this->renderSpecificContent($payload, $event_type, $toolkit);
         
         // 2. Collect all debug-like data for a unified debug section
         $debug_data = [];
         
         // Add metrics to debug data if they exist
-        if (!empty($data['metrics'])) {
-            $debug_data = array_merge($debug_data, $data['metrics']);
+        if (!empty($payload['metrics'])) {
+            $debug_data = array_merge($debug_data, $payload['metrics']);
         }
         
         // Add correlation ID to debug data if it exists
-        if (!empty($data['correlation_id'])) {
-            $debug_data['correlation_id'] = $data['correlation_id'];
+        if (!empty($payload['correlation_id'])) {
+            $debug_data['correlation_id'] = $payload['correlation_id'];
         }
         
         // Add component counts to debug data if they exist
-        if (!empty($data['component_count'])) {
-            $debug_data['component_count'] = $data['component_count'];
+        if (!empty($payload['component_count'])) {
+            $debug_data['component_count'] = $payload['component_count'];
         }
         
         // Add processing time to debug data if it exists
-        if (!empty($data['processing_time'])) {
-            $debug_data['processing_time'] = $data['processing_time'];
+        if (!empty($payload['processing_time'])) {
+            $debug_data['processing_time'] = $payload['processing_time'];
         }
         
         // Add technical details to debug data if they exist
-        if (!empty($data['technical_details'])) {
-            foreach ($data['technical_details'] as $key => $value) {
+        if (!empty($payload['technical_details'])) {
+            foreach ($payload['technical_details'] as $key => $value) {
                 $debug_data[$key] = $value;
             }
         }
@@ -209,7 +212,7 @@ class BaseRenderer
      * @param PayloadComponentUIToolkit $toolkit    UI toolkit instance
      * @return string HTML content
      */
-    protected function renderSpecificContent(array $data, string $event_type, PayloadComponentUIToolkit $toolkit): string
+    protected function renderSpecificContent(array $payload, string $event_type, PayloadComponentUIToolkit $toolkit): string
     {
         // Default implementation for base renderer
         return $toolkit->render_text_block(
@@ -223,11 +226,11 @@ class BaseRenderer
      * Gets the component label/title. Can be overridden by specialized renderers
      * to provide event-specific labels.
      *
-     * @param array  $data       The payload data
+     * @param array  $payload    The payload data
      * @param string $event_type The type of event
      * @return string Component label
      */
-    protected function getLabel(array $data, string $event_type): string
+    protected function getLabel(array $payload, string $event_type): string
     {
         // Map technical event types to business-friendly terms
         $event_type_mapping = [
@@ -246,8 +249,8 @@ class BaseRenderer
         }
         
         // Use rule name directly if available for rule events
-        if ($event_type === 'rule_execution' && !empty($data['rule_name'])) {
-            return 'Rule: ' . $data['rule_name'];
+        if ($event_type === 'rule_execution' && !empty($payload['rule_name'])) {
+            return 'Rule: ' . $payload['rule_name'];
         }
         
         // Fall back to generic formatting
@@ -261,39 +264,39 @@ class BaseRenderer
      * Debug events are identified by specific flags in their data
      * or by their classification in the event registry.
      *
-     * @param array $data The payload data to check
+     * @param array $payload The payload data to check
      * @return bool True if this is a debug event
      */
-    protected function isDebugEvent(array $data): bool
+    protected function isDebugEvent(array $payload): bool
     {
         // Check for explicit debug flag
-        if (isset($data['is_debug']) && $data['is_debug'] === true) {
+        if (isset($payload['is_debug']) && $payload['is_debug'] === true) {
             return true;
         }
 
         // Check for debug level
-        if (isset($data['level']) && strtolower($data['level']) === 'debug') {
+        if (isset($payload['level']) && strtolower($payload['level']) === 'debug') {
             return true;
         }
 
         // Check for debug context
-        if (isset($data['context']['debug']) && $data['context']['debug'] === true) {
+        if (isset($payload['context']['debug']) && $payload['context']['debug'] === true) {
             return true;
         }
 
         // Check for debug source
-        if (isset($data['source']) && strpos(strtolower($data['source']), 'debug_') === 0) {
+        if (isset($payload['source']) && strpos(strtolower($payload['source']), 'debug_') === 0) {
             return true;
         }
 
         // Check for debug event type
-        if (isset($data['event_type']) && strpos(strtolower($data['event_type']), 'debug_') === 0) {
+        if (isset($payload['event_type']) && strpos(strtolower($payload['event_type']), 'debug_') === 0) {
             return true;
         }
 
         // Check for debug components
-        if (isset($data['components']) && is_array($data['components'])) {
-            foreach ($data['components'] as $component) {
+        if (isset($payload['components']) && is_array($payload['components'])) {
+            foreach ($payload['components'] as $component) {
                 if (is_array($component) && isset($component['level']) && strtolower($component['level']) === 'debug') {
                     return true;
                 }
@@ -301,9 +304,9 @@ class BaseRenderer
         }
         
         // Check event registry for events categorized as debug
-        if (isset($data['event_type']) && function_exists('odcm_get_log_event_types')) {
+        if (isset($payload['event_type']) && function_exists('odcm_get_log_event_types')) {
             $event_types = odcm_get_log_event_types();
-            $event_type = $data['event_type'];
+            $event_type = $payload['event_type'];
             
             if (isset($event_types[$event_type]) && 
                 isset($event_types[$event_type]['category']) && 
@@ -321,26 +324,26 @@ class BaseRenderer
      * Gets status pill configuration. Debug events always get a DEBUG pill.
      * Otherwise, falls back to event-specific status pills.
      *
-     * @param array  $data       The payload data
+     * @param array  $payload    The payload data
      * @param string $event_type The type of event
      * @return array|null Status pill config with 'label' and 'type', or null for no pill
      */
-    protected function getStatusPill(array $data, string $event_type): ?array
+    protected function getStatusPill(array $payload, string $event_type): ?array
     {
         // Debug events always get a DEBUG pill
-        if ($this->isDebugEvent($data)) {
+        if ($this->isDebugEvent($payload)) {
             return ['label' => 'DEBUG', 'type' => 'debug'];
         }
 
         // Check for explicit status
-        if (isset($data['status'])) {
-            $status = strtolower($data['status']);
+        if (isset($payload['status'])) {
+            $status = strtolower($payload['status']);
             return ['label' => ucfirst($status), 'type' => $status];
         }
 
         // Check for level-based status
-        if (isset($data['level'])) {
-            $level = strtolower($data['level']);
+        if (isset($payload['level'])) {
+            $level = strtolower($payload['level']);
             return ['label' => ucfirst($level), 'type' => $level];
         }
 

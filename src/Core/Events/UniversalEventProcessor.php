@@ -269,24 +269,61 @@ class UniversalEventProcessor
             $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
             $message = !empty($summary) ? "Successfully processed: {$summary}" : sprintf('%s %s processed successfully', $gateway, $event->eventType);
     
+            // Extract original event data
+            $eventData = $event->toArray();
+            
+            // Restructure payload for database/rendering compatibility
+            // This ensures components are stored in a format that the timeline renderer recognizes
+            $payload_for_storage = [
+                'event_type' => $event->eventType,
+                'source_gateway' => $event->sourceGateway,
+                'channel' => $event->channel,
+                'primary_object_type' => $event->primaryObjectType,
+                'primary_object_id' => $event->primaryObjectID,
+                'transaction_id' => $event->transactionID,
+                'amount' => $event->amount,
+                'currency' => $event->currency,
+                'idempotency_key' => $event->idempotencyKey,
+                'processing_result' => true,
+                'execution_time_ms' => round($execution_time * 1000, 2),
+                'has_order' => $context->order !== null,
+                'has_subscription' => $context->subscription !== null,
+                'customer_id' => $context->getCustomerId(),
+                // Include components in ProcessLogger structure for proper timeline rendering
+                'components' => $eventData['components'] ?? [],
+                // Preserve raw data for passing full original context to the UI renderers
+                'rawData' => $event->rawData,
+            ];
+            
+            // Enrich the top-level payload with component data for checkout_processed events
+            // This ensures the renderer has the data it needs in both places - the component and the top level event
+            if ($event->eventType === 'checkout_processed' && !empty($eventData['components'])) {
+                // Find the checkout_processed component and extract its rich data
+                foreach ($eventData['components'] as $component) {
+                    if (isset($component['event_type']) && $component['event_type'] === 'checkout_processed' && !empty($component['data'])) {
+                        // Copy essential fields from component data to top-level payload
+                        $payload_for_storage['order_id'] = $component['data']['order_id'] ?? $event->primaryObjectID;
+                        $payload_for_storage['status'] = $component['data']['status'] ?? $event->status;
+                        $payload_for_storage['payment_method'] = $component['data']['payment_method'] ?? '';
+                        // Only copy total and currency if not already present at top level
+                        if (isset($component['data']['total']) && (!isset($payload_for_storage['total']) || $payload_for_storage['total'] === 0)) {
+                            $payload_for_storage['total'] = $component['data']['total'];
+                        }
+                        if (isset($component['data']['currency']) && empty($payload_for_storage['currency'])) {
+                            $payload_for_storage['currency'] = $component['data']['currency'];
+                        }
+                        // Copy any other useful fields that renderers might expect
+                        if (isset($component['data']['checkout_type'])) {
+                            $payload_for_storage['checkout_type'] = $component['data']['checkout_type'];
+                        }
+                        break;
+                    }
+                }
+            }
+    
             \odcm_log_event(
                 $message,
-                [
-                    'event_type' => $event->eventType,
-                    'source_gateway' => $event->sourceGateway,
-                    'channel' => $event->channel,
-                    'primary_object_type' => $event->primaryObjectType,
-                    'primary_object_id' => $event->primaryObjectID,
-                    'transaction_id' => $event->transactionID,
-                    'amount' => $event->amount,
-                    'currency' => $event->currency,
-                    'idempotency_key' => $event->idempotencyKey,
-                    'processing_result' => true,
-                    'execution_time_ms' => round($execution_time * 1000, 2),
-                    'has_order' => $context->order !== null,
-                    'has_subscription' => $context->subscription !== null,
-                    'customer_id' => $context->getCustomerId(),
-                ],
+                $payload_for_storage,
                 $context->getOrderId(),
                 $status,
                 'universal_event_processing',
@@ -299,24 +336,32 @@ class UniversalEventProcessor
             $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
             $message = !empty($summary) ? "No matching rules for: {$summary}" : sprintf('%s %s completed with no matching rules', $gateway, $event->eventType);
             
+            // Extract original event data
+            $eventData = $event->toArray();
+            
+            // Restructure payload for database/rendering compatibility
+            $payload_for_storage = [
+                'event_type' => $event->eventType,
+                'source_gateway' => $event->sourceGateway,
+                'channel' => $event->channel,
+                'primary_object_type' => $event->primaryObjectType,
+                'primary_object_id' => $event->primaryObjectID,
+                'transaction_id' => $event->transactionID,
+                'amount' => $event->amount,
+                'currency' => $event->currency,
+                'idempotency_key' => $event->idempotencyKey,
+                'processing_result' => false,
+                'execution_time_ms' => round($execution_time * 1000, 2),
+                'has_order' => $context->order !== null,
+                'has_subscription' => $context->subscription !== null,
+                'customer_id' => $context->getCustomerId(),
+                // Include components in ProcessLogger structure for proper timeline rendering
+                'components' => $eventData['components'] ?? [],
+            ];
+            
             \odcm_log_event(
                 $message,
-                [
-                    'event_type' => $event->eventType,
-                    'source_gateway' => $event->sourceGateway,
-                    'channel' => $event->channel,
-                    'primary_object_type' => $event->primaryObjectType,
-                    'primary_object_id' => $event->primaryObjectID,
-                    'transaction_id' => $event->transactionID,
-                    'amount' => $event->amount,
-                    'currency' => $event->currency,
-                    'idempotency_key' => $event->idempotencyKey,
-                    'processing_result' => false,
-                    'execution_time_ms' => round($execution_time * 1000, 2),
-                    'has_order' => $context->order !== null,
-                    'has_subscription' => $context->subscription !== null,
-                    'customer_id' => $context->getCustomerId(),
-                ],
+                $payload_for_storage,
                 $context->getOrderId(),
                 'debug', // Explicitly mark as debug level
                 'universal_event_processing_debug',

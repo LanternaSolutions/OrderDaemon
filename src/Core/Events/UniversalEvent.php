@@ -135,6 +135,13 @@ final class UniversalEvent
     public $rawData;
 
     /**
+     * UI components for timeline rendering.
+     *
+     * @var array
+     */
+    public $components;
+
+    /**
      * Valid event channels
      */
     private const VALID_CHANNELS = ['webhook', 'ipn', 'sdk', 'manual', 'system', 'scheduled'];
@@ -179,6 +186,9 @@ final class UniversalEvent
             
         // Sanitize raw data
         $this->rawData = $this->sanitizeRawData($data['rawData'] ?? []);
+        
+        // Set UI components
+        $this->components = isset($data['components']) && is_array($data['components']) ? $data['components'] : [];
     }
 
     /**
@@ -205,6 +215,7 @@ final class UniversalEvent
             'receivedAt' => $this->receivedAt,
             'idempotencyKey' => $this->idempotencyKey,
             'rawData' => $this->rawData,
+            'components' => $this->components,
         ];
     }
 

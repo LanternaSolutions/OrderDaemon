@@ -1038,20 +1038,32 @@ function odcm_log_event(
         $status = 'info';
     }
 
-    // Build payload components for timeline
-    $level = in_array($status, ['error','warning','info','debug','success'], true) ? $status : 'info';
-    if ($level === 'success') { 
-        $level = 'info'; 
-    }
+    // If rich 'components' array is already provided in the data, use it directly.
+    // Otherwise, create a default wrapper component for backward compatibility.
+    if (isset($data['components']) && is_array($data['components']) && !empty($data['components'])) {
+        $components = $data['components'];
+    } else {
+        $level = in_array($status, ['error','warning','info','debug','success'], true) ? $status : 'info';
+        if ($level === 'success') { 
+            $level = 'info'; 
+        }
         
-    $component = [
-        'k' => 'c' . time() . rand(10,99),
-        'event_type' => $event_type,
-        'ts' => time(),
-        'label' => $summary,
-        'level' => $level,
-        'data' => $data,
-    ];
+        $components = [[
+            'k' => 'c' . time() . rand(10,99),
+            'event_type' => $event_type,
+            'ts' => time(),
+            'label' => $summary,
+            'level' => $level,
+            'data' => $data,
+        ]];
+    }
+    
+    // If rawData is already provided in the data, use it directly.
+    // Otherwise, check if it's nested somewhere we can extract it from.
+    $rawData = null;
+    if (isset($data['rawData']) && is_array($data['rawData']) && !empty($data['rawData'])) {
+        $rawData = $data['rawData'];
+    }
     
     $envelope = [
         'type' => 'event',
@@ -1065,8 +1077,13 @@ function odcm_log_event(
         'ts' => time(),
         'status' => $status,
         'summary' => $summary,
-        'components' => [$component],
+        'components' => $components,
     ];
+    
+    // Add rawData to envelope if present
+    if ($rawData !== null) {
+        $envelope['rawData'] = $rawData;
+    }
     
     // Prepare full event data
     $event_data = [

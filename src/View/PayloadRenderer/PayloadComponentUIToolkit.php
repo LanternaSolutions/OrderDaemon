@@ -437,6 +437,11 @@ class PayloadComponentUIToolkit
         
         $output .= '<span class="odcm-component__ts">' . $timestamp_html . '</span>';
         
+        // Add event_type for debugging purposes
+        if (isset($options['event_type']) && !empty($options['event_type'])) {
+            $output .= '<span class="odcm-component__event-type" style="color: #666; font-size: 0.85em; margin-left: 8px;">(' . esc_html($options['event_type']) . ')</span>';
+        }
+        
         // Append optional timestamp metadata if provided
         $timestamp_field = $options['ts'] ?? null;
         if (!empty($timestamp_field)) {
@@ -798,5 +803,70 @@ class PayloadComponentUIToolkit
         ];
         
         return $icon_map[$theme] ?? 'dashicons-admin-generic';
+    }
+
+    /**
+     * Render Expandable Key-Value Section (Smart Renderer)
+     *
+     * Creates a nested, expandable key-value section that intelligently handles
+     * various data structures to create a clean, readable, and robust debug view.
+     *
+     * RENDERING LOGIC:
+     * ================
+     * - Top-level keys with scalar values are rendered as a standard key-value pair.
+     * - Top-level keys with array values are rendered as their own titled sub-section.
+     * - Deeper nested objects/arrays are rendered as pretty-printed JSON code blocks.
+     *
+     * @since 1.0.0
+     *
+     * @param string $title The main title for the expandable section.
+     * @param array  $data  The associative array of data to render.
+     * @return string The complete HTML for the expandable section.
+     */
+    public function render_expandable_key_value_section(string $title, array $data): string
+    {
+        $content_html = '';
+
+        foreach ($data as $key => $value) {
+            $section_title = ucwords(str_replace('_', ' ', (string)$key));
+
+            if (is_array($value)) {
+                // If the value is an array with only scalar values, render as a simple list.
+                if ($this->is_simple_key_value_array($value)) {
+                    $content_html .= $this->render_key_value_list($value, $section_title);
+                } else {
+                    // Otherwise, render as a pretty-printed JSON block inside its own section.
+                    $json_content = json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+                    $code_block = $this->render_code_block($json_content, 'json');
+                    $content_html .= $this->render_key_value_list([], $section_title); // Title only
+                    $content_html .= $code_block;
+                }
+            } elseif (is_scalar($value) || is_null($value)) {
+                // Render simple key-value pairs at the top-level
+                $content_html .= $this->render_key_value_list([$section_title => (string)$value]);
+            }
+        }
+
+        if (empty(trim($content_html))) {
+            return '';
+        }
+
+        return $this->render_expandable_section($title, $content_html);
+    }
+
+    /**
+     * Helper to check if an array is a simple key-value list (no nested arrays).
+     *
+     * @param array $arr The array to check.
+     * @return bool True if the array contains only scalar values.
+     */
+    private function is_simple_key_value_array(array $arr): bool
+    {
+        foreach ($arr as $value) {
+            if (is_array($value)) {
+                return false;
+            }
+        }
+        return true;
     }
 }

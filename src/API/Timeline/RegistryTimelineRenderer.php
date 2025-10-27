@@ -40,21 +40,23 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     /**
      * Render individual component using registry system
      */
-    private function renderComponent(array $component): string
+    private function renderComponent(array $payload): string
     {
-        $data = $component['data'] ?? [];
+        // The $payload is the full log entry. The renderer needs the component data,
+        // which is often nested inside the 'data' key.
+        $data = $payload['data'] ?? $payload;
         
         // If this is a universal event, extract the real event type from the data
         if (isset($data['event_type'])) {
             $event_type = $data['event_type'];
             $label = ucfirst(str_replace('_', ' ', $event_type));
         } else {
-            $event_type = $component['event_type'] ?? 'info';
-            $label = $component['label'] ?? ucfirst($event_type);
+            $event_type = $payload['event_type'] ?? 'info';
+            $label = $payload['label'] ?? ucfirst($event_type);
         }
         
-        $ts = $component['ts'] ?? null;
-        $level = $component['level'] ?? 'info';
+        $ts = $payload['ts'] ?? null;
+        $level = $payload['level'] ?? 'info';
         
         // Enhanced debug logging for component rendering
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -70,8 +72,8 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             }
         }
         
-        // Skip components with empty data
-        if (empty($data)) {
+        // Skip components with empty data, but pass the full payload if it's not empty.
+        if (empty($data) && empty($payload)) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 error_log("ODCM TIMELINE DEBUG: SKIPPING - Component has empty data");
             }
@@ -113,7 +115,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'ts' => $ts,
                 'level' => $level
             ];
-            return $renderer->render($data, $event_type, $timeline);
+            return $renderer->render($payload, $event_type, $timeline);
         }
         
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -143,7 +145,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                     'level' => $level
                 ];
 
-                $result = $renderer->render($data, $event_type, $timeline);
+                $result = $renderer->render($payload, $event_type, $timeline);
                 
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                     $result_length = strlen($result);
@@ -169,7 +171,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'ts' => $ts,
                 'level' => $level
             ];
-            return $renderer->render($data, $event_type, $timeline);
+            return $renderer->render($payload, $event_type, $timeline);
             
         } catch (\Throwable $e) {
             // Log error and use fallback
@@ -186,7 +188,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'ts' => $ts,
                 'level' => $level
             ];
-            return $renderer->render($data, $event_type, $timeline);
+            return $renderer->render($payload, $event_type, $timeline);
         }
     }
     

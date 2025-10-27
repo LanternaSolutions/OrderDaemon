@@ -2451,8 +2451,6 @@ label.odcm-retention-option {
 /* Order Events Theme */
 .odcm-component--order {
     --odcm-component-bg: var(--odcm-theme-purple-200);
-    --odcm-component-border-color: var(--odcm-theme-purple-200);
-    --odcm-component-header-border-color: var(--odcm-theme-purple-700);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-900);
     --odcm-component-value-bg: var(--odcm-theme-white);
@@ -2461,8 +2459,6 @@ label.odcm-retention-option {
 /* System Events Theme */
 .odcm-component--system {
     --odcm-component-bg: var(--odcm-theme-grey-200);
-    --odcm-component-border-color: var(--odcm-theme-grey-700);
-    --odcm-component-header-border-color: var(--odcm-theme-grey-700);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-900);
     --odcm-component-value-bg: var(--odcm-theme-white);
@@ -2471,8 +2467,6 @@ label.odcm-retention-option {
 /* Analysis Events Theme */
 .odcm-component--analysis {
     --odcm-component-bg: var(--odcm-theme-indigo-200);
-    --odcm-component-border-color: var(--odcm-theme-indigo-700);
-    --odcm-component-header-border-color: var(--odcm-theme-indigo-700);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-900);
     --odcm-component-value-bg: var(--odcm-theme-white);
@@ -2491,8 +2485,6 @@ label.odcm-retention-option {
 /* Default Theme (Fallback) */
 .odcm-component--default {
     --odcm-component-bg: var(--odcm-theme-grey-100);
-    --odcm-component-border-color: var(--odcm-theme-grey-400);
-    --odcm-component-header-border-color: var(--odcm-theme-grey-300);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-800);
     --odcm-component-value-bg: var(--odcm-theme-white);
@@ -2521,6 +2513,10 @@ label.odcm-retention-option {
 
 .odcm-component--fallback .odcm-component__header .dashicons {
     color: var(--odcm-theme-grey-600);
+}
+
+.odcm-expandable-section {
+    padding-top: var(--odcm-theme-spacing-md);
 }
 
 /* ==========================================================================

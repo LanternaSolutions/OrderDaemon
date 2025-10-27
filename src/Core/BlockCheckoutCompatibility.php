@@ -59,7 +59,6 @@ final class BlockCheckoutCompatibility
 
         $checkout_context = $this->capture_block_checkout_context($order);
         
-        // Generate UniversalEvent for block checkout
         try {
             $universal_event = $this->synthesize_block_checkout_event($order, $checkout_context);
             $this->process_universal_event_from_hook($universal_event);
@@ -69,7 +68,6 @@ final class BlockCheckoutCompatibility
         }
         
         $this->schedule_checkout_observation($order_id, $checkout_context);
-        $this->log_block_checkout_event($order, $checkout_context);
     }
 
     /**
@@ -295,6 +293,9 @@ final class BlockCheckoutCompatibility
     /**
      * Log Block Checkout event with narrative components to the audit trail.
      *
+     * Creates a user-friendly "Checkout Completed" entry that appears at the top
+     * of the order timeline, with properly structured component data for the renderer.
+     *
      * @param WC_Order $order Order object
      * @param array    $checkout_context Captured context
      * @return void
@@ -303,6 +304,21 @@ final class BlockCheckoutCompatibility
     {
         if (!function_exists('odcm_log_event')) {
             return;
+        }
+
+        // Get payment method and total for display
+        $payment_method = $order->get_payment_method_title();
+        $order_total = (float) $order->get_total();
+        $currency = $order->get_currency();
+        
+        // Format total similar to how Payment Completed shows it
+        $total_formatted = '';
+        if ($order_total > 0) {
+            // Use raw amount rather than HTML for better display
+            $total_formatted = number_format($order_total, 2);
+            if ($currency) {
+                $total_formatted = $currency . ' ' . $total_formatted;
+            }
         }
 
         $components = [
@@ -316,6 +332,8 @@ final class BlockCheckoutCompatibility
                     'checkout_type' => 'woocommerce_blocks',
                     'order_id'      => $order->get_id(),
                     'order_status'  => $order->get_status(),
+                    'payment_method' => $payment_method,
+                    'total'         => $total_formatted,
                 ],
             ],
             [
@@ -368,7 +386,10 @@ final class BlockCheckoutCompatibility
     }
 
     /**
-     * Synthesize block checkout event from WooCommerce order data
+     * Synthesize block checkout event from WooCommerce order data.
+     * 
+     * This creates an enhanced universal event with combined data to
+     * ensure the checkout completed event has all necessary information.
      *
      * @param \WC_Order $order WooCommerce order object
      * @param array $checkout_context Captured checkout context
@@ -376,18 +397,92 @@ final class BlockCheckoutCompatibility
      */
     private function synthesize_block_checkout_event(\WC_Order $order, array $checkout_context): UniversalEvent
     {
+        // Get all immediately available data
+        $payment_method = $order->get_payment_method_title();
+        $gateway = $this->normalize_gateway_name($order->get_payment_method());
+        $order_total = (float) $order->get_total();
+        $currency = $order->get_currency();
+        $order_id = $order->get_id();
+        $order_status = $order->get_status();
+        
+        // Create process ID for correlation of all events
+        $process_id = null;
+        try {
+            // Correct the class loading to ensure it works
+            if (!class_exists('OrderDaemon\\CompletionManager\\Core\\ProcessIdManager')) {
+                require_once dirname(__FILE__) . '/ProcessIdManager.php';
+            }
+            $process_id = ProcessIdManager::instance()->get_or_create_process_id($order_id);
+        } catch (\Throwable $e) {
+            // Fallback if process ID creation fails
+            $process_id = $order_id . ':' . time();
+        }
+        
+        $total = $order_total;
+        
+        // Create the components array - this is what drives the "Checkout Completed" UI display
+        $components = [
+            [
+                'k' => 'c' . time() . rand(10, 99),
+                'event_type' => 'checkout_processed',
+                'ts' => time(),
+                'label' => 'Checkout Completed',
+                'level' => 'info',
+                'data' => [
+                    // Simplify to essential fields with explicit type casting
+                    'order_id' => (int) $order_id,           // Force integer type
+                    'status' => (string) $order_status,      // Force string type
+                    'payment_method' => (string) $payment_method,
+                    'total' => (float) $total,               // Force float type for proper formatting
+                    'currency' => (string) $currency,        // Force string type
+                    'checkout_type' => 'woocommerce_blocks', // Standard value for checkout type
+                ]
+            ],
+            [
+                'k' => 'c' . time() . rand(10, 99),
+                'event_type' => 'order_loaded',
+                'ts' => time(),
+                'label' => 'Cart Analysis',
+                'level' => 'info',
+                'data' => $checkout_context['cart_analysis'] ?? []
+            ],
+            [
+                'k' => 'c' . time() . rand(10, 99),
+                'event_type' => 'stripe_event',
+                'ts' => time(),
+                'label' => 'Payment Context',
+                'level' => 'info',
+                'data' => $checkout_context['payment_context'] ?? []
+            ]
+        ];
+
+        // Only include technical data in rawData, not UI rendering information
+        $technical_data = [
+            'checkout_type' => 'block_checkout',
+            'source' => $this->determine_change_source(),
+            'process_id' => $process_id,
+        ];
+        
+        // Include original checkout context for technical reference
+        if (!empty($checkout_context)) {
+            $technical_data['checkout_context'] = $checkout_context;
+        }
+
         return new UniversalEvent([
-            'eventType' => 'checkout_processed', // Changed to match traditional checkout event type
-            'sourceGateway' => $this->normalize_gateway_name($order->get_payment_method()),
+            'eventType' => 'checkout_processed',
+            'sourceGateway' => $gateway,
             'channel' => 'system',
             'primaryObjectType' => 'order',
-            'primaryObjectID' => $order->get_id(),
+            'primaryObjectID' => $order_id,
             'transactionID' => $order->get_transaction_id(),
-            'status' => $order->get_status(),
-            'amount' => (float) $order->get_total(),
-            'currency' => $order->get_currency(),
+            'status' => $order_status,
+            'amount' => $order_total,
+            'currency' => $currency,
             'occurredAt' => current_time('c'),
-            'rawData' => $checkout_context // Use the entire context as rawData for consistency
+            'receivedAt' => current_time('c'),
+            'idempotencyKey' => 'checkout_processed_' . $order_id . '_' . time(),
+            'components' => $components, // Components at top level for UI rendering
+            'rawData' => $technical_data // Only technical data, not duplicated UI info
         ]);
     }
 
@@ -455,6 +550,10 @@ final class BlockCheckoutCompatibility
 
     /**
      * Process universal event from hook through the universal event pipeline
+     * 
+     * This method is responsible for the business logic processing of checkout events,
+     * sending them to the rule evaluation system. Note that this does NOT handle
+     * the UI/timeline rendering - that's done by log_block_checkout_event().
      *
      * @param UniversalEvent $event Universal event to process
      * @return void

@@ -160,27 +160,27 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
     {
         $components = $rawPayload['components'];
         $extractedComponents = [];
-        
+
         foreach ($components as $component) {
             if (!is_array($component)) {
                 continue;
             }
-            
+
             // Apply debug filtering
             if (!$includeDebug && $this->isDebugComponent($component)) {
                 continue;
             }
-            
+
             // Validate component structure
             if (!$this->isValidComponent($component)) {
                 continue;
             }
-            
-            // Normalize component structure
-            $normalizedComponent = $this->normalizeComponent($component);
+
+            // Normalize component structure, passing the full raw payload to allow merging of top-level data
+            $normalizedComponent = $this->normalizeComponent($component, $rawPayload);
             $extractedComponents[] = $normalizedComponent;
         }
-        
+
         return $extractedComponents;
     }
     
@@ -207,24 +207,34 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
     }
     
     /**
-     * Normalize component structure to ensure consistency
+     * Normalize component structure to ensure consistency and inject top-level data.
+     * This ensures a "wide pipeline".
      */
-    private function normalizeComponent(array $component): array
+    private function normalizeComponent(array $component, array $rawPayload): array
     {
         $ts = $component['ts'] ?? current_time('mysql');
-        
+
         // Normalize timestamp to MySQL format if it's a Unix timestamp
         if (is_numeric($ts)) {
             $ts = date('Y-m-d H:i:s', (int)$ts);
         }
-        
-        return [
+
+        // PREPARE THE BASE COMPONENT - THIS IS WHAT THE UI RENDERER SEES AS THE "PAYLOAD"
+        $normalizedComponent = [
             'event_type' => $component['event_type'],
-            'label' => $component['label'] ?? ucfirst($component['event_type']),
-            'ts' => $ts,
-            'level' => $component['level'] ?? 'info',
-            'data' => $component['data'],
+            'label'      => $component['label'] ?? ucfirst($component['event_type']),
+            'ts'         => $ts,
+            'level'      => $component['level'] ?? 'info',
+            'data'       => $component['data'],
         ];
+
+        // Wide pipelin: Inject the top-level rawData into the component itself.
+        // This ensures that the final renderer has access to the full context.
+        if (isset($rawPayload['rawData'])) {
+            $normalizedComponent['rawData'] = $rawPayload['rawData'];
+        }
+
+        return $normalizedComponent;
     }
     
 }
