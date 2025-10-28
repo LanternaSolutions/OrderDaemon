@@ -118,21 +118,25 @@ class OrderRenderer extends BaseRenderer
      *
      * Provides event-specific labels based on event type and data.
      *
-     * @param array  $data       The payload data
+     * @param array  $payload    The full payload data (including nested component data)
      * @param string $event_type The type of event
      * @return string Component label
      */
-    protected function getLabel(array $data, string $event_type): string
+    protected function getLabel(array $payload, string $event_type): string
     {
         switch ($event_type) {
             case 'status_changed':
-                $from = ucfirst($data['from'] ?? 'unknown');
-                $to = ucfirst($data['to'] ?? 'unknown');
-                return "Status Changed to {$to}";
+                // Extract nested data the same way renderStatusChange() does
+                $component_data = $payload['data'] ?? $payload;
+                $from = ucfirst($component_data['from'] ?? 'unknown');
+                $to = ucfirst($component_data['to'] ?? 'unknown');
+                $to_display = $this->formatStatusForDisplay($to);
+                return "Status Changed to {$to_display}";
 
             case 'order_loaded':
-                return isset($data['order_id']) 
-                    ? "Order #{$data['order_id']}"
+                $component_data = $payload['data'] ?? $payload;
+                return isset($component_data['order_id']) 
+                    ? "Order #{$component_data['order_id']}"
                     : 'Order Loaded';
 
             case 'checkout_processed': // Added to handle all checkout types
@@ -140,21 +144,23 @@ class OrderRenderer extends BaseRenderer
                 return 'Checkout Completed';
 
             case 'meta_updated':
-                if (isset($data['meta_key'])) {
+                $component_data = $payload['data'] ?? $payload;
+                if (isset($component_data['meta_key'])) {
                     // Make meta keys more user-friendly
-                    $meta_label = str_replace('_', ' ', $data['meta_key']);
+                    $meta_label = str_replace('_', ' ', $component_data['meta_key']);
                     return ucwords($meta_label) . " Updated";
                 }
                 return 'Order Updated';
 
             case 'woocommerce_data':
-                if (isset($data['type']) && $data['type'] === 'order') {
+                $component_data = $payload['data'] ?? $payload;
+                if (isset($component_data['type']) && $component_data['type'] === 'order') {
                     return 'Order Information';
                 }
                 return 'Order Details';
 
             default:
-                return parent::getLabel($data, $event_type);
+                return parent::getLabel($payload, $event_type);
         }
     }
 
@@ -177,8 +183,8 @@ class OrderRenderer extends BaseRenderer
         
         switch ($event_type) {
             case 'status_changed':
-                $status = $data['to'] ?? '';
-                return ['label' => strtoupper($status), 'type' => $this->getStatusType($status)];
+                // Pills are unnecessary for status change events in timeline
+                return null;
 
             case 'order_loaded':
                 return ['label' => 'LOADED', 'type' => 'info'];
@@ -209,7 +215,7 @@ class OrderRenderer extends BaseRenderer
     /**
      * Render Status Change
      *
-     * Renders order status change details.
+     * Renders order status change details with manual change attribution.
      *
      * @param array                    $data    The status change data
      * @param PayloadComponentUIToolkit $toolkit UI toolkit instance
@@ -217,51 +223,60 @@ class OrderRenderer extends BaseRenderer
      */
     private function renderStatusChange(array $data, PayloadComponentUIToolkit $toolkit): string
     {
-        // Fix "Unknown" previous status
-        $from_status = $data['from'] ?? '';
-        if (empty($from_status) || strtolower($from_status) === 'unknown') {
-            // Try to infer from order context if available
-            if (isset($data['order_id']) && function_exists('wc_get_order')) {
-                $order = wc_get_order($data['order_id']);
-                if ($order) {
-                    // Check order notes for previous status
-                    $from_status = $this->getPreviousStatusFromOrder($order) ?? 'pending';
-                } else {
-                    $from_status = 'pending'; // Default for new orders
-                }
-            } else {
-                $from_status = 'pending'; // Reasonable default for WooCommerce
-            }
-        }
+        $from_status = $data['from'] ?? 'pending';
+        $to_status = $data['to'] ?? '';
+        
+        // Convert "checkout-draft" to more readable format
+        $from_display = $this->formatStatusForDisplay($from_status);
+        $to_display = $this->formatStatusForDisplay($to_status);
 
         $status_data = [
-            'New Status' => ucfirst($data['to'] ?? ''),
-            'Prev Status' => ucfirst($from_status),
-            'Order ID' => isset($data['order_id']) ? '#' . $data['order_id'] : '',
+            'From' => $from_display,
+            'To' => $to_display,
+            'Order' => isset($data['order_id']) ? '#' . $data['order_id'] : '',
         ];
 
-        // Add user info for manual changes
-        if (!empty($data['user_id']) && !empty($data['manual'])) {
-            $status_data['Changed By'] = $this->getUserName($data['user_id']);
-            $status_data['Manual Change'] = 'Yes';
+        // Extract manual change attribution from components data
+        $is_manual = $data['manual_change'] ?? false;
+        $changed_by = $data['changed_by_user_name'] ?? '';
+        $bypassed_automation = $data['bypassed_automation'] ?? false;
+
+        // Add manual change context to main timeline display
+        if ($is_manual && !empty($changed_by)) {
+            $status_data['Changed By'] = $changed_by;
+            $status_data['Type'] = 'Manual';
+        } else {
+            $status_data['Type'] = 'Automatic';
         }
 
         $content = $toolkit->render_key_value_list($status_data, 'Status Change');
 
-        // Add technical details to debug section
-        $data['technical_details'] = [
-            'correlation_id' => $data['correlation_id'] ?? '',
-            'timestamp' => $data['timestamp'] ?? '',
-            'manual' => $data['manual'] ?? false,
-            'status_code' => $data['status_code'] ?? '',
-        ];
-        
-        // Add status change details in debug section if available
-        if (!empty($data['details'])) {
-            $data['technical_details']['details'] = $data['details'];
+        // Show automation bypass warning if present
+        if ($bypassed_automation && isset($data['automation_bypass_warning'])) {
+            $warning = $data['automation_bypass_warning'];
+            $content .= $toolkit->render_warning_message($warning);
         }
 
         return $content;
+    }
+    
+    /**
+     * Format status for display
+     */
+    private function formatStatusForDisplay(string $status): string
+    {
+        $status_map = [
+            'checkout-draft' => 'Checkout Draft',
+            'pending' => 'Pending',
+            'processing' => 'Processing', 
+            'completed' => 'Completed',
+            'on-hold' => 'On Hold',
+            'cancelled' => 'Cancelled',
+            'refunded' => 'Refunded',
+            'failed' => 'Failed',
+        ];
+        
+        return $status_map[$status] ?? ucfirst($status);
     }
     
     /**

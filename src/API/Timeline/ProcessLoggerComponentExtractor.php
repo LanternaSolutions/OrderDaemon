@@ -212,23 +212,30 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
      */
     private function normalizeComponent(array $component, array $rawPayload): array
     {
-        $ts = $component['ts'] ?? current_time('mysql');
+        $ts = $component['ts'] ?? microtime(true);
 
-        // Normalize timestamp to MySQL format if it's a Unix timestamp
-        if (is_numeric($ts)) {
-            $ts = date('Y-m-d H:i:s', (int)$ts);
+        // Handle microsecond timestamps for precise chronological ordering
+        if (is_float($ts) || (is_numeric($ts) && strpos((string)$ts, '.') !== false)) {
+            // Keep as float for microsecond precision in sorting
+            $normalized_ts = (float)$ts;
+        } elseif (is_numeric($ts)) {
+            // Convert Unix timestamp to float
+            $normalized_ts = (float)$ts;
+        } else {
+            // Handle ISO datetime strings - convert to float timestamp
+            $timestamp = strtotime($ts);
+            $normalized_ts = $timestamp !== false ? (float)$timestamp : microtime(true);
         }
 
-        // PREPARE THE BASE COMPONENT - THIS IS WHAT THE UI RENDERER SEES AS THE "PAYLOAD"
         $normalizedComponent = [
             'event_type' => $component['event_type'],
             'label'      => $component['label'] ?? ucfirst($component['event_type']),
-            'ts'         => $ts,
+            'ts'         => $normalized_ts,  // Use float for precise sorting
             'level'      => $component['level'] ?? 'info',
             'data'       => $component['data'],
         ];
 
-        // Wide pipelin: Inject the top-level rawData into the component itself.
+        // Wide pipeline: Inject the top-level rawData into the component itself.
         // This ensures that the final renderer has access to the full context.
         if (isset($rawPayload['rawData'])) {
             $normalizedComponent['rawData'] = $rawPayload['rawData'];

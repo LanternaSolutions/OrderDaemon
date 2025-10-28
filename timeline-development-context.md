@@ -11,6 +11,9 @@ This document provides essential context for implementing the timeline optimizat
 # Main WordPress container
 Container: order-daemon-devtools-wordpress-1
 
+# Cron / WP-CLI container:
+Container: order-daemon-devtools-cron-1
+
 # Execute PHP scripts in container
 docker exec -i order-daemon-devtools-wordpress-1 php /var/www/html/wp-content/plugins/order-daemon-core/[script].php
 

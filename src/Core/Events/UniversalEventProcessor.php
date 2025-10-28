@@ -72,17 +72,49 @@ class UniversalEventProcessor
     {
         $start_time = microtime(true);
         
+        // DEBUG: Log the incoming event data for process_id assignment troubleshooting
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_PROCESS_ID_DEBUG: UniversalEventProcessor received event data:");
+            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectType: " . ($event_data['primaryObjectType'] ?? 'MISSING'));
+            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectID: " . ($event_data['primaryObjectID'] ?? 'MISSING') . " (type: " . gettype($event_data['primaryObjectID'] ?? null) . ")");
+            error_log("ODCM_PROCESS_ID_DEBUG: - eventType: " . ($event_data['eventType'] ?? 'MISSING'));
+            error_log("ODCM_PROCESS_ID_DEBUG: - idempotencyKey: " . ($event_data['idempotencyKey'] ?? 'MISSING'));
+        }
+        
         // Use shared process_id for order lifecycle events, random for others
         $order_id = isset($event_data['primaryObjectID']) && $event_data['primaryObjectType'] === 'order' 
             ? (int) $event_data['primaryObjectID'] 
             : 0;
+        
+        // DEBUG: Log the process_id assignment logic
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_PROCESS_ID_DEBUG: Process ID assignment logic:");
+            error_log("ODCM_PROCESS_ID_DEBUG: - Extracted order_id: $order_id");
+            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectType check: " . ($event_data['primaryObjectType'] === 'order' ? 'PASS' : 'FAIL'));
+            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectID isset: " . (isset($event_data['primaryObjectID']) ? 'YES' : 'NO'));
+            if (isset($event_data['primaryObjectID'])) {
+                error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectID value: " . $event_data['primaryObjectID']);
+                error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectID > 0: " . ($event_data['primaryObjectID'] > 0 ? 'YES' : 'NO'));
+            }
+        }
             
         if ($order_id > 0) {
             // Use shared process_id for proper order consolidation
             $process_id = ProcessIdManager::instance()->get_or_create_process_id($order_id);
+            
+            // DEBUG: Log successful shared process_id assignment
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_PROCESS_ID_DEBUG: Using SHARED process_id for order #{$order_id}: $process_id");
+            }
         } else {
             // Use unique process_id for non-order events
             $process_id = 'odcm_universal_' . uniqid();
+            
+            // DEBUG: Log unique process_id assignment (this is the problem case)
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_PROCESS_ID_DEBUG: Using UNIQUE process_id (NOT CONSOLIDATED): $process_id");
+                error_log("ODCM_PROCESS_ID_DEBUG: This event will appear OUTSIDE the consolidated timeline!");
+            }
         }
 
         try {
@@ -260,116 +292,113 @@ class UniversalEventProcessor
     {
         $event = $context->event;
         
+        // Extract original event data
+        $eventData = $event->toArray();
+        
+        // COMPONENT-BASED TIMELINE VISIBILITY: 
+        // If a Universal Event has components (structured display data), 
+        // it should appear in the timeline regardless of rule matches.
+        // This makes timeline visibility naturally extensible and future-proof.
+        $has_components = !empty($eventData['components']);
+        
+        // Create payload for timeline storage
+        $payload_for_storage = [
+            'event_type' => $event->eventType,
+            'source_gateway' => $event->sourceGateway,
+            'channel' => $event->channel,
+            'primary_object_type' => $event->primaryObjectType,
+            'primary_object_id' => $event->primaryObjectID,
+            'transaction_id' => $event->transactionID,
+            'amount' => $event->amount,
+            'currency' => $event->currency,
+            'idempotency_key' => $event->idempotencyKey,
+            'processing_result' => $result,
+            'execution_time_ms' => round($execution_time * 1000, 2),
+            'has_order' => $context->order !== null,
+            'has_subscription' => $context->subscription !== null,
+            'customer_id' => $context->getCustomerId(),
+            // Include components in ProcessLogger structure for proper timeline rendering
+            'components' => $eventData['components'] ?? [],
+            // Preserve raw data for passing full original context to the UI renderers
+            'rawData' => $event->rawData,
+        ];
+        
+        // Enrich the top-level payload with component data for checkout_processed events
+        // This ensures the renderer has the data it needs in both places - the component and the top level event
+        if ($event->eventType === 'checkout_processed' && !empty($eventData['components'])) {
+            // Find the checkout_processed component and extract its rich data
+            foreach ($eventData['components'] as $component) {
+                if (isset($component['event_type']) && $component['event_type'] === 'checkout_processed' && !empty($component['data'])) {
+                    // Copy essential fields from component data to top-level payload
+                    $payload_for_storage['order_id'] = $component['data']['order_id'] ?? $event->primaryObjectID;
+                    $payload_for_storage['status'] = $component['data']['status'] ?? $event->status;
+                    $payload_for_storage['payment_method'] = $component['data']['payment_method'] ?? '';
+                    // Only copy total and currency if not already present at top level
+                    if (isset($component['data']['total']) && (!isset($payload_for_storage['total']) || $payload_for_storage['total'] === 0)) {
+                        $payload_for_storage['total'] = $component['data']['total'];
+                    }
+                    if (isset($component['data']['currency']) && empty($payload_for_storage['currency'])) {
+                        $payload_for_storage['currency'] = $component['data']['currency'];
+                    }
+                    // Copy any other useful fields that renderers might expect
+                    if (isset($component['data']['checkout_type'])) {
+                        $payload_for_storage['checkout_type'] = $component['data']['checkout_type'];
+                    }
+                    break;
+                }
+            }
+        }
+        
         if ($result) {
-            // Log successful rule matches at success level
-            $status = 'success';
-            
-            // Use the event's getSummary() method for better user-facing descriptions
+            // Rules matched - log successful processing
             $summary = $event->getSummary();
             $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
             $message = !empty($summary) ? "Successfully processed: {$summary}" : sprintf('%s %s processed successfully', $gateway, $event->eventType);
-    
-            // Extract original event data
-            $eventData = $event->toArray();
-            
-            // Restructure payload for database/rendering compatibility
-            // This ensures components are stored in a format that the timeline renderer recognizes
-            $payload_for_storage = [
-                'event_type' => $event->eventType,
-                'source_gateway' => $event->sourceGateway,
-                'channel' => $event->channel,
-                'primary_object_type' => $event->primaryObjectType,
-                'primary_object_id' => $event->primaryObjectID,
-                'transaction_id' => $event->transactionID,
-                'amount' => $event->amount,
-                'currency' => $event->currency,
-                'idempotency_key' => $event->idempotencyKey,
-                'processing_result' => true,
-                'execution_time_ms' => round($execution_time * 1000, 2),
-                'has_order' => $context->order !== null,
-                'has_subscription' => $context->subscription !== null,
-                'customer_id' => $context->getCustomerId(),
-                // Include components in ProcessLogger structure for proper timeline rendering
-                'components' => $eventData['components'] ?? [],
-                // Preserve raw data for passing full original context to the UI renderers
-                'rawData' => $event->rawData,
-            ];
-            
-            // Enrich the top-level payload with component data for checkout_processed events
-            // This ensures the renderer has the data it needs in both places - the component and the top level event
-            if ($event->eventType === 'checkout_processed' && !empty($eventData['components'])) {
-                // Find the checkout_processed component and extract its rich data
-                foreach ($eventData['components'] as $component) {
-                    if (isset($component['event_type']) && $component['event_type'] === 'checkout_processed' && !empty($component['data'])) {
-                        // Copy essential fields from component data to top-level payload
-                        $payload_for_storage['order_id'] = $component['data']['order_id'] ?? $event->primaryObjectID;
-                        $payload_for_storage['status'] = $component['data']['status'] ?? $event->status;
-                        $payload_for_storage['payment_method'] = $component['data']['payment_method'] ?? '';
-                        // Only copy total and currency if not already present at top level
-                        if (isset($component['data']['total']) && (!isset($payload_for_storage['total']) || $payload_for_storage['total'] === 0)) {
-                            $payload_for_storage['total'] = $component['data']['total'];
-                        }
-                        if (isset($component['data']['currency']) && empty($payload_for_storage['currency'])) {
-                            $payload_for_storage['currency'] = $component['data']['currency'];
-                        }
-                        // Copy any other useful fields that renderers might expect
-                        if (isset($component['data']['checkout_type'])) {
-                            $payload_for_storage['checkout_type'] = $component['data']['checkout_type'];
-                        }
-                        break;
-                    }
-                }
-            }
     
             \odcm_log_event(
                 $message,
                 $payload_for_storage,
                 $context->getOrderId(),
-                $status,
+                'success',
+                'universal_event_processing',
+                false,
+                $process_id
+            );
+        } else if ($has_components) {
+            // COMPONENT-BASED TIMELINE VISIBILITY:
+            // No rules matched BUT event has components = timeline-worthy
+            // This ensures any event with structured display data appears in timeline
+            $summary = $event->getSummary();
+            $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
+            $message = !empty($summary) ? "Processed: {$summary}" : sprintf('%s %s processed', $gateway, $event->eventType);
+            
+            \odcm_log_event(
+                $message,
+                $payload_for_storage,
+                $context->getOrderId(),
+                'info', // Use info level for component-based timeline events
                 'universal_event_processing',
                 false,
                 $process_id
             );
         } else if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            // Only log non-matches when in debug mode
+            // Events without components only logged in debug mode
             $summary = $event->getSummary();
             $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
             $message = !empty($summary) ? "No matching rules for: {$summary}" : sprintf('%s %s completed with no matching rules', $gateway, $event->eventType);
-            
-            // Extract original event data
-            $eventData = $event->toArray();
-            
-            // Restructure payload for database/rendering compatibility
-            $payload_for_storage = [
-                'event_type' => $event->eventType,
-                'source_gateway' => $event->sourceGateway,
-                'channel' => $event->channel,
-                'primary_object_type' => $event->primaryObjectType,
-                'primary_object_id' => $event->primaryObjectID,
-                'transaction_id' => $event->transactionID,
-                'amount' => $event->amount,
-                'currency' => $event->currency,
-                'idempotency_key' => $event->idempotencyKey,
-                'processing_result' => false,
-                'execution_time_ms' => round($execution_time * 1000, 2),
-                'has_order' => $context->order !== null,
-                'has_subscription' => $context->subscription !== null,
-                'customer_id' => $context->getCustomerId(),
-                // Include components in ProcessLogger structure for proper timeline rendering
-                'components' => $eventData['components'] ?? [],
-            ];
             
             \odcm_log_event(
                 $message,
                 $payload_for_storage,
                 $context->getOrderId(),
-                'debug', // Explicitly mark as debug level
+                'debug',
                 'universal_event_processing_debug',
                 false,
                 $process_id
             );
         }
-        // No log entry created for non-matches when not in debug mode
+        // Events without components and no rule matches are not logged (reduces noise)
+        // This is extensible: any new event type with components will automatically appear in timeline
     }
 
     /**

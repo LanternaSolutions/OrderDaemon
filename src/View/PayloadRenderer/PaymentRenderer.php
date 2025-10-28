@@ -41,7 +41,7 @@ class PaymentRenderer extends BaseRenderer
      * Render Specific Content
      *
      * Implements the template method to provide payment-specific rendering logic.
-     * Uses switch/case to delegate to specific rendering methods based on event type.
+     * Uses pattern matching to handle hierarchical payment.* event types.
      *
      * @param array                    $data       The payload data to render
      * @param string                   $event_type The type of event being rendered
@@ -50,33 +50,23 @@ class PaymentRenderer extends BaseRenderer
      */
     protected function renderSpecificContent(array $data, string $event_type, PayloadComponentUIToolkit $toolkit): string
     {
-        switch ($event_type) {
-            case 'payment_completed':
-            case 'payment_failed':
-                return $this->renderPayment($data, $toolkit);
-
-            case 'refund_created':
-                return $this->renderRefund($data, $toolkit);
-
-            case 'stripe_event':
-                return $this->renderStripeEvent($data, $toolkit);
-
-            case 'paypal_event':
-                return $this->renderPayPalEvent($data, $toolkit);
-
-            case 'order_partially_refunded':
-            case 'order_fully_refunded':
-                return $this->renderOrderRefund($data, $toolkit, $event_type === 'order_fully_refunded');
-
-            default:
-                return $this->renderGenericPayment($data, $toolkit);
+        // All payment events use hierarchical naming: payment.{gateway}.{original_event_type}
+        if (strpos($event_type, 'payment.') === 0) {
+            $gateway = $this->extractGatewayFromEventType($event_type);
+            $original_event = $this->extractOriginalEventFromType($event_type);
+            
+            return $this->renderHierarchicalPayment($data, $event_type, $gateway, $original_event, $toolkit);
         }
+        
+        // Fallback for non-payment events
+        return $this->renderGenericPayment($data, $toolkit);
     }
 
     /**
      * Get Label
      *
      * Provides event-specific labels based on event type and data.
+     * Handles hierarchical payment.* events only.
      *
      * @param array  $data       The payload data
      * @param string $event_type The type of event
@@ -84,41 +74,19 @@ class PaymentRenderer extends BaseRenderer
      */
     protected function getLabel(array $data, string $event_type): string
     {
-        switch ($event_type) {
-            case 'payment_completed':
-                return 'Payment Completed';
-
-            case 'payment_failed':
-                return 'Payment Failed';
-
-            case 'refund_created':
-                return 'Refund Created';
-
-            case 'stripe_event':
-                // Stripe's API uses 'type' for event types (e.g., 'charge.succeeded', 'payment_intent.created')
-                // See: https://stripe.com/docs/api/events/object#event_object-type
-                return 'Stripe: ' . ($data['type'] ?? 'Event');
-
-            case 'paypal_event':
-                // PayPal's API uses 'event_type' for event types (e.g., 'PAYMENT.CAPTURE.COMPLETED')
-                // See: https://developer.paypal.com/docs/api/webhooks/v1/#webhooks-events
-                return 'PayPal: ' . ($data['event_type'] ?? 'Event');
-
-            case 'order_partially_refunded':
-                return 'Order Partially Refunded';
-
-            case 'order_fully_refunded':
-                return 'Order Fully Refunded';
-
-            default:
-                return parent::getLabel($data, $event_type);
+        if (strpos($event_type, 'payment.') === 0) {
+            return 'Payment Event';
         }
+        
+        // Fallback for non-payment events
+        return parent::getLabel($data, $event_type);
     }
 
     /**
      * Get Status Pill
      *
      * Provides event-specific status pills based on event type and outcome.
+     * Handles hierarchical payment.* events only.
      *
      * @param array  $data       The payload data
      * @param string $event_type The type of event
@@ -126,31 +94,24 @@ class PaymentRenderer extends BaseRenderer
      */
     protected function getStatusPill(array $data, string $event_type): ?array
     {
-        switch ($event_type) {
-            case 'payment_completed':
+        if (strpos($event_type, 'payment.') === 0) {
+            $gateway = $this->extractGatewayFromEventType($event_type);
+            $original_event = $this->extractOriginalEventFromType($event_type);
+            
+            // Determine status from original event semantics
+            if ($this->isPaymentSuccess($original_event)) {
                 return ['label' => 'COMPLETED', 'type' => 'success'];
-
-            case 'payment_failed':
+            } elseif ($this->isPaymentFailure($original_event)) {
                 return ['label' => 'FAILED', 'type' => 'error'];
-
-            case 'refund_created':
-                return ['label' => 'REFUND', 'type' => 'warning'];
-
-            case 'stripe_event':
-                return ['label' => 'STRIPE', 'type' => 'gateway'];
-
-            case 'paypal_event':
-                return ['label' => 'PAYPAL', 'type' => 'gateway'];
-
-            case 'order_partially_refunded':
-                return ['label' => 'PARTIAL REFUND', 'type' => 'warning'];
-
-            case 'order_fully_refunded':
-                return ['label' => 'FULL REFUND', 'type' => 'warning'];
-
-            default:
-                return null;
+            } elseif ($this->isPaymentWarning($original_event)) {
+                return ['label' => 'WARNING', 'type' => 'warning'];
+            } else {
+                // Fallback for unrecognized events
+                return ['label' => 'INFO', 'type' => 'info'];
+            }
         }
+        
+        return null;
     }
 
     /**
@@ -164,22 +125,24 @@ class PaymentRenderer extends BaseRenderer
     /**
      * Render Payment
      *
-     * Renders payment completion or failure details.
+     * Renders payment completion or failure details with enhanced data extraction.
      *
-     * @param array                    $data    The payment data
+     * @param array                    $payload The full payload (including rawData)
      * @param PayloadComponentUIToolkit $toolkit UI toolkit instance
      * @return string HTML content
      */
-    private function renderPayment(array $data, PayloadComponentUIToolkit $toolkit): string
+    private function renderPayment(array $payload, PayloadComponentUIToolkit $toolkit): string
     {
-        // Business-relevant payment information
+        // Extract data from both component data and rawData
+        $data = $payload['data'] ?? $payload;
+        $rawData = $payload['rawData'] ?? [];
+
+        // Enhanced data extraction from multiple sources
         $payment_data = [
-            'Amount' => isset($data['amount'], $data['currency']) 
-                ? $this->formatCurrency($data['amount'], $data['currency']) 
-                : '',
-            'Transaction ID' => $data['transaction_id'] ?? '',
-            'Payment Method' => $data['payment_method'] ?? '',
-            'Gateway' => ucfirst($data['source_gateway'] ?? ''),
+            'Amount' => $this->extractAmount($data, $rawData),
+            'Transaction ID' => $this->extractTransactionId($data, $rawData),
+            'Payment Method' => $this->extractPaymentMethod($data, $rawData),
+            'Gateway' => $this->extractGateway($data, $rawData),
         ];
 
         // Add order ID if available
@@ -197,20 +160,105 @@ class PaymentRenderer extends BaseRenderer
 
         $content = $toolkit->render_key_value_list($payment_data, $sectionTitle);
 
-        // Move technical details to debug section
-        $data['technical_details'] = [
-            'raw_status' => $data['status'] ?? '',
-            'event_id' => $data['event_id'] ?? '',
-            'correlation_id' => $data['correlation_id'] ?? '',
-            'request_id' => $data['request_id'] ?? '',
-        ];
-        
-        // Add gateway response to the debug section
-        if (!empty($data['gateway_response'])) {
-            $data['technical_details']['gateway_response'] = $data['gateway_response'];
+        // Add gateway-specific details in expandable sections
+        if (isset($rawData['stripe_data']) && !empty($rawData['stripe_data'])) {
+            $stripe_data = array_filter($rawData['stripe_data']); // Remove empty values
+            if (!empty($stripe_data)) {
+                $content .= $toolkit->render_expandable_key_value_section('Stripe Details', $stripe_data);
+            }
+        }
+
+        if (isset($rawData['paypal_data']) && !empty($rawData['paypal_data'])) {
+            $paypal_data = array_filter($rawData['paypal_data']);
+            if (!empty($paypal_data)) {
+                $content .= $toolkit->render_expandable_key_value_section('PayPal Details', $paypal_data);
+            }
+        }
+
+        // Add payment technical details in expandable section if rawData available
+        if (!empty($rawData)) {
+            $content .= $toolkit->render_expandable_key_value_section('Technical Details', $rawData);
         }
 
         return $content;
+    }
+
+    /**
+     * Extract transaction ID from multiple data sources
+     */
+    private function extractTransactionId(array $data, array $rawData): string
+    {
+        // Try multiple sources for transaction ID
+        $transaction_id = $data['transaction_id'] ?? 
+                         $rawData['transaction_id'] ?? 
+                         $rawData['stripe_data']['charge_id'] ?? 
+                         $rawData['paypal_data']['transaction_id'] ?? 
+                         '';
+        
+        // Try checkout context for Block Checkout events
+        if (empty($transaction_id) && isset($rawData['checkout_context'])) {
+            $checkout_context = $rawData['checkout_context'];
+            $transaction_id = $checkout_context['transaction_id'] ?? 
+                             $checkout_context['payment_context']['transaction_id'] ?? 
+                             '';
+        }
+        
+        // Try gateway-specific webhook data
+        if (empty($transaction_id) && isset($rawData['stripe_webhook_data'])) {
+            $stripe_data = $rawData['stripe_webhook_data'];
+            $transaction_id = $stripe_data['data']['object']['id'] ?? 
+                             $stripe_data['data']['object']['charge'] ?? 
+                             '';
+        }
+        
+        if (empty($transaction_id) && isset($rawData['paypal_ipn_data'])) {
+            $paypal_data = $rawData['paypal_ipn_data'];
+            $transaction_id = $paypal_data['txn_id'] ?? '';
+        }
+        
+        return $transaction_id;
+    }
+
+    /**
+     * Extract payment method title from multiple data sources
+     */
+    private function extractPaymentMethod(array $data, array $rawData): string
+    {
+        return $data['payment_method'] ?? 
+               $rawData['payment_method_title'] ?? 
+               $rawData['payment_method_id'] ?? 
+               '';
+    }
+
+    /**
+     * Extract gateway name from multiple data sources
+     */
+    private function extractGateway(array $data, array $rawData): string
+    {
+        $gateway = $data['source_gateway'] ?? $data['gateway'] ?? '';
+        
+        if (empty($gateway) && isset($rawData['payment_method_id'])) {
+            $gateway = $this->normalizeGatewayName($rawData['payment_method_id']);
+        }
+        
+        return ucfirst($gateway);
+    }
+
+    /**
+     * Normalize gateway name for display
+     */
+    private function normalizeGatewayName(string $payment_method): string
+    {
+        $mapping = [
+            'stripe' => 'Stripe',
+            'stripe_cc' => 'Stripe',
+            'paypal' => 'PayPal', 
+            'ppcp-gateway' => 'PayPal',
+            'bacs' => 'Bank Transfer',
+            'cod' => 'Cash on Delivery',
+        ];
+        
+        return $mapping[$payment_method] ?? $payment_method;
     }
 
     /**
@@ -247,46 +295,48 @@ class PaymentRenderer extends BaseRenderer
     }
 
     /**
-     * Render Stripe Event
-     *
-     * Renders Stripe-specific event details.
-     *
-     * @param array                    $data    The Stripe event data
-     * @param PayloadComponentUIToolkit $toolkit UI toolkit instance
-     * @return string HTML content
+     * Extract amount from checkout context or component data
      */
-    private function renderStripeEvent(array $data, PayloadComponentUIToolkit $toolkit): string
+    private function extractAmount(array $data, array $rawData): string
     {
-        // Business-relevant Stripe information (keep original event type as-is)
-        $stripe_data = [
-            'Event Type' => $data['type'] ?? '',
-            'Event ID' => $data['id'] ?? '',
-            'Amount' => isset($data['amount'], $data['currency']) 
-                ? $this->formatCurrency($data['amount'], $data['currency']) 
-                : '',
-        ];
+        // Check multiple sources for amount data
+        $amount = null;
+        $currency = null;
         
-        // Add order information if available
-        if (isset($data['order_id'])) {
-            $stripe_data['Order'] = '#' . $data['order_id'];
+        // Try rawData.checkout_context first (most reliable for payment events)
+        if (isset($rawData['checkout_context']['total_amount'])) {
+            $amount = (float) $rawData['checkout_context']['total_amount'];
         }
-
-        $content = $toolkit->render_key_value_list($stripe_data, 'Stripe Event');
-
-        // Move technical details to debug section
-        $data['technical_details'] = [
-            'stripe_object' => $data['object'] ?? '',
-            'api_version' => $data['api_version'] ?? '',
-            'created' => $data['created'] ?? '',
-            'livemode' => $data['livemode'] ?? '',
-        ];
         
-        // Add full event data to debug section
-        if (!empty($data['event_data'])) {
-            $data['technical_details']['event_data'] = $data['event_data'];
+        // Try payment_context
+        if ($amount === null && isset($rawData['payment_context']['amount'])) {
+            $amount = (float) $rawData['payment_context']['amount'];
         }
-
-        return $content;
+        
+        // Try component data
+        if ($amount === null && isset($data['amount'])) {
+            $amount = (float) $data['amount'];
+        }
+        
+        // Try rawData direct
+        if ($amount === null && isset($rawData['amount'])) {
+            $amount = (float) $rawData['amount'];
+        }
+        
+        // Get currency
+        $currency = $rawData['checkout_context']['currency'] ?? 
+                   $rawData['payment_context']['currency'] ?? 
+                   $data['currency'] ?? 
+                   $rawData['currency'] ?? 
+                   'USD';
+        
+        if ($amount !== null && $amount > 0) {
+            // Use the same plain text formatting approach as OrderRenderer
+            $currency_symbol = html_entity_decode(get_woocommerce_currency_symbol($currency));
+            return $currency_symbol . number_format($amount, 2);
+        }
+        
+        return '';
     }
 
     /**
@@ -405,5 +455,160 @@ class PaymentRenderer extends BaseRenderer
             json_encode($data, JSON_PRETTY_PRINT),
             'json'
         );
+    }
+
+    /**
+     * Extract gateway from hierarchical event type
+     *
+     * @param string $event_type Event type like payment.paypal.web_accept
+     * @return string Gateway name (paypal, stripe, etc.)
+     */
+    private function extractGatewayFromEventType(string $event_type): string
+    {
+        $parts = explode('.', $event_type);
+        return $parts[1] ?? 'unknown';
+    }
+
+    /**
+     * Extract original event type from hierarchical event type
+     *
+     * @param string $event_type Event type like payment.paypal.web_accept
+     * @return string Original event type (web_accept, charge.succeeded, etc.)
+     */
+    private function extractOriginalEventFromType(string $event_type): string
+    {
+        $parts = explode('.', $event_type, 3); // Split into max 3 parts
+        return $parts[2] ?? '';
+    }
+
+    /**
+     * Render hierarchical payment event
+     *
+     * @param array $data Full payload including rawData
+     * @param string $event_type Full hierarchical event type
+     * @param string $gateway Gateway name (paypal, stripe, etc.)
+     * @param string $original_event Original gateway event type
+     * @param PayloadComponentUIToolkit $toolkit UI toolkit instance
+     * @return string HTML content
+     */
+    private function renderHierarchicalPayment(array $data, string $event_type, string $gateway, string $original_event, PayloadComponentUIToolkit $toolkit): string
+    {
+        // Extract data from both component data and rawData
+        $componentData = $data['data'] ?? $data;
+        $rawData = $data['rawData'] ?? [];
+
+        // Build payment display data
+        $payment_data = [
+            'Gateway' => ucfirst($gateway),
+            'Event Type' => $original_event,
+        ];
+
+        // Add order info if available
+        if (isset($componentData['order_id'])) {
+            $payment_data['Order'] = '#' . $componentData['order_id'];
+        }
+
+        // Add status information
+        if (isset($componentData['status'])) {
+            $payment_data['Status'] = ucfirst($componentData['status']);
+        }
+
+        $content = $toolkit->render_key_value_list($payment_data, 'Payment Event');
+
+        // Add gateway-specific rawData in expandable section
+        if (isset($rawData["{$gateway}_ipn_data"]) && !empty($rawData["{$gateway}_ipn_data"])) {
+            $gateway_data = array_filter($rawData["{$gateway}_ipn_data"]);
+            if (!empty($gateway_data)) {
+                $content .= $toolkit->render_expandable_key_value_section(
+                    ucfirst($gateway) . ' IPN Data', 
+                    $gateway_data
+                );
+            }
+        }
+
+        if (isset($rawData["{$gateway}_webhook_data"]) && !empty($rawData["{$gateway}_webhook_data"])) {
+            $webhook_data = array_filter($rawData["{$gateway}_webhook_data"]);
+            if (!empty($webhook_data)) {
+                $content .= $toolkit->render_expandable_key_value_section(
+                    ucfirst($gateway) . ' Webhook Data', 
+                    $webhook_data
+                );
+            }
+        }
+
+        // Add all technical details in expandable section
+        if (!empty($rawData)) {
+            $content .= $toolkit->render_expandable_key_value_section('Technical Details', $rawData);
+        }
+
+        return $content;
+    }
+
+
+    /**
+     * Check if original event indicates payment success
+     *
+     * @param string $original_event Original gateway event type
+     * @return bool True if this represents a successful payment
+     */
+    private function isPaymentSuccess(string $original_event): bool
+    {
+        $success_patterns = [
+            'completed', 'succeeded', 'paid', 'captured', 'web_accept',
+            'checkout_processed', 'processed', 'approved', 'confirmed'
+        ];
+        
+        $lower_event = strtolower($original_event);
+        foreach ($success_patterns as $pattern) {
+            if (strpos($lower_event, $pattern) !== false) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if original event indicates payment failure
+     *
+     * @param string $original_event Original gateway event type
+     * @return bool True if this represents a failed payment
+     */
+    private function isPaymentFailure(string $original_event): bool
+    {
+        $failure_patterns = [
+            'failed', 'denied', 'declined', 'rejected', 'canceled', 'cancelled'
+        ];
+        
+        $lower_event = strtolower($original_event);
+        foreach ($failure_patterns as $pattern) {
+            if (strpos($lower_event, $pattern) !== false) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if original event indicates payment warning (refunds, disputes, etc.)
+     *
+     * @param string $original_event Original gateway event type
+     * @return bool True if this represents a warning-level payment event
+     */
+    private function isPaymentWarning(string $original_event): bool
+    {
+        $warning_patterns = [
+            'refunded', 'refund', 'reversed', 'chargeback', 'dispute'
+        ];
+        
+        $lower_event = strtolower($original_event);
+        foreach ($warning_patterns as $pattern) {
+            if (strpos($lower_event, $pattern) !== false) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 }

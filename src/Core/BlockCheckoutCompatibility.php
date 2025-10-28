@@ -321,6 +321,9 @@ final class BlockCheckoutCompatibility
             }
         }
 
+        // Get gateway for hierarchical event naming
+        $gateway = $this->normalize_gateway_name($order->get_payment_method());
+        
         $components = [
             [
                 'k'     => 'c' . time() . rand(10,99),
@@ -346,9 +349,9 @@ final class BlockCheckoutCompatibility
             ],
             [
                 'k'     => 'c' . time() . rand(10,99),
-                'event_type'  => 'stripe_event',
+                'event_type'  => 'payment.' . $gateway . '.checkout_processed',
                 'ts'    => time(),
-                'label' => 'Payment Context',
+                'label' => 'Payment Event',
                 'level' => 'info',
                 'data'  => $checkout_context['payment_context'] ?? [],
             ],
@@ -448,9 +451,9 @@ final class BlockCheckoutCompatibility
             ],
             [
                 'k' => 'c' . time() . rand(10, 99),
-                'event_type' => 'stripe_event',
+                'event_type' => 'payment.' . $gateway . '.checkout_processed',
                 'ts' => time(),
-                'label' => 'Payment Context',
+                'label' => 'Payment Event',
                 'level' => 'info',
                 'data' => $checkout_context['payment_context'] ?? []
             ]

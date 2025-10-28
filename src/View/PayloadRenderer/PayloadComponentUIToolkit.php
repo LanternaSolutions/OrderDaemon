@@ -304,6 +304,44 @@ class PayloadComponentUIToolkit
     }
 
     /**
+     * Render Warning Message Component
+     *
+     * Creates a styled warning message with appropriate visual indicators.
+     * Used for displaying automation bypass warnings, important notices, or
+     * other warning-level information that requires user attention.
+     *
+     * GENERATED STRUCTURE:
+     * ===================
+     * 
+     * ```html
+     * <div class="odcm-warning-message">
+     *     <span class="dashicons dashicons-warning"></span>
+     *     <span class="odcm-warning-text">{escaped_text}</span>
+     * </div>
+     * ```
+     *
+     * @since 1.0.0
+     *
+     * @param string $text Warning message text to display.
+     * @return string Escaped HTML warning message element.
+     *
+     * @example
+     * ```php
+     * $toolkit = new PayloadComponentUIToolkit();
+     * echo $toolkit->render_warning_message('This manual change may have bypassed automatic completion rules.');
+     * ```
+     */
+    public function render_warning_message(string $text): string
+    {
+        $output = '<div class="odcm-warning-message">';
+        $output .= '<span class="dashicons dashicons-warning"></span>';
+        $output .= '<span class="odcm-warning-text">' . esc_html($text) . '</span>';
+        $output .= '</div>';
+        
+        return $output;
+    }
+
+    /**
      * Render Component Shell
      *
      * Creates the complete component wrapper with header and body content.

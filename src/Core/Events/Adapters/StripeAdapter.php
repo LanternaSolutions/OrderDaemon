@@ -200,13 +200,16 @@ class StripeAdapter extends AbstractGatewayAdapter
         $payload = $input['payload'] ?? [];
         $events = [];
 
-        $this->log('Normalizing Stripe webhook', ['event_type' => $payload['type'] ?? 'unknown']);
+        $original_event_type = $payload['type'] ?? '';
+        $this->log('Normalizing Stripe webhook', ['event_type' => $original_event_type]);
 
-        $event_type = $this->mapWebhookEventType($payload['type'] ?? '');
-        if (!$event_type) {
-            $this->log('Unknown webhook event type', ['event_type' => $payload['type'] ?? 'unknown']);
+        if (empty($original_event_type)) {
+            $this->log('Missing Stripe event type');
             return [];
         }
+
+        // USE HIERARCHICAL EVENT TYPE - preserve original exactly as received
+        $event_type = "payment.stripe.{$original_event_type}";
 
         // Extract object data
         $object_data = $payload['data']['object'] ?? [];
@@ -225,7 +228,7 @@ class StripeAdapter extends AbstractGatewayAdapter
         $secondary_object_id = null;
 
         // Handle subscription events
-        if (strpos($payload['type'], 'customer.subscription') === 0) {
+        if (strpos($original_event_type, 'customer.subscription') === 0) {
             $primary_object_type = 'subscription';
             $primary_object_id = $stripe_id;
             
@@ -251,6 +254,15 @@ class StripeAdapter extends AbstractGatewayAdapter
             }
         }
 
+        // ENHANCED RAWDATA with Stripe-specific structure
+        $stripe_rawdata = [
+            'original_event_type' => $original_event_type,
+            'stripe_webhook_data' => $payload,
+            'stripe_object_type' => $object_type,
+            'stripe_id' => $stripe_id,
+            'gateway_metadata' => $this->extractGatewaySpecificMetadata($input),
+        ];
+
         // Create universal event
         $event_data = [
             'eventType' => $event_type,
@@ -268,7 +280,7 @@ class StripeAdapter extends AbstractGatewayAdapter
             'occurredAt' => $this->parseStripeTimestamp($payload['created'] ?? 0),
             'receivedAt' => current_time('c'),
             'idempotencyKey' => $this->computeIdempotencyKey($input),
-            'rawData' => $payload,
+            'rawData' => $stripe_rawdata,
         ];
 
         $events[] = new UniversalEvent($event_data);

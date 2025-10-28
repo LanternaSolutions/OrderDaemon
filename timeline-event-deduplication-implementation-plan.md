@@ -8,6 +8,154 @@ This document outlines the implementation plan to fix the Order #74 timeline iss
 
 **Solution**: Complete the Universal Events migration pattern (already implemented for `checkout_processed`) to eliminate duplicate sources and create a single source of truth for all business events.
 
+## ⚠️ **CRITICAL WARNING - Rule Evaluation System Protection**
+
+### **🚨 RULE SYSTEM DEPENDENCY ALERT**
+
+**The Order Daemon rule evaluation system depends entirely on the event processing pipeline to function correctly. Any modifications to event structure, timing, or data integrity could break the automated rule system that merchants rely on for order completion.**
+
+### **Critical Dependencies to Preserve**
+
+#### **1. UniversalEventProcessor Pipeline Integrity**
+```php
+// THIS FLOW MUST REMAIN INTACT:
+WooCommerce Hook → Core.php handler → UniversalEvent creation → 
+UniversalEventProcessor::processEvent() → Rule evaluation → Action execution
+```
+
+**Why Critical**: The rule engine evaluates UniversalEvents through `UniversalEventProcessor::processEvent()`. If this pipeline is broken or modified incorrectly, rules will stop firing and orders will not be automatically completed.
+
+#### **2. Event Data Structure Preservation**
+```php
+// THESE FIELDS MUST REMAIN AVAILABLE FOR RULE EVALUATION:
+$universal_event = new UniversalEvent([
+    'eventType' => 'order_status_changed',        // ← Rules match on this
+    'primaryObjectType' => 'order',               // ← Rules filter on this
+    'primaryObjectID' => $order->get_id(),        // ← Rules need order access
+    'amount' => (float) $order->get_total(),      // ← Conditions check this
+    'currency' => $order->get_currency(),         // ← Conditions check this
+    'status' => $to_status,                       // ← Triggers match on this
+    // rawData is for timeline display only - safe to modify
+]);
+```
+
+#### **3. Event Type Consistency**
+```php
+// RULE TRIGGERS DEPEND ON SPECIFIC EVENT TYPES:
+'order_status_changed'  // ← OrderProcessingTrigger looks for this
+'payment_completed'     // ← PaymentCompleteTrigger looks for this
+'checkout_processed'    // ← CheckoutTrigger looks for this
+
+// DO NOT CHANGE these event type strings without updating rule components
+```
+
+#### **4. EvaluationContext Creation**
+```php
+// UniversalEventProcessor creates EvaluationContext for rule evaluation:
+$context = new EvaluationContext($universal_event);
+
+// This context MUST have access to:
+$context->order         // ← Rule conditions need WC_Order object
+$context->event         // ← Rule conditions need UniversalEvent data
+$context->customer      // ← Rule conditions may need customer data
+```
+
+### **Implementation Safety Guidelines**
+
+#### **🟢 SAFE MODIFICATIONS (Timeline Display Only)**
+- ✅ Modify `rawData` structure - used only for timeline rendering
+- ✅ Change renderer data extraction logic
+- ✅ Add new fields to rawData for timeline context
+- ✅ Modify timeline UI components and expandable sections
+- ✅ Change event labeling and display formatting
+
+#### **🔴 DANGEROUS MODIFICATIONS (Could Break Rules)**
+- ❌ Changing UniversalEvent constructor parameters
+- ❌ Modifying `eventType` strings that triggers depend on
+- ❌ Altering `primaryObjectType` or `primaryObjectID` fields
+- ❌ Breaking the UniversalEventProcessor::processEvent() flow
+- ❌ Changing how EvaluationContext accesses order/event data
+- ❌ Modifying event timing or sequence that could affect rule evaluation
+
+#### **🟡 REQUIRES CAREFUL TESTING**
+- ⚠️ Removing duplicate event sources (verify rules still fire)
+- ⚠️ Changing event creation timing in Core.php handlers
+- ⚠️ Modifying ManualStatusTracker integration
+- ⚠️ Updating payment event synthesis methods
+
+### **Mandatory Testing Protocol**
+
+#### **Rule Evaluation Verification Steps**
+```bash
+# 1. Create test order with rule conditions
+1. Set up order completion rule (e.g., "Virtual products auto-complete")
+2. Place test order matching rule conditions
+3. Verify rule fires and order is automatically completed
+4. Check timeline shows both status change AND rule execution events
+
+# 2. Test all trigger types
+1. Test OrderProcessingTrigger with status changes
+2. Test PaymentCompleteTrigger with payment completion
+3. Test CheckoutTrigger with checkout completion
+4. Verify each trigger type still evaluates correctly
+
+# 3. Test rule conditions
+1. Test OrderTotalAmountCondition with different order values
+2. Test ProductCategoryCondition with various product categories
+3. Test ProductTypeCondition with virtual/physical products
+4. Verify all conditions still evaluate order data correctly
+
+# 4. Test rule actions
+1. Test CompleteOrderAction execution
+2. Test custom actions (if any)
+3. Verify actions still receive correct order context
+4. Check action execution appears in timeline
+```
+
+#### **Emergency Rollback Triggers**
+If ANY of these symptoms appear, immediately rollback changes:
+- Rules stop firing for orders that should match
+- "No rules matched" appearing for orders that should trigger rules
+- Rule conditions evaluating incorrectly (wrong order total, etc.)
+- Actions not executing when rules match
+- EvaluationContext errors in logs
+
+### **Safe Implementation Strategy**
+
+#### **Phase-by-Phase Rule Testing**
+```php
+// After each phase, run this verification:
+1. Create test order matching existing rule
+2. Verify rule evaluation occurs normally
+3. Check UniversalEventProcessor logs for proper event processing
+4. Confirm EvaluationContext creation succeeds
+5. Validate rule conditions can access order data
+6. Test rule actions execute correctly
+```
+
+#### **Code Change Safety Checks**
+Before implementing any change:
+1. ✅ Does this modify UniversalEvent constructor? → **DANGEROUS**
+2. ✅ Does this change event type strings? → **DANGEROUS**  
+3. ✅ Does this affect UniversalEventProcessor flow? → **REQUIRES TESTING**
+4. ✅ Is this only timeline display logic? → **SAFE**
+
+### **Rule System Architecture Reference**
+
+```php
+// RULE EVALUATION FLOW (DO NOT BREAK THIS):
+Core.php::handle_*() 
+  → synthesize_*_event() 
+  → process_universal_event_from_hook()
+  → UniversalEventProcessor::processEvent()
+  → EvaluationContext creation
+  → Rule condition evaluation
+  → Rule action execution
+  → Timeline logging via logProcessingResult()
+```
+
+**Remember**: The timeline is a DISPLAY LAYER. The rule system is a BUSINESS LOGIC LAYER. Display changes are safe. Business logic changes require extreme caution.
+
 ## 🔍 Root Cause Analysis
 
 ### Current Event Duplication Sources

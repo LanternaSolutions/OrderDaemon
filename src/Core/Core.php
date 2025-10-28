@@ -195,10 +195,10 @@ class Core
     }
 
     /**
-     * Handle WooCommerce payment completion events - FAIL-SAFE IMPLEMENTATION
+     * Handle WooCommerce payment completion events - UNIVERSAL EVENTS IMPLEMENTATION
      *
-     * CRITICAL: This method implements the "Never Break Revenue" philosophy.
-     * All heavy processing is moved to background to ensure payment completion cannot be blocked.
+     * CRITICAL: This method implements the "Never Break Revenue" philosophy while using
+     * Universal Events to eliminate duplicate timeline entries and provide rich payment data.
      *
      * @param int $order_id The ID of the order that had payment completed.
      */
@@ -222,15 +222,13 @@ class Core
                 return;
             }
 
-            // Schedule for background processing
-            as_enqueue_async_action('odcm_process_payment_completion', [
-                'order_id' => $order_id,
-                'payment_gateway' => $order->get_payment_method(),
-                'scheduled_at' => current_time('c')
-            ], 'odcm-payment-processing');
+            // CREATE UNIVERSAL EVENT for payment completion instead of background processing
+            $universal_event = $this->synthesize_payment_complete_event($order);
             
-            // Minimal sync logging only - no heavy operations during payment
-            $this->log_checkout_event_minimal($order_id, 'payment_scheduled');
+            // PROCESS through Universal Events pipeline - this creates single timeline event
+            $this->process_universal_event_from_hook($universal_event);
+            
+            odcm_log_message("Payment completion for order #{$order_id} processed as universal event", 'info');
             
             // Record success for circuit breaker
             $this->record_checkout_success();
@@ -507,87 +505,11 @@ class Core
             odcm_log_message('Failed to mark specific status processed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
         }
 
-        // Generate UniversalEvent for status change
-        try {
-            if ($order instanceof \WC_Order) {
-                $universal_event = $this->synthesize_status_change_event($order, 'unknown', $status_slug);
-                $this->process_universal_event_from_hook($universal_event);
-                odcm_log_message("Order #{$order_id} status change to '{$status_slug}' processed as universal event", 'info');
-            }
-        } catch (\Throwable $e) {
-            odcm_log_message('Status change universal event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
-        }
+        // REMOVED: Universal Event creation to eliminate duplicates
+        // Timeline events are now created ONLY by handle_general_order_status_change()
+        // This preserves rule evaluation while eliminating duplicate timeline entries
 
-        // Log status change using Universal Events system
-        try {
-            $sanitizer = new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer();
-            
-            $components = [];
-            
-            // Add status change component
-            $status_data = $sanitizer->sanitize('status_changed', ['from' => 'unknown', 'to' => $status_slug]);
-            $components[] = [
-                'k' => 'c' . time() . rand(10,99),
-                'event_type' => 'status_changed',
-                'ts' => odcm_iso8601_now(),
-                'label' => 'Status changed',
-                'level' => 'info',
-                'data' => $status_data,
-            ];
-            
-            // Add attribution context if available
-            if (is_array($attr)) {
-                $src_plugin = is_array($attr['source_plugin'] ?? null) ? $attr['source_plugin'] : [];
-                $plugin_compact = [
-                    'type' => isset($src_plugin['type']) ? sanitize_key((string) $src_plugin['type']) : null,
-                    'slug' => isset($src_plugin['slug']) ? sanitize_text_field((string) $src_plugin['slug']) : null,
-                    'confidence' => isset($src_plugin['confidence']) ? (float) $src_plugin['confidence'] : null,
-                ];
-                $ext = is_array($attr['external_service'] ?? null) ? $attr['external_service'] : null;
-                $ext_compact = is_array($ext) ? [
-                    'name' => isset($ext['name']) ? sanitize_key((string) $ext['name']) : null,
-                    'confidence' => isset($ext['confidence']) ? (float) $ext['confidence'] : null,
-                ] : null;
-                
-                $attribution_data = [
-                    'source' => $source,
-                    'request_type' => isset($request_type) && $request_type !== '' ? $request_type : null,
-                    'user_logged_in' => (bool) ($attr['user_context']['is_logged_in'] ?? false),
-                    'source_plugin' => $plugin_compact,
-                    'external_service' => $ext_compact,
-                ];
-                
-                $components[] = [
-                    'k' => 'c' . time() . rand(10,99),
-                    'event_type' => 'info',
-                    'ts' => odcm_iso8601_now(),
-                    'label' => 'Attribution context',
-                    'level' => 'info',
-                    'data' => ['attribution' => $attribution_data],
-                ];
-            }
-            
-            $summary = sprintf('Order #%d status changed to "%s"; scheduled via specific hook', $order_id, $status_slug);
-            
-            odcm_log_event(
-                $summary,
-                [
-                    'type' => 'status_change_processing',
-                    'cid' => $order_id . ':' . time(),
-                    'order_id' => $order_id,
-                    'actor' => ['id' => null, 'role' => null, 'name' => 'system'],
-                    'ts' => time(),
-                    'components' => $components,
-                ],
-                $order_id,
-                'info',
-                'status_change_processing'
-            );
-        } catch (\Throwable $e) {
-            // Non-fatal
-        }
-
-        // Schedule the order for completion check
+        // KEEP: Schedule the order for completion check (CRITICAL for rule evaluation)
         $this->schedule_completion_check($order_id);
 
         try {
@@ -614,6 +536,10 @@ class Core
      */
     public function handle_general_order_status_change(int $order_id, string $from_status, string $to_status, $order): void
     {
+        // CRITICAL: Capture occurrence timestamp IMMEDIATELY when hook fires
+        // This ensures chronological ordering reflects real-world occurrence time
+        $occurrence_timestamp = microtime(true);
+        
         if ($order_id <= 0) {
             return;
         }
@@ -626,66 +552,25 @@ class Core
             $this->log_status_change_evaluation($order_id, $from_slug, $to_slug);
         }
 
-        // Get matching rules for this status change
-        $matching_rules = $this->get_matching_rules_for_status_change($from_slug, $to_slug);
-
-        // Log rule matching results when debug mode is enabled
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} ({$from_slug} → {$to_slug}) - Found " . count($matching_rules) . " matching rules");
-        }
+        // Apply smart deduplication checks to prevent duplicate timeline events
+        // while allowing ALL legitimate status changes (including rule-executed changes)
         
-        if (empty($matching_rules)) {
-            // Log when no rules match (only in debug mode)
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - NO RULES MATCHED, exiting early");
-            }
-            $this->log_no_rules_matched($order_id, $from_slug, $to_slug);
-            return; // Exit early - no rule processing needed
-        }
-
-        // Log that we found matching rules (only in debug mode)
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - RULES MATCHED, proceeding to universal event processing");
-            foreach ($matching_rules as $rule) {
-                error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - Matching rule: {$rule['name']} (ID: {$rule['id']})");
-            }
-        }
-
-        // Rules match - ALWAYS log this (production + debug)
-        $this->log_rule_evaluation_started($order_id, $from_slug, $to_slug, $matching_rules);
-
-        // Dedup using specific-hook marker and last processed meta
+        // Check for exact duplicate transitions (same from→to within time window)
         try {
-            if ($this->has_specific_status_processed($order_id, $to_slug, 30)) {
-                odcm_log_message("Skipping general status change for order #{$order_id} ({$from_slug} → {$to_slug}) - specific hook meta indicates processed", 'info');
+            if ($this->is_duplicate_status_transition($order_id, $from_slug, $to_slug, 30)) {
+                odcm_log_message("Skipping duplicate status transition for order #{$order_id} ({$from_slug} → {$to_slug}) - identical transition recently processed", 'info');
                 return;
             }
         } catch (\Throwable $e) {
-            odcm_log_message('Error checking specific status processed meta for order #' . $order_id . ': ' . $e->getMessage(), 'error');
-        }
-        try {
-            if ($this->is_duplicate_status_event($order_id, $from_slug, $to_slug, 30)) {
-                odcm_log_message("Skipping general status change for order #{$order_id} ({$from_slug} → {$to_slug}) - last processed meta indicates duplicate", 'info');
-                return;
-            }
-        } catch (\Throwable $e) {
-            odcm_log_message('Error checking _odcm_last_status_processed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
+            odcm_log_message('Error checking duplicate status transition for order #' . $order_id . ': ' . $e->getMessage(), 'error');
         }
 
-        // Additional safety: if a pending Action Scheduler task exists very recently, skip to prevent duplicates
-        if (function_exists('as_get_scheduled_actions')) {
-            $recent_actions = as_get_scheduled_actions([
-                'hook' => 'odcm_process_order_check',
-                'args' => ['order_id' => $order_id],
-                'status' => 'pending',
-                'per_page' => 1,
-                'date_query' => [ 'after' => '10 seconds ago' ]
-            ]);
-            if (!empty($recent_actions)) {
-                odcm_log_message("Skipping general status change for order #{$order_id} ({$from_slug} → {$to_slug}) - pending action exists", 'info');
-                return;
-            }
-        }
+        // REMOVED: Overly aggressive specific-hook deduplication that was blocking rule-executed status changes
+        // Status changes from rule execution are legitimate and should create timeline events
+        
+        // REMOVED: Overly aggressive Action Scheduler check that was preventing timeline events
+        // Timeline event creation is separate from rule evaluation scheduling
+        // Action Scheduler tasks are for rule processing, not timeline visibility
 
         // Attribution mapping using AttributionTracker
         $source = 'system';
@@ -711,42 +596,11 @@ class Core
             odcm_log_message('Attribution tracking failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
         }
 
-        // Narrative log with ProcessLogger and update last processed meta
-        try {
-            $pl = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger(new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer());
-            $pl->start('status_change_processing', [ 'order_id' => $order_id, 'via' => 'general', 'source' => $source ]);
-            $status_key = $pl->add_component('status_changed', 'Status changed (general hook)', [ 'from' => $from_slug, 'to' => $to_slug ]);
-            if (is_array($attr)) {
-                $src_plugin = is_array($attr['source_plugin'] ?? null) ? $attr['source_plugin'] : [];
-                $plugin_compact = [
-                    'type' => isset($src_plugin['type']) ? sanitize_key((string) $src_plugin['type']) : null,
-                    'slug' => isset($src_plugin['slug']) ? sanitize_text_field((string) $src_plugin['slug']) : null,
-                    'confidence' => isset($src_plugin['confidence']) ? (float) $src_plugin['confidence'] : null,
-                ];
-                $ext = is_array($attr['external_service'] ?? null) ? $attr['external_service'] : null;
-                $ext_compact = is_array($ext) ? [
-                    'name' => isset($ext['name']) ? sanitize_key((string) $ext['name']) : null,
-                    'confidence' => isset($ext['confidence']) ? (float) $ext['confidence'] : null,
-                ] : null;
-                $pl->add_deferred_context($status_key, [
-                    'attribution' => [
-                        'source' => $source,
-                        'request_type' => $request_type ?: null,
-                        'user_logged_in' => (bool) ($attr['user_context']['is_logged_in'] ?? false),
-                        'source_plugin' => $plugin_compact,
-                        'external_service' => $ext_compact,
-                    ]
-                ]);
-            }
-            $pl->add_component('dedup', 'Dedup checks', [ 'specific_hook' => (bool) ($this->has_specific_status_processed($order_id, $to_slug, 30) ?? false) ], 'debug');
-        } catch (\Throwable $e) {
-            // ignore
-        }
-
-        // Generate UniversalEvent for general status change
+        // Generate UniversalEvent for ALL status changes (timeline visibility)
+        // This ensures timeline events appear regardless of rule matches
         try {
             if ($order instanceof \WC_Order) {
-                $universal_event = $this->synthesize_status_change_event($order, $from_slug, $to_slug);
+                $universal_event = $this->synthesize_status_change_event($order, $from_slug, $to_slug, $occurrence_timestamp);
                 $this->process_universal_event_from_hook($universal_event);
                 odcm_log_message("Order #{$order_id} general status change ({$from_slug} → {$to_slug}) processed as universal event", 'info');
             }
@@ -780,18 +634,40 @@ class Core
             odcm_log_message('Failed updating _odcm_last_status_processed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
         }
 
-        // Schedule the order for completion check
-        $this->schedule_completion_check($order_id);
+        // Now check for rule evaluation - this is separate from timeline event creation
+        // Get matching rules for this status change
+        $matching_rules = $this->get_matching_rules_for_status_change($from_slug, $to_slug);
 
-        try {
-            if (isset($pl)) {
-                $pl->finish('queued', sprintf('Order #%d status changed from "%s" to "%s"; scheduled via general hook', $order_id, $from_slug, $to_slug));
+        // Log rule matching results when debug mode is enabled
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} ({$from_slug} → {$to_slug}) - Found " . count($matching_rules) . " matching rules");
+        }
+        
+        if (empty($matching_rules)) {
+            // Log when no rules match (only in debug mode)
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - NO RULES MATCHED, skipping rule evaluation but timeline event already created");
             }
-        } catch (\Throwable $e) {
-            // ignore
+            
+            // Schedule basic order check for compatibility
+            $this->schedule_completion_check($order_id);
+            
+            odcm_log_message("Order #{$order_id} status changed ({$from_slug} → {$to_slug}), source={$source}; timeline event created, no rules matched", 'info');
+            return; // Exit early - no rule processing needed, but timeline event was created
         }
 
-        odcm_log_message("Order #{$order_id} status changed ({$from_slug} → {$to_slug}), source={$source}; scheduled for completion check via general hook", 'info');
+        // Log that we found matching rules (only in debug mode)
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - RULES MATCHED, proceeding to rule evaluation");
+            foreach ($matching_rules as $rule) {
+                error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - Matching rule: {$rule['name']} (ID: {$rule['id']})");
+            }
+        }
+
+        // Schedule the order for completion check (rule evaluation)
+        $this->schedule_completion_check($order_id);
+
+        odcm_log_message("Order #{$order_id} status changed ({$from_slug} → {$to_slug}), source={$source}; timeline event created and scheduled for rule evaluation", 'info');
     }
 
     /**
@@ -922,18 +798,16 @@ class Core
     }
 
     /**
-     * Detect whether the provided from→to status event is a duplicate of the last processed event within a time window.
-     *
-     * This helps deduplicate cases where the general hook fires right after the specific hook or repeated
-     * rapid transitions occur.
+     * Check for exact duplicate status transitions within a time window.
+     * This only blocks identical from→to transitions, allowing different transitions.
      *
      * @param int    $order_id       WooCommerce order ID.
      * @param string $from           From status slug.
      * @param string $to             To status slug.
      * @param int    $window         Time window in seconds. Default 30.
-     * @return bool  True if duplicate, false otherwise.
+     * @return bool  True if identical transition recently occurred, false otherwise.
      */
-    private function is_duplicate_status_event(int $order_id, string $from, string $to, int $window = 30): bool
+    private function is_duplicate_status_transition(int $order_id, string $from, string $to, int $window = 30): bool
     {
         $order_id = absint($order_id);
         if ($order_id <= 0 || $window <= 0) {
@@ -950,13 +824,12 @@ class Core
         $from = sanitize_key($from);
         $to   = sanitize_key($to);
 
-        if ($last_to !== $to) {
-            return false;
+        // Only block if BOTH from AND to match exactly (true duplicate)
+        // This allows sequential status changes like: pending→processing, processing→completed
+        if ($last_from !== $from || $last_to !== $to) {
+            return false; // Different transition - allow it
         }
-        $from_matches = ($last_from === $from) || ($last_from === 'unknown');
-        if (!$from_matches) {
-            return false;
-        }
+
         if ($last_time <= 0) {
             return false;
         }
@@ -1057,28 +930,6 @@ class Core
         return false;
     }
 
-    /**
-     * Synthesize payment complete event from WooCommerce order data
-     *
-     * @param \WC_Order $order WooCommerce order object
-     * @return UniversalEvent
-     */
-    private function synthesize_payment_complete_event(\WC_Order $order): UniversalEvent
-    {
-        return new UniversalEvent([
-            'eventType' => 'payment_completed',
-            'sourceGateway' => $this->normalize_gateway_name($order->get_payment_method()),
-            'channel' => 'system',
-            'primaryObjectType' => 'order',
-            'primaryObjectID' => $order->get_id(),
-            'transactionID' => $order->get_transaction_id(),
-            'status' => 'completed',
-            'amount' => (float) $order->get_total(),
-            'currency' => $order->get_currency(),
-            'occurredAt' => current_time('c'),
-            'rawData' => [] // No sensitive webhook data
-        ]);
-    }
 
     /**
      * Synthesize status change event from WooCommerce order data
@@ -1086,27 +937,118 @@ class Core
      * @param \WC_Order $order WooCommerce order object
      * @param string $from_status Previous status
      * @param string $to_status New status
+     * @param float $processing_timestamp Processing timestamp when hook fired (for debugging)
      * @return UniversalEvent
      */
-    private function synthesize_status_change_event(\WC_Order $order, string $from_status, string $to_status): UniversalEvent
+    private function synthesize_status_change_event(\WC_Order $order, string $from_status, string $to_status, float $processing_timestamp): UniversalEvent
     {
-        return new UniversalEvent([
+        $order_id = $order->get_id();
+        
+        // DEBUG: Log the event creation process
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_PROCESS_ID_DEBUG: Creating UniversalEvent for order #{$order_id} status change ({$from_status} → {$to_status})");
+        }
+
+        // USE REAL OCCURRENCE TIMESTAMP from WooCommerce order data
+        $real_occurrence_timestamp = $this->derive_real_occurrence_timestamp($order, $from_status, $to_status);
+
+        // Check for manual status change context from ManualStatusTracker
+        $manual_context = ManualStatusTracker::get_manual_context($order_id);
+        $is_manual = is_array($manual_context) && ($manual_context['is_manual'] ?? false);
+        
+        // Clean up the context after reading
+        if ($is_manual) {
+            ManualStatusTracker::clear_manual_context($order_id);
+        }
+
+        // Capture attribution context for rawData
+        $attribution = [];
+        try {
+            $attr = AttributionTracker::instance()->capture_context();
+            if (is_array($attr)) {
+                $attribution = [
+                    'request_type' => $attr['request_type'] ?? 'unknown',
+                    'user_logged_in' => $attr['user_context']['is_logged_in'] ?? false,
+                    'source_plugin' => $attr['source_plugin'] ?? null,
+                    'external_service' => $attr['external_service'] ?? null,
+                ];
+            }
+        } catch (\Throwable $e) {
+            $attribution = ['error' => 'Attribution capture failed'];
+        }
+
+        $rawData = [
+            'from_status' => $from_status,
+            'to_status' => $to_status,
+            'source' => $this->determine_change_source(),
+            'attribution' => $attribution,
+            'order_total' => $order->get_total(),
+            'customer_id' => $order->get_customer_id(),
+            'real_occurrence_timestamp' => $real_occurrence_timestamp,
+            'processing_timestamp' => $processing_timestamp, // Keep for debugging
+        ];
+
+        // Create status change component with real timestamp
+        $status_data = [
+            'from' => $from_status,
+            'to' => $to_status,
+            'order_id' => $order_id,
+        ];
+
+        // Add manual change data to components for main timeline display
+        if ($is_manual) {
+            $status_data['manual_change'] = true;
+            $status_data['changed_by_user_id'] = $manual_context['user_id'];
+            $status_data['changed_by_user_name'] = $manual_context['user_display_name'];
+            $status_data['change_type'] = 'manual';
+            
+            if ($manual_context['bypassed_automation']) {
+                $status_data['bypassed_automation'] = true;
+                $status_data['automation_bypass_warning'] = 'This manual change may have bypassed automatic completion rules.';
+            }
+        } else {
+            $status_data['change_type'] = 'automatic';
+        }
+
+        // USE REAL OCCURRENCE TIMESTAMP for chronological ordering
+        $components = [[
+            'k' => 'status_change_' . str_replace('.', '_', (string)$real_occurrence_timestamp),
+            'event_type' => 'status_changed',
+            'ts' => $real_occurrence_timestamp,
+            'label' => 'Status changed',
+            'level' => 'info',
+            'data' => $status_data,
+        ]];
+
+        // CRITICAL: Ensure primaryObjectID is properly set as integer for process_id assignment
+        $universal_event_data = [
             'eventType' => $this->map_status_to_event_type($to_status),
             'sourceGateway' => $this->normalize_gateway_name($order->get_payment_method()),
-            'channel' => 'system',
+            'channel' => $is_manual ? 'manual' : 'system',
             'primaryObjectType' => 'order',
-            'primaryObjectID' => $order->get_id(),
+            'primaryObjectID' => (int) $order_id, // EXPLICIT integer cast to ensure process_id logic works
             'transactionID' => $order->get_transaction_id(),
             'status' => $to_status,
             'amount' => (float) $order->get_total(),
             'currency' => $order->get_currency(),
+            'reason' => $is_manual ? 'manual_change' : 'automatic_change',
             'occurredAt' => current_time('c'),
-            'rawData' => [
-                'from_status' => $from_status,
-                'to_status' => $to_status,
-                'source' => $this->determine_change_source()
-            ]
-        ]);
+            'receivedAt' => current_time('c'), // Required for validation
+            'idempotencyKey' => 'status_change_' . $order_id . '_' . $from_status . '_' . $to_status . '_' . time(), // Required for validation and deduplication
+            'rawData' => $rawData,
+            'components' => $components 
+        ];
+
+        // DEBUG: Log the UniversalEvent data structure
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_PROCESS_ID_DEBUG: UniversalEvent data for order #{$order_id}:");
+            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectType: " . $universal_event_data['primaryObjectType']);
+            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectID: " . $universal_event_data['primaryObjectID'] . " (type: " . gettype($universal_event_data['primaryObjectID']) . ")");
+            error_log("ODCM_PROCESS_ID_DEBUG: - eventType: " . $universal_event_data['eventType']);
+            error_log("ODCM_PROCESS_ID_DEBUG: - idempotencyKey: " . $universal_event_data['idempotencyKey']);
+        }
+
+        return new UniversalEvent($universal_event_data);
     }
 
     /**
@@ -1139,26 +1081,82 @@ class Core
     }
 
     /**
-     * Normalize gateway name to standard format
+     * Synthesize payment complete event with gateway-specific data in rawData
      *
-     * @param string $payment_method WooCommerce payment method ID
-     * @return string Normalized gateway name
+     * @param \WC_Order $order WooCommerce order object
+     * @return UniversalEvent
      */
-    private function normalize_gateway_name(string $payment_method): string
+    private function synthesize_payment_complete_event(\WC_Order $order): UniversalEvent
     {
-        $gateway_mapping = [
-            'paypal' => 'paypal',
-            'ppcp-gateway' => 'paypal',
-            'ppcp-credit-card-gateway' => 'paypal',
-            'stripe' => 'stripe',
-            'stripe_cc' => 'stripe',
-            'stripe_sepa' => 'stripe',
-            'bacs' => 'bank_transfer',
-            'cheque' => 'check',
-            'cod' => 'cash_on_delivery',
+        // GET REAL PAYMENT TIMESTAMP from WooCommerce order data
+        $payment_timestamp = $this->get_real_payment_timestamp($order);
+
+        $payment_method = $order->get_payment_method();
+        $gateway_title = $order->get_payment_method_title();
+        
+        // Gather gateway-specific data for rawData
+        $gateway_data = [
+            'payment_method_id' => $payment_method,
+            'payment_method_title' => $gateway_title,
+            'transaction_id' => $order->get_transaction_id(),
+            'order_key' => $order->get_order_key(),
+            'payment_date' => $order->get_date_paid() ? $order->get_date_paid()->format('c') : null,
+            'amount' => $order->get_total(),
+            'currency' => $order->get_currency(),
+        ];
+        
+        // Add Stripe-specific data if available
+        if (strpos($payment_method, 'stripe') !== false) {
+            $gateway_data['stripe_data'] = [
+                'payment_intent_id' => $order->get_meta('_stripe_intent_id'),
+                'charge_id' => $order->get_meta('_stripe_charge_id'),
+                'source_id' => $order->get_meta('_stripe_source_id'),
+                'customer_id' => $order->get_meta('_stripe_customer_id'),
+            ];
+        }
+        
+        // Add PayPal-specific data if available  
+        if (strpos($payment_method, 'paypal') !== false || strpos($payment_method, 'ppcp') !== false) {
+            $gateway_data['paypal_data'] = [
+                'transaction_id' => $order->get_meta('_paypal_transaction_id'),
+                'payer_id' => $order->get_meta('_paypal_payer_id'),
+                'payment_status' => $order->get_meta('_paypal_status'),
+            ];
+        }
+
+        // Create payment completion component with real timestamp
+        $payment_data = [
+            'status' => 'completed',
+            'order_id' => $order->get_id(),
+            'amount' => $order->get_total(),
+            'currency' => $order->get_currency(),
+            'transaction_id' => $order->get_transaction_id(),
+            'payment_method' => $gateway_title,
         ];
 
-        return $gateway_mapping[$payment_method] ?? $payment_method;
+        $components = [[
+            'k' => 'payment_complete_' . str_replace('.', '_', (string)$payment_timestamp),
+            'event_type' => 'payment_completed',
+            'ts' => $payment_timestamp, // REAL payment timestamp from WooCommerce data
+            'label' => 'Payment completed',
+            'level' => 'info',
+            'data' => $payment_data,
+        ]];
+
+        return new UniversalEvent([
+            'eventType' => 'payment_completed',
+            'sourceGateway' => $this->normalize_gateway_name($payment_method),
+            'channel' => 'system',
+            'primaryObjectType' => 'order',
+            'primaryObjectID' => $order->get_id(),
+            'transactionID' => $order->get_transaction_id(),
+            'status' => 'completed',
+            'amount' => (float) $order->get_total(),
+            'currency' => $order->get_currency(),
+            'occurredAt' => current_time('c'),
+            'rawData' => $gateway_data,  // Gateway-specific data for expandable sections
+            'components' => $components 
+        ]);
     }
 
     /**
@@ -1233,6 +1231,69 @@ class Core
             odcm_log_message('Payment gateway event processing error details: ' . $e->getFile() . ':' . $e->getLine(), 'error');
             // Continue execution without throwing the exception
         }
+    }
+
+    /**
+     * Derive real occurrence timestamp from WooCommerce order data based on event type
+     *
+     * @param \WC_Order $order WooCommerce order object
+     * @param string $from_status Previous status
+     * @param string $to_status New status
+     * @return float Real occurrence timestamp
+     */
+    private function derive_real_occurrence_timestamp(\WC_Order $order, string $from_status, string $to_status): float
+    {
+        // For checkout events (draft → pending): Use order creation time
+        if ($from_status === 'checkout-draft' && $to_status === 'pending') {
+            return (float) $order->get_date_created()->getTimestamp();
+        }
+        
+        // For payment completion events (pending → completed): Use payment date
+        if ($to_status === 'completed' && $order->get_date_paid()) {
+            return (float) $order->get_date_paid()->getTimestamp();
+        }
+        
+        // For other status changes: Use date modified or fallback to current time
+        if ($order->get_date_modified()) {
+            return (float) $order->get_date_modified()->getTimestamp();
+        }
+        
+        // Fallback to current time with microsecond precision
+        return microtime(true);
+    }
+
+    /**
+     * Get real payment timestamp from WooCommerce order data
+     *
+     * @param \WC_Order $order WooCommerce order object
+     * @return float Payment timestamp
+     */
+    private function get_real_payment_timestamp(\WC_Order $order): float
+    {
+        // Use date_paid if available (most accurate)
+        if ($order->get_date_paid()) {
+            return (float) $order->get_date_paid()->getTimestamp();
+        }
+        
+        // Fallback to date_modified for immediate payment scenarios
+        if ($order->get_date_modified()) {
+            return (float) $order->get_date_modified()->getTimestamp();
+        }
+        
+        // Final fallback to current time
+        return microtime(true);
+    }
+
+    /**
+     * Get real checkout timestamp from WooCommerce order data
+     *
+     * @param \WC_Order $order WooCommerce order object
+     * @return float Checkout timestamp
+     */
+    private function get_real_checkout_timestamp(\WC_Order $order): float
+    {
+        // Checkout events should use order creation time
+        return (float) $order->get_date_created()->getTimestamp();
     }
 
     /**
@@ -1457,6 +1518,27 @@ class Core
      */
     private function synthesize_checkout_processed_event(\WC_Order $order, array $posted_data): UniversalEvent
     {
+        // GET REAL CHECKOUT TIMESTAMP from WooCommerce order creation date
+        $checkout_timestamp = $this->get_real_checkout_timestamp($order);
+
+        // Create checkout completion component with real timestamp
+        $checkout_data = [
+            'order_status' => $order->get_status(),
+            'order_id' => $order->get_id(),
+            'payment_method' => $order->get_payment_method_title(),
+            'customer_id' => $order->get_customer_id(),
+            'checkout_type' => 'standard',
+        ];
+
+        $components = [[
+            'k' => 'checkout_complete_' . str_replace('.', '_', (string)$checkout_timestamp),
+            'event_type' => 'checkout_processed',
+            'ts' => $checkout_timestamp, // REAL checkout timestamp from order creation
+            'label' => 'Checkout completed',
+            'level' => 'info',
+            'data' => $checkout_data,
+        ]];
+
         return new UniversalEvent([
             'eventType' => 'checkout_processed',
             'sourceGateway' => $this->normalize_gateway_name($order->get_payment_method()),
@@ -1473,8 +1555,11 @@ class Core
                 'payment_method' => $order->get_payment_method(),
                 'customer_id' => $order->get_customer_id(),
                 'checkout_type' => 'standard',
-                'source' => $this->determine_change_source()
-            ]
+                'source' => $this->determine_change_source(),
+                'real_checkout_timestamp' => $checkout_timestamp,
+                'date_created' => $order->get_date_created()->format('c'),
+            ],
+            'components' => $components 
         ]);
     }
 
@@ -1489,12 +1574,18 @@ class Core
      */
     private function log_status_change_evaluation(int $order_id, string $from, string $to): void
     {
+        // Get the correct shared process_id for this order
+        $process_id = \OrderDaemon\CompletionManager\Core\ProcessIdManager::instance()
+            ->get_or_create_process_id($order_id);
+        
         odcm_log_event(
             "Status change evaluation: Order #{$order_id} ({$from} → {$to})",
             ['from' => $from, 'to' => $to, 'debug_mode' => true],
             $order_id,
             'info',
-            'status_evaluation'
+            'status_evaluation',
+            false,     // is_test
+            $process_id
         );
     }
 
@@ -1690,6 +1781,29 @@ class Core
         ]);
         
         return count($rules);
+    }
+
+    /**
+     * Normalize gateway name to standard format
+     *
+     * @param string $payment_method WooCommerce payment method ID
+     * @return string Normalized gateway name
+     */
+    private function normalize_gateway_name(string $payment_method): string
+    {
+        $gateway_mapping = [
+            'paypal' => 'paypal',
+            'ppcp-gateway' => 'paypal',
+            'ppcp-credit-card-gateway' => 'paypal',
+            'stripe' => 'stripe',
+            'stripe_cc' => 'stripe',
+            'stripe_sepa' => 'stripe',
+            'bacs' => 'bank_transfer',
+            'cheque' => 'check',
+            'cod' => 'cash_on_delivery',
+        ];
+
+        return $gateway_mapping[$payment_method] ?? $payment_method;
     }
 
     // ========================================================================

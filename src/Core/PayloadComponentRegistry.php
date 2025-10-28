@@ -36,6 +36,11 @@ if (!defined('WPINC')) {
  */
 function odcm_get_renderer_for_event_type(string $event_type): string
 {
+    // Handle hierarchical payment events: payment.{gateway}.{original_event_type}
+    if (strpos($event_type, 'payment.') === 0) {
+        return PaymentRenderer::class;
+    }
+    
     $renderers = [
         // Process events -> Appropriate Renderers
         'rule_execution' => RuleRenderer::class,
@@ -52,15 +57,6 @@ function odcm_get_renderer_for_event_type(string $event_type): string
         'action_executed' => RuleRenderer::class,
         'decision' => RuleRenderer::class,
         'validation' => RuleRenderer::class,
-
-        // Payment events -> PaymentRenderer
-        'payment_completed' => PaymentRenderer::class,
-        'payment_failed' => PaymentRenderer::class,
-        'refund_created' => PaymentRenderer::class,
-        'stripe_event' => PaymentRenderer::class,
-        'paypal_event' => PaymentRenderer::class,
-        'order_partially_refunded' => PaymentRenderer::class,
-        'order_fully_refunded' => PaymentRenderer::class,
 
         // Order events -> OrderRenderer
         'status_changed' => OrderRenderer::class,
@@ -120,6 +116,11 @@ function odcm_get_renderer_for_event_type(string $event_type): string
  */
 function odcm_get_component_theme(string $event_type): string
 {
+    // Handle hierarchical payment events: payment.{gateway}.{original_event_type}
+    if (strpos($event_type, 'payment.') === 0) {
+        return 'payment';
+    }
+    
     $themes = [
         // Process events use appropriate themes
         'rule_execution' => 'rule',
@@ -137,14 +138,6 @@ function odcm_get_component_theme(string $event_type): string
         'decision' => 'rule',
         'validation' => 'rule',
 
-        // Payment events use payment theme
-        'payment_completed' => 'payment',
-        'payment_failed' => 'payment',
-        'refund_created' => 'payment',
-        'stripe_event' => 'payment',
-        'paypal_event' => 'payment',
-        'order_partially_refunded' => 'payment',
-        'order_fully_refunded' => 'payment',
 
         // Order events use woocommerce theme
         'status_changed' => 'woocommerce',
@@ -217,14 +210,6 @@ function odcm_get_status_pill_config(string $event_type): ?array
         'condition_failed' => ['label' => 'FAILED', 'type' => 'warning'],
         'action_executed' => ['label' => 'EXECUTED', 'type' => 'info'],
 
-        // Payment events
-        'payment_completed' => ['label' => 'COMPLETED', 'type' => 'success'],
-        'payment_failed' => ['label' => 'FAILED', 'type' => 'error'],
-        'refund_created' => ['label' => 'REFUND', 'type' => 'warning'],
-        'stripe_event' => ['label' => 'STRIPE', 'type' => 'gateway'],
-        'paypal_event' => ['label' => 'PAYPAL', 'type' => 'gateway'],
-        'order_partially_refunded' => ['label' => 'PARTIAL REFUND', 'type' => 'warning'],
-        'order_fully_refunded' => ['label' => 'FULL REFUND', 'type' => 'warning'],
 
         // Order events
         'status_changed' => null, // Dynamic based on status
@@ -292,14 +277,6 @@ function odcm_get_component_label(string $event_type): string
         'decision' => 'Decision',
         'validation' => 'Validation',
 
-        // Payment events
-        'payment_completed' => 'Payment Completed',
-        'payment_failed' => 'Payment Failed',
-        'refund_created' => 'Refund Created',
-        'stripe_event' => 'Stripe Event',
-        'paypal_event' => 'PayPal Event',
-        'order_partially_refunded' => 'Order Partially Refunded',
-        'order_fully_refunded' => 'Order Fully Refunded',
 
         // Order events
         'status_changed' => 'Status Changed',

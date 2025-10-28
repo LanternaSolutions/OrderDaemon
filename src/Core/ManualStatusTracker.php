@@ -5,8 +5,6 @@ namespace OrderDaemon\CompletionManager\Core;
 
 use WC_Order;
 use OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer;
-use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
-use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
 
 /**
  * Manual Status Tracker - Chain of Custody Logging
@@ -50,6 +48,14 @@ use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
 class ManualStatusTracker
 {
     /**
+     * Temporary storage for manual status change context
+     * Key: order_id, Value: manual context array
+     * 
+     * @var array
+     */
+    private static array $manual_contexts = [];
+
+    /**
      * Initialize the manual status tracking hooks.
      * This method should be called during plugin initialization.
      */
@@ -63,11 +69,42 @@ class ManualStatusTracker
     }
 
     /**
+     * Get manual status change context for an order
+     * 
+     * @param int $order_id Order ID
+     * @return array|null Manual context data or null if not found
+     */
+    public static function get_manual_context(int $order_id): ?array
+    {
+        return self::$manual_contexts[$order_id] ?? null;
+    }
+
+    /**
+     * Clear manual status change context for an order
+     * 
+     * @param int $order_id Order ID
+     * @return void
+     */
+    public static function clear_manual_context(int $order_id): void
+    {
+        unset(self::$manual_contexts[$order_id]);
+    }
+
+    /**
+     * Clear all manual contexts (cleanup method)
+     * 
+     * @return void
+     */
+    public static function clear_all_contexts(): void
+    {
+        self::$manual_contexts = [];
+    }
+
+    /**
      * Track order status changes and detect manual user actions.
      * 
-     * This method is called whenever an order status changes in WooCommerce.
-     * It determines if the change was made by a logged-in user and logs
-     * appropriate chain of custody information.
+     * PURE DETECTION ONLY - This method captures attribution data for manual status changes
+     * and stores it for Core.php to pick up. It does NOT create any events or timeline entries.
      *
      * @param int    $order_id   The order ID.
      * @param string $from       The previous status.
@@ -76,212 +113,50 @@ class ManualStatusTracker
      */
     public static function track_status_change(int $order_id, string $from, string $to, WC_Order $order): void
     {
-        // Capture enhanced attribution context (request type, plugin, user, service)
+        // Only detect manual changes - all other changes are handled by Core.php
+        if (!self::is_manual_user_action()) {
+            return;
+        }
+
+        // Capture attribution context for manual changes
         $attr = AttributionTracker::instance()->capture_context();
-        $request_type = is_array($attr) ? sanitize_key((string) ($attr['request_type'] ?? '')) : '';
-        $external_service_name = (is_array($attr) && isset($attr['external_service']['name'])) ? sanitize_key((string) $attr['external_service']['name']) : null;
-
-        // Map attribution into canonical 'source' values used by premium filters
-        // First check if this is Order Daemon automation via backtrace
-        $is_odcm_automation = self::is_automation_context();
-
-        if ($is_odcm_automation) {
-            $source = 'automation';
-        } elseif (is_user_logged_in()) {
-            $source = 'manual';
-        } elseif ($request_type === 'webhook' || !empty($external_service_name)) {
-            $source = 'webhook';
-        } elseif ($request_type === 'rest' || $request_type === 'ajax') {
-            $source = 'api';
-        } elseif (in_array($request_type, ['action_scheduler','cron','cli','wp_cli'], true)) {
-            $source = 'scheduled';
-        } else {
-            $source = 'system';
-        }
-
-        // Define standard WooCommerce workflow transitions that are automatic
-        $automatic_workflow_transitions = [
-            'checkout-draft' => 'pending',    // Standard checkout completion
-            'pending' => 'processing',        // Standard payment processing
-        ];
         
-        $is_automatic_workflow = isset($automatic_workflow_transitions[$from]) && 
-                                $automatic_workflow_transitions[$from] === $to;
-
-        // Backward compatibility: do not log non-manual changes unless debugging is enabled
-        // Exception: Always log automation events (even without DEBUG mode)
-        if ($source !== 'manual' && $source !== 'automation' && (!defined('ODCM_DEBUG') || !ODCM_DEBUG)) {
-            return;
-        }
-        // For automatic workflow transitions, only log when ODCM_DEBUG is enabled
-        if ($is_automatic_workflow && (!defined('ODCM_DEBUG') || !ODCM_DEBUG)) {
-            return;
-        }
-
-        // Get current user information (falls back to 'system' label if no user)
+        // Get current user information
         $current_user = wp_get_current_user();
-        $user_id = isset($current_user->ID) ? (int) $current_user->ID : 0;
-        $user_display_name = $user_id > 0 ? ($current_user->display_name ?: $current_user->user_login) : 'system';
+        $user_id = $current_user->ID;
+        $user_display_name = $current_user->display_name ?: $current_user->user_login;
 
         // Check if this change might have bypassed automation
         $bypassed_automation = self::would_automation_have_triggered($order, $from, $to);
 
-        // Determine the appropriate event type and context (kept for compatibility)
-        $event_type = $is_automatic_workflow ? 'automatic_workflow_transition' : 'manual_status_change';
-        $context = $is_automatic_workflow ? 'automatic_workflow' : 'manual_status_change';
-        
-        // Generate a consistent correlation ID for all related events
-        $correlation_id = $order_id . ':' . time();
-
-        // Generate UniversalEvent for manual status changes
-        if ($source === 'manual' && !$is_automatic_workflow) {
-            try {
-                $universal_event = self::synthesize_manual_status_change_event($order, $from, $to, $user_id, $bypassed_automation);
-                self::process_universal_event_from_hook($universal_event);
-                odcm_log_message("Manual status change for order #{$order_id} ({$from} → {$to}) processed as universal event", 'info');
-            } catch (\Throwable $e) {
-                odcm_log_message('Manual status change universal event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
-            }
-        }
-
-        // Log status change using Universal Events system
-        $sanitizer = new ComponentSanitizer();
-        
-        // Prepare sanitized components
-        $components = [];
-        
-        // Add status change component
-        $status_data = $sanitizer->sanitize('status_changed', ['from' => $from, 'to' => $to]);
-        $components[] = [
-            'k' => 'c' . time() . rand(10,99),
-            'event_type' => 'status_changed',
-            'ts' => time(),
-            'label' => 'Status changed',
-            'level' => 'info', // Business-relevant component, remains info level
-            'data' => $status_data,
-            'correlation_id' => $correlation_id,
+        // Store manual change context for Core.php to pick up
+        $manual_context = [
+            'is_manual' => true,
+            'user_id' => $user_id,
+            'user_display_name' => $user_display_name,
+            'bypassed_automation' => $bypassed_automation,
+            'from_status' => $from,
+            'to_status' => $to,
+            'timestamp' => time(),
+            'attribution' => $attr,
         ];
-        
-        // Add workflow info if automatic
-        if ($is_automatic_workflow) {
-            $info_data = $sanitizer->sanitize('info', ['message' => 'Standard WooCommerce workflow transition detected']);
-            $components[] = [
-                'k' => 'c' . time() . rand(10,99),
-                'event_type' => 'info',
-                'ts' => time(),
-                'label' => 'Automatic workflow transition',
-                'level' => 'debug', // Technical implementation detail, mark as debug
-                'data' => $info_data,
-                'correlation_id' => $correlation_id,
-            ];
-        }
-        
-        // Add attribution context if available
-        if (is_array($attr)) {
-            $src_plugin = is_array($attr['source_plugin'] ?? null) ? $attr['source_plugin'] : [];
-            $plugin_compact = [
-                'type' => isset($src_plugin['type']) ? sanitize_key((string) $src_plugin['type']) : null,
-                'slug' => isset($src_plugin['slug']) ? sanitize_text_field((string) $src_plugin['slug']) : null,
-                'confidence' => isset($src_plugin['confidence']) ? (float) $src_plugin['confidence'] : null,
-            ];
-            $ext = is_array($attr['external_service'] ?? null) ? $attr['external_service'] : null;
-            $ext_compact = is_array($ext) ? [
-                'name' => isset($ext['name']) ? sanitize_key((string) $ext['name']) : null,
-                'confidence' => isset($ext['confidence']) ? (float) $ext['confidence'] : null,
-            ] : null;
-            
-            $attribution_data = [
-                'source' => $source,
-                'request_type' => $request_type ?: null,
-                'user_logged_in' => (bool) ($attr['user_context']['is_logged_in'] ?? false),
-                'source_plugin' => $plugin_compact,
-                'external_service' => $ext_compact,
-            ];
-            
-            $components[] = [
-                'k' => 'c' . time() . rand(10,99),
-                'event_type' => 'info',
-                'ts' => time(),
-                'label' => 'Attribution context',
-                'level' => 'debug', // Technical implementation detail, mark as debug
-                'data' => ['attribution' => $attribution_data],
-                'correlation_id' => $correlation_id,
-            ];
-        }
-        
-        // Add automation bypass warning if applicable
-        if ($bypassed_automation) {
-            $warning_data = $sanitizer->sanitize('warning', [
-                'code' => 'bypassed_automation',
-                'message' => 'This change may have bypassed auto rules'
-            ]);
-            $components[] = [
-                'k' => 'c' . time() . rand(10,99),
-                'event_type' => 'warning',
-                'ts' => time(),
-                'label' => 'Automation bypass context',
-                'level' => 'warning', // Relevant warning, remains warning level
-                'data' => $warning_data,
-                'correlation_id' => $correlation_id,
-            ];
-        }
-        
-        // Generate final summary
-        $final_summary = sprintf(
-            'Order #%d status %s changed from "%s" to "%s" by %s.',
-            $order_id,
-            $is_automatic_workflow ? 'automatically' : 'manually',
-            $from,
-            $to,
+
+        // Store in static property for Core.php Universal Event synthesis to pick up
+        self::$manual_contexts[$order_id] = $manual_context;
+
+        // Add order note for manual changes (this is the only direct action we take)
+        $note_message = sprintf(
+            'Order status manually changed from "%s" to "%s" by %s.',
+            wc_get_order_status_name($from),
+            wc_get_order_status_name($to),
             $user_display_name
         );
-        
-        // Log using Universal Events system
-        odcm_log_event(
-            $final_summary,
-            [
-                'type' => $event_type,
-                'cid' => $correlation_id,
-                'oid' => $order_id,
-                'actor' => [
-                    'id' => $source === 'manual' ? $user_id : null,
-                    'role' => $source === 'manual' ? ($current_user->roles[0] ?? null) : null,
-                    'name' => $source === 'manual' ? $current_user->display_name : null,
-                ],
-                'ts' => time(),
-                'components' => $components,
-            ],
-            $order_id,
-            'success',
-            $event_type
-        );
 
-        // Only add order notes for truly manual changes, not automatic workflow transitions
-        if (!$is_automatic_workflow) {
-            if ($source === 'manual') {
-                $note_message = sprintf(
-                    'Order status manually changed from "%s" to "%s" by %s.',
-                    wc_get_order_status_name($from),
-                    wc_get_order_status_name($to),
-                    $user_display_name
-                );
-
-                if ($bypassed_automation) {
-                    $note_message .= ' This change may have bypassed automatic completion rules.';
-                }
-
-                $order->add_order_note($note_message, false, true);
-            } elseif ($source === 'automation') {
-                // Automated change - simple informational note
-                $note_message = sprintf(
-                    'Order status automatically changed from "%s" to "%s" via Order Daemon rules.',
-                    wc_get_order_status_name($from),
-                    wc_get_order_status_name($to)
-                );
-                
-                $order->add_order_note($note_message, false, true);
-            }
+        if ($bypassed_automation) {
+            $note_message .= ' This change may have bypassed automatic completion rules.';
         }
+
+        $order->add_order_note($note_message, false, true);
     }
 
     /**
@@ -409,6 +284,9 @@ class ManualStatusTracker
      * 
      * This helper method determines if the current execution context
      * suggests a manual user action versus an automated system action.
+     * 
+     * CRITICAL: This must be very specific to avoid false positives.
+     * Only mark as manual when user is directly editing orders.
      *
      * @return bool True if this appears to be a manual user action.
      */
@@ -419,22 +297,154 @@ class ManualStatusTracker
             return false;
         }
 
-        // Check if this is an admin request
-        if (is_admin()) {
+        // Check if this is Order Daemon automation context (definitely not manual)
+        if (self::is_automation_context()) {
+            return false;
+        }
+
+        // Check if this is Action Scheduler context (definitely not manual)
+        if (self::is_action_scheduler_context()) {
+            return false;
+        }
+
+        // Check if this is a cron/background process (definitely not manual)
+        if (wp_doing_cron() || (defined('DOING_CRON') && DOING_CRON)) {
+            return false;
+        }
+
+        // Check for specific WooCommerce order edit actions (definitely manual)
+        if (self::is_woocommerce_order_edit()) {
             return true;
         }
 
-        // Check if this is a REST API request with authentication
+        // Check for AJAX requests that are order management related (potentially manual)
+        if (wp_doing_ajax() && self::is_order_management_ajax()) {
+            return true;
+        }
+
+        // Check for REST API requests with specific order management context
         if (defined('REST_REQUEST') && (bool) constant('REST_REQUEST')) {
-            return is_user_logged_in();
+            return self::is_order_management_rest();
         }
 
-        // Check for AJAX requests from admin
-        if (wp_doing_ajax() && is_admin()) {
+        // Default to false - be conservative to avoid false positives
+        return false;
+    }
+
+    /**
+     * Check if this is Action Scheduler executing background tasks
+     *
+     * @return bool True if Action Scheduler context
+     */
+    private static function is_action_scheduler_context(): bool
+    {
+        // Check for Action Scheduler execution
+        if (defined('DOING_CRON') && DOING_CRON) {
             return true;
         }
 
-        // Default to false for automated contexts
+        // Check backtrace for Action Scheduler classes
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 15);
+        
+        foreach ($backtrace as $trace) {
+            if (!isset($trace['class'])) {
+                continue;
+            }
+            
+            $class = $trace['class'];
+            
+            // Action Scheduler classes
+            if (strpos($class, 'ActionScheduler') === 0) {
+                return true;
+            }
+            
+            // WooCommerce Action Scheduler
+            if (strpos($class, 'WC_Action_Queue') === 0) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if this is a WooCommerce order edit action
+     *
+     * @return bool True if editing an order
+     */
+    private static function is_woocommerce_order_edit(): bool
+    {
+        global $pagenow, $typenow;
+
+        // Check if we're on the order edit page
+        if ($pagenow === 'post.php' && $typenow === 'shop_order') {
+            return true;
+        }
+
+        // Check if we're on the orders list page with edit action
+        if ($pagenow === 'edit.php' && $typenow === 'shop_order') {
+            $action = $_GET['action'] ?? '';
+            return $action === 'edit';
+        }
+
+        // Check for WooCommerce admin order edit screens
+        if (is_admin()) {
+            $screen = get_current_screen();
+            if ($screen && $screen->id === 'shop_order') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if this is an order management AJAX request
+     *
+     * @return bool True if order management AJAX
+     */
+    private static function is_order_management_ajax(): bool
+    {
+        if (!wp_doing_ajax()) {
+            return false;
+        }
+
+        $action = $_REQUEST['action'] ?? '';
+        
+        // WooCommerce order management AJAX actions
+        $order_ajax_actions = [
+            'woocommerce_mark_order_status',
+            'woocommerce_update_order_review',
+            'woocommerce_save_order_items',
+            'woocommerce_add_order_item',
+            'woocommerce_remove_order_item',
+            'woocommerce_add_order_note',
+            'woocommerce_delete_order_note',
+        ];
+
+        return in_array($action, $order_ajax_actions, true);
+    }
+
+    /**
+     * Check if this is an order management REST API request
+     *
+     * @return bool True if order management REST
+     */
+    private static function is_order_management_rest(): bool
+    {
+        if (!defined('REST_REQUEST') || !REST_REQUEST) {
+            return false;
+        }
+
+        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+        
+        // WooCommerce REST API order endpoints
+        if (strpos($request_uri, '/wp-json/wc/') !== false && strpos($request_uri, '/orders/') !== false) {
+            $method = $_SERVER['REQUEST_METHOD'] ?? '';
+            // Only consider PUT/POST as potentially manual (not GET which could be automated)
+            return in_array($method, ['PUT', 'POST', 'PATCH'], true);
+        }
+
         return false;
     }
 
@@ -532,110 +542,4 @@ class ManualStatusTracker
         );
     }
 
-    /**
-     * Synthesize manual status change event from WooCommerce order data
-     *
-     * @param \WC_Order $order WooCommerce order object
-     * @param string $from_status Previous status
-     * @param string $to_status New status
-     * @param int $user_id User ID who made the change
-     * @param bool $bypassed_automation Whether automation was bypassed
-     * @return UniversalEvent
-     */
-    private static function synthesize_manual_status_change_event(\WC_Order $order, string $from_status, string $to_status, int $user_id, bool $bypassed_automation): UniversalEvent
-    {
-        return new UniversalEvent([
-            'eventType' => 'manual_status_change',
-            'sourceGateway' => self::normalize_gateway_name($order->get_payment_method()),
-            'channel' => 'manual',
-            'primaryObjectType' => 'order',
-            'primaryObjectID' => $order->get_id(),
-            'transactionID' => $order->get_transaction_id(),
-            'status' => $to_status,
-            'amount' => (float) $order->get_total(),
-            'currency' => $order->get_currency(),
-            'reason' => $bypassed_automation ? 'automation_bypassed' : 'manual_intervention',
-            'occurredAt' => current_time('c'),
-            'rawData' => [
-                'from_status' => $from_status,
-                'to_status' => $to_status,
-                'user_id' => $user_id,
-                'bypassed_automation' => $bypassed_automation,
-                'source' => 'manual',
-                'user_display_name' => self::get_user_display_name($user_id)
-            ]
-        ]);
-    }
-
-    /**
-     * Normalize gateway name to standard format
-     *
-     * @param string $payment_method WooCommerce payment method ID
-     * @return string Normalized gateway name
-     */
-    private static function normalize_gateway_name(string $payment_method): string
-    {
-        $gateway_mapping = [
-            'paypal' => 'paypal',
-            'ppcp-gateway' => 'paypal',
-            'ppcp-credit-card-gateway' => 'paypal',
-            'stripe' => 'stripe',
-            'stripe_cc' => 'stripe',
-            'stripe_sepa' => 'stripe',
-            'bacs' => 'bank_transfer',
-            'cheque' => 'check',
-            'cod' => 'cash_on_delivery',
-        ];
-
-        return $gateway_mapping[$payment_method] ?? $payment_method;
-    }
-
-    /**
-     * Get user display name for a given user ID
-     *
-     * @param int $user_id User ID
-     * @return string User display name
-     */
-    private static function get_user_display_name(int $user_id): string
-    {
-        if ($user_id <= 0) {
-            return 'system';
-        }
-
-        $user = get_user_by('id', $user_id);
-        if (!$user) {
-            return 'unknown_user_' . $user_id;
-        }
-
-        return $user->display_name ?: $user->user_login;
-    }
-
-    /**
-     * Process universal event from hook through the universal event pipeline
-     *
-     * @param UniversalEvent $event Universal event to process
-     * @return void
-     */
-    private static function process_universal_event_from_hook(UniversalEvent $event): void
-    {
-        try {
-            // Schedule universal event processing through Action Scheduler
-            if (function_exists('as_enqueue_async_action')) {
-                as_enqueue_async_action(
-                    'odcm_process_lifecycle_event',
-                    ['event' => $event->toArray()],
-                    'odcm-universal-events'
-                );
-            } else {
-                // Fallback: process directly if Action Scheduler not available
-                $processor = UniversalEventProcessor::instance();
-                $processor->processEvent($event->toArray());
-            }
-        } catch (\Throwable $e) {
-            // Log error but don't let it break the manual status change process
-            odcm_log_message('Payment gateway event processing error: ' . $e->getMessage(), 'error');
-            odcm_log_message('Payment gateway event processing error details: ' . $e->getFile() . ':' . $e->getLine(), 'error');
-            // Continue execution without throwing the exception
-        }
-    }
 }

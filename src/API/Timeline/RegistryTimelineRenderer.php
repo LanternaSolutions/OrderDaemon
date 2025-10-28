@@ -38,10 +38,18 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     }
     
     /**
-     * Render individual component using registry system
+     * Render individual component using registry system with debug filtering
      */
     private function renderComponent(array $payload): string
     {
+        // Debug Event Filtering - hide debug events in production
+        if ($this->shouldFilterDebugEvent($payload)) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM TIMELINE DEBUG: FILTERED - Debug event hidden in production mode");
+            }
+            return ''; // Hide debug events in production
+        }
+        
         // The $payload is the full log entry. The renderer needs the component data,
         // which is often nested inside the 'data' key.
         $data = $payload['data'] ?? $payload;
@@ -218,5 +226,26 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
             require_once $renderer_dir . 'PayloadComponentUIToolkit.php';
         }
+    }
+    
+    /**
+     * Simple debug event filtering - hide obvious debug events unless debug mode is on
+     */
+    private function shouldFilterDebugEvent(array $payload): bool
+    {
+        // Show all events in debug mode
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            return false;
+        }
+        
+        // Get event type
+        $event_type = $payload['data']['event_type'] ?? $payload['event_type'] ?? '';
+        
+        // Hide technical debug events
+        if (in_array($event_type, ['order_created', 'order_check_scheduled', 'order_loaded'])) {
+            return true;
+        }
+        
+        return false;
     }
 }

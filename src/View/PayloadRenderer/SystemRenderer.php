@@ -200,7 +200,7 @@ class SystemRenderer extends BaseRenderer
     /**
      * Render Message
      *
-     * Renders info/warning/error messages with context.
+     * Renders info/warning/error messages with proper attribution context extraction.
      *
      * @param array                    $data       The message data
      * @param PayloadComponentUIToolkit $toolkit    UI toolkit instance
@@ -209,22 +209,95 @@ class SystemRenderer extends BaseRenderer
      */
     private function renderMessage(array $data, PayloadComponentUIToolkit $toolkit, string $event_type): string
     {
+        // Check if this is an attribution context event
+        if (isset($data['attribution']) && is_array($data['attribution'])) {
+            return $this->renderAttributionContext($data['attribution'], $toolkit);
+        }
+        
+        // Check if this is an automation bypass warning
+        if (isset($data['automation_bypassed']) && $data['automation_bypassed']) {
+            return $this->renderAutomationBypassWarning($data, $toolkit);
+        }
+        
         // First render the message as a text block
         $content = '';
         if (isset($data['message'])) {
             $content .= $toolkit->render_text_block($data['message']);
         }
 
-        // Extract any additional context data
-        $context_data = array_filter($data, function($key) {
-            return !in_array($key, ['message', 'level', 'timestamp']);
-        }, ARRAY_FILTER_USE_KEY);
+        // Extract simple scalar context data (no complex arrays)
+        $context_data = [];
+        foreach ($data as $key => $value) {
+            if (in_array($key, ['message', 'level', 'timestamp'])) {
+                continue; // Skip these reserved keys
+            }
+            
+            if (is_scalar($value)) {
+                $context_data[ucfirst(str_replace('_', ' ', $key))] = (string)$value;
+            }
+        }
 
-        // Add context data if available
+        // Add simple context data if available
         if (!empty($context_data)) {
             $content .= $toolkit->render_key_value_list($context_data, 'Additional Context');
         }
+        
+        // Handle complex array data with expandable sections
+        $complex_data = [];
+        foreach ($data as $key => $value) {
+            if (is_array($value) && !empty($value)) {
+                $complex_data[$key] = $value;
+            }
+        }
+        
+        if (!empty($complex_data)) {
+            $content .= $toolkit->render_expandable_key_value_section('Technical Details', $complex_data);
+        }
 
+        return $content;
+    }
+
+    /**
+     * Render attribution context in user-friendly format
+     */
+    private function renderAttributionContext(array $attribution, PayloadComponentUIToolkit $toolkit): string
+    {
+        $context_data = [
+            'Request Type' => ucfirst($attribution['request_type'] ?? 'unknown'),
+            'User Logged In' => ($attribution['user_logged_in'] ?? false) ? 'Yes' : 'No',
+        ];
+        
+        if (isset($attribution['source_plugin']['slug'])) {
+            $context_data['Source Plugin'] = $attribution['source_plugin']['slug'];
+        }
+        
+        if (isset($attribution['external_service']['name'])) {
+            $context_data['External Service'] = $attribution['external_service']['name'];
+        }
+        
+        $content = $toolkit->render_key_value_list($context_data, 'Change Attribution');
+        
+        // Add full attribution data in expandable section
+        if (!empty($attribution)) {
+            $content .= $toolkit->render_expandable_key_value_section('Full Attribution Data', $attribution);
+        }
+        
+        return $content;
+    }
+
+    /**
+     * Render automation bypass warning
+     */
+    private function renderAutomationBypassWarning(array $data, PayloadComponentUIToolkit $toolkit): string
+    {
+        $warning = $data['automation_bypass_warning'] ?? 'This action may have bypassed automatic completion rules.';
+        $content = $toolkit->render_warning_message($warning);
+        
+        // Add any additional context
+        if (isset($data['rule_context']) && is_array($data['rule_context'])) {
+            $content .= $toolkit->render_expandable_key_value_section('Rule Context', $data['rule_context']);
+        }
+        
         return $content;
     }
 

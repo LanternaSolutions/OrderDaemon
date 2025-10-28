@@ -113,6 +113,32 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
     {
         $components = $this->extractComponentsFromLogEntry($logEntry, $includeDebug);
         
+        // Sort components chronologically (same logic as process group)
+        // This ensures proper chronological order even for individual events with multiple components
+        usort($components, function($a, $b) {
+            $ts_a = $a['ts'] ?? 0;
+            $ts_b = $b['ts'] ?? 0;
+            
+            // Convert to float timestamps for microsecond precision comparison
+            if (is_float($ts_a) || (is_numeric($ts_a) && strpos((string)$ts_a, '.') !== false)) {
+                $time_a = (float)$ts_a;
+            } elseif (is_numeric($ts_a)) {
+                $time_a = (float)$ts_a;
+            } else {
+                $time_a = (float)strtotime($ts_a);
+            }
+            
+            if (is_float($ts_b) || (is_numeric($ts_b) && strpos((string)$ts_b, '.') !== false)) {
+                $time_b = (float)$ts_b;
+            } elseif (is_numeric($ts_b)) {
+                $time_b = (float)$ts_b;
+            } else {
+                $time_b = (float)strtotime($ts_b);
+            }
+            
+            return $time_a <=> $time_b;
+        });
+        
         $metadata = [
             'type' => 'individual',
             'log_id' => (int) $logEntry['id'],
@@ -141,14 +167,27 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
             $allComponents = array_merge($allComponents, $entryComponents);
         }
         
-        // Sort components chronologically (handle both Unix timestamps and datetime strings)
+        // Sort components chronologically (handle microsecond timestamps, Unix timestamps, and datetime strings)
         usort($allComponents, function($a, $b) {
-            $ts_a = $a['ts'] ?? '';
-            $ts_b = $b['ts'] ?? '';
+            $ts_a = $a['ts'] ?? 0;
+            $ts_b = $b['ts'] ?? 0;
             
-            // Convert to Unix timestamps for comparison
-            $time_a = is_numeric($ts_a) ? (int)$ts_a : strtotime($ts_a);
-            $time_b = is_numeric($ts_b) ? (int)$ts_b : strtotime($ts_b);
+            // Convert to float timestamps for microsecond precision comparison
+            if (is_float($ts_a) || (is_numeric($ts_a) && strpos((string)$ts_a, '.') !== false)) {
+                $time_a = (float)$ts_a;
+            } elseif (is_numeric($ts_a)) {
+                $time_a = (float)$ts_a;
+            } else {
+                $time_a = (float)strtotime($ts_a);
+            }
+            
+            if (is_float($ts_b) || (is_numeric($ts_b) && strpos((string)$ts_b, '.') !== false)) {
+                $time_b = (float)$ts_b;
+            } elseif (is_numeric($ts_b)) {
+                $time_b = (float)$ts_b;
+            } else {
+                $time_b = (float)strtotime($ts_b);
+            }
             
             return $time_a <=> $time_b;
         });

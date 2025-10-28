@@ -224,12 +224,14 @@ class PayPalAdapter extends AbstractGatewayAdapter
 
         $this->log('Normalizing PayPal IPN', ['txn_type' => $payload['txn_type'] ?? 'unknown']);
 
-        // Determine event type based on IPN data
-        $event_type = $this->mapIPNEventType($payload);
-        if (!$event_type) {
+        // Use hierarchical event type: payment.paypal.{original_event_type}
+        $original_event_type = $this->extractIPNEventType($payload);
+        if (!$original_event_type) {
             $this->log('Unknown IPN event type', $payload);
             return [];
         }
+        
+        $event_type = "payment.paypal.{$original_event_type}";
 
         // Extract common data
         $transaction_id = $this->extractTransactionId($payload);
@@ -263,7 +265,7 @@ class PayPalAdapter extends AbstractGatewayAdapter
             }
         }
 
-        // Create universal event
+        // Create universal event with hierarchical type and enhanced rawData
         $event_data = [
             'eventType' => $event_type,
             'sourceGateway' => 'paypal',
@@ -280,7 +282,13 @@ class PayPalAdapter extends AbstractGatewayAdapter
             'occurredAt' => $this->parsePayPalTimestamp($payload['payment_date'] ?? ''),
             'receivedAt' => current_time('c'),
             'idempotencyKey' => $this->computeIdempotencyKey($input),
-            'rawData' => $payload,
+            'rawData' => [
+                'paypal_ipn_data' => $payload,
+                'original_event_type' => $original_event_type,
+                'payment_status' => $payload['payment_status'] ?? null,
+                'transaction_type' => $payload['txn_type'] ?? null,
+                'gateway_metadata' => $this->extractGatewaySpecificMetadata($input)
+            ],
         ];
 
         $events[] = new UniversalEvent($event_data);
@@ -301,11 +309,14 @@ class PayPalAdapter extends AbstractGatewayAdapter
 
         $this->log('Normalizing PayPal webhook', ['event_type' => $payload['event_type'] ?? 'unknown']);
 
-        $event_type = $this->mapWebhookEventType($payload['event_type'] ?? '');
-        if (!$event_type) {
-            $this->log('Unknown webhook event type', ['event_type' => $payload['event_type'] ?? 'unknown']);
+        // Use hierarchical event type: payment.paypal.{original_event_type}
+        $original_event_type = $payload['event_type'] ?? '';
+        if (!$original_event_type) {
+            $this->log('Missing webhook event type', $payload);
             return [];
         }
+        
+        $event_type = "payment.paypal.{$original_event_type}";
 
         // Extract resource data
         $resource = $payload['resource'] ?? [];
@@ -331,7 +342,7 @@ class PayPalAdapter extends AbstractGatewayAdapter
             }
         }
 
-        // Create universal event
+        // Create universal event with hierarchical type and enhanced rawData
         $event_data = [
             'eventType' => $event_type,
             'sourceGateway' => 'paypal',
@@ -348,7 +359,12 @@ class PayPalAdapter extends AbstractGatewayAdapter
             'occurredAt' => $payload['create_time'] ?? current_time('c'),
             'receivedAt' => current_time('c'),
             'idempotencyKey' => $this->computeIdempotencyKey($input),
-            'rawData' => $payload,
+            'rawData' => [
+                'paypal_webhook_data' => $payload,
+                'original_event_type' => $original_event_type,
+                'resource' => $resource,
+                'gateway_metadata' => $this->extractGatewaySpecificMetadata($input)
+            ],
         ];
 
         $events[] = new UniversalEvent($event_data);
@@ -361,161 +377,40 @@ class PayPalAdapter extends AbstractGatewayAdapter
      */
     protected function mapEventType(string $gateway_event_type): string
     {
-        // This method is used by the abstract class
-        return $this->mapIPNEventType(['txn_type' => $gateway_event_type]) ?: 'payment_created';
+        return $gateway_event_type;
     }
 
     /**
-     * Map PayPal IPN event types to universal event types
+     * Extract original PayPal IPN event type for hierarchical naming
      * 
      * @param array $payload IPN payload
-     * @return string|null Universal event type
+     * @return string|null Original PayPal event type
      */
-    private function mapIPNEventType(array $payload): ?string
+    private function extractIPNEventType(array $payload): ?string
     {
         $txn_type = $payload['txn_type'] ?? '';
         $payment_status = $payload['payment_status'] ?? '';
 
-        // Subscription events (subscr_*)
-        if (strpos($txn_type, 'subscr_') === 0) {
-            switch ($txn_type) {
-                case 'subscr_signup':
-                    return 'subscription_created';
-                case 'subscr_payment':
-                    return $payment_status === 'Completed' ? 'renewal_payment_completed' : 'renewal_payment_failed';
-                case 'subscr_failed':
-                    return 'renewal_payment_failed';
-                case 'subscr_cancel':
-                    return 'subscription_cancelled';
-                case 'subscr_eot':
-                    return 'subscription_completed';
-                case 'subscr_modify':
-                    return 'subscription_modified';
+        // For IPN events, create a compound event type that preserves both txn_type and payment_status
+        // This ensures we don't lose semantic information while maintaining the original format
+        if (!empty($txn_type)) {
+            if (!empty($payment_status) && $payment_status !== 'Completed') {
+                return "{$txn_type}.{$payment_status}";
             }
+            return $txn_type;
+        }
+        
+        // Fallback to payment_status if no txn_type
+        if (!empty($payment_status)) {
+            return "status.{$payment_status}";
         }
 
-        // Recurring payment profile events (recurring_payment_*)
-        if (strpos($txn_type, 'recurring_payment') === 0) {
-            switch ($txn_type) {
-                case 'recurring_payment_profile_created':
-                    return 'recurring_payment_profile_created';
-                case 'recurring_payment':
-                    return $payment_status === 'Completed' ? 'recurring_payment' : 'recurring_payment_failed';
-                case 'recurring_payment_skipped':
-                    return 'recurring_payment_skipped';
-                case 'recurring_payment_failed':
-                    return 'recurring_payment_failed';
-                case 'recurring_payment_profile_cancel':
-                    return 'recurring_payment_cancelled';
-                case 'recurring_payment_suspended':
-                    return 'recurring_payment_suspended';
-                case 'recurring_payment_suspended_due_to_max_failed_payment':
-                    return 'recurring_payment_suspended';
-            }
-        }
-
-        // Express checkout events
-        switch ($txn_type) {
-            case 'express_checkout':
-                return 'express_checkout_completed';
-            case 'web_accept':
-                return $payment_status === 'Completed' ? 'payment_completed' : 'payment_pending';
-            case 'send_money':
-                return 'payment_completed';
-            case 'cart':
-                return 'payment_completed';
-        }
-
-        // Mass payment events
-        if (strpos($txn_type, 'masspay') === 0) {
-            return $payment_status === 'Completed' ? 'mass_payment_completed' : 'mass_payment_failed';
-        }
-
-        // Authorization and capture events
-        switch ($txn_type) {
-            case 'authorization':
-                return 'authorization_created';
-            case 'capture':
-                return 'payment_completed';
-            case 'void':
-                return 'authorization_voided';
-        }
-
-        // Dispute and chargeback events
-        switch ($txn_type) {
-            case 'new_case':
-                return 'dispute_opened';
-            case 'adjustment':
-                // Check reason code to determine if it's a dispute resolution
-                $reason_code = $payload['reason_code'] ?? '';
-                if (in_array($reason_code, ['chargeback', 'chargeback_reimbursement', 'chargeback_settlement'], true)) {
-                    return 'dispute_resolved';
-                }
-                return 'payment_adjustment';
-        }
-
-        // Payment status-based mapping (fallback for unknown txn_types)
-        switch ($payment_status) {
-            case 'Completed':
-                return 'payment_completed';
-            case 'Pending':
-                return 'payment_pending';
-            case 'Failed':
-            case 'Denied':
-                return 'payment_denied';
-            case 'Refunded':
-                return 'payment_refunded';
-            case 'Reversed':
-                return 'payment_reversed';
-            case 'Canceled_Reversal':
-                return 'payment_reversal_cancelled';
-            case 'Voided':
-                return 'payment_voided';
-            case 'Expired':
-                return 'authorization_expired';
-        }
-
-        // If we can't map it, log for future enhancement
-        if (!empty($txn_type) || !empty($payment_status)) {
-            $this->log('Unmapped PayPal IPN event type', [
-                'txn_type' => $txn_type,
-                'payment_status' => $payment_status,
-                'payload_keys' => array_keys($payload)
-            ]);
-        }
+        // If we have neither, log for investigation
+        $this->log('PayPal IPN missing both txn_type and payment_status', [
+            'payload_keys' => array_keys($payload)
+        ]);
 
         return null;
-    }
-
-    /**
-     * Map PayPal webhook event type to universal event type
-     * 
-     * @param string $webhook_event_type PayPal webhook event type
-     * @return string|null Universal event type
-     */
-    private function mapWebhookEventType(string $webhook_event_type): ?string
-    {
-        $mapping = [
-            // Payment events
-            'PAYMENT.CAPTURE.COMPLETED' => 'payment_completed',
-            'PAYMENT.CAPTURE.DENIED' => 'payment_denied',
-            'PAYMENT.CAPTURE.PENDING' => 'payment_pending',
-            'PAYMENT.CAPTURE.REFUNDED' => 'payment_refunded',
-            'PAYMENT.CAPTURE.REVERSED' => 'payment_reversed',
-            
-            // Subscription events
-            'BILLING.SUBSCRIPTION.CREATED' => 'subscription_created',
-            'BILLING.SUBSCRIPTION.ACTIVATED' => 'subscription_approved',
-            'BILLING.SUBSCRIPTION.CANCELLED' => 'subscription_cancelled',
-            'BILLING.SUBSCRIPTION.SUSPENDED' => 'subscription_suspended',
-            'BILLING.SUBSCRIPTION.RE-ACTIVATED' => 'subscription_reactivated',
-            
-            // Subscription payment events
-            'BILLING.SUBSCRIPTION.PAYMENT.COMPLETED' => 'renewal_payment_completed',
-            'BILLING.SUBSCRIPTION.PAYMENT.FAILED' => 'renewal_payment_failed',
-        ];
-
-        return $mapping[$webhook_event_type] ?? null;
     }
 
     /**
