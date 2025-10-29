@@ -161,7 +161,8 @@ final class ProcessLifecycleDiscovery
             'rule_execution',
             'order_completion',
             'order_processing',
-            'universal_event_processing', // Universal events are part of order lifecycle
+            'universal_event_processing',
+            'rule_execution',
             'universal_event_reception',
             'universal_event_processing_error',
             'universal_event_argument_error',

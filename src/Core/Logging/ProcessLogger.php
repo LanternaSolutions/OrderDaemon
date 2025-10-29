@@ -27,6 +27,15 @@ final class ProcessLogger
      */
     private static bool $is_logging = false;
 
+    /**
+     * Context flag to coordinate with UniversalEventProcessor
+     * When true, prevents ProcessLogger from creating timeline events
+     * since UniversalEventProcessor will create enhanced events instead.
+     *
+     * @var bool
+     */
+    private static bool $universal_event_context = false;
+
     /** @var ComponentSanitizer */
     private ComponentSanitizer $sanitizer;
 
@@ -432,5 +441,28 @@ final class ProcessLogger
             return 'scheduled';
         }
         return 'system';
+    }
+
+    /**
+     * Set universal event context flag to coordinate with UniversalEventProcessor
+     * When enabled, ProcessLogger will skip creating timeline events since
+     * UniversalEventProcessor will create enhanced events instead.
+     *
+     * @param bool $enabled Whether universal event context is active
+     * @return void
+     */
+    public static function set_universal_event_context(bool $enabled): void
+    {
+        self::$universal_event_context = $enabled;
+    }
+
+    /**
+     * Check if universal event context is active
+     *
+     * @return bool True if UniversalEventProcessor will handle timeline events
+     */
+    public static function is_universal_event_context(): bool
+    {
+        return self::$universal_event_context;
     }
 }

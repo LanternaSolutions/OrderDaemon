@@ -41,6 +41,13 @@ class UniversalEventProcessor
     private Evaluator $evaluator;
 
     /**
+     * Matched rule data for enhanced logging
+     * 
+     * @var array|null
+     */
+    private ?array $matched_rule_data = null;
+
+    /**
      * Constructor
      */
     private function __construct()
@@ -350,6 +357,11 @@ class UniversalEventProcessor
         }
         
         if ($result) {
+            // Rules matched - enhance payload with rule execution data
+            if ($this->matched_rule_data) {
+                $payload_for_storage = $this->enhancePayloadWithRuleData($payload_for_storage, $context);
+            }
+            
             // Rules matched - log successful processing
             $summary = $event->getSummary();
             $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
@@ -360,7 +372,7 @@ class UniversalEventProcessor
                 $payload_for_storage,
                 $context->getOrderId(),
                 'success',
-                'universal_event_processing',
+                'rule_execution',
                 false,
                 $process_id
             );
@@ -580,6 +592,32 @@ class UniversalEventProcessor
             return false;
         }
 
+        // CANONICAL TIMELINE EVENT LOGIC
+        // Only create ProcessLogger timeline events for the canonical rule evaluation trigger.
+        // This prevents duplicate timeline events while preserving all rule evaluation functionality.
+        $is_canonical_timeline_event = $this->isCanonicalTimelineEvent($context->event->eventType);
+        
+        // ProcessLogger is only created for canonical events (order_status_changed)
+        // This ensures a single source of truth in the timeline while preserving rule logic
+        $rule_logger = null;
+        if ($is_canonical_timeline_event) {
+            $rule_logger = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger();
+            $rule_logger->start('rule_execution', [
+                'order_id' => $order_id,
+                'summary' => 'Universal event rule processing',
+                'event_type' => $context->event->eventType,
+                'source_gateway' => $context->event->sourceGateway,
+            ]);
+            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Created ProcessLogger for CANONICAL event: {$context->event->eventType}");
+            }
+        } else {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Skipping ProcessLogger for non-canonical event: {$context->event->eventType}");
+            }
+        }
+
         // Process rules with First Match Wins logic
         foreach ($rules_query->posts as $rule) {
             // Load rule JSON data
@@ -599,69 +637,60 @@ class UniversalEventProcessor
             $trace = $this->evaluator->evaluateRuleAgainstUniversalEvent($context, $rule_data, $this->registry);
 
             if ($trace['matched']) {
-                // Only create logger when rule actually matches and only in debug mode
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $sanitizer = new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer();
-                    $rule_logger = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger($sanitizer);
-                    $this->evaluator->set_process_logger($rule_logger);
-                    
-                    // Build complete context for the renderer to use (moved summary creation to RuleRenderer)
-                    $rule_logger->start('rule_execution', [
-                        'order_id' => $context->getOrderId(),
-                        'rule_name' => $rule->post_title,
-                        'rule_id' => $rule->ID,
-                        'source' => 'universal_event_processor',
-                        'event_type' => $context->event->eventType,
-                        'source_gateway' => $context->event->sourceGateway,
-                        'amount' => $context->event->amount,
-                        'currency' => $context->event->currency,
-                        'event_timestamp' => current_time('timestamp'),
-                        // Include raw data for status changes
-                        'from_status' => isset($context->event->rawData['from_status']) ? $context->event->rawData['from_status'] : null,
-                        'to_status' => isset($context->event->rawData['to_status']) ? $context->event->rawData['to_status'] : null,
-                    ]);
-                }
-
-                // Log rule match (only in debug mode)
-                if (isset($rule_logger)) {
-                    $rule_logger->add_component('rule_matched', 
-                        sprintf('Rule "%s" matched', $rule->post_title), 
-                        ['rule_id' => $rule->ID, 'rule_name' => $rule->post_title],
-                        'info'
+                // Store matched rule data for enhanced logging
+                $this->matched_rule_data = [
+                    'rule' => $rule,
+                    'rule_data' => $rule_data,
+                    'trace' => $trace,
+                    'context' => $context
+                ];
+                
+                // Add ProcessLogger component for rule execution (only for canonical events)
+                if ($rule_logger) {
+                    $rule_logger->add_component(
+                        'rule_execution',
+                        sprintf('Rule "%s" executed successfully', $rule->post_title),
+                        [
+                            'rule_id' => $rule->ID,
+                            'rule_name' => $rule->post_title,
+                            'matched_conditions' => count(array_filter($trace['conditions'], fn($c) => $c['result'] === 'pass')),
+                            'total_conditions' => count($trace['conditions']),
+                            'event_type' => $context->event->eventType,
+                            'order_id' => $context->getOrderId(),
+                            // RICH CONTEXT: Include information about all triggering events
+                            'canonical_event' => $is_canonical_timeline_event,
+                            'trigger_context' => 'This rule was triggered by ' . $context->event->eventType . ' but timeline event created for canonical order_status_changed',
+                        ],
+                        'info',
+                        'rule_execution_' . $rule->ID
                     );
                 }
                 
-                // Execute primary action
+                // Execute primary action and track results
+                $action_results = [];
                 if (isset($rule_data['primaryAction']['id'])) {
-                    if (isset($rule_logger)) {
-                        $rule_logger->add_component('action_executed', 
-                            sprintf('Executing primary action: %s', $rule_data['primaryAction']['id']), 
-                            ['action_id' => $rule_data['primaryAction']['id']],
-                            'info'
-                        );
-                    }
-                    $this->executeUniversalEventAction($context, $rule_data['primaryAction']);
+                    $action_results['primary'] = $this->executeUniversalEventAction($context, $rule_data['primaryAction']);
                 }
 
-                // Execute secondary actions
+                // Execute secondary actions and track results
                 if (!empty($rule_data['secondaryActions']) && is_array($rule_data['secondaryActions'])) {
-                    foreach ($rule_data['secondaryActions'] as $actionDef) {
+                    $action_results['secondary'] = [];
+                    foreach ($rule_data['secondaryActions'] as $index => $actionDef) {
                         if (isset($actionDef['id'])) {
-                            if (isset($rule_logger)) {
-                                $rule_logger->add_component('action_executed', 
-                                    sprintf('Executing secondary action: %s', $actionDef['id']), 
-                                    ['action_id' => $actionDef['id']],
-                                    'info'
-                                );
-                            }
-                            $this->executeUniversalEventAction($context, $actionDef);
+                            $action_results['secondary'][$index] = $this->executeUniversalEventAction($context, $actionDef);
                         }
                     }
                 }
+                
+                // Store action results for enhanced logging
+                $this->matched_rule_data['action_results'] = $action_results;
 
-                // Finish with success (only in debug mode)
-                if (isset($rule_logger)) {
-                    $rule_logger->finish('success', sprintf('Rule "%s" executed successfully', $rule->post_title));
+                // FINISH ProcessLogger to create rule execution event (only for canonical events)
+                if ($rule_logger) {
+                    $rule_logger->finish(
+                        'success',
+                        sprintf('Rule "%s" evaluated successfully for Order #%d', $rule->post_title, $context->getOrderId())
+                    );
                 }
 
                 // First Match Wins - stop processing
@@ -709,7 +738,264 @@ class UniversalEventProcessor
             }
         }
 
+        // FINISH ProcessLogger when no rules matched (only for canonical events)
+        if ($rule_logger) {
+            $rule_logger->finish(
+                'debug',
+                sprintf('No matching rules found for Order #%d (event: %s)', $context->getOrderId(), $context->event->eventType)
+            );
+        }
+
         return false; // No rules matched
+    }
+
+    /**
+     * Enhance payload with comprehensive rule execution data
+     * 
+     * @param array $payload_for_storage Base payload
+     * @param EvaluationContext $context Evaluation context
+     * @return array Enhanced payload with rule data
+     */
+    private function enhancePayloadWithRuleData(array $payload_for_storage, EvaluationContext $context): array
+    {
+        if (!$this->matched_rule_data) {
+            return $payload_for_storage;
+        }
+
+        $rule = $this->matched_rule_data['rule'];
+        $rule_data = $this->matched_rule_data['rule_data'];
+        $trace = $this->matched_rule_data['trace'];
+        $action_results = $this->matched_rule_data['action_results'] ?? [];
+
+        // Determine execution status
+        $execution_status = $this->determineRuleExecutionStatus($action_results);
+        
+        // Extract executed actions for display
+        $executed_actions = $this->formatExecutedActions($rule_data, $action_results);
+        
+        // Add main timeline display data (above the fold)
+        $payload_for_storage['rule_name'] = $rule->post_title;
+        $payload_for_storage['rule_id'] = $rule->ID;
+        $payload_for_storage['executed_actions'] = $executed_actions;
+        $payload_for_storage['execution_status'] = $execution_status;
+        $payload_for_storage['order_id'] = $context->getOrderId();
+
+        // Build comprehensive debugging data (below the fold)
+        $comprehensive_rule_data = [
+            // === RULE CONFIGURATION ===
+            'rule_configuration' => [
+                'rule_id' => $rule->ID,
+                'rule_name' => $rule->post_title,
+                'rule_status' => 'publish',
+                'trigger_type' => $rule_data['trigger']['id'] ?? 'unknown',
+                'trigger_settings' => $rule_data['trigger']['settings'] ?? [],
+            ],
+            
+            // === CONDITION EVALUATION BREAKDOWN ===
+            'condition_evaluation' => [
+                'total_conditions' => count($trace['conditions']),
+                'conditions_passed' => count(array_filter($trace['conditions'], fn($c) => $c['result'] === 'pass')),
+                'evaluation_logic' => 'ALL', // Could be enhanced to read from rule data
+                'condition_details' => $this->formatConditionDetails($trace['conditions']),
+            ],
+            
+            // === ORDER CONTEXT AT EVALUATION ===
+            'order_evaluation_context' => [
+                'order_id' => $context->getOrderId(),
+                'order_status' => $context->order ? $context->order->get_status() : 'unknown',
+                'order_total' => $context->event->amount,
+                'order_currency' => $context->event->currency,
+                'customer_id' => $context->getCustomerId(),
+                'customer_type' => ($context->order && $context->order->get_customer_id() > 0) ? 'registered' : 'guest',
+                'payment_method' => $context->order ? $context->order->get_payment_method() : '',
+                'payment_method_title' => $context->order ? $context->order->get_payment_method_title() : '',
+                'billing_country' => $context->order ? $context->order->get_billing_country() : '',
+                'shipping_country' => $context->order ? $context->order->get_shipping_country() : '',
+            ],
+            
+            // === TRIGGER EVENT DETAILS ===
+            'trigger_event_context' => [
+                'triggering_event' => $context->event->eventType,
+                'event_source' => $context->event->sourceGateway,
+                'event_channel' => $context->event->channel,
+                'event_timestamp' => $context->event->occurredAt,
+                'idempotency_key' => $context->event->idempotencyKey,
+                'status_transition' => [
+                    'from_status' => $context->event->rawData['from_status'] ?? null,
+                    'to_status' => $context->event->rawData['to_status'] ?? null,
+                ]
+            ],
+            
+            // === ACTION EXECUTION DETAILS ===
+            'action_execution' => $this->formatActionExecutionDetails($rule_data, $action_results),
+            
+            // === SYSTEM PERFORMANCE ===
+            'execution_metrics' => [
+                'evaluation_time_ms' => $payload_for_storage['execution_time_ms'],
+                'rule_position_in_queue' => 1, // First match wins
+                'first_match_wins' => true,
+            ],
+            
+            // === COMPLETE EVALUATION TRACE ===
+            'full_evaluation_trace' => $trace,
+        ];
+
+        // Add comprehensive data to rawData for expandable sections
+        $payload_for_storage['rawData']['rule_execution'] = $comprehensive_rule_data;
+
+        return $payload_for_storage;
+    }
+
+    /**
+     * Determine rule execution status based on action results
+     * 
+     * @param array $action_results Action execution results
+     * @return string Status (EXECUTED, PARTIAL, ERROR)
+     */
+    private function determineRuleExecutionStatus(array $action_results): string
+    {
+        if (empty($action_results)) {
+            return 'EXECUTED'; // Rule matched, no actions to execute
+        }
+
+        $all_successful = true;
+        $any_successful = false;
+
+        // Check primary action
+        if (isset($action_results['primary'])) {
+            $primary_success = $action_results['primary'] === 'success';
+            $all_successful = $all_successful && $primary_success;
+            $any_successful = $any_successful || $primary_success;
+        }
+
+        // Check secondary actions
+        if (isset($action_results['secondary']) && is_array($action_results['secondary'])) {
+            foreach ($action_results['secondary'] as $result) {
+                $success = $result === 'success';
+                $all_successful = $all_successful && $success;
+                $any_successful = $any_successful || $success;
+            }
+        }
+
+        if ($all_successful) {
+            return 'EXECUTED';
+        } elseif ($any_successful) {
+            return 'PARTIAL';
+        } else {
+            return 'ERROR';
+        }
+    }
+
+    /**
+     * Format executed actions for timeline display
+     * 
+     * @param array $rule_data Rule configuration data
+     * @param array $action_results Action execution results
+     * @return string Formatted actions list
+     */
+    private function formatExecutedActions(array $rule_data, array $action_results): string
+    {
+        $actions = [];
+
+        // Add primary action
+        if (isset($rule_data['primaryAction']['id'])) {
+            $actions[] = $this->getActionLabel($rule_data['primaryAction']['id']);
+        }
+
+        // Add secondary actions
+        if (!empty($rule_data['secondaryActions']) && is_array($rule_data['secondaryActions'])) {
+            foreach ($rule_data['secondaryActions'] as $actionDef) {
+                if (isset($actionDef['id'])) {
+                    $actions[] = $this->getActionLabel($actionDef['id']);
+                }
+            }
+        }
+
+        return implode(', ', $actions);
+    }
+
+    /**
+     * Get human-readable action label
+     * 
+     * @param string $action_id Action ID
+     * @return string Action label
+     */
+    private function getActionLabel(string $action_id): string
+    {
+        $actions = $this->registry->get_actions();
+        if (isset($actions[$action_id])) {
+            return $actions[$action_id]->get_label();
+        }
+
+        // Fallback to action ID with formatting
+        return ucwords(str_replace('_', ' ', $action_id));
+    }
+
+    /**
+     * Format condition details for debugging display
+     * 
+     * @param array $conditions Condition evaluation results
+     * @return array Formatted condition details
+     */
+    private function formatConditionDetails(array $conditions): array
+    {
+        $formatted = [];
+        
+        foreach ($conditions as $condition) {
+            $formatted[] = [
+                'condition_type' => $condition['component_id'] ?? 'unknown',
+                'condition_label' => $condition['label'] ?? 'Unknown Condition',
+                'result' => strtoupper($condition['result'] ?? 'unknown'),
+                'evaluation_reason' => $condition['message'] ?? 'No details available'
+            ];
+        }
+        
+        return $formatted;
+    }
+
+    /**
+     * Format action execution details for debugging
+     * 
+     * @param array $rule_data Rule configuration data
+     * @param array $action_results Action execution results
+     * @return array Formatted action execution details
+     */
+    private function formatActionExecutionDetails(array $rule_data, array $action_results): array
+    {
+        $details = [];
+
+        // Primary action
+        if (isset($rule_data['primaryAction']['id'])) {
+            $action_id = $rule_data['primaryAction']['id'];
+            $details['primary_action'] = [
+                'action_id' => $action_id,
+                'action_label' => $this->getActionLabel($action_id),
+                'action_settings' => $rule_data['primaryAction']['settings'] ?? [],
+                'execution_result' => $action_results['primary'] ?? 'unknown',
+            ];
+        }
+
+        // Secondary actions
+        $secondary_details = [];
+        if (!empty($rule_data['secondaryActions']) && is_array($rule_data['secondaryActions'])) {
+            foreach ($rule_data['secondaryActions'] as $index => $actionDef) {
+                if (isset($actionDef['id'])) {
+                    $action_id = $actionDef['id'];
+                    $secondary_details[] = [
+                        'action_id' => $action_id,
+                        'action_label' => $this->getActionLabel($action_id),
+                        'action_settings' => $actionDef['settings'] ?? [],
+                        'execution_result' => $action_results['secondary'][$index] ?? 'unknown',
+                    ];
+                }
+            }
+        }
+        
+        if (!empty($secondary_details)) {
+            $details['secondary_actions'] = $secondary_details;
+        }
+
+        return $details;
     }
 
     /**
@@ -717,18 +1003,18 @@ class UniversalEventProcessor
      * 
      * @param EvaluationContext $context Universal event context
      * @param array $actionDef Action definition
-     * @return void
+     * @return string Execution result ('success' or 'failed')
      */
-    private function executeUniversalEventAction(EvaluationContext $context, array $actionDef): void
+    private function executeUniversalEventAction(EvaluationContext $context, array $actionDef): string
     {
         $id = isset($actionDef['id']) && is_string($actionDef['id']) ? $actionDef['id'] : '';
         if ($id === '') {
-            return;
+            return 'failed';
         }
 
         $actions = $this->registry->get_actions();
         if (!isset($actions[$id])) {
-            return;
+            return 'failed';
         }
 
         $component = $actions[$id];
@@ -741,14 +1027,18 @@ class UniversalEventProcessor
             if ($context->order && method_exists($component, 'execute')) {
                 // Standard order-based action
                 $component->execute($context->order, $clean);
+                return 'success';
             } elseif (method_exists($component, 'executeUniversalEvent')) {
                 // Universal event-aware action
                 $component->executeUniversalEvent($context, $clean);
-            } else {
+                return 'success';
+            } elseif ($context->order) {
                 // Fallback: try with order if available
-                if ($context->order) {
-                    $component->execute($context->order, $clean);
-                }
+                $component->execute($context->order, $clean);
+                return 'success';
+            } else {
+                // No valid execution path
+                return 'failed';
             }
         } catch (\Throwable $e) {
             // Log action execution error but don't stop processing
@@ -767,9 +1057,55 @@ class UniversalEventProcessor
                 'error',
                 'universal_event_action_error'
             );
+            return 'failed';
         }
     }
 
+
+    /**
+     * Determine if this event type should create timeline events
+     * 
+     * This implements the "single source of truth" principle for rule execution timeline events.
+     * Only the canonical event (representing the actual business decision point) creates 
+     * timeline events, while all events still trigger rule evaluation to preserve functionality.
+     * 
+     * SAFETY FALLBACK: Unknown events default to creating timeline events to ensure
+     * no events are accidentally hidden from the timeline.
+     * 
+     * @param string $event_type Universal event type
+     * @return bool True if this event should create timeline events
+     */
+    private function isCanonicalTimelineEvent(string $event_type): bool
+    {
+        // CANONICAL EVENTS (creates timeline events)
+        // These represent the most accurate business decision points where automation takes effect
+        $canonical_timeline_events = [
+            'order_status_changed',  // When rules actually change order status (most accurate timing)
+        ];
+        
+        // NON-CANONICAL EVENTS (rule evaluation only, no timeline events)
+        // These should explicitly only trigger rule evaluation, or they'll generate duplicates
+        $non_canonical_events = [
+            'checkout_processed',      // Duplicates order_status_changed
+            'order_created',          // Duplicates order_status_changed  
+            'payment_completed',      // Duplicates order_status_changed
+            'order_check_scheduled',  // Internal scheduling, not business-relevant
+        ];
+        
+        // Explicit canonical events always create timeline events
+        if (in_array($event_type, $canonical_timeline_events)) {
+            return true;
+        }
+        
+        // Known non-canonical events never create timeline events (deduplication)
+        if (in_array($event_type, $non_canonical_events)) {
+            return false;
+        }
+        
+        // SAFETY FALLBACK: Unknown events default to creating timeline events
+        // This ensures new event types aren't accidentally hidden from the timeline
+        return true;
+    }
 
     /**
      * Create business-friendly error message from technical error

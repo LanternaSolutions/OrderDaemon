@@ -35,13 +35,22 @@ class RuleRenderer extends BaseRenderer
      * Implements the template method to provide rule-specific rendering logic.
      * Uses switch/case to delegate to specific rendering methods based on event type.
      *
-     * @param array                    $data       The payload data to render
+     * @param array                    $payload    The full payload data to render (including rawData)
      * @param string                   $event_type The type of event being rendered
      * @param PayloadComponentUIToolkit $toolkit    UI toolkit instance
      * @return string HTML content
      */
-    protected function renderSpecificContent(array $data, string $event_type, PayloadComponentUIToolkit $toolkit): string
+    protected function renderSpecificContent(array $payload, string $event_type, PayloadComponentUIToolkit $toolkit): string
     {
+        // For rule_execution events, ALWAYS use enhanced rendering
+        // The enhanced renderer is robust enough to extract data from multiple sources
+        if ($event_type === 'rule_execution') {
+            return $this->renderEnhancedRuleExecution($payload, $toolkit);
+        }
+        
+        // Extract data from payload structure for other event types
+        $data = $payload['data'] ?? $payload;
+        
         switch ($event_type) {
             case 'condition_passed':
             case 'condition_failed':
@@ -61,8 +70,332 @@ class RuleRenderer extends BaseRenderer
                 return $this->renderValidation($data, $toolkit);
 
             default:
-                return $this->renderGenericRule($data, $toolkit);
+                return $this->renderGenericRule($payload, $toolkit);
         }
+    }
+
+    /**
+     * Render Rich Rule Execution
+     *
+     * Provides a complete business-focused story of rule execution with progressive
+     * disclosure of technical details. Designed for store owners first, developers second.
+     *
+     * @param array                    $payload Full payload including rawData with rule execution details
+     * @param PayloadComponentUIToolkit $toolkit UI toolkit instance
+     * @return string HTML content
+     */
+    private function renderEnhancedRuleExecution(array $payload, PayloadComponentUIToolkit $toolkit): string
+    {
+        $data = $payload['data'] ?? $payload;
+        $rawData = $payload['rawData'] ?? [];
+        $ruleExecution = $rawData['rule_execution'] ?? [];
+        
+        // === BUSINESS-FIRST MAIN DISPLAY ===
+        
+        // Extract rule execution details
+        $rule_config = $ruleExecution['rule_configuration'] ?? [];
+        $order_context = $ruleExecution['order_evaluation_context'] ?? [];
+        $trigger_context = $ruleExecution['trigger_event_context'] ?? [];
+        $action_execution = $ruleExecution['action_execution'] ?? [];
+        $condition_eval = $ruleExecution['condition_evaluation'] ?? [];
+        
+        // Build business summary - exactly as user specified
+        $business_summary = [];
+        
+        // Execution Summary: "Completed Order (status changed from Processing → Completed)"
+        $execution_summary = $this->formatExecutionSummary($action_execution, $trigger_context);
+        if (!empty($execution_summary)) {
+            $business_summary['Execution Summary'] = $execution_summary;
+        }
+        
+        // Trigger: "payment completion via Stripe"
+        $trigger_desc = $this->formatTriggerContext($trigger_context);
+        if (!empty($trigger_desc)) {
+            $business_summary['Trigger'] = $trigger_desc;
+        }
+        
+        // Actions: "Complete Order, Send Completion Email"
+        $actions_desc = $this->formatActionsExecuted($action_execution);
+        if (!empty($actions_desc)) {
+            $business_summary['Actions'] = $actions_desc;
+        }
+        
+        $content = $toolkit->render_key_value_list($business_summary, 'Rule Execution');
+        
+        // === PROGRESSIVE DISCLOSURE SECTIONS ===
+        
+        // 1. Rule Evaluation Details (for troubleshooting)
+        if (!empty($condition_eval)) {
+            $evaluation_details = $this->buildEvaluationDetails($condition_eval, $order_context);
+            if (!empty($evaluation_details)) {
+                $content .= $toolkit->render_expandable_key_value_section('Rule Evaluation Details', $evaluation_details);
+            }
+        }
+        
+        // 2. Trigger Event Context (for understanding timing)
+        if (!empty($trigger_context)) {
+            $trigger_details = $this->buildTriggerDetails($trigger_context);
+            if (!empty($trigger_details)) {
+                $content .= $toolkit->render_expandable_key_value_section('Trigger Event Context', $trigger_details);
+            }
+        }
+        
+        // 3. Action Execution Details (for verification)
+        if (!empty($action_execution)) {
+            $action_details = $this->buildActionDetails($action_execution);
+            if (!empty($action_details)) {
+                $content .= $toolkit->render_expandable_key_value_section('Action Execution Details', $action_details);
+            }
+        }
+        
+        // 4. Technical Execution Details (for developers)
+        $technical_details = $this->buildTechnicalDetails($ruleExecution, $data);
+        if (!empty($technical_details)) {
+            $content .= $toolkit->render_expandable_key_value_section('Technical Execution Details', $technical_details);
+        }
+        
+        return $content;
+    }
+    
+    /**
+     * Format execution summary
+     * "Completed Order (status changed from Processing → Completed)"
+     */
+    private function formatExecutionSummary(array $action_execution, array $trigger_context): string
+    {
+        $summary_parts = [];
+        
+        // Determine what happened based on actions
+        if (isset($action_execution['primary_action']['action_label'])) {
+            $primary_action = $action_execution['primary_action']['action_label'];
+            if (stripos($primary_action, 'complete') !== false) {
+                $summary_parts[] = 'Completed Order';
+            } else {
+                $summary_parts[] = $primary_action;
+            }
+        }
+        
+        // Add status transition if available
+        $status_transition = $trigger_context['status_transition'] ?? [];
+        if (!empty($status_transition['from_status']) && !empty($status_transition['to_status'])) {
+            $from = ucfirst($status_transition['from_status']);
+            $to = ucfirst($status_transition['to_status']);
+            $summary_parts[] = "(status changed from {$from} → {$to})";
+        }
+        
+        return implode(' ', $summary_parts);
+    }
+
+    /**
+     * Format trigger context description
+     * "payment completion via Stripe"
+     */
+    private function formatTriggerContext(array $trigger_context): string
+    {
+        $triggering_event = $trigger_context['triggering_event'] ?? '';
+        $event_source = $trigger_context['event_source'] ?? '';
+        $event_channel = $trigger_context['event_channel'] ?? '';
+        
+        $parts = [];
+        
+        // Format the event type
+        switch ($triggering_event) {
+            case 'payment_completed':
+                $parts[] = 'payment completion';
+                break;
+            case 'order_status_changed':
+                $parts[] = 'status change';
+                break;
+            case 'checkout_processed':
+                $parts[] = 'checkout completion';
+                break;
+            case 'order_created':
+                $parts[] = 'order creation';
+                break;
+            default:
+                $parts[] = str_replace('_', ' ', $triggering_event);
+        }
+        
+        // Add source gateway if available
+        if (!empty($event_source) && $event_source !== 'unknown') {
+            $parts[] = 'via ' . ucfirst($event_source);
+        }
+        
+        return implode(' ', $parts);
+    }
+
+    /**
+     * Format actions executed description
+     * "Complete Order, Send Completion Email"
+     */
+    private function formatActionsExecuted(array $action_execution): string
+    {
+        $actions = [];
+        
+        // Add primary action
+        if (isset($action_execution['primary_action']['action_label'])) {
+            $actions[] = $action_execution['primary_action']['action_label'];
+        }
+        
+        // Add secondary actions
+        if (!empty($action_execution['secondary_actions'])) {
+            foreach ($action_execution['secondary_actions'] as $action) {
+                if (isset($action['action_label'])) {
+                    $actions[] = $action['action_label'];
+                }
+            }
+        }
+        
+        return implode(', ', $actions);
+    }
+
+    /**
+     * Build evaluation details for progressive disclosure
+     */
+    private function buildEvaluationDetails(array $condition_eval, array $order_context): array
+    {
+        $details = [];
+        
+        // Show evaluation logic summary
+        $total_conditions = $condition_eval['total_conditions'] ?? 0;
+        $conditions_passed = $condition_eval['conditions_passed'] ?? 0;
+        $evaluation_logic = $condition_eval['evaluation_logic'] ?? 'ALL';
+        
+        $details['Evaluation Result'] = "{$conditions_passed}/{$total_conditions} conditions passed";
+        $details['Evaluation Logic'] = $evaluation_logic . ' conditions must pass';
+        
+        // Show order context at evaluation time
+        if (!empty($order_context['order_status'])) {
+            $details['Order Status'] = ucfirst($order_context['order_status']);
+        }
+        
+        if (!empty($order_context['order_total'])) {
+            $currency = $order_context['order_currency'] ?? 'USD';
+            $details['Order Total'] = strtoupper($currency) . ' ' . number_format((float)$order_context['order_total'], 2);
+        }
+        
+        if (!empty($order_context['payment_method_title'])) {
+            $details['Payment Method'] = $order_context['payment_method_title'];
+        }
+        
+        if (!empty($order_context['customer_type'])) {
+            $details['Customer Type'] = ucfirst($order_context['customer_type']);
+        }
+        
+        return $details;
+    }
+
+    /**
+     * Build trigger details for progressive disclosure
+     */
+    private function buildTriggerDetails(array $trigger_context): array
+    {
+        $details = [];
+        
+        $details['Event Type'] = $trigger_context['triggering_event'] ?? '';
+        $details['Event Source'] = ucfirst($trigger_context['event_source'] ?? 'unknown');
+        $details['Event Channel'] = ucfirst($trigger_context['event_channel'] ?? 'system');
+        
+        if (!empty($trigger_context['event_timestamp'])) {
+            $details['Event Time'] = date('Y-m-d H:i:s', strtotime($trigger_context['event_timestamp']));
+        }
+        
+        if (!empty($trigger_context['idempotency_key'])) {
+            // Truncate long keys for readability
+            $key = $trigger_context['idempotency_key'];
+            if (strlen($key) > 20) {
+                $key = substr($key, 0, 8) . '...' . substr($key, -8);
+            }
+            $details['Event ID'] = $key;
+        }
+        
+        // Add status transition if available
+        $status_transition = $trigger_context['status_transition'] ?? [];
+        if (!empty($status_transition['from_status'])) {
+            $details['From Status'] = ucfirst($status_transition['from_status']);
+        }
+        if (!empty($status_transition['to_status'])) {
+            $details['To Status'] = ucfirst($status_transition['to_status']);
+        }
+        
+        return $details;
+    }
+
+    /**
+     * Build action details for progressive disclosure
+     */
+    private function buildActionDetails(array $action_execution): array
+    {
+        $details = [];
+        
+        // Primary action
+        if (isset($action_execution['primary_action'])) {
+            $primary = $action_execution['primary_action'];
+            $details['Primary Action'] = $primary['action_label'] ?? $primary['action_id'] ?? 'Unknown';
+            $details['Primary Result'] = ucfirst($primary['execution_result'] ?? 'unknown');
+        }
+        
+        // Secondary actions count
+        if (!empty($action_execution['secondary_actions'])) {
+            $secondary_count = count($action_execution['secondary_actions']);
+            $details['Secondary Actions'] = "{$secondary_count} additional actions";
+            
+            // Show success rate for secondary actions
+            $successful = 0;
+            foreach ($action_execution['secondary_actions'] as $action) {
+                if (($action['execution_result'] ?? '') === 'success') {
+                    $successful++;
+                }
+            }
+            $details['Secondary Success Rate'] = "{$successful}/{$secondary_count} successful";
+        }
+        
+        return $details;
+    }
+
+    /**
+     * Build technical details for progressive disclosure
+     */
+    private function buildTechnicalDetails(array $ruleExecution, array $data): array
+    {
+        $details = [];
+        
+        // Rule configuration
+        $rule_config = $ruleExecution['rule_configuration'] ?? [];
+        if (!empty($rule_config['rule_id'])) {
+            $details['Rule ID'] = '#' . $rule_config['rule_id'];
+        }
+        if (!empty($rule_config['trigger_type'])) {
+            $details['Trigger Type'] = $rule_config['trigger_type'];
+        }
+        
+        // Execution metrics
+        $execution_metrics = $ruleExecution['execution_metrics'] ?? [];
+        if (!empty($execution_metrics['evaluation_time_ms'])) {
+            $details['Evaluation Time'] = number_format((float)$execution_metrics['evaluation_time_ms'], 2) . ' ms';
+        }
+        if (isset($execution_metrics['first_match_wins'])) {
+            $details['First Match Wins'] = $execution_metrics['first_match_wins'] ? 'Yes' : 'No';
+        }
+        
+        // Add correlation data
+        if (!empty($data['correlation_id'])) {
+            $correlation_id = $data['correlation_id'];
+            if (strlen($correlation_id) > 20) {
+                $correlation_id = substr($correlation_id, 0, 8) . '...' . substr($correlation_id, -8);
+            }
+            $details['Correlation ID'] = $correlation_id;
+        }
+        
+        if (!empty($data['process_id'])) {
+            $process_id = $data['process_id'];
+            if (strlen($process_id) > 20) {
+                $process_id = substr($process_id, 0, 8) . '...' . substr($process_id, -8);
+            }
+            $details['Process ID'] = $process_id;
+        }
+        
+        return $details;
     }
 
     /**
@@ -126,12 +459,65 @@ class RuleRenderer extends BaseRenderer
      *
      * Provides event-specific labels based on event type and data.
      *
-     * @param array  $data       The payload data
+     * @param array  $payload    The full payload data (not just nested data)
      * @param string $event_type The type of event
      * @return string Component label
      */
-    protected function getLabel(array $data, string $event_type): string
+    protected function getLabel(array $payload, string $event_type): string
     {
+        // For rule_execution events, robustly extract rule name from multiple sources
+        if ($event_type === 'rule_execution') {
+            // Check top-level payload for enhanced rule data (from UniversalEventProcessor)
+            $rule_name = $payload['rule_name'] ?? null;
+            
+            // If not found at top level, check nested data structure
+            if (empty($rule_name)) {
+                $data = $payload['data'] ?? $payload;
+                $rule_name = $data['rule_name'] ?? null;
+            }
+            
+            // If still not found, check rawData.rule_execution.rule_configuration.rule_name
+            if (empty($rule_name) && isset($payload['rawData']['rule_execution']['rule_configuration']['rule_name'])) {
+                $rule_name = $payload['rawData']['rule_execution']['rule_configuration']['rule_name'];
+            }
+            
+            // Final fallback
+            if (empty($rule_name)) {
+                $rule_name = 'unnamed rule';
+            }
+            
+            // Extract order ID from multiple sources
+            $order_id = 0;
+            
+            // Check top-level payload
+            if (isset($payload['order_id'])) {
+                $order_id = (int) $payload['order_id'];
+            } elseif (isset($payload['primary_object_id'])) {
+                $order_id = (int) $payload['primary_object_id'];
+            } else {
+                // Check nested data structure
+                $data = $payload['data'] ?? $payload;
+                $order_id = (int) ($data['order_id'] ?? $data['primary_object_id'] ?? 0);
+                
+                // Check rawData.rule_execution.order_evaluation_context.order_id
+                if ($order_id === 0 && isset($payload['rawData']['rule_execution']['order_evaluation_context']['order_id'])) {
+                    $order_id = (int) $payload['rawData']['rule_execution']['order_evaluation_context']['order_id'];
+                }
+            }
+            
+            // Generate business-friendly summary based on available data
+            if ($rule_name !== 'unnamed rule' && $order_id > 0) {
+                return sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $order_id);
+            } elseif ($rule_name !== 'unnamed rule') {
+                return sprintf('Rule "%s" evaluated successfully', $rule_name);
+            } else {
+                return sprintf("Rule evaluation completed for Order #%d", $order_id > 0 ? $order_id : 0);
+            }
+        }
+        
+        // For other event types, use nested data structure
+        $data = $payload['data'] ?? $payload;
+        
         switch ($event_type) {
             case 'condition_passed':
             case 'condition_failed':
@@ -155,22 +541,9 @@ class RuleRenderer extends BaseRenderer
 
             case 'validation':
                 return 'Validation: ' . ($data['name'] ?? 'Result');
-                
-            case 'rule_execution':
-                // Generate a detailed context summary for rule execution events
-                if (!empty($data['event_type']) || !empty($data['source_gateway']) || !empty($data['order_id'])) {
-                    return $this->createDebugRuleSummary($data);
-                } else if (!empty($data['summary'])) {
-                    // Use provided summary if available
-                    return $data['summary'];
-                } else if (!empty($data['rule_name'])) {
-                    return 'Rule: ' . $data['rule_name'];
-                }
-                // More specific than just "Rule Applied"
-                return 'Rule Evaluation';
 
             default:
-                return parent::getLabel($data, $event_type);
+                return parent::getLabel($payload, $event_type);
         }
     }
 
@@ -180,18 +553,69 @@ class RuleRenderer extends BaseRenderer
      * Provides event-specific status pills based on event type and outcome.
      * Prioritizes debug pills for debug events.
      *
-     * @param array  $data       The payload data
+     * @param array  $payload    The full payload data (not just nested data)
      * @param string $event_type The type of event
      * @return array|null Status pill config
      */
-    protected function getStatusPill(array $data, string $event_type): ?array
+    protected function getStatusPill(array $payload, string $event_type): ?array
     {
         // First, check if this is a debug event - if so, return debug pill
-        if ($this->isDebugEvent($data)) {
+        if ($this->isDebugEvent($payload)) {
             return ['label' => 'DEBUG', 'type' => 'debug'];
         }
         
-        // Otherwise, use event-specific pills
+        // For rule_execution events, check top-level payload first for enhanced data
+        if ($event_type === 'rule_execution') {
+            // Determine execution status from multiple possible locations
+            $execution_status = '';
+            $pill_type = 'info';
+            
+            // Check top-level first (enhanced rule data from UniversalEventProcessor)
+            if (isset($payload['execution_status'])) {
+                $execution_status = strtoupper($payload['execution_status']);
+                $pill_type = strtolower($payload['execution_status']) === 'executed' ? 'success' : 'error';
+            } elseif (isset($payload['status'])) {
+                $status = strtolower($payload['status']);
+                if ($status === 'success') {
+                    $execution_status = 'EXECUTED';
+                    $pill_type = 'success';
+                } elseif (in_array($status, ['error', 'failed', 'failure'])) {
+                    $execution_status = 'FAILED';
+                    $pill_type = 'error';
+                } else {
+                    $execution_status = strtoupper($status);
+                    $pill_type = 'info';
+                }
+            } else {
+                // Check nested data structure
+                $data = $payload['data'] ?? $payload;
+                if (isset($data['execution_status'])) {
+                    $execution_status = strtoupper($data['execution_status']);
+                    $pill_type = strtolower($data['execution_status']) === 'executed' ? 'success' : 'error';
+                } elseif (isset($data['status'])) {
+                    $status = strtolower($data['status']);
+                    if ($status === 'success') {
+                        $execution_status = 'EXECUTED';
+                        $pill_type = 'success';
+                    } elseif (in_array($status, ['error', 'failed', 'failure'])) {
+                        $execution_status = 'FAILED';
+                        $pill_type = 'error';
+                    } else {
+                        $execution_status = strtoupper($status);
+                        $pill_type = 'info';
+                    }
+                } else {
+                    $execution_status = 'EVALUATED';
+                    $pill_type = 'info';
+                }
+            }
+            
+            return ['label' => $execution_status, 'type' => $pill_type];
+        }
+        
+        // For other event types, use nested data structure
+        $data = $payload['data'] ?? $payload;
+        
         switch ($event_type) {
             case 'condition_passed':
                 return ['label' => 'PASSED', 'type' => 'success'];
@@ -360,6 +784,108 @@ class RuleRenderer extends BaseRenderer
         }
 
         return $content;
+    }
+
+    /**
+     * Extract rule name from multiple data sources in the payload
+     *
+     * @param array $payload Full payload data
+     * @return string|null Rule name or null if not found
+     */
+    private function extractRuleName(array $payload): ?string
+    {
+        // Check top-level payload for enhanced rule data
+        $rule_name = $payload['rule_name'] ?? null;
+        
+        // If not found at top level, check nested data structure
+        if (empty($rule_name)) {
+            $data = $payload['data'] ?? $payload;
+            $rule_name = $data['rule_name'] ?? null;
+        }
+        
+        // If still not found, check rawData.rule_execution.rule_configuration.rule_name
+        if (empty($rule_name) && isset($payload['rawData']['rule_execution']['rule_configuration']['rule_name'])) {
+            $rule_name = $payload['rawData']['rule_execution']['rule_configuration']['rule_name'];
+        }
+        
+        return $rule_name;
+    }
+
+    /**
+     * Extract order ID from multiple data sources in the payload
+     *
+     * @param array $payload Full payload data
+     * @return int Order ID or 0 if not found
+     */
+    private function extractOrderId(array $payload): int
+    {
+        // Check top-level payload
+        $order_id = $payload['order_id'] ?? null;
+        
+        // Check nested data structure
+        if (empty($order_id)) {
+            $data = $payload['data'] ?? $payload;
+            $order_id = $data['order_id'] ?? null;
+        }
+        
+        // Check primary_object_id for universal events
+        if (empty($order_id) && isset($payload['primary_object_id'])) {
+            $order_id = $payload['primary_object_id'];
+        }
+        
+        // Check rawData.rule_execution.order_evaluation_context.order_id
+        if (empty($order_id) && isset($payload['rawData']['rule_execution']['order_evaluation_context']['order_id'])) {
+            $order_id = $payload['rawData']['rule_execution']['order_evaluation_context']['order_id'];
+        }
+        
+        return (int) ($order_id ?? 0);
+    }
+
+    /**
+     * Extract event context for more descriptive summaries
+     *
+     * @param array $payload Full payload data
+     * @return string|null Event context description
+     */
+    private function extractEventContext(array $payload): ?string
+    {
+        // Check for triggering event type in rawData
+        $event_type = $payload['rawData']['rule_execution']['trigger_event_context']['triggering_event'] ?? null;
+        $gateway = $payload['rawData']['rule_execution']['trigger_event_context']['event_source'] ?? null;
+        
+        if (!$event_type) {
+            // Fallback to top-level event_type
+            $data = $payload['data'] ?? $payload;
+            $event_type = $data['event_type'] ?? null;
+            $gateway = $data['source_gateway'] ?? null;
+        }
+        
+        if (!$event_type) {
+            return null;
+        }
+        
+        // Create context-specific descriptions
+        switch ($event_type) {
+            case 'payment_completed':
+            case 'payment_processing':
+            case 'payment_pending':
+            case 'payment_failed':
+                $gateway_name = $gateway ? ucfirst($gateway) : '';
+                return trim($gateway_name . ' payment completion');
+                
+            case 'order_status_changed':
+                return 'order status change';
+                
+            case 'checkout_completed':
+            case 'block_checkout_processed':
+                return 'checkout completion';
+                
+            case 'order_created':
+                return 'order creation';
+                
+            default:
+                return null;
+        }
     }
 
     /**

@@ -96,8 +96,8 @@
   --odcm-theme-pane-header-height: 48px;
   --odcm-theme-mobile-header-height: 56px;
   --odcm-theme-component-base-height: 300px;
-  --odcm-theme-component-base-max-height: 360px;
-  --odcm-theme-component-max-height: 60vh;
+  --odcm-theme-component-base-max-height: auto;
+  --odcm-theme-component-max-height: auto;
 
   /* --- Layout Widths --- */
   --odcm-theme-side-pane-width: 300px;
@@ -2007,7 +2007,7 @@ label.odcm-retention-option {
     border-radius: var(--odcm-component-border-radius);
     padding: 0px;
     margin-bottom: var(--odcm-theme-spacing-md);
-    overflow: hidden;
+    //* overflow: hidden; */
     background-color: var(--odcm-theme-white);
     transition: var(--odcm-component-transition);
 }
