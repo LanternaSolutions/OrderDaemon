@@ -356,30 +356,11 @@ class UniversalEventProcessor
             }
         }
         
-        if ($result) {
-            // Rules matched - enhance payload with rule execution data
-            if ($this->matched_rule_data) {
-                $payload_for_storage = $this->enhancePayloadWithRuleData($payload_for_storage, $context);
-            }
-            
-            // Rules matched - log successful processing
-            $summary = $event->getSummary();
-            $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
-            $message = !empty($summary) ? "Successfully processed: {$summary}" : sprintf('%s %s processed successfully', $gateway, $event->eventType);
-    
-            \odcm_log_event(
-                $message,
-                $payload_for_storage,
-                $context->getOrderId(),
-                'success',
-                'rule_execution',
-                false,
-                $process_id
-            );
-        } else if ($has_components) {
-            // COMPONENT-BASED TIMELINE VISIBILITY:
-            // No rules matched BUT event has components = timeline-worthy
-            // This ensures any event with structured display data appears in timeline
+        // Determine if this event should create rule execution timeline entries
+        $is_canonical_rule_event = $this->isCanonicalTimelineEvent($event->eventType);
+        
+        // FIRST: Always log business events with components to preserve the timeline
+        if ($has_components) {
             $summary = $event->getSummary();
             $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
             $message = !empty($summary) ? "Processed: {$summary}" : sprintf('%s %s processed', $gateway, $event->eventType);
@@ -388,12 +369,55 @@ class UniversalEventProcessor
                 $message,
                 $payload_for_storage,
                 $context->getOrderId(),
-                'info', // Use info level for component-based timeline events
+                'info', // Use info level for business events
                 'universal_event_processing',
                 false,
                 $process_id
             );
-        } else if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+        }
+        
+        // SECOND: Only create rule execution events for canonical triggers to prevent duplicates
+        if ($result && $is_canonical_rule_event && $this->matched_rule_data) {
+            // Enhance payload with rule execution data
+            $rule_payload = $this->enhancePayloadWithRuleData($payload_for_storage, $context);
+            
+            // Create rule_execution component
+            $rule_execution_component = $this->createRuleExecutionComponent($rule_payload, $context);
+            
+            // Create separate payload for rule execution event
+            $rule_payload['components'] = [$rule_execution_component];
+            
+            // Log rule execution event
+            $rule_name = $this->matched_rule_data['rule']->post_title ?? 'unnamed rule';
+            $rule_message = sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $context->getOrderId());
+    
+            \odcm_log_event(
+                $rule_message,
+                $rule_payload,
+                $context->getOrderId(),
+                'success',
+                'rule_execution',
+                false,
+                $process_id
+            );
+        } else if ($result && !$is_canonical_rule_event && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            // Log rule evaluation for non-canonical events only in debug mode
+            $rule_name = $this->matched_rule_data['rule']->post_title ?? 'unnamed rule';
+            \odcm_log_event(
+                sprintf('Rule "%s" evaluated for non-canonical event: %s', $rule_name, $event->eventType),
+                [
+                    'event_type' => $event->eventType,
+                    'rule_name' => $rule_name,
+                    'canonical_event' => false,
+                    'timeline_event_suppressed' => true,
+                ],
+                $context->getOrderId(),
+                'debug',
+                'rule_evaluation_non_canonical',
+                false,
+                $process_id
+            );
+        } else if (!$has_components && defined('ODCM_DEBUG') && ODCM_DEBUG) {
             // Events without components only logged in debug mode
             $summary = $event->getSummary();
             $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
@@ -601,6 +625,10 @@ class UniversalEventProcessor
         // This ensures a single source of truth in the timeline while preserving rule logic
         $rule_logger = null;
         if ($is_canonical_timeline_event) {
+            // Set universal event context to prevent ProcessLogger from creating timeline events
+            // ProcessLogger will still provide process_id infrastructure but won't duplicate timeline events
+            \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger::set_universal_event_context(true);
+            
             $rule_logger = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger();
             $rule_logger->start('rule_execution', [
                 'order_id' => $order_id,
@@ -693,6 +721,15 @@ class UniversalEventProcessor
                     );
                 }
 
+                // RESET: Clear universal event context flag after successful rule processing completes
+                if ($is_canonical_timeline_event) {
+                    \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger::set_universal_event_context(false);
+                    
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Reset universal_event_context flag after successful rule execution");
+                    }
+                }
+
                 // First Match Wins - stop processing
                 return true;
             } else {
@@ -744,6 +781,15 @@ class UniversalEventProcessor
                 'debug',
                 sprintf('No matching rules found for Order #%d (event: %s)', $context->getOrderId(), $context->event->eventType)
             );
+        }
+
+        // RESET: Clear universal event context flag after rule processing completes
+        if ($is_canonical_timeline_event) {
+            \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger::set_universal_event_context(false);
+            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Reset universal_event_context flag after rule processing");
+            }
         }
 
         return false; // No rules matched
@@ -1105,6 +1151,53 @@ class UniversalEventProcessor
         // SAFETY FALLBACK: Unknown events default to creating timeline events
         // This ensures new event types aren't accidentally hidden from the timeline
         return true;
+    }
+
+    /**
+     * Create a rule_execution component for timeline display
+     * 
+     * @param array $payload_for_storage Enhanced payload with rule data
+     * @param EvaluationContext $context Evaluation context
+     * @return array Rule execution component
+     */
+    private function createRuleExecutionComponent(array $payload_for_storage, EvaluationContext $context): array
+    {
+        $rule_name = $payload_for_storage['rule_name'] ?? 'unnamed rule';
+        $order_id = $payload_for_storage['order_id'] ?? $context->getOrderId();
+        $executed_actions = $payload_for_storage['executed_actions'] ?? '';
+        $execution_status = $payload_for_storage['execution_status'] ?? 'EXECUTED';
+        
+        // Create proper component label
+        $label = sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $order_id);
+        
+        return [
+            'event_type' => 'rule_execution',
+            'label' => $label,
+            'ts' => microtime(true),
+            'level' => 'info',
+            'data' => [
+                'event_type' => 'rule_execution',
+                'primary_object_type' => 'order',
+                'primary_object_id' => $order_id,
+                'order_id' => $order_id, // Ensure order_id is in data for renderer
+                'rule_name' => $rule_name,
+                'rule_id' => $payload_for_storage['rule_id'] ?? null,
+                'executed_actions' => $executed_actions,
+                'execution_status' => $execution_status,
+                'amount' => $payload_for_storage['amount'] ?? 0,
+                'currency' => $payload_for_storage['currency'] ?? '',
+                'processing_result' => $payload_for_storage['processing_result'] ?? true,
+                'customer_id' => $payload_for_storage['customer_id'] ?? null,
+                'transaction_id' => $payload_for_storage['transaction_id'] ?? '',
+                'source_gateway' => $payload_for_storage['source_gateway'] ?? '',
+                'channel' => $payload_for_storage['channel'] ?? '',
+                'execution_time_ms' => $payload_for_storage['execution_time_ms'] ?? 0,
+                'idempotency_key' => $payload_for_storage['idempotency_key'] ?? '',
+                'has_order' => $payload_for_storage['has_order'] ?? false,
+            ],
+            // Include the comprehensive rawData for expandable sections
+            'rawData' => $payload_for_storage['rawData'] ?? [],
+        ];
     }
 
     /**

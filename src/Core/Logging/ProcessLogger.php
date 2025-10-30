@@ -283,6 +283,16 @@ final class ProcessLogger
                 'metrics' => $envelope['metrics']
             ];
             
+            // Check if universal event context is active - if so, skip timeline event creation
+            // since UniversalEventProcessor will create enhanced events instead
+            if (self::$universal_event_context) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    error_log('ODCM ProcessLogger: Skipping timeline event creation due to universal event context');
+                }
+                // Still return the correlation_id as log_id for process continuity
+                return $this->correlation_id; 
+            }
+            
             $log_result = odcm_log_event(
                 sanitize_text_field($summary),
                 $simple_data, // Simplified data structure

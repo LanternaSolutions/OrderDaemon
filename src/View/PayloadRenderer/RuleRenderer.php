@@ -122,34 +122,30 @@ class RuleRenderer extends BaseRenderer
         
         $content = $toolkit->render_key_value_list($business_summary, 'Rule Execution');
         
-        // === PROGRESSIVE DISCLOSURE SECTIONS ===
+        // === SMART PROGRESSIVE DISCLOSURE (deduplicated sections) ===
         
-        // 1. Rule Evaluation Details (for troubleshooting)
-        if (!empty($condition_eval)) {
-            $evaluation_details = $this->buildEvaluationDetails($condition_eval, $order_context);
-            if (!empty($evaluation_details)) {
-                $content .= $toolkit->render_expandable_key_value_section('Rule Evaluation Details', $evaluation_details);
+        $sections_added = [];
+        
+        // 1. Rule Evaluation Summary (combines evaluation + trigger info)
+        if (!empty($condition_eval) || !empty($trigger_context)) {
+            $evaluation_summary = $this->buildCombinedEvaluationSummary($condition_eval, $order_context, $trigger_context);
+            if (!empty($evaluation_summary)) {
+                $content .= $toolkit->render_expandable_key_value_section('Rule Evaluation Summary', $evaluation_summary);
+                $sections_added[] = 'evaluation';
             }
         }
         
-        // 2. Trigger Event Context (for understanding timing)
-        if (!empty($trigger_context)) {
-            $trigger_details = $this->buildTriggerDetails($trigger_context);
-            if (!empty($trigger_details)) {
-                $content .= $toolkit->render_expandable_key_value_section('Trigger Event Context', $trigger_details);
-            }
-        }
-        
-        // 3. Action Execution Details (for verification)
-        if (!empty($action_execution)) {
+        // 2. Action Results (only if not already covered in evaluation)
+        if (!empty($action_execution) && !in_array('evaluation', $sections_added)) {
             $action_details = $this->buildActionDetails($action_execution);
             if (!empty($action_details)) {
-                $content .= $toolkit->render_expandable_key_value_section('Action Execution Details', $action_details);
+                $content .= $toolkit->render_expandable_key_value_section('Action Results', $action_details);
+                $sections_added[] = 'actions';
             }
         }
         
-        // 4. Technical Execution Details (for developers)
-        $technical_details = $this->buildTechnicalDetails($ruleExecution, $data);
+        // 3. Complete Technical Data (single comprehensive section)
+        $technical_details = $this->buildSingleTechnicalSection($ruleExecution, $data);
         if (!empty($technical_details)) {
             $content .= $toolkit->render_expandable_key_value_section('Technical Execution Details', $technical_details);
         }
@@ -399,6 +395,171 @@ class RuleRenderer extends BaseRenderer
     }
 
     /**
+     * Build combined evaluation summary - SAFE METHOD for deduplication
+     * Combines existing evaluation + trigger info into one section to eliminate duplication
+     *
+     * @param array $condition_eval Rule condition evaluation data
+     * @param array $order_context Order evaluation context
+     * @param array $trigger_context Trigger event context
+     * @return array Combined evaluation details
+     */
+    private function buildCombinedEvaluationSummary(array $condition_eval, array $order_context, array $trigger_context): array
+    {
+        $combined = [];
+        
+        // Add evaluation summary from condition_eval
+        if (!empty($condition_eval)) {
+            $evaluation_details = $this->buildEvaluationDetails($condition_eval, $order_context);
+            $combined = array_merge($combined, $evaluation_details);
+        }
+        
+        // Add trigger details for timing context
+        if (!empty($trigger_context)) {
+            $trigger_details = $this->buildTriggerDetails($trigger_context);
+            // Only add trigger details that aren't already covered
+            foreach ($trigger_details as $key => $value) {
+                if (!isset($combined[$key])) {
+                    $combined[$key] = $value;
+                }
+            }
+        }
+        
+        // Enhance with condition type display if available
+        if (!empty($condition_eval['condition_details'])) {
+            $condition_summaries = [];
+            foreach ($condition_eval['condition_details'] as $condition) {
+                $condition_display = $this->formatConditionForDisplay($condition);
+                if (!empty($condition_display)) {
+                    $condition_summaries[] = $condition_display;
+                }
+            }
+            
+            if (!empty($condition_summaries)) {
+                $combined['Conditions'] = implode(', ', $condition_summaries);
+            }
+        }
+        
+        return $combined;
+    }
+
+    /**
+     * Build single technical section - SAFE METHOD for deduplication
+     * Creates one comprehensive technical section instead of multiple overlapping ones
+     *
+     * @param array $ruleExecution Complete rule execution data
+     * @param array $data Additional component data
+     * @return array Flattened technical details
+     */
+    private function buildSingleTechnicalSection(array $ruleExecution, array $data): array
+    {
+        $flattened = [];
+        
+        // Rule configuration
+        $rule_config = $ruleExecution['rule_configuration'] ?? [];
+        if (!empty($rule_config['rule_id'])) {
+            $flattened['Rule ID'] = '#' . $rule_config['rule_id'];
+        }
+        if (!empty($rule_config['trigger_type'])) {
+            $flattened['Trigger Type'] = $rule_config['trigger_type'];
+        }
+        
+        // Execution metrics
+        $metrics = $ruleExecution['execution_metrics'] ?? [];
+        if (!empty($metrics['evaluation_time_ms'])) {
+            $flattened['Evaluation Time'] = number_format((float)$metrics['evaluation_time_ms'], 2) . ' ms';
+        }
+        if (isset($metrics['first_match_wins'])) {
+            $flattened['First Match Wins'] = $metrics['first_match_wins'] ? 'Yes' : 'No';
+        }
+        if (isset($metrics['rule_position_in_queue'])) {
+            $flattened['Rule Position'] = '#' . $metrics['rule_position_in_queue'];
+        }
+        
+        // Trigger context technical details
+        $trigger_context = $ruleExecution['trigger_event_context'] ?? [];
+        if (!empty($trigger_context['idempotency_key'])) {
+            $key = $trigger_context['idempotency_key'];
+            if (strlen($key) > 30) {
+                $key = substr($key, 0, 12) . '...' . substr($key, -12);
+            }
+            $flattened['Event Idempotency Key'] = $key;
+        }
+        
+        // Add correlation data
+        if (!empty($data['correlation_id'])) {
+            $correlation_id = $data['correlation_id'];
+            if (strlen($correlation_id) > 30) {
+                $correlation_id = substr($correlation_id, 0, 12) . '...' . substr($correlation_id, -12);
+            }
+            $flattened['Correlation ID'] = $correlation_id;
+        }
+        
+        if (!empty($data['process_id'])) {
+            $process_id = $data['process_id'];
+            if (strlen($process_id) > 30) {
+                $process_id = substr($process_id, 0, 12) . '...' . substr($process_id, -12);
+            }
+            $flattened['Process ID'] = $process_id;
+        }
+        
+        // Action execution summary
+        $action_execution = $ruleExecution['action_execution'] ?? [];
+        if (isset($action_execution['primary_action']['execution_result'])) {
+            $flattened['Primary Action Result'] = ucfirst($action_execution['primary_action']['execution_result']);
+        }
+        
+        return $flattened;
+    }
+
+    /**
+     * Format condition for display - SAFE METHOD for better condition type display
+     * Reads existing condition data and formats for user-friendly display
+     *
+     * @param array $condition Condition evaluation data
+     * @return string Formatted condition display
+     */
+    private function formatConditionForDisplay(array $condition): string
+    {
+        $condition_type = $condition['condition_type'] ?? 'unknown';
+        $condition_label = $condition['condition_label'] ?? '';
+        $result = strtoupper($condition['result'] ?? 'UNKNOWN');
+        
+        // Use better display name
+        $display_name = $this->getConditionDisplayName($condition_type, $condition_label);
+        
+        return "{$display_name}: {$result}";
+    }
+
+    /**
+     * Get condition display name - SAFE METHOD for display mapping
+     * Maps technical condition types to user-friendly names
+     *
+     * @param string $condition_type Technical condition type
+     * @param string $condition_label Condition label if available
+     * @return string User-friendly display name
+     */
+    private function getConditionDisplayName(string $condition_type, string $condition_label): string
+    {
+        // Use label if available and meaningful
+        if (!empty($condition_label) && $condition_label !== 'unknown') {
+            return $condition_label;
+        }
+        
+        // Map common technical types to friendly names
+        $display_mapping = [
+            'product_type' => 'Product Type',
+            'order_total' => 'Order Total',
+            'customer_type' => 'Customer Type',
+            'payment_method' => 'Payment Method',
+            'shipping_country' => 'Shipping Country',
+            'product_category' => 'Product Category',
+            'unknown' => 'Condition Check'
+        ];
+        
+        return $display_mapping[$condition_type] ?? ucwords(str_replace('_', ' ', $condition_type));
+    }
+
+    /**
      * Creates a precise, context-specific summary for rule execution debugging
      * 
      * Generates clear, actionable summaries that show exactly which event triggered the rule
@@ -486,24 +647,8 @@ class RuleRenderer extends BaseRenderer
                 $rule_name = 'unnamed rule';
             }
             
-            // Extract order ID from multiple sources
-            $order_id = 0;
-            
-            // Check top-level payload
-            if (isset($payload['order_id'])) {
-                $order_id = (int) $payload['order_id'];
-            } elseif (isset($payload['primary_object_id'])) {
-                $order_id = (int) $payload['primary_object_id'];
-            } else {
-                // Check nested data structure
-                $data = $payload['data'] ?? $payload;
-                $order_id = (int) ($data['order_id'] ?? $data['primary_object_id'] ?? 0);
-                
-                // Check rawData.rule_execution.order_evaluation_context.order_id
-                if ($order_id === 0 && isset($payload['rawData']['rule_execution']['order_evaluation_context']['order_id'])) {
-                    $order_id = (int) $payload['rawData']['rule_execution']['order_evaluation_context']['order_id'];
-                }
-            }
+            // Extract order ID using the improved extraction method
+            $order_id = $this->extractOrderId($payload);
             
             // Generate business-friendly summary based on available data
             if ($rule_name !== 'unnamed rule' && $order_id > 0) {
@@ -812,33 +957,57 @@ class RuleRenderer extends BaseRenderer
     }
 
     /**
-     * Extract order ID from multiple data sources in the payload
+     * Extract order ID from multiple data sources in the payload - SAFE VERSION
      *
      * @param array $payload Full payload data
      * @return int Order ID or 0 if not found
      */
     private function extractOrderId(array $payload): int
     {
-        // Check top-level payload
-        $order_id = $payload['order_id'] ?? null;
-        
-        // Check nested data structure
-        if (empty($order_id)) {
-            $data = $payload['data'] ?? $payload;
-            $order_id = $data['order_id'] ?? null;
+        // Add debugging to understand the payload structure
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM DEBUG - RuleRenderer extractOrderId payload keys: " . implode(', ', array_keys($payload)));
+            if (isset($payload['rawData'])) {
+                error_log("ODCM DEBUG - RuleRenderer rawData keys: " . implode(', ', array_keys($payload['rawData'])));
+                if (isset($payload['rawData']['rule_execution'])) {
+                    error_log("ODCM DEBUG - RuleRenderer rule_execution keys: " . implode(', ', array_keys($payload['rawData']['rule_execution'])));
+                }
+            }
+            if (isset($payload['data'])) {
+                error_log("ODCM DEBUG - RuleRenderer data keys: " . implode(', ', array_keys($payload['data'])));
+            }
         }
         
-        // Check primary_object_id for universal events
-        if (empty($order_id) && isset($payload['primary_object_id'])) {
-            $order_id = $payload['primary_object_id'];
+        // Priority order for reliable order ID extraction - ADD MORE SOURCES
+        $sources = [
+            // Priority 1: Rule execution context (most reliable for rule events)
+            $payload['rawData']['rule_execution']['order_evaluation_context']['order_id'] ?? null,
+            // Priority 2: Universal Events fields (for new structure)
+            $payload['primaryObjectID'] ?? null,
+            $payload['primary_object_id'] ?? null,
+            // Priority 3: Top-level payload  
+            $payload['order_id'] ?? null,
+            $payload['oid'] ?? null, // ProcessLogger format uses 'oid'
+            // Priority 4: Nested data structure
+            ($payload['data'] ?? [])['order_id'] ?? null,
+            ($payload['data'] ?? [])['primary_object_id'] ?? null,
+            ($payload['data'] ?? [])['oid'] ?? null,
+        ];
+        
+        foreach ($sources as $i => $source) {
+            if (is_numeric($source) && (int)$source > 0) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    error_log("ODCM DEBUG - RuleRenderer found order ID {$source} from source index {$i}");
+                }
+                return (int)$source;
+            }
         }
         
-        // Check rawData.rule_execution.order_evaluation_context.order_id
-        if (empty($order_id) && isset($payload['rawData']['rule_execution']['order_evaluation_context']['order_id'])) {
-            $order_id = $payload['rawData']['rule_execution']['order_evaluation_context']['order_id'];
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM DEBUG - RuleRenderer NO ORDER ID FOUND in payload: " . json_encode($payload, JSON_PRETTY_PRINT));
         }
         
-        return (int) ($order_id ?? 0);
+        return 0;
     }
 
     /**
