@@ -527,7 +527,12 @@
 }
 
 .odcm-insight-dashboard:not(.detail-pane-expanded) .odcm-detail-pane {
-    /*transform: translateX(100%);*/
+    /* transform: translateX(100%); */
+}
+
+/* Hide details pane when not visible and not expanded */
+.odcm-insight-dashboard:not(.detail-pane-expanded):not(.details-pane-visible) .odcm-detail-pane {
+    transform: translateX(100%);
 }
 
 /* Fix: Details pane should be visible when log is selected, not just when expanded */
@@ -1699,6 +1704,7 @@ label.odcm-retention-option {
 /* Log Entries */
 .odcm-log-entries {
     padding: var(--odcm-theme-spacing-sm);
+    height: auto;
 }
 
 .odcm-log-entry {
@@ -1735,7 +1741,7 @@ label.odcm-retention-option {
     justify-content: center;
     flex-shrink: 0;
     height: 100%;
-    min-height: 60px; /* Ensure minimum height for proper centering */
+    min-height: 50px; /* Ensure minimum height for proper centering */
 }
 
 .odcm-log-checkbox {
@@ -1760,9 +1766,9 @@ label.odcm-retention-option {
 
 .odcm-log-entry-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--odcm-theme-spacing-xs);
+    gap: 12px;
+    flex-wrap: nowrap;
 }
 
 .odcm-log-summary {
@@ -1793,6 +1799,8 @@ label.odcm-retention-option {
     font-size: var(--odcm-theme-font-size-sm);
     color: var(--odcm-theme-grey-600);
     font-weight: 500;
+    white-space: nowrap;
+    min-width: 60px;
 }
 
 /* Status Pills - Using Three-Tier System from audit-trail.css */
@@ -1804,7 +1812,7 @@ label.odcm-retention-option {
     background-color: var(--odcm-status-bg);
     color: var(--odcm-status-text-color);
     font-weight: 500;
-    text-transform: capitalize;
+    text-transform: uppercase;
 }
 
 /* Status variants override the semantic status variables */
@@ -2012,14 +2020,13 @@ label.odcm-retention-option {
     transition: var(--odcm-component-transition);
 }
 
-/* Components in normal details pane (300px) */
+/* Components in normal details pane - no height restriction */
 .odcm-detail-pane:not(.is-expanded) .odcm-component {
-    max-height: var(--odcm-theme-component-base-height); /* Constrained height in narrow pane */
 }
 
 /* Components in expanded details pane */
 .odcm-detail-pane.is-expanded .odcm-component {
-    max-height: var(--odcm-theme-component-max-height); /* More generous height in expanded pane */
+    /* No height restrictions - components expand to their natural height */
 }
 
 .odcm-component:last-child {

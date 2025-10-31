@@ -389,7 +389,8 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Apply UI-only consolidation by process_id for lifecycle events
             try {
-                $all_logs = $this->apply_process_id_consolidation($all_logs);
+                $include_debug = (bool) $request->get_param('include_debug');
+                $all_logs = $this->apply_process_id_consolidation($all_logs, $include_debug);
             } catch (\Throwable $e) {
                 // Fail-safe: keep original logs ungrouped
                 error_log('ODCM: Process ID consolidation failed: ' . $e->getMessage());
@@ -1240,19 +1241,29 @@ class AuditLogEndpoint extends WP_REST_Controller
 
 
     /**
-     * Format logs for API response
+     * Format logs for API response with user-friendly metadata
      */
     private function format_logs_for_api(array $logs): array
     {
         return array_map(function($log) {
+            $is_consolidated = !empty($log['is_process_representative']);
+            
+            // Transform event_type for more human-readable display
+            $event_type_display = $log['event_type'] ?? '';
+            if ($is_consolidated) {
+                $event_type_display = $this->format_filter_label($log['status'] ?? 'info');
+            } else {
+                $event_type_display = $this->format_filter_label($event_type_display);
+            }
+            
             $formatted = [
                 'id' => (int) $log['id'],
                 'timestamp' => $log['timestamp'],
                 'status' => $log['status'],
                 'summary' => $log['summary'],
                 'order_id' => !empty($log['order_id']) ? (int) $log['order_id'] : null,
-                'event_type' => $log['event_type'],
-                'source' => $log['source'] ?? 'system',
+                'event_type' => $event_type_display, // User-friendly display version
+                'raw_event_type' => $log['event_type'], // Keep original for filtering
                 'is_test' => !empty($log['is_test']) && (int) $log['is_test'] === 1,
                 'has_payload' => !empty($log['payload']),
             ];
@@ -1853,12 +1864,9 @@ class AuditLogEndpoint extends WP_REST_Controller
             $where_conditions[] = "(l.is_test IS NULL OR l.is_test = 0)";
         }
 
+        // Simplified debug log filtering - only filter by status
         if (!$request->get_param('include_debug')) {
-            $where_conditions[] = "(l.status != 'debug')";
-            $where_conditions[] = "(l.details IS NULL OR (l.details NOT LIKE %s AND l.details NOT LIKE %s AND l.details NOT LIKE %s))";
-            $where_values[] = '%"level":"debug"%';
-            $where_values[] = '%"event_type":"debug%';
-            $where_values[] = '%"source":"debug%';
+            $where_conditions[] = "l.status != 'debug'";
         }
 
         // Exclude consolidation diagnostics by default unless explicitly opted-in and in debug
@@ -2857,7 +2865,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         if (!empty($data['is_synthetic'])) {
             $content .= '<p class="odcm-synthetic-notice"><em>Synthetic component (generated from event data)</em></p>';
         } elseif (!empty($data['is_fallback'])) {
-            $content .= '<p class="odcm-fallback-notice"><em>Fallback component (processing error occurred)</em></p>';
+            $content .= '<p class="odcm-fallback-notice"><em>Fallback component (processing error)</em></p>';
         }
         
         // Render key data points
@@ -2945,9 +2953,10 @@ class AuditLogEndpoint extends WP_REST_Controller
      * Uses the latest event from each process as the representative for the list view.
      *
      * @param array $logs Array of log entries from database
+     * @param bool $include_debug Whether to include debug logs in consolidation
      * @return array Array with representative entries for each process_id group
      */
-    private function apply_process_id_consolidation(array $logs): array
+    private function apply_process_id_consolidation(array $logs, bool $include_debug = false): array
     {
         error_log("ODCM CONSOLIDATION: apply_process_id_consolidation called with " . count($logs) . " logs");
         
@@ -3019,11 +3028,23 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Create representative entry (no consolidation_data stored!)
             $representative_entry = $last_log; // Start with the actual log entry
             
+            // Filter out debug logs if not including debug
+            if (!$include_debug) {
+                $filtered_process_logs = array_filter($process_logs, function($log) {
+                    return ($log['status'] ?? 'info') !== 'debug';
+                });
+                // If filtering removed all logs, skip this process group
+                if (empty($filtered_process_logs)) {
+                    continue;
+                }
+            } else {
+                $filtered_process_logs = $process_logs;
+            }
+                        
             // Update only the summary to indicate it represents multiple events
-            $representative_entry['summary'] = $this->create_process_summary($process_logs, $order_id);
-            $representative_entry['status'] = $this->determine_process_status($process_logs);
+            $representative_entry['summary'] = $this->create_process_summary($filtered_process_logs, $order_id);
+            $representative_entry['status'] = $this->determine_process_status($filtered_process_logs);
             $representative_entry['is_process_representative'] = true; // Simple flag for detail rendering
-            $representative_entry['process_event_count'] = count($process_logs);
             
             // Track constituent log IDs for bulk deletion
             $representative_entry['constituent_log_ids'] = array_map(function($log) {
@@ -3055,54 +3076,61 @@ class AuditLogEndpoint extends WP_REST_Controller
     {
         // Cast to int for use in summary (WordPress $wpdb returns strings)
         $order_id = (int) $order_id;
-        $event_count = count($process_logs);
-        $has_completion = false;
         $has_error = false;
-        $final_status = null;
-        $payment_gateway = null;
+        $has_rule_evaluation = false;
+        $has_payment_event = false;
+        $final_order_status_in_timeline = null;
 
-        // Analyze logs to determine process outcome
+        // Analyze logs to determine process outcome - with enhanced rule evaluation detection
         foreach ($process_logs as $log) {
             $summary = strtolower($log['summary'] ?? '');
-            $status = $log['status'] ?? '';
-
-            if (strpos($summary, 'complet') !== false) {
-                $has_completion = true;
-            }
-
+            $event_type = strtolower($log['event_type'] ?? '');
+            $status = strtolower($log['status'] ?? '');
+            $source = strtolower($log['source'] ?? '');
+            
+            // Check for errors
             if ($status === 'error') {
                 $has_error = true;
             }
-
-            // Extract payment gateway info
-            if (preg_match('/\b(stripe|paypal|square)\b/i', $summary, $matches)) {
-                $payment_gateway = ucfirst(strtolower($matches[1]));
+            
+            // Check for rule evaluations - expanded detection for better matching
+            if (strpos($event_type, 'rule') !== false || 
+                strpos($summary, 'rule') !== false ||
+                strpos($source, 'rule') !== false ||
+                strpos($event_type, 'evaluation') !== false ||
+                strpos($summary, 'evaluation') !== false) {
+                $has_rule_evaluation = true;
             }
-
+            
+            // Check for payment events
+            if (strpos($event_type, 'payment') !== false || 
+                strpos($summary, 'payment') !== false || 
+                preg_match('/\b(stripe|paypal|square)\b/i', $summary)) {
+                $has_payment_event = true;
+            }
+            
             // Track final status changes
             if (preg_match('/status.*changed.*to\s+"([^"]+)"/', $summary, $matches)) {
-                $final_status = $matches[1];
+                $final_order_status_in_timeline = $matches[1];
             }
         }
 
-        // Build summary
-        $summary_parts = ["Order #$order_id:"];
+        // Build summary with new prioritization: error -> rule evaluation -> payment -> final status -> generic
+        $summary_parts = [];
 
         if ($has_error) {
-            $summary_parts[] = "processing errors occurred";
-        } elseif ($has_completion) {
-            if ($payment_gateway) {
-                $summary_parts[] = "$payment_gateway payment completed";
-            } else {
-                $summary_parts[] = "completion processing";
-            }
-        } elseif ($final_status) {
-            $summary_parts[] = "status updated to \"$final_status\"";
+            $summary_parts[] = "Processing errors";
+        } elseif ($has_rule_evaluation) {
+            $summary_parts[] = "Rule evaluation";
+        } elseif ($has_payment_event) {
+            $summary_parts[] = "Payment processing";
+        } elseif ($final_order_status_in_timeline) {
+            $summary_parts[] = "Status changed to \"$final_order_status_in_timeline\"";
         } else {
-            $summary_parts[] = "lifecycle processing";
+            $summary_parts[] = "Order lifecycle";
         }
 
-        return implode(' ', $summary_parts) . " ($event_count events)";
+        return implode(' ', $summary_parts);
     }
 
     /**

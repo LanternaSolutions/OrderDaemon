@@ -1412,27 +1412,16 @@ class InsightDashboard
                         
                         <div class="odcm-log-entry-content" @click="log && selectLog(log)">
                             <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp" x-text="formatTimestamp(log?.timestamp)"></div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id"></span>
+                                </div>
                                 <div class="odcm-log-summary">
                                     <span x-text="log?.summary || 'No summary available'"></span>
                                 </div>
                                 <span class="odcm-status-pill" 
                                       :class="'odcm-status-pill--' + ((log?.status && typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')"
                                       x-text="log?.status || 'Unknown'"></span>
-                            </div>
-                            
-                            <div class="odcm-log-meta">
-                                <span class="odcm-log-timestamp" x-text="formatTimestamp(log?.timestamp)"></span>
-                                <span x-show="log?.order_id">
-                                    <?php echo esc_html__('Order:', Odcm_Config::$text_domain); ?> #<span x-text="log.order_id"></span>
-                                </span>
-                                <span x-show="log?.event_type" x-text="log.event_type"></span>
-                                <span x-show="log?.source" x-text="log.source"></span>
-                                <!-- Show process representative indicator -->
-                                <span x-show="log?.is_process_representative"
-                                      class="odcm-process-representative-badge"
-                                      title="<?php echo esc_attr__('Process Timeline Available', Odcm_Config::$text_domain); ?>">
-                                    <?php echo esc_html__('Timeline', Odcm_Config::$text_domain); ?>
-                                </span>
                             </div>
                         </div>
                     </div>

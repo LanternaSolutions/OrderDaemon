@@ -1280,6 +1280,7 @@ function insightDashboard() {
         closeDetails() {
             this.selectedLog = null;
             this.detailHtml = '';
+            this.detailPaneExpanded = false;
         },
 
         // =================================================================
