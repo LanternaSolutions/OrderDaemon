@@ -143,6 +143,9 @@ class OrderRenderer extends BaseRenderer
             case 'block_checkout_processed':
                 return 'Checkout Completed';
 
+            case 'order_check_scheduled':
+                return 'Rule Evaluation Check';
+
             case 'meta_updated':
                 $component_data = $payload['data'] ?? $payload;
                 if (isset($component_data['meta_key'])) {
@@ -160,7 +163,8 @@ class OrderRenderer extends BaseRenderer
                 return 'Order Details';
 
             default:
-                return parent::getLabel($payload, $event_type);
+                // For unknown event types, show the technical event type instead of generic fallback
+                return !empty($event_type) ? ucwords(str_replace('_', ' ', $event_type)) : 'Unknown Event';
         }
     }
 
@@ -603,6 +607,18 @@ class OrderRenderer extends BaseRenderer
             $data['technical_details'] = $technical_data;
         }
         
+        // If we have no business content and this is truly an unknown event, show full JSON as fallback
+        if (empty($content) || (empty($business_data) && empty($data['components']))) {
+            if (empty($content)) {
+                $content = $toolkit->render_key_value_list(['Event Type' => 'Unknown Event'], 'Unrecognized Event');
+            }
+            
+            // Add full event data as JSON for developer debugging
+            $full_json = json_encode($data, JSON_PRETTY_PRINT);
+            $code_block = $toolkit->render_code_block($full_json, 'json');
+            $content .= $toolkit->render_expandable_section('Full Event Data (Debug)', $code_block);
+        }
+        
         return $content;
     }
 
@@ -668,7 +684,9 @@ class OrderRenderer extends BaseRenderer
     /**
      * Render Order Check Scheduled
      *
-     * Renders order check scheduled details.
+     * Renders order check scheduled details with developer-relevant context.
+     * This event indicates that the Order Daemon has scheduled an asynchronous 
+     * rule evaluation check for this order.
      *
      * @param array                    $data    The order check data
      * @param PayloadComponentUIToolkit $toolkit UI toolkit instance
@@ -676,32 +694,104 @@ class OrderRenderer extends BaseRenderer
      */
     private function renderOrderCheckScheduled(array $data, PayloadComponentUIToolkit $toolkit): string
     {
-        // Extract business-relevant information
-        $order_data = [
+        // Primary information about the scheduled check
+        $check_data = [
             'Order ID' => isset($data['primary_object_id']) ? '#' . $data['primary_object_id'] : 
                          (isset($data['order_id']) ? '#' . $data['order_id'] : ''),
-            'Amount' => isset($data['amount'], $data['currency']) 
-                       ? $this->formatCurrency($data['amount'], $data['currency']) 
-                       : '',
-            'Payment Gateway' => ucfirst($data['source_gateway'] ?? ''),
+            'Purpose' => 'Automated Rule Evaluation',
+            'Trigger' => $this->getScheduleTriggerDescription($data),
+            'Source' => ucfirst($data['source_gateway'] ?? 'System'),
         ];
 
-        $content = $toolkit->render_key_value_list($order_data, 'Order Check Scheduled');
+        if (isset($data['amount'], $data['currency'])) {
+            $check_data['Order Value'] = $this->formatCurrency($data['amount'], $data['currency']);
+        }
 
-        // Move all technical details to debug section
-        $data['technical_details'] = [
+        $content = $toolkit->render_key_value_list($check_data, 'Rule Evaluation Check');
+
+        // Add purpose explanation
+        $purpose_info = [
+            'What This Means' => 'Order Daemon will asynchronously evaluate completion rules against this order',
+            'When It Runs' => 'Scheduled for background processing via Action Scheduler',
+            'Expected Outcome' => 'Rules may trigger order status changes or other automated actions',
+        ];
+        $content .= $toolkit->render_key_value_list($purpose_info, 'Developer Context');
+
+        // Technical execution details
+        $execution_data = [
+            'Processing Time' => isset($data['execution_time_ms']) ? $data['execution_time_ms'] . 'ms' : 'N/A',
+            'Channel' => ucfirst($data['channel'] ?? 'unknown'),
+            'Object Type' => $data['primary_object_type'] ?? 'order',
+            'Processing Result' => ucfirst($data['processing_result'] ?? 'pending'),
+        ];
+
+        if (!empty($data['idempotency_key'])) {
+            $execution_data['Idempotency Key'] = substr($data['idempotency_key'], 0, 12) . '...';
+        }
+
+        $content .= $toolkit->render_key_value_list($execution_data, 'Execution Details');
+
+        // Comprehensive technical data in expandable section
+        $technical_details = [
             'event_type' => $data['event_type'] ?? '',
             'channel' => $data['channel'] ?? '',
             'primary_object_type' => $data['primary_object_type'] ?? '',
+            'primary_object_id' => $data['primary_object_id'] ?? '',
+            'source_gateway' => $data['source_gateway'] ?? '',
             'idempotency_key' => $data['idempotency_key'] ?? '',
             'processing_result' => $data['processing_result'] ?? '',
             'execution_time_ms' => $data['execution_time_ms'] ?? '',
             'has_order' => $data['has_order'] ?? '',
             'has_subscription' => $data['has_subscription'] ?? '',
             'customer_id' => $data['customer_id'] ?? '',
+            'amount' => $data['amount'] ?? '',
+            'currency' => $data['currency'] ?? '',
         ];
 
+        // Remove empty values for cleaner display
+        $technical_details = array_filter($technical_details, function($value) {
+            return $value !== '' && $value !== null;
+        });
+
+        if (!empty($technical_details)) {
+            $technical_json = json_encode($technical_details, JSON_PRETTY_PRINT);
+            $code_block = $toolkit->render_code_block($technical_json, 'json');
+            $content .= $toolkit->render_expandable_section('Technical Details', $code_block);
+        }
+
+        // Add full event data if there are additional fields
+        $full_data = array_diff_key($data, $technical_details);
+        if (!empty($full_data)) {
+            $full_json = json_encode($full_data, JSON_PRETTY_PRINT);
+            $code_block = $toolkit->render_code_block($full_json, 'json');
+            $content .= $toolkit->render_expandable_section('Additional Event Data', $code_block);
+        }
+
         return $content;
+    }
+
+    /**
+     * Get description of what triggered the order check scheduling
+     *
+     * @param array $data The event data
+     * @return string Description of the trigger
+     */
+    private function getScheduleTriggerDescription(array $data): string
+    {
+        // Determine trigger based on available data
+        if (!empty($data['source_gateway'])) {
+            return 'Payment Gateway Event (' . ucfirst($data['source_gateway']) . ')';
+        }
+
+        if (!empty($data['channel'])) {
+            $channel = ucfirst($data['channel']);
+            if ($channel === 'Webhook') {
+                return 'External Webhook';
+            }
+            return $channel . ' Event';
+        }
+
+        return 'System Event';
     }
 
     /**

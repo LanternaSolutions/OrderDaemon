@@ -52,7 +52,6 @@ class Core
         add_action('odcm_reprocess_orders_batch', [$this, 'schedule_orders_for_reprocessing'], 10, 1);
 
         // FAIL-SAFE: Register background processing handlers for checkout protection
-        add_action('odcm_process_checkout_completion', [$this, 'background_checkout_processing'], 10, 1);
         add_action('odcm_process_payment_completion', [$this, 'background_payment_processing'], 10, 1);
 
         // NOTE: The 'odcm_process_order_check' hook is handled by the global function
@@ -1284,17 +1283,6 @@ class Core
         return microtime(true);
     }
 
-    /**
-     * Get real checkout timestamp from WooCommerce order data
-     *
-     * @param \WC_Order $order WooCommerce order object
-     * @return float Checkout timestamp
-     */
-    private function get_real_checkout_timestamp(\WC_Order $order): float
-    {
-        // Checkout events should use order creation time
-        return (float) $order->get_date_created()->getTimestamp();
-    }
 
     /**
      * Create evaluation context from universal event
@@ -1431,10 +1419,11 @@ class Core
     }
 
     /**
-     * Handle checkout order processed events - FAIL-SAFE IMPLEMENTATION
+     * Handle checkout order processed events - QUEUE-BASED IMPLEMENTATION
      *
      * CRITICAL: This method implements the "Never Break Revenue" philosophy.
-     * All heavy processing is moved to background to ensure checkout cannot be blocked.
+     * Collects rich checkout data and queues for async Universal Event creation.
+     * No immediate event creation to prevent duplicates.
      *
      * @param int $order_id The ID of the processed order
      * @param array $posted_data Posted checkout data
@@ -1450,7 +1439,20 @@ class Core
         }
 
         try {
-            // Schedule for background processing instead of sync processing
+            // Check if block checkout already queued data for this order
+            $block_checkout_queued = get_post_meta($order_id, '_odcm_checkout_data_queued', true);
+            
+            if ($block_checkout_queued) {
+                // Block checkout already queued rich data - skip to avoid duplicates
+                $this->log_checkout_event_minimal($order_id, 'skipped_block_handled');
+                odcm_log_message("Skipping traditional checkout processing for order #{$order_id} - block checkout already queued data", 'info');
+                return;
+            }
+            
+            // Queue rich checkout data for traditional checkout (same as block checkout)
+            $this->queue_traditional_checkout_data($order, $posted_data);
+            
+            // Schedule for background processing - async flow will create the Universal Event
             as_enqueue_async_action('odcm_process_checkout_completion', [
                 'order_id' => $order_id,
                 'checkout_type' => 'standard',
@@ -1458,7 +1460,7 @@ class Core
             ], 'odcm-checkout-processing');
             
             // Minimal sync logging only - no heavy operations during checkout
-            $this->log_checkout_event_minimal($order_id, 'scheduled');
+            $this->log_checkout_event_minimal($order_id, 'queued');
             
             // Record success for circuit breaker
             $this->record_checkout_success();
@@ -1509,59 +1511,6 @@ class Core
         ]);
     }
 
-    /**
-     * Synthesize checkout processed event from WooCommerce order data
-     *
-     * @param \WC_Order $order WooCommerce order object
-     * @param array $posted_data Posted checkout data
-     * @return UniversalEvent
-     */
-    private function synthesize_checkout_processed_event(\WC_Order $order, array $posted_data): UniversalEvent
-    {
-        // GET REAL CHECKOUT TIMESTAMP from WooCommerce order creation date
-        $checkout_timestamp = $this->get_real_checkout_timestamp($order);
-
-        // Create checkout completion component with real timestamp
-        $checkout_data = [
-            'order_status' => $order->get_status(),
-            'order_id' => $order->get_id(),
-            'payment_method' => $order->get_payment_method_title(),
-            'customer_id' => $order->get_customer_id(),
-            'checkout_type' => 'standard',
-        ];
-
-        $components = [[
-            'k' => 'checkout_complete_' . str_replace('.', '_', (string)$checkout_timestamp),
-            'event_type' => 'checkout_processed',
-            'ts' => $checkout_timestamp, // REAL checkout timestamp from order creation
-            'label' => 'Checkout completed',
-            'level' => 'info',
-            'data' => $checkout_data,
-        ]];
-
-        return new UniversalEvent([
-            'eventType' => 'checkout_processed',
-            'sourceGateway' => $this->normalize_gateway_name($order->get_payment_method()),
-            'channel' => 'system',
-            'primaryObjectType' => 'order',
-            'primaryObjectID' => $order->get_id(),
-            'transactionID' => $order->get_transaction_id(),
-            'status' => $order->get_status(),
-            'amount' => (float) $order->get_total(),
-            'currency' => $order->get_currency(),
-            'occurredAt' => current_time('c'),
-            'rawData' => [
-                'order_status' => $order->get_status(),
-                'payment_method' => $order->get_payment_method(),
-                'customer_id' => $order->get_customer_id(),
-                'checkout_type' => 'standard',
-                'source' => $this->determine_change_source(),
-                'real_checkout_timestamp' => $checkout_timestamp,
-                'date_created' => $order->get_date_created()->format('c'),
-            ],
-            'components' => $components 
-        ]);
-    }
 
     /**
      * Log status change evaluation for debug mode.
@@ -2089,55 +2038,87 @@ class Core
     // BACKGROUND PROCESSING METHODS - ASYNC PROCESSING
     // ========================================================================
 
+
     /**
-     * Background checkout completion processing - ASYNC PROCESSING
+     * Queue traditional checkout data for async Universal Event creation.
+     * 
+     * Stores basic checkout context with real timestamp in the queue database.
+     * The async processor will use this data to create the Universal Event.
      *
-     * This method performs the heavy checkout processing in the background
-     * that was originally done synchronously in handle_checkout_order_processed.
-     *
-     * Action Scheduler compatibility - handle both array and direct order ID
-     *
-     * @param array|int $args Arguments from Action Scheduler (can be array or direct order ID)
+     * @param \WC_Order $order WooCommerce order object
+     * @param array $posted_data Posted checkout data
      * @return void
      */
-    public function background_checkout_processing($args): void
+    private function queue_traditional_checkout_data(\WC_Order $order, array $posted_data): void
     {
-        // Handle Action Scheduler calling convention
-        if (is_array($args)) {
-            $order_id = isset($args['order_id']) ? (int) $args['order_id'] : 0;
-            $checkout_type = isset($args['checkout_type']) ? sanitize_text_field($args['checkout_type']) : 'standard';
-        } else {
-            // Action Scheduler passes order ID directly
-            $order_id = (int) $args;
-            $checkout_type = 'standard';
+        global $wpdb;
+        
+        $order_id = $order->get_id();
+        $checkout_timestamp = (float) $order->get_date_created()->getTimestamp();
+        
+        // Build basic checkout context for traditional checkout
+        $checkout_context = [];
+        if (class_exists('OrderDaemon\\CompletionManager\\Core\\CheckoutContextBuilder')) {
+            try {
+                $checkout_context = CheckoutContextBuilder::buildCheckoutContext($order, 'standard');
+            } catch (\Throwable $e) {
+                // Fallback to basic context if CheckoutContextBuilder fails
+                $checkout_context = [
+                    'cart_analysis' => ['total_items' => count($order->get_items())],
+                    'payment_context' => [
+                        'payment_method' => $order->get_payment_method(),
+                        'payment_method_title' => $order->get_payment_method_title(),
+                        'total_amount' => $order->get_total(),
+                        'currency' => $order->get_currency(),
+                    ]
+                ];
+            }
         }
-
-        if ($order_id <= 0) {
-            error_log('ODCM_BACKGROUND: Invalid order ID for checkout processing');
-            return;
+        
+        // Prepare queue data with basic context and original timestamp
+        $queue_data = [
+            'order_id' => $order_id,
+            'checkout_type' => 'standard',
+            'checkout_timestamp' => $checkout_timestamp,
+            'checkout_context' => $checkout_context,
+            'order_data' => [
+                'status' => $order->get_status(),
+                'total' => (float) $order->get_total(),
+                'currency' => $order->get_currency(),
+                'payment_method' => $order->get_payment_method(),
+                'payment_method_title' => $order->get_payment_method_title(),
+                'transaction_id' => $order->get_transaction_id(),
+                'customer_id' => $order->get_customer_id(),
+            ],
+            'posted_data' => $posted_data, // Include posted checkout data
+            'source' => $this->determine_change_source(),
+            'queued_at' => current_time('c'),
+        ];
+        
+        // Generate unique queue ID
+        $queue_id = 'checkout_' . $order_id . '_' . time() . '_' . wp_rand(1000, 9999);
+        
+        // Insert into queue table
+        $result = $wpdb->insert(
+            $wpdb->prefix . 'odcm_audit_log_queue',
+            [
+                'queue_id' => $queue_id,
+                'event_data' => wp_json_encode($queue_data),
+                'status' => 'pending',
+                'created_at' => current_time('mysql'),
+                'retry_count' => 0
+            ]
+        );
+        
+        if ($result === false) {
+            throw new \Exception('Failed to queue traditional checkout data: ' . $wpdb->last_error);
         }
-
-        $order = wc_get_order($order_id);
-        if (!$order instanceof \WC_Order) {
-            error_log("ODCM_BACKGROUND: Order #{$order_id} not found for checkout processing");
-            return;
-        }
-
-        try {
-            // Generate UniversalEvent for checkout completion
-            $universal_event = $this->synthesize_checkout_processed_event($order, []);
-
-            // Process through universal event pipeline
-            $this->process_universal_event_from_hook($universal_event);
-
-            error_log("ODCM_BACKGROUND: Checkout completion processed for order #{$order_id}");
-
-        } catch (\Throwable $e) {
-            error_log("ODCM_BACKGROUND: Checkout processing failed for order #{$order_id}: " . $e->getMessage());
-            
-            // Emergency fallback: schedule traditional order check if Universal Events fails
-            $this->emergency_fallback_processing($order_id);
-        }
+        
+        // Set marker to indicate this order has queued data
+        update_post_meta($order_id, '_odcm_checkout_queue_id', $queue_id);
+        update_post_meta($order_id, '_odcm_checkout_data_queued', '1');
+        
+        odcm_log_message("Traditional checkout data queued with ID: {$queue_id} for order #{$order_id}", 'info');
     }
 
     /**

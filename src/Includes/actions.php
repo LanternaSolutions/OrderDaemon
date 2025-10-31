@@ -392,16 +392,19 @@ function odcm_handle_universal_event_processing(array $args) {
 add_action('odcm_process_lifecycle_event', 'odcm_handle_universal_event_processing', 10, 1);
 
 /**
- * Processes checkout completion in the background.
+ * Processes checkout completion in the background using queued data.
  *
  * This handler function is executed by Action Scheduler when a checkout completion is processed.
- * It handles the heavy processing that was moved from the synchronous checkout hooks to protect revenue.
+ * It retrieves rich checkout data from the queue and creates Universal Events with accurate timestamps.
+ * This ensures single Universal Event creation with preserved chronology.
  *
  * @param mixed $args The arguments passed to the action (can be array or int).
  * @return void
  * @since 1.0.0
  */
 function odcm_handle_checkout_completion_processing($args) {
+    global $wpdb;
+    
     // Handle Action Scheduler calling convention
     if (is_array($args)) {
         $order_id = isset($args['order_id']) ? (int) $args['order_id'] : 0;
@@ -411,6 +414,20 @@ function odcm_handle_checkout_completion_processing($args) {
         $order_id = (int) $args;
         $checkout_type = 'standard';
     }
+
+    // Extract scheduled_at parameter to identify legitimate vs duplicate jobs
+    $scheduled_at = null;
+    if (is_array($args) && isset($args['scheduled_at'])) {
+        $scheduled_at = sanitize_text_field($args['scheduled_at']);
+    }
+
+    // DEBUG: Log entry with full context
+    error_log("ODCM_DUPLICATE_DEBUG: === CHECKOUT COMPLETION PROCESSING START ===");
+    error_log("ODCM_DUPLICATE_DEBUG: Order ID: {$order_id}");
+    error_log("ODCM_DUPLICATE_DEBUG: Checkout Type: {$checkout_type}");
+    error_log("ODCM_DUPLICATE_DEBUG: Scheduled At: " . ($scheduled_at ?: 'MISSING - THIS IS A DUPLICATE JOB'));
+    error_log("ODCM_DUPLICATE_DEBUG: Args: " . wp_json_encode($args));
+    error_log("ODCM_DUPLICATE_DEBUG: Current time: " . current_time('c'));
 
     if ($order_id <= 0) {
         error_log('ODCM_BACKGROUND: Invalid order ID for checkout completion processing');
@@ -424,54 +441,42 @@ function odcm_handle_checkout_completion_processing($args) {
     }
 
     try {
-        // Get checkout context using the shared context builder
-        $checkout_context = \OrderDaemon\CompletionManager\Core\CheckoutContextBuilder::buildCheckoutContext($order, $checkout_type);
+        // Try to retrieve enriched data from queue first
+        error_log("ODCM_DUPLICATE_DEBUG: About to call odcm_get_queued_checkout_data for order #{$order_id}");
+        $queued_data = odcm_get_queued_checkout_data($order_id);
         
-        // Create a universal event for checkout completion
-        $universal_event_data = [
-            'eventType' => 'checkout_processed',
-            'sourceGateway' => $order->get_payment_method() ?: 'unknown',
-            'channel' => 'system',
-            'primaryObjectType' => 'order',
-            'primaryObjectID' => $order_id,
-            'transactionID' => $order->get_transaction_id(),
-            'status' => $order->get_status(),
-            'amount' => (float) $order->get_total(),
-            'currency' => $order->get_currency(),
-            'occurredAt' => current_time('c'),
-            'receivedAt' => current_time('c'),
-            'idempotencyKey' => 'checkout_processed_' . $order_id . '_' . time(),
-            'rawData' => $checkout_context // Use the entire context as rawData for consistency
-        ];
-
-        error_log("ODCM_DEBUG_TRACE: Background Handler - Created checkout completion event data");
+        if ($queued_data) {
+            // Use queued data with original timestamp
+            error_log("ODCM_DUPLICATE_DEBUG: FOUND queued data for order #{$order_id}");
+            error_log("ODCM_DUPLICATE_DEBUG: Queue ID: " . ($queued_data['queue_id'] ?? 'missing'));
+            $universal_event = odcm_synthesize_checkout_from_queued_data($order, $queued_data);
+            error_log("ODCM_BACKGROUND: Using queued checkout data for order #{$order_id}");
+        } else {
+            // Only create fallback event for legitimate jobs that have scheduled_at parameter
+            // Duplicate jobs (missing scheduled_at) should exit silently without creating events
+            if (!$scheduled_at) {
+                error_log("ODCM_DUPLICATE_DEBUG: BLOCKED duplicate job for order #{$order_id} - no queued data AND missing scheduled_at");
+                error_log("ODCM_DUPLICATE_DEBUG: This prevents the empty DEBUG event from being created");
+                return; // Exit silently - this is a duplicate job with no data
+            }
+            
+            // Legitimate job but no queued data - create fallback event
+            error_log("ODCM_DUPLICATE_DEBUG: NO queued data found for order #{$order_id} but legitimate job - using fallback");
+            $universal_event = odcm_synthesize_checkout_processed_event($order, [], $checkout_type);
+            error_log("ODCM_BACKGROUND: Using fallback synthesis for order #{$order_id} (no queued data)");
+        }
 
         // Process through UniversalEventProcessor
         $processor = \OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor::instance();
-        error_log("ODCM_DEBUG_TRACE: Background Handler - About to call processEvent() for checkout");
-        $result = $processor->processEvent($universal_event_data);
-        error_log("ODCM_DEBUG_TRACE: Background Handler - Checkout processEvent() returned: " . ($result ? 'TRUE' : 'FALSE'));
+        $result = $processor->processEvent($universal_event->toArray());
+
+        // Clean up queue data after successful processing
+        if ($queued_data) {
+            odcm_cleanup_processed_queue_data($order_id, $queued_data['queue_id']);
+        }
 
         // Log successful background processing
         error_log("ODCM_BACKGROUND: Checkout completion processed successfully for order #{$order_id}");
-
-        // Log the processing result for debugging
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            odcm_log_event(
-                $result ? 'Checkout completion processed successfully' : 'Checkout completion completed with no matching rules',
-                [
-                    'order_id' => $order_id,
-                    'processing_result' => $result,
-                    'checkout_type' => $checkout_type,
-                    'order_status' => $order->get_status(),
-                    'payment_method' => $order->get_payment_method(),
-                    'order_total' => $order->get_total()
-                ],
-                $order_id,
-                $result ? 'success' : 'info',
-                'checkout_completion_processed'
-            );
-        }
 
     } catch (\Throwable $e) {
         // Log processing error but don't let it break the system
@@ -501,6 +506,175 @@ function odcm_handle_checkout_completion_processing($args) {
         } catch (\Throwable $fallback_error) {
             error_log("ODCM_BACKGROUND: Emergency fallback failed for order #{$order_id}: " . $fallback_error->getMessage());
         }
+    }
+}
+
+/**
+ * Synthesize checkout processed event from WooCommerce order data with rich data
+ * 
+ * Creates comprehensive checkout events with the same rich data format as block checkouts.
+ * Ensures consistent user experience regardless of checkout type.
+ *
+ * @param \WC_Order $order WooCommerce order object
+ * @param array $posted_data Posted checkout data (unused but kept for compatibility)
+ * @param string $checkout_type Type of checkout (standard, block, etc.)
+ * @return \OrderDaemon\CompletionManager\Core\Events\UniversalEvent
+ */
+function odcm_synthesize_checkout_processed_event(\WC_Order $order, array $posted_data = [], string $checkout_type = 'standard'): \OrderDaemon\CompletionManager\Core\Events\UniversalEvent {
+    // GET REAL CHECKOUT TIMESTAMP from WooCommerce order creation date
+    $checkout_timestamp = odcm_get_real_checkout_timestamp($order);
+    
+    // Get comprehensive checkout context for rich data (same as block checkout)
+    $checkout_context = [];
+    if (class_exists('OrderDaemon\\CompletionManager\\Core\\CheckoutContextBuilder')) {
+        try {
+            $checkout_context = \OrderDaemon\CompletionManager\Core\CheckoutContextBuilder::buildCheckoutContext($order, $checkout_type);
+        } catch (\Throwable $e) {
+            // Fallback to basic context if CheckoutContextBuilder fails
+            $checkout_context = [
+                'cart_analysis' => ['total_items' => count($order->get_items())],
+                'payment_context' => [
+                    'payment_method' => $order->get_payment_method(),
+                    'payment_method_title' => $order->get_payment_method_title(),
+                    'total_amount' => $order->get_total(),
+                    'currency' => $order->get_currency(),
+                ]
+            ];
+        }
+    }
+
+    // Get gateway name for payment events
+    $gateway = odcm_normalize_gateway_name($order->get_payment_method());
+    $payment_method = $order->get_payment_method_title();
+    $order_total = (float) $order->get_total();
+    $currency = $order->get_currency();
+    $order_id = $order->get_id();
+    $order_status = $order->get_status();
+
+    // Create rich components array matching block checkout format
+    $components = [
+        [
+            'k' => 'checkout_complete_' . str_replace('.', '_', (string)$checkout_timestamp),
+            'event_type' => 'checkout_processed',
+            'ts' => $checkout_timestamp, // REAL checkout timestamp from order creation
+            'label' => 'Checkout Completed',
+            'level' => 'info',
+            'data' => [
+                // Match BlockCheckoutCompatibility data format exactly
+                'order_id' => (int) $order_id,
+                'status' => (string) $order_status,
+                'payment_method' => (string) $payment_method,
+                'total' => (float) $order_total,
+                'currency' => (string) $currency,
+                'checkout_type' => $checkout_type, // 'standard' for traditional checkout
+            ]
+        ],
+        [
+            'k' => 'cart_analysis_' . str_replace('.', '_', (string)$checkout_timestamp),
+            'event_type' => 'order_loaded',
+            'ts' => $checkout_timestamp,
+            'label' => 'Cart Analysis',
+            'level' => 'info',
+            'data' => $checkout_context['cart_analysis'] ?? []
+        ],
+        [
+            'k' => 'payment_event_' . str_replace('.', '_', (string)$checkout_timestamp),
+            'event_type' => 'payment.' . $gateway . '.checkout_processed',
+            'ts' => $checkout_timestamp,
+            'label' => 'Payment Event',
+            'level' => 'info',
+            'data' => $checkout_context['payment_context'] ?? []
+        ]
+    ];
+
+    // Technical data for rawData (not duplicated in UI)
+    $technical_data = [
+        'checkout_type' => $checkout_type,
+        'source' => odcm_determine_change_source(),
+        'real_checkout_timestamp' => $checkout_timestamp,
+        'date_created' => $order->get_date_created()->format('c'),
+    ];
+    
+    // Include original checkout context for technical reference
+    if (!empty($checkout_context)) {
+        $technical_data['checkout_context'] = $checkout_context;
+    }
+
+    return new \OrderDaemon\CompletionManager\Core\Events\UniversalEvent([
+        'eventType' => 'checkout_processed',
+        'sourceGateway' => $gateway,
+        'channel' => 'system',
+        'primaryObjectType' => 'order',
+        'primaryObjectID' => $order_id,
+        'transactionID' => $order->get_transaction_id(),
+        'status' => $order_status,
+        'amount' => $order_total,
+        'currency' => $currency,
+        'occurredAt' => current_time('c'),
+        'receivedAt' => current_time('c'), // Required for validation
+        'idempotencyKey' => 'checkout_processed_' . $order_id . '_' . time(), // Required for validation and deduplication
+        'components' => $components, // Rich components for timeline rendering
+        'rawData' => $technical_data // Technical data only
+    ]);
+}
+
+/**
+ * Get real checkout timestamp from WooCommerce order data
+ *
+ * @param \WC_Order $order WooCommerce order object
+ * @return float Checkout timestamp
+ */
+function odcm_get_real_checkout_timestamp(\WC_Order $order): float {
+    // Checkout events should use order creation time
+    return (float) $order->get_date_created()->getTimestamp();
+}
+
+/**
+ * Normalize gateway name to standard format
+ *
+ * @param string $payment_method WooCommerce payment method ID
+ * @return string Normalized gateway name
+ */
+function odcm_normalize_gateway_name(string $payment_method): string {
+    $gateway_mapping = [
+        'paypal' => 'paypal',
+        'ppcp-gateway' => 'paypal',
+        'ppcp-credit-card-gateway' => 'paypal',
+        'stripe' => 'stripe',
+        'stripe_cc' => 'stripe',
+        'stripe_sepa' => 'stripe',
+        'bacs' => 'bank_transfer',
+        'cheque' => 'check',
+        'cod' => 'cash_on_delivery',
+    ];
+
+    return $gateway_mapping[$payment_method] ?? $payment_method;
+}
+
+/**
+ * Determine the source of the change
+ *
+ * @return string Change source
+ */
+function odcm_determine_change_source(): string {
+    try {
+        $attr = \OrderDaemon\CompletionManager\Core\AttributionTracker::instance()->capture_context();
+        $request_type = is_array($attr) ? sanitize_key((string)($attr['request_type'] ?? '')) : '';
+        $external_service_name = (is_array($attr) && isset($attr['external_service']['name'])) ? sanitize_key((string)$attr['external_service']['name']) : null;
+
+        if (is_user_logged_in()) {
+            return 'manual';
+        } elseif ($request_type === 'webhook' || !empty($external_service_name)) {
+            return 'webhook';
+        } elseif ($request_type === 'rest' || $request_type === 'ajax') {
+            return 'api';
+        } elseif (in_array($request_type, ['action_scheduler','cron','cli','wp_cli'], true)) {
+            return 'scheduled';
+        } else {
+            return 'system';
+        }
+    } catch (\Throwable $e) {
+        return 'system';
     }
 }
 
@@ -826,3 +1000,165 @@ function odcm_schedule_queue_cleanup(): void
     }
 }
 add_action('init', 'odcm_schedule_queue_cleanup');
+
+/**
+ * Retrieve queued checkout data for an order
+ *
+ * @param int $order_id Order ID
+ * @return array|null Queued data or null if not found
+ */
+function odcm_get_queued_checkout_data(int $order_id): ?array {
+    global $wpdb;
+    
+    // Get queue ID from order meta
+    $queue_id = get_post_meta($order_id, '_odcm_checkout_queue_id', true);
+    if (!$queue_id) {
+        return null;
+    }
+    
+    // Retrieve data from queue table
+    $queue_entry = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}odcm_audit_log_queue 
+         WHERE queue_id = %s AND status = 'pending'",
+        $queue_id
+    ));
+    
+    if (!$queue_entry) {
+        return null;
+    }
+    
+    // Decode event data
+    $event_data = json_decode($queue_entry->event_data, true);
+    if (!is_array($event_data)) {
+        return null;
+    }
+    
+    // Verify this is actually checkout data by checking the JSON payload
+    if (!isset($event_data['checkout_type'])) {
+        return null;
+    }
+    
+    // Add queue metadata
+    $event_data['queue_id'] = $queue_id;
+    $event_data['queue_created_at'] = $queue_entry->created_at;
+    
+    return $event_data;
+}
+
+/**
+ * Synthesize checkout Universal Event from queued data with original timestamp
+ *
+ * @param \WC_Order $order WooCommerce order object
+ * @param array $queued_data Queued checkout data
+ * @return \OrderDaemon\CompletionManager\Core\Events\UniversalEvent
+ */
+function odcm_synthesize_checkout_from_queued_data(\WC_Order $order, array $queued_data): \OrderDaemon\CompletionManager\Core\Events\UniversalEvent {
+    // Extract data from queue
+    $order_id = $order->get_id();
+    $checkout_type = $queued_data['checkout_type'] ?? 'standard';
+    $checkout_timestamp = $queued_data['checkout_timestamp'] ?? (float) $order->get_date_created()->getTimestamp();
+    $checkout_context = $queued_data['checkout_context'] ?? [];
+    $order_data = $queued_data['order_data'] ?? [];
+    
+    // Use queued order data when available, fallback to current order data
+    $payment_method = $order_data['payment_method_title'] ?? $order->get_payment_method_title();
+    $order_total = (float) ($order_data['total'] ?? $order->get_total());
+    $currency = $order_data['currency'] ?? $order->get_currency();
+    $order_status = $order_data['status'] ?? $order->get_status();
+    
+    // Get gateway name for payment events
+    $gateway = odcm_normalize_gateway_name($order_data['payment_method'] ?? $order->get_payment_method());
+    
+    // Create rich components array using ORIGINAL TIMESTAMP from queue
+    $components = [
+        [
+            'k' => 'checkout_complete_' . str_replace('.', '_', (string)$checkout_timestamp),
+            'event_type' => 'checkout_processed',
+            'ts' => $checkout_timestamp, // ORIGINAL checkout timestamp from queue!
+            'label' => 'Checkout Completed',
+            'level' => 'info',
+            'data' => [
+                'order_id' => (int) $order_id,
+                'status' => (string) $order_status,
+                'payment_method' => (string) $payment_method,
+                'total' => (float) $order_total,
+                'currency' => (string) $currency,
+                'checkout_type' => $checkout_type,
+            ]
+        ],
+        [
+            'k' => 'cart_analysis_' . str_replace('.', '_', (string)$checkout_timestamp),
+            'event_type' => 'order_loaded',
+            'ts' => $checkout_timestamp, // ORIGINAL timestamp
+            'label' => 'Cart Analysis',
+            'level' => 'info',
+            'data' => $checkout_context['cart_analysis'] ?? []
+        ],
+        [
+            'k' => 'payment_event_' . str_replace('.', '_', (string)$checkout_timestamp),
+            'event_type' => 'payment.' . $gateway . '.checkout_processed',
+            'ts' => $checkout_timestamp, // ORIGINAL timestamp
+            'label' => 'Payment Event',
+            'level' => 'info',
+            'data' => $checkout_context['payment_context'] ?? []
+        ]
+    ];
+
+    // Technical data for rawData
+    $technical_data = [
+        'checkout_type' => $checkout_type,
+        'source' => $queued_data['source'] ?? 'system',
+        'real_checkout_timestamp' => $checkout_timestamp,
+        'queued_at' => $queued_data['queued_at'] ?? null,
+        'processed_from_queue' => true,
+    ];
+    
+    // Include original checkout context for technical reference
+    if (!empty($checkout_context)) {
+        $technical_data['checkout_context'] = $checkout_context;
+    }
+
+    return new \OrderDaemon\CompletionManager\Core\Events\UniversalEvent([
+        'eventType' => 'checkout_processed',
+        'sourceGateway' => $gateway,
+        'channel' => 'system',
+        'primaryObjectType' => 'order',
+        'primaryObjectID' => $order_id,
+        'transactionID' => $order->get_transaction_id(),
+        'status' => $order_status,
+        'amount' => $order_total,
+        'currency' => $currency,
+        'occurredAt' => current_time('c'),
+        'receivedAt' => current_time('c'),
+        'idempotencyKey' => 'checkout_processed_' . $order_id . '_' . (int)$checkout_timestamp,
+        'components' => $components, // Rich components with ORIGINAL timestamps
+        'rawData' => $technical_data
+    ]);
+}
+
+/**
+ * Clean up processed queue data
+ *
+ * @param int $order_id Order ID
+ * @param string $queue_id Queue ID
+ * @return void
+ */
+function odcm_cleanup_processed_queue_data(int $order_id, string $queue_id): void {
+    global $wpdb;
+    
+    // Mark queue entry as processed
+    $wpdb->update(
+        $wpdb->prefix . 'odcm_audit_log_queue',
+        [
+            'status' => 'processed',
+            'processed_at' => current_time('mysql')
+        ],
+        ['queue_id' => $queue_id]
+    );
+    
+    // Remove order meta flags
+    delete_post_meta($order_id, '_odcm_checkout_queue_id');
+    delete_post_meta($order_id, '_odcm_checkout_data_queued');
+    
+    error_log("ODCM_BACKGROUND: Cleaned up queue data for order #{$order_id}, queue ID: {$queue_id}");
+}

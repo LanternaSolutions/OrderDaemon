@@ -41,7 +41,10 @@ final class BlockCheckoutCompatibility
 
     /**
      * Handle Store API checkout order processed event (primary Blocks flow).
-     * Observation-only: capture context, schedule async task, and log.
+     * Captures rich checkout data and stores in queue for async processing.
+     * QUEUE-BASED ARCHITECTURE: This captures rich block checkout context and stores 
+     * it in the queue. The actual Universal Event will be created by the async 
+     * processor using this enriched data. No immediate event creation to prevent duplicates.
      *
      * @param WC_Order $order Newly created/processed order from Blocks checkout.
      * @return void
@@ -59,14 +62,23 @@ final class BlockCheckoutCompatibility
 
         $checkout_context = $this->capture_block_checkout_context($order);
         
+        // QUEUE-BASED: Store rich checkout data for async Universal Event creation only
         try {
-            $universal_event = $this->synthesize_block_checkout_event($order, $checkout_context);
-            $this->process_universal_event_from_hook($universal_event);
-            odcm_log_message("Block checkout processed for order #{$order_id}, processed as universal event", 'info');
+            $this->queue_block_checkout_data($order, $checkout_context);
+            
+            // Schedule for background processing - async flow will create the Universal Event
+            as_enqueue_async_action('odcm_process_checkout_completion', [
+                'order_id' => $order_id,
+                'checkout_type' => 'block_checkout',
+                'scheduled_at' => current_time('c')
+            ], 'odcm-checkout-processing');
+            
+            odcm_log_message("Block checkout data queued for order #{$order_id}", 'info');
         } catch (\Throwable $e) {
-            odcm_log_message('Block checkout universal event processing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
+            odcm_log_message('Block checkout data queueing failed for order #' . $order_id . ': ' . $e->getMessage(), 'error');
         }
         
+        // Observation/diagnostics for compatibility
         $this->schedule_checkout_observation($order_id, $checkout_context);
     }
 
@@ -549,6 +561,68 @@ final class BlockCheckoutCompatibility
         } else {
             return 'system';
         }
+    }
+
+    /**
+     * Queue block checkout data for async Universal Event creation.
+     * 
+     * Stores rich checkout context with real timestamp in the queue database.
+     * The async processor will use this data to create the Universal Event.
+     *
+     * @param WC_Order $order WooCommerce order object
+     * @param array $checkout_context Rich checkout context from capture
+     * @return void
+     */
+    private function queue_block_checkout_data(\WC_Order $order, array $checkout_context): void
+    {
+        global $wpdb;
+        
+        $order_id = $order->get_id();
+        $checkout_timestamp = (float) $order->get_date_created()->getTimestamp();
+        
+        // Prepare queue data with rich context and original timestamp
+        $queue_data = [
+            'order_id' => $order_id,
+            'checkout_type' => 'block_checkout',
+            'checkout_timestamp' => $checkout_timestamp,
+            'checkout_context' => $checkout_context,
+            'order_data' => [
+                'status' => $order->get_status(),
+                'total' => (float) $order->get_total(),
+                'currency' => $order->get_currency(),
+                'payment_method' => $order->get_payment_method(),
+                'payment_method_title' => $order->get_payment_method_title(),
+                'transaction_id' => $order->get_transaction_id(),
+                'customer_id' => $order->get_customer_id(),
+            ],
+            'source' => $this->determine_change_source(),
+            'queued_at' => current_time('c'),
+        ];
+        
+        // Generate unique queue ID
+        $queue_id = 'checkout_' . $order_id . '_' . time() . '_' . wp_rand(1000, 9999);
+        
+        // Insert into queue table
+        $result = $wpdb->insert(
+            $wpdb->prefix . 'odcm_audit_log_queue',
+            [
+                'queue_id' => $queue_id,
+                'event_data' => wp_json_encode($queue_data),
+                'status' => 'pending',
+                'created_at' => current_time('mysql'),
+                'retry_count' => 0
+            ]
+        );
+        
+        if ($result === false) {
+            throw new \Exception('Failed to queue block checkout data: ' . $wpdb->last_error);
+        }
+        
+        // Set marker to indicate this order has queued data
+        update_post_meta($order_id, '_odcm_checkout_queue_id', $queue_id);
+        update_post_meta($order_id, '_odcm_checkout_data_queued', '1');
+        
+        odcm_log_message("Block checkout data queued with ID: {$queue_id} for order #{$order_id}", 'info');
     }
 
     /**
