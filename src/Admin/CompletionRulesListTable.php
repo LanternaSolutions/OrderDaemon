@@ -38,6 +38,7 @@ class CompletionRulesListTable extends \WP_List_Table
     public function get_columns()
     {
         return [
+            'handle'   => '<span class="dashicons dashicons-menu"></span>',  // Drag handle column with icon as header
             'cb'       => '<input type="checkbox" />',
             'active'   => __('Active', Odcm_Config::$text_domain),
             'title'    => __('Title', Odcm_Config::$text_domain),
@@ -145,6 +146,19 @@ class CompletionRulesListTable extends \WP_List_Table
             '<input type="checkbox" name="rule[]" value="%s" />',
             $item->ID
         );
+    }
+    
+    /**
+     * Handle column renderer.
+     *
+     * @param object $item The current item.
+     *
+     * @return string
+     */
+    public function column_handle($item)
+    {
+        // Make the handle visible and clickable
+        return '<span class="odcm-drag-handle dashicons dashicons-menu" style="cursor:grab;"></span>';
     }
 
     /**
@@ -291,6 +305,18 @@ class CompletionRulesListTable extends \WP_List_Table
         return min($per_page, 200);
     }
 
+    /**
+     * Display a single row for the table, with added data-id attribute.
+     *
+     * @param object $item The current item.
+     */
+    public function single_row($item) {
+        $class = 'odcm-rule-row';
+        echo '<tr class="' . $class . '" id="rule-row-' . esc_attr($item->ID) . '" data-id="' . esc_attr($item->ID) . '">';
+        $this->single_row_columns($item);
+        echo '</tr>';
+    }
+    
     /**
      * Prepare the items for the table.
      */

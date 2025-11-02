@@ -819,8 +819,69 @@
 }
 
 /* Set a fixed width for the active column */
+.column-handle {
+    width: 40px !important;
+    cursor: move;
+    text-align: center !important;
+}
+
+.column-priority {
+    text-align: center !important;
+    width: 80px !important;
+}
+
 .column-active {
     width: 80px !important;
+}
+
+/* Drag handle styles */
+.odcm-drag-handle {
+    color: #aaa;
+    cursor: grab;
+    cursor: -webkit-grab;
+    display: inline-block;
+    padding: 0 4px;
+    transition: color 0.2s ease;
+    font-size: 16px;  /* Slightly larger icon */
+}
+
+.odcm-drag-handle:hover {
+    color: #2271b1; /* WP blue on hover */
+}
+
+.priority-value {
+    display: inline-block;
+    min-width: 20px;
+    text-align: center;
+    font-weight: bold;
+    color: #444;
+}
+
+/* Highlight the row being dragged */
+
+.odcm-drag-handle:hover {
+    color: #0073aa;
+}
+
+.odcm-dragging {
+    background-color: #f0f7fc !important;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.odcm-dragging .odcm-drag-handle {
+    cursor: grabbing;
+    cursor: -webkit-grabbing;
+    color: #0073aa;
+}
+
+.odcm-sortable-placeholder {
+    background-color: rgba(0, 115, 170, 0.1) !important;
+    height: 40px;
+}
+
+.odcm-updating-order {
+    opacity: 0.6;
+    pointer-events: none;
 }
 
 .odcm-toggle-switch {

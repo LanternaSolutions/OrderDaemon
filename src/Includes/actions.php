@@ -1002,6 +1002,77 @@ function odcm_schedule_queue_cleanup(): void
 add_action('init', 'odcm_schedule_queue_cleanup');
 
 /**
+ * AJAX handler for updating the order of rules.
+ *
+ * This function processes the AJAX request sent when a user changes the order of rules
+ * via drag and drop. It updates the menu_order field for each rule to reflect the new priority.
+ *
+ * @since 1.0.0
+ * @return void
+ */
+function odcm_update_rule_order_handler() {
+    // Verify nonce for security
+    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'odcm_update_rule_order')) {
+        wp_send_json_error([
+            'message' => __('Security check failed.', 'order-daemon-completion-manager')
+        ]);
+        return;
+    }
+
+    // Check user permissions
+    if (!current_user_can('manage_woocommerce')) {
+        wp_send_json_error([
+            'message' => __('You do not have permission to perform this action.', 'order-daemon-completion-manager')
+        ]);
+        return;
+    }
+
+    // Validate rule IDs
+    if (!isset($_POST['rule_ids']) || !is_array($_POST['rule_ids'])) {
+        wp_send_json_error([
+            'message' => __('Invalid data provided.', 'order-daemon-completion-manager')
+        ]);
+        return;
+    }
+
+    $rule_ids = array_map('absint', $_POST['rule_ids']);
+
+    if (empty($rule_ids)) {
+        wp_send_json_error([
+            'message' => __('No valid rule IDs provided.', 'order-daemon-completion-manager')
+        ]);
+        return;
+    }
+
+    // Update the priority (menu_order) for each rule
+    $priority_map = [];
+    foreach ($rule_ids as $position => $rule_id) {
+        // Position is zero-based, but we want priority to start at 1
+        $priority = $position + 1;
+        
+        wp_update_post([
+            'ID' => $rule_id,
+            'menu_order' => $priority
+        ]);
+        
+        // Add to priority map for client-side update
+        $priority_map[] = [
+            'id' => $rule_id,
+            'priority' => $priority
+        ];
+    }
+
+    // Send success response with updated priorities
+    wp_send_json_success([
+        'message' => __('Rule order updated successfully.', 'order-daemon-completion-manager'),
+        'priority_map' => $priority_map
+    ]);
+}
+
+// Register the AJAX handler for logged-in users
+add_action('wp_ajax_odcm_update_rule_order', 'odcm_update_rule_order_handler');
+
+/**
  * Retrieve queued checkout data for an order
  *
  * @param int $order_id Order ID

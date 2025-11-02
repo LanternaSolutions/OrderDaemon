@@ -89,10 +89,14 @@ class InsightDashboard
 
     /**
      * Register the Order Daemon top-level menu and submenus
+     * 
+     * The key ordering here ensures the Insight Dashboard is both the
+     * default destination for the top-level Order Daemon menu and the
+     * first item in the submenu list.
      */
     public function register_menu_page(): void
     {
-        // Create top-level "Order Daemon" menu positioned between WooCommerce and Products
+        // 1. First, add the main top-level menu (Order Daemon) pointing to the dashboard
         // WooCommerce uses position 55-56, Products around 57, so we use 56.5
         add_menu_page(
             __('Order Daemon', Odcm_Config::$text_domain),
@@ -103,21 +107,9 @@ class InsightDashboard
             'dashicons-chart-line',
             56.5
         );
-
-        // Remove the auto-created submenu item that WordPress adds with the same name as the parent
-        remove_submenu_page(self::PAGE_SLUG, self::PAGE_SLUG);
-
-        // Add "All Order Rules" as first submenu item
-        add_submenu_page(
-            self::PAGE_SLUG,
-            __('All Order Rules', Odcm_Config::$text_domain),
-            __('All Order Rules', Odcm_Config::$text_domain),
-            'manage_woocommerce',
-            'edit.php?post_type=odcm_order_rule',
-            null
-        );
-
-        // Add "Insight Dashboard" as second submenu item
+        
+        // 2. IMPORTANT: First submenu must use EXACTLY the same slug as the parent
+        // to ensure the parent menu links to the Insight Dashboard
         add_submenu_page(
             self::PAGE_SLUG,
             __('Insight Dashboard', Odcm_Config::$text_domain),
@@ -125,6 +117,16 @@ class InsightDashboard
             'manage_woocommerce',
             self::PAGE_SLUG,
             [$this, 'render_dashboard_page']
+        );
+        
+        // 3. Then add remaining submenu items
+        add_submenu_page(
+            self::PAGE_SLUG,
+            __('All Order Rules', Odcm_Config::$text_domain),
+            __('All Order Rules', Odcm_Config::$text_domain),
+            'manage_woocommerce', 
+            'edit.php?post_type=odcm_order_rule',
+            null
         );
 
         // Add "Diagnostics" as third submenu item
@@ -139,15 +141,14 @@ class InsightDashboard
     }
 
     /**
-     * Remove the duplicate submenu item that WordPress automatically creates
+     * Previously removed duplicate submenu, but that's no longer needed
+     * We're keeping the default submenu item and just renaming it
      * 
-     * This runs with high priority to ensure it executes after WordPress has
-     * fully processed all menu registrations.
+     * This method is kept for compatibility but doesn't remove anything anymore.
      */
     public function remove_duplicate_submenu(): void
     {
-        // Remove the auto-created submenu item that has the same slug as the parent menu
-        remove_submenu_page(self::PAGE_SLUG, self::PAGE_SLUG);
+        // No longer removing the auto-created submenu item
     }
 
     /**

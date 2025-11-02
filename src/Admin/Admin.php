@@ -70,6 +70,8 @@ class Admin
         // Register notices
         $this->notices->register();
 
+        // Hook into load-edit.php to replace the default list table with our custom one
+        add_action('load-edit.php', [$this, 'setup_custom_list_table']);
 
         // Register admin scripts
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_scripts'], 10);
@@ -87,7 +89,142 @@ class Admin
         // Add Order Rule to admin bar "+ New" menu
         add_action('admin_bar_menu', [$this, 'add_order_rule_to_admin_bar'], 999);
 
+        // Handle AJAX request for updating rule order
+        add_action('wp_ajax_odcm_update_rule_order', [$this, 'ajax_update_rule_order'], 10);
+
     }//end init()
+
+    /**
+     * Setup custom list table for the order rules.
+     * Using WordPress-native hooks instead of replacing the entire page.
+     * 
+     * @return void
+     */
+    public function setup_custom_list_table(): void
+    {
+        // Only process on the order rules edit screen
+        $screen = get_current_screen();
+        if (!$screen || $screen->base !== 'edit' || $screen->post_type !== 'odcm_order_rule') {
+            return;
+        }
+        
+        // Add a notice explaining drag-and-drop functionality
+        add_action('admin_notices', function() {
+            echo '<div class="notice notice-info is-dismissible"><p>' . 
+                                esc_html__('Tip: Drag rules using the handle to change their priority. Lower number = higher priority. Higher priority rules run first.', Odcm_Config::$text_domain) .
+                '</p></div>';
+        });
+        
+        // Add additional script in the footer to enhance the drag-and-drop experience
+        add_action('admin_footer', function() {
+            ?>
+            <script>
+            jQuery(document).ready(function($) {
+                // Add data-id attribute to each table row based on the post ID
+                $('#the-list tr').each(function() {
+                    const postId = $(this).attr('id').replace('post-', '');
+                    if (postId) {
+                        $(this).attr('data-id', postId);
+                    }
+                });
+                
+                // Initialize priority column values
+                $('#the-list tr').each(function(index) {
+                    // Find the priority column and update its text
+                    const $priorityCell = $(this).find('.column-priority');
+                    if ($priorityCell.length && $priorityCell.text().trim() === '') {
+                        $priorityCell.text(index);
+                    }
+                });
+            });
+            </script>
+            <?php
+        });
+        
+        // Add custom row attributes to enable drag-and-drop
+        add_filter('post_class', function($classes, $class, $post_id) {
+            if (get_post_type($post_id) === 'odcm_order_rule') {
+                $classes[] = 'odcm-rule-row';
+            }
+            return $classes;
+        }, 10, 3);
+        
+        // Add data-id attribute to each row to enable drag-and-drop
+        add_action('manage_posts_custom_column', function($column_name, $post_id) {
+            // We only need to do this once per row, so we'll use the first column
+            static $already_added = [];
+            
+            // Skip if we've already processed this post
+            if (isset($already_added[$post_id])) {
+                return;
+            }
+            
+            // Only for our post type
+            if (get_post_type($post_id) !== 'odcm_order_rule') {
+                return;
+            }
+            
+            // Add JavaScript to inject data-id attribute
+            echo '<script>jQuery(document).ready(function($) { 
+                $("#post-' . $post_id . '").attr("data-id", "' . $post_id . '"); 
+            });</script>';
+            
+            $already_added[$post_id] = true;
+        }, 999, 2);
+    }
+                
+    /**
+     * Handle AJAX request to update rule order.
+     * 
+     * @return void
+     */
+    public function ajax_update_rule_order(): void
+    {
+        // Check user capability
+        odcm_check_user_capability('manage_woocommerce', 'ajax');
+        
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key($_POST['nonce']), 'odcm_update_rule_order')) {
+            wp_send_json_error(['message' => __('Security check failed.', Odcm_Config::$text_domain)]);
+            wp_die();
+        }
+        
+        // Get the rule order data
+        $rule_ids = isset($_POST['rule_ids']) ? array_map('absint', $_POST['rule_ids']) : [];
+        
+        if (empty($rule_ids)) {
+            wp_send_json_error(['message' => __('No rule order data received.', Odcm_Config::$text_domain)]);
+            wp_die();
+        }
+        
+        // Update the menu_order for each rule
+        $success = true;
+        foreach ($rule_ids as $position => $rule_id) {
+            // Verify this rule exists and user has permission to edit it
+            if (!get_post($rule_id) || !current_user_can('edit_post', $rule_id)) {
+                $success = false;
+                continue;
+            }
+            
+            // Update the menu_order (lower number = higher priority)
+            $result = wp_update_post([
+                'ID' => $rule_id,
+                'menu_order' => $position,
+            ]);
+            
+            if (!$result || is_wp_error($result)) {
+                $success = false;
+            }
+        }
+        
+        if ($success) {
+            wp_send_json_success(['message' => __('Rule order updated successfully.', Odcm_Config::$text_domain)]);
+        } else {
+            wp_send_json_error(['message' => __('Error updating some rules. Please try again.', Odcm_Config::$text_domain)]);
+        }
+        
+        wp_die();
+    }
 
 
     /**
@@ -133,11 +270,21 @@ class Admin
         }
 
         // For post edit screens, verify it's our custom post type
-        if (in_array($hook_suffix, ['post.php', 'post-new.php', 'edit.php'], true)) {
+        if (in_array($hook_suffix, ['post.php', 'post-new.php'], true)) {
             $screen = get_current_screen();
             if (!$screen || 'odcm_order_rule' !== $screen->post_type) {
                 return;
-                // It's an edit screen, but not for our CPT
+                // It's a single post edit screen, but not for our CPT
+            }
+        }
+
+        // Special handling for the edit.php screen (list table)
+        // We need to check if it's our post type from the URL
+        if ($hook_suffix === 'edit.php') {
+            $current_post_type = isset($_GET['post_type']) ? sanitize_key($_GET['post_type']) : 'post';
+            if ('odcm_order_rule' !== $current_post_type) {
+                return;
+                // It's a list page, but not for our custom post type
             }
         }
 
@@ -151,11 +298,14 @@ class Admin
 
         // Enqueue toggle button script only on the completion rules list page
         if ($hook_suffix === 'edit.php') {
+            // Ensure jQuery UI is loaded for sortable functionality
+            wp_enqueue_script('jquery-ui-sortable');
+            
             // Enqueue JS for the toggle button functionality
             wp_enqueue_script(
                 'odcm-toggle-rules',
                 ODCM_PLUGIN_URL.'assets/js/toggle-rules.js',
-                ['jquery'],
+                ['jquery', 'jquery-ui-sortable'],
                 $script_version,
                 true
             );
@@ -172,6 +322,8 @@ class Admin
                     'draftText'        => __('Draft', Odcm_Config::$text_domain),
                     'publishedText'    => __('Published', Odcm_Config::$text_domain),
                     'lastModifiedText' => __('Last Modified', Odcm_Config::$text_domain),
+                    'orderNonce'       => wp_create_nonce('odcm_update_rule_order'),
+                    'orderErrorMessage' => __('Error updating rule order. Please try again.', Odcm_Config::$text_domain),
                 ]
             );
         }//end if
@@ -255,13 +407,26 @@ class Admin
     public function add_custom_columns(array $columns): array
     {
         $new_columns = [];
-
-        // Insert the 'Active' column after the checkbox column
+        
+        // Add the drag handle column as the first column
+        $new_columns['handle'] = '<span class="dashicons dashicons-menu"></span>';
+        
+        // Add the remaining columns, inserting Active after checkbox
         foreach ($columns as $key => $value) {
             $new_columns[$key] = $value;
             if ($key === 'cb') {
                 $new_columns['active'] = __('Active', Odcm_Config::$text_domain);
             }
+        }
+        
+        // Add priority column before the date column
+        if (isset($new_columns['date'])) {
+            $date_column = $new_columns['date'];
+            unset($new_columns['date']);
+            $new_columns['priority'] = __('Priority', Odcm_Config::$text_domain);
+            $new_columns['date'] = $date_column;
+        } else {
+            $new_columns['priority'] = __('Priority', Odcm_Config::$text_domain);
         }
 
         return $new_columns;
@@ -278,7 +443,10 @@ class Admin
      */
     public function render_custom_columns(string $column, int $post_id): void
     {
-        if ($column === 'active') {
+        if ($column === 'handle') {
+            // Render the drag handle
+            echo '<span class="odcm-drag-handle dashicons dashicons-menu" style="cursor:grab;"></span>';
+        } elseif ($column === 'active') {
             // Get the current post status
             $post      = get_post($post_id);
             $is_active = $post->post_status === 'publish';
@@ -290,6 +458,14 @@ class Admin
             echo '<span class="odcm-toggle-slider"></span>';
             echo '</label>';
             echo '</div>';
+        } elseif ($column === 'priority') {
+            // Get the post
+            $post = get_post($post_id);
+            
+            // Display the menu_order (priority) with a hint
+            echo '<span class="priority-value" title="' . esc_attr__('Lower number = Higher priority', Odcm_Config::$text_domain) . '">';
+            echo esc_html($post->menu_order);
+            echo '</span>';
         }
 
     }//end render_custom_columns()
