@@ -62,7 +62,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'permission_callback' => [$this, 'get_item_permissions_check'],
                 'args'                => [
                     'id' => [
-                        'description' => __('Unique identifier for the rule.', 'order-daemon'),,
+                        'description' => __('Unique identifier for the rule.', 'order-daemon'),
                         'type'        => 'integer',
                     ],
                 ],
