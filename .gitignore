@@ -19,6 +19,3 @@ Thumbs.db
 !/.idea/inspectionProfiles/
 # This line is for a custom inspection profile
 !/.idea/inspectionProfiles/Project_Default.xml
-
-../order-daemon-devtools/docs/audit-reports/audit-log-complete-todo.md
-../order-daemon-devtools/docs/audit-reports/events-and-payloads-todo.md
