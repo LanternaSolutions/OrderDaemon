@@ -296,7 +296,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             if (empty($log_ids) || !is_array($log_ids)) {
                 return new WP_Error(
                     'odcm_invalid_log_ids',
-                    __('Invalid log IDs provided', 'order-daemon'),
+                    __('audit.logs.delete.error.invalid_log_ids_provided', 'order-daemon'),
                     ['status' => 400]
                 );
             }
@@ -310,7 +310,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             if (empty($valid_log_ids)) {
                 return new WP_Error(
                     'odcm_no_valid_logs',
-                    __('No valid log entries found for deletion', 'order-daemon'),
+                    __('audit.logs.delete..error.no_valid_log_ids_found_for_deletion', 'order-daemon'),
                     ['status' => 404]
                 );
             }
@@ -334,9 +334,10 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'deleted_count' => $deleted_count,
                 'requested_count' => count($log_ids),
                 'message' => sprintf(
+                    /* translators: %d: the number of log entries successfully deleted */
                     _n(
-                        'Successfully deleted %d log entry',
-                        'Successfully deleted %d log entries',
+                        'audit.logs.delete.success.single',
+                        'audit.logs.delete.success.plural',
                         $deleted_count,
                         'order-daemon'
                     ),
@@ -354,7 +355,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             return new WP_Error(
                 'odcm_batch_delete_error',
-                __('Failed to delete log entries', 'order-daemon'),
+                __('audit.logs.delete.failure', 'order-daemon'),
                 ['status' => 500]
             );
         }
@@ -447,7 +448,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             return new WP_Error(
                 'odcm_api_error',
-                __('Failed to fetch audit logs', 'order-daemon'),
+                __('audit.logs.fetch.failure', 'order-daemon'),
                 ['status' => 500]
             );
         }
@@ -509,7 +510,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             return new WP_Error(
                 'odcm_render_error',
-                __('Failed to render log components', 'order-daemon'),
+                __('audit.logs.render.failure.log_components', 'order-daemon'),
                 ['status' => 500]
             );
         }
@@ -701,7 +702,7 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function render_component_timeline(array $components): string
     {
         if (empty($components)) {
-            return '<div class="odcm-empty-data">' . esc_html__('No timeline data', 'order-daemon') . '</div>';
+            return '<div class="odcm-empty-data">' . esc_html__('audit.logs.timeline.no_data', 'order-daemon') . '</div>';
         }
         
         // Sort chronologically
@@ -841,7 +842,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         try {
             $log_ids = $request->get_param('log_ids');
             if (!is_array($log_ids) || empty($log_ids)) {
-                return new WP_Error('odcm_invalid_log_ids', __('Invalid log IDs provided', 'order-daemon'), ['status' => 400]);
+                return new WP_Error('odcm_invalid_log_ids', __('audit.logs.render.error.invalid_log_ids_provided', 'order-daemon'), ['status' => 400]);
             }
             
             // Normalize IDs (absint, unique, cap to 50)
@@ -850,7 +851,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             }))));
             
             if (empty($ids)) {
-                return new WP_Error('odcm_no_valid_ids', __('No valid log IDs provided', 'order-daemon'), ['status' => 400]);
+                return new WP_Error('odcm_no_valid_ids', __('audit.logs.render.error.no_valid_log_ids_provided', 'order-daemon'), ['status' => 400]);
             }
             
             if (count($ids) > 50) {
@@ -923,7 +924,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                         'success' => false,
                         'error' => [
                             'code' => 'render_error',
-                            'message' => __('Failed to render components', 'order-daemon')
+                            'message' => __('audit.logs.render.failure.components', 'order-daemon')
                         ]
                     ];
                 }
@@ -941,7 +942,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             
         } catch (\Throwable $e) {
             $this->log_api_error('render_components_batch', $e, ['ids' => $request->get_param('log_ids')]);
-            return new WP_Error('odcm_render_batch_error', __('Failed to render batch components', 'order-daemon'), ['status' => 500]);
+            return new WP_Error('odcm_render_batch_error', __('audit.logs.render.failure.batch_components', 'order-daemon'), ['status' => 500]);
         }
     }
 
@@ -1104,10 +1105,10 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function format_status_label(string $status): string
     {
         $map = [
-            'success' => __('Success', 'order-daemon'),
-            'error'   => __('Error', 'order-daemon'),
-            'warning' => __('Warning', 'order-daemon'),
-            'info'    => __('Info', 'order-daemon'),
+            'success' => __('status.success', 'order-daemon'),
+            'error'   => __('status.error', 'order-daemon'),
+            'warning' => __('status.warning', 'order-daemon'),
+            'info'    => __('status.info', 'order-daemon'),
         ];
         $key = strtolower(trim($status));
         if (isset($map[$key])) {

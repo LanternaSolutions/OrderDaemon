@@ -1,0 +1,2396 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Order Daemon for WooCommerce\n"
+"POT-Creation-Date: 2025-11-05 03:48+0200\n"
+"PO-Revision-Date: 2025-11-05 03:48+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"X-Generator: Poedit 3.8\n"
+"X-Poedit-Basepath: ..\n"
+"X-Poedit-Flags-xgettext: --add-comments=translators:\n"
+"X-Poedit-WPHeader: order-daemon.php\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+"X-Poedit-KeywordsList: "
+"__;_e;_n:1,2;_x:1,2c;_ex:1,2c;_nx:4c,1,2;esc_attr__;esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c;_n_noop:1,2;_nx_noop:3c,1,2;__ngettext_noop:1,2\n"
+"X-Poedit-SearchPath-0: .\n"
+"X-Poedit-SearchPathExcluded-0: *.min.js\n"
+"X-Poedit-SearchPathExcluded-1: assets/css/vendor\n"
+"X-Poedit-SearchPathExcluded-2: assets/js/vendor\n"
+"X-Poedit-SearchPathExcluded-3: vendor\n"
+
+#: src/API/AuditLogEndpoint.php:299 src/API/AuditLogEndpoint.php:844
+msgid "audit.logs.render.error.invalid_log_ids_provided"
+msgstr "Invalid log IDs provided"
+
+#: src/API/AuditLogEndpoint.php:313
+msgid "audit.logs.delete..error.no_valid_log_ids_found_for_deletion"
+msgstr "No valid log entries found for deletion"
+
+#: src/API/AuditLogEndpoint.php:338
+#, php-format
+msgid "audit.logs.delete.success.single"
+msgid_plural "audit.logs.delete.success.plural"
+msgstr[0] "Successfully deleted %d log entry"
+msgstr[1] "Successfully deleted %d log entries"
+
+#: src/API/AuditLogEndpoint.php:357
+msgid "audit.logs.delete.failure"
+msgstr "Failed to delete log entries"
+
+#: src/API/AuditLogEndpoint.php:450
+msgid "audit.logs.fetch.failure"
+msgstr "Failed to fetch audit logs"
+
+#: src/API/AuditLogEndpoint.php:512
+msgid "audit.logs.render.failure.log_components"
+msgstr "Failed to render log components"
+
+#: src/API/AuditLogEndpoint.php:704
+msgid "audit.logs.timeline.no_data"
+msgstr "No timeline data"
+
+#: src/API/AuditLogEndpoint.php:853
+msgid "audit.logs.render.error.no_valid_log_ids_provided"
+msgstr "No valid log IDs provided"
+
+#: src/API/AuditLogEndpoint.php:926
+msgid "audit.logs.render.failure.components"
+msgstr "Failed to render components"
+
+#: src/API/AuditLogEndpoint.php:944
+msgid "audit.logs.render.failure.batch_components"
+msgstr "Failed to render batch components"
+
+#: src/API/AuditLogEndpoint.php:1107 src/Admin/InsightDashboard.php:674
+#: src/Core/LogRegistries.php:1009 src/Core/audit-filters.php:240
+msgid "status.success"
+msgstr "Success"
+
+#: src/API/AuditLogEndpoint.php:1108 src/Admin/InsightDashboard.php:675
+#: src/Admin/RuleBuilder.php:289 src/Core/LogRegistries.php:1015
+#: src/Core/audit-filters.php:241
+msgid "status.error"
+msgstr "Error"
+
+#: src/API/AuditLogEndpoint.php:1109 src/Admin/InsightDashboard.php:676
+#: src/Core/LogRegistries.php:1021 src/Core/audit-filters.php:242
+msgid "status.warning"
+msgstr "Warning"
+
+#: src/API/AuditLogEndpoint.php:1110 src/Admin/InsightDashboard.php:677
+#: src/Core/LogRegistries.php:1027 src/Core/audit-filters.php:243
+msgid "status.info"
+msgstr "Info"
+
+#: src/API/AuditLogEndpoint.php:1453
+msgid "No timeline data available"
+msgstr ""
+
+#: src/API/AuditLogEndpoint.php:1552 src/API/AuditLogEndpoint.php:2153
+msgid "Invalid process ID"
+msgstr ""
+
+#: src/API/AuditLogEndpoint.php:1611
+msgid "Failed to fetch process logs"
+msgstr ""
+
+#: src/API/AuditLogEndpoint.php:2183
+msgid "No events found for this process"
+msgstr ""
+
+#: src/API/AuditLogEndpoint.php:2249
+msgid "All process events filtered (debug mode disabled)"
+msgstr ""
+
+#: src/API/AuditLogEndpoint.php:2251
+msgid "No process components available"
+msgstr ""
+
+#: src/API/AuditLogEndpoint.php:2265
+msgid "Error rendering process timeline"
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:65
+#: src/API/RuleBuilderApiController.php:76
+msgid "Unique identifier for the rule."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:90
+msgid "Data source to search (products, categories, posts, etc.)"
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:96
+msgid "Search term"
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:101
+msgid "Maximum number of results"
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:185
+msgid "Failed to load rule builder components"
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:263
+msgid "Invalid completion rule ID."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:272
+msgid "Invalid or empty rule data provided."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:314
+msgid "Failed to update rule post: "
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:324
+msgid "Failed to encode rule data as JSON."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:335
+msgid "Failed to save rule data to post meta."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:353
+msgid "Rule saved successfully."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:364
+msgid "An unexpected error occurred while saving the rule: "
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:393
+msgid ""
+"Trigger \"Any Status Change\" is a Pro feature and cannot be saved without a "
+"license."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:403
+#, php-format
+msgid "Condition %d: %s"
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:413
+#, php-format
+msgid "Action %d: %s"
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:421
+msgid ""
+"Rules containing Pro components can’t be saved without a license. Upgrade or "
+"remove Pro components to continue."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:439
+msgid "Component missing ID"
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:447
+#, php-format
+msgid "Unknown %s: %s"
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:454
+#, php-format
+msgid "%s \"%s\" requires Pro access"
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:533
+#, php-format
+msgid "The following options require Pro access: %s"
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:660
+msgid "You do not have permissions to view these components."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:675
+msgid "You do not have permissions to view this rule."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:689
+msgid "You do not have permissions to save this rule."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:712
+msgid "You do not have permission to access this resource."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:722
+msgid "Invalid nonce. Please refresh the page and try again."
+msgstr ""
+
+#: src/API/RuleBuilderApiController.php:1438
+msgid "Failed to search content"
+msgstr ""
+
+#: src/API/Timeline/RegistryTimelineRenderer.php:210
+msgid "No timeline data available for this process group"
+msgstr ""
+
+#: src/API/Timeline/RegistryTimelineRenderer.php:211
+msgid "No timeline data available for this log entry"
+msgstr ""
+
+#: src/Admin/Admin.php:114
+msgid ""
+"Tip: Drag rules using the handle to change their priority. Lower number = "
+"higher priority. Higher priority rules run first."
+msgstr ""
+
+#: src/Admin/Admin.php:188 src/Admin/Admin.php:487
+#: src/Admin/CompletionRulesListTable.php:92
+#: src/Admin/InsightDashboard.php:1042 src/Admin/InsightDashboard.php:1079
+#: src/Admin/InsightDashboard.php:1228 src/Includes/actions.php:1017
+msgid "Security check failed."
+msgstr ""
+
+#: src/Admin/Admin.php:196
+msgid "No rule order data received."
+msgstr ""
+
+#: src/Admin/Admin.php:221 src/Includes/actions.php:1067
+msgid "Rule order updated successfully."
+msgstr ""
+
+#: src/Admin/Admin.php:223
+msgid "Error updating some rules. Please try again."
+msgstr ""
+
+#: src/Admin/Admin.php:319 src/Admin/Admin.php:418 src/Admin/Admin.php:456
+#: src/Admin/CompletionRulesListTable.php:43
+#: src/Admin/CompletionRulesListTable.php:177
+msgid "Active"
+msgstr ""
+
+#: src/Admin/Admin.php:320 src/Admin/Admin.php:456
+#: src/Admin/CompletionRulesListTable.php:178
+msgid "Inactive"
+msgstr ""
+
+#: src/Admin/Admin.php:321
+msgid "Error updating rule status. Please try again."
+msgstr ""
+
+#: src/Admin/Admin.php:322 src/Admin/Admin.php:552
+#: src/Admin/CompletionRulesListTable.php:204
+msgid "Draft"
+msgstr ""
+
+#: src/Admin/Admin.php:323 src/Admin/Admin.php:546
+#: src/Admin/CompletionRulesListTable.php:252
+msgid "Published"
+msgstr ""
+
+#: src/Admin/Admin.php:324 src/Admin/Admin.php:546
+#: src/Admin/CompletionRulesListTable.php:254
+msgid "Last Modified"
+msgstr ""
+
+#: src/Admin/Admin.php:326
+msgid "Error updating rule order. Please try again."
+msgstr ""
+
+#: src/Admin/Admin.php:358
+msgctxt "post type general name"
+msgid "Order Rules"
+msgstr ""
+
+#: src/Admin/Admin.php:359
+msgctxt "post type singular name"
+msgid "Order Rule"
+msgstr ""
+
+#: src/Admin/Admin.php:360
+msgctxt "admin menu"
+msgid "Order Rules"
+msgstr ""
+
+#: src/Admin/Admin.php:361
+msgctxt "add new on admin bar"
+msgid "Order Rule"
+msgstr ""
+
+#: src/Admin/Admin.php:362
+msgctxt "order rule"
+msgid "Add New"
+msgstr ""
+
+#: src/Admin/Admin.php:363
+msgid "Add New Order Rule"
+msgstr ""
+
+#: src/Admin/Admin.php:364
+msgid "New Order Rule"
+msgstr ""
+
+#: src/Admin/Admin.php:365
+msgid "Edit Order Rule"
+msgstr ""
+
+#: src/Admin/Admin.php:366
+msgid "View Order Rule"
+msgstr ""
+
+#: src/Admin/Admin.php:367 src/Admin/InsightDashboard.php:125
+#: src/Admin/InsightDashboard.php:126
+msgid "All Order Rules"
+msgstr ""
+
+#: src/Admin/Admin.php:368
+msgid "Search Order Rules"
+msgstr ""
+
+#: src/Admin/Admin.php:369
+msgid "Parent Order Rules:"
+msgstr ""
+
+#: src/Admin/Admin.php:370
+msgid "No order rules found."
+msgstr ""
+
+#: src/Admin/Admin.php:371
+msgid "No order rules found in Trash."
+msgstr ""
+
+#: src/Admin/Admin.php:376
+msgid "Completion rules for WooCommerce"
+msgstr ""
+
+#: src/Admin/Admin.php:426 src/Admin/Admin.php:429
+#: src/Admin/CompletionRulesListTable.php:45
+msgid "Priority"
+msgstr ""
+
+#: src/Admin/Admin.php:466
+msgid "Lower number = Higher priority"
+msgstr ""
+
+#: src/Admin/Admin.php:493
+msgid "You do not have permission to edit this rule."
+msgstr ""
+
+#: src/Admin/Admin.php:500
+msgid "Rule not found."
+msgstr ""
+
+#: src/Admin/Admin.php:556
+msgid "Rule status updated successfully."
+msgstr ""
+
+#: src/Admin/Admin.php:567
+msgid "Failed to update rule status."
+msgstr ""
+
+#: src/Admin/Admin.php:605
+msgid "Order Rule"
+msgstr ""
+
+#: src/Admin/CompletionRulesListTable.php:44
+msgid "Title"
+msgstr ""
+
+#: src/Admin/CompletionRulesListTable.php:46
+msgid "Date"
+msgstr ""
+
+#: src/Admin/CompletionRulesListTable.php:72
+msgid "Activate"
+msgstr ""
+
+#: src/Admin/CompletionRulesListTable.php:73
+msgid "Deactivate"
+msgstr ""
+
+#: src/Admin/CompletionRulesListTable.php:74
+msgid "Move to Trash"
+msgstr ""
+
+#: src/Admin/CompletionRulesListTable.php:97 src/Includes/actions.php:1025
+msgid "You do not have permission to perform this action."
+msgstr ""
+
+#: src/Admin/CompletionRulesListTable.php:211 src/Admin/RuleBuilder.php:292
+msgid "Edit"
+msgstr ""
+
+#: src/Admin/CompletionRulesListTable.php:222
+msgid ""
+"Are you sure you want to delete this rule? This action cannot be undone."
+msgstr ""
+
+#: src/Admin/CompletionRulesListTable.php:223
+msgid "Delete"
+msgstr ""
+
+#: src/Admin/CompletionRulesListTable.php:268
+msgid "No order rules found. Click \"Add New\" to create your first rule."
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:122
+#: src/Admin/ComponentSummaryBuilder.php:137
+#: src/Admin/ComponentSummaryBuilder.php:461
+msgid "includes"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:123
+msgid "includes all of"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:136
+msgid "is only"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:138
+#: src/Admin/ComponentSummaryBuilder.php:141
+msgid "is not"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:139
+msgid "only"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:140
+#: src/Admin/ComponentSummaryBuilder.php:149
+#: src/Admin/ComponentSummaryBuilder.php:154
+msgid "equals"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:142
+msgid "greater than"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:143
+#: src/Admin/ComponentSummaryBuilder.php:148
+#: src/Admin/ComponentSummaryBuilder.php:153
+msgid "less than"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:144
+#: src/Admin/ComponentSummaryBuilder.php:150
+#: src/Admin/ComponentSummaryBuilder.php:155
+msgid "at least"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:145
+#: src/Admin/ComponentSummaryBuilder.php:151
+#: src/Admin/ComponentSummaryBuilder.php:156
+msgid "at most"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:146
+msgid "contains"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:147
+#: src/Admin/ComponentSummaryBuilder.php:152
+msgid "more than"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:200
+msgid "including product variations"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:204
+msgid "including guests"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:241
+msgid "enabled"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:241
+msgid "disabled"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:300
+#: src/Admin/ComponentSummaryBuilder.php:525
+msgid "Component"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:475
+msgid "Total quantity"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:476
+msgid "Unique products"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:519
+msgid "Trigger"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:520
+msgid "Condition"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:521
+msgid "Action"
+msgstr ""
+
+#: src/Admin/ComponentSummaryBuilder.php:522 src/Admin/RuleBuilder.php:1269
+msgid "Primary Action"
+msgstr ""
+
+#: src/Admin/DiagnosticDashboard.php:108
+msgid "Running diagnostics..."
+msgstr ""
+
+#: src/Admin/DiagnosticDashboard.php:109
+msgid "Diagnostics completed successfully"
+msgstr ""
+
+#: src/Admin/DiagnosticDashboard.php:110
+msgid "Error running diagnostics"
+msgstr ""
+
+#. Author of the plugin/theme
+#: src/Admin/InsightDashboard.php:102 src/Admin/InsightDashboard.php:103
+msgid "Order Daemon"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:115 src/Admin/InsightDashboard.php:116
+msgid "Insight Dashboard"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:135 src/Admin/InsightDashboard.php:136
+msgid "Diagnostics"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:286 src/Admin/RuleBuilder.php:290
+msgid "Loading..."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:287
+msgid "Error loading data"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:288
+msgid "No log entries found"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:289
+msgid "Select a log entry to view details"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:290 src/Admin/InsightDashboard.php:542
+msgid "Filters"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:291
+msgid "Details"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:292 src/Includes/UpgradePrompts.php:145
+#: src/Includes/UpgradePrompts.php:169 src/Includes/UpgradePrompts.php:186
+msgid "Close"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:293 src/Admin/InsightDashboard.php:578
+msgid "Refresh"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:294
+msgid "New log entries available"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:295 src/Admin/InsightDashboard.php:742
+msgid "Include Debug Logs"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:296
+msgid "Time Only"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:297
+msgid "Date & Time"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:298
+msgid "Relative Time"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:474
+msgid "You do not have sufficient permissions to access this page."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:524
+msgid "Close pane"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:533
+msgid "Open last pane"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:551
+msgid "Settings"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:559 src/Admin/InsightDashboard.php:1339
+msgid "View Documentation"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:569
+#: src/Core/DashboardComponentRegistry.php:39
+msgid "Log Stream"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:580
+msgid "every"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:597
+msgid "Auto-refresh"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:605
+msgid "Events Timeline"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:610
+msgid "Contract details pane"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:610
+msgid "Expand details pane"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:654 src/Core/audit-filters.php:75
+msgid "Search"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:658 src/Core/audit-filters.php:165
+msgid "Search Order ID or free text..."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:664
+msgid "PREMIUM"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:669 src/Core/audit-filters.php:107
+msgid "Status"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:673 src/Core/audit-filters.php:239
+msgid "All Statuses"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:683 src/Core/audit-filters.php:121
+msgid "Event Type"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:687 src/Core/audit-filters.php:277
+msgid "All Event Types"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:688 src/Core/audit-filters.php:278
+msgid "Rule Check"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:689 src/Core/audit-filters.php:279
+msgid "Order Completion"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:690 src/Core/audit-filters.php:280
+msgid "Manual Trigger"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:691 src/Core/audit-filters.php:281
+msgid "Scheduled Task"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:692 src/Core/audit-filters.php:282
+msgid "Webhook Received"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:693 src/Core/audit-filters.php:283
+msgid "Error Occurred"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:699 src/Core/audit-filters.php:136
+msgid "Source"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:703 src/Core/audit-filters.php:318
+msgid "All Sources"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:704 src/Core/LogRegistries.php:1084
+#: src/Core/audit-filters.php:319
+msgid "Manual"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:705 src/Core/LogRegistries.php:1096
+#: src/Core/audit-filters.php:320
+msgid "Scheduled"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:706 src/Core/LogRegistries.php:1088
+#: src/Core/audit-filters.php:321
+msgid "Webhook"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:707 src/Core/LogRegistries.php:1092
+#: src/Core/audit-filters.php:322
+msgid "API"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:708 src/Core/LogRegistries.php:1080
+#: src/Core/audit-filters.php:323
+msgid "System"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:714 src/Core/audit-filters.php:93
+msgid "Date Range"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:736
+msgid "Include Test Logs"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:750
+msgid "Apply Filters"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:753
+msgid "Clear All"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:782
+msgid "Display Options"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:783
+msgid "Configure how the dashboard displays information."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:799
+msgid "Timestamp Format"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:801
+msgid "Choose how timestamps are displayed in log entries."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:814
+msgid "Entries Per Page"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:816
+msgid "Number of log entries to display per page (10-200)."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:840
+#: src/Core/ProcessLifecycleDiscovery.php:118
+#: src/Core/RuleComponents/RuleTriggers/OrderProcessingTrigger.php:34
+#: src/Core/options.php:160
+msgid "Order Processing"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:841
+msgid "Manage and reprocess pending orders in your WooCommerce store."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:857 src/Admin/InsightDashboard.php:864
+msgid "Reprocess Pending Orders"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:858
+msgid ""
+"Find all orders with \"processing\" or \"on-hold\" status and reprocess them "
+"against your order rules. This operation runs in the background to prevent "
+"timeouts."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:864
+msgid "Processing..."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:887
+msgid "Educational Prompts"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:888
+msgid "Control how often upgrade and feature education prompts appear."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:903 src/Admin/InsightDashboard.php:906
+msgid "Prompt Frequency"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:905
+msgid ""
+"These prompts are educational and help you discover features. You can adjust "
+"how often they appear."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:907 src/Includes/UpgradePrompts.php:149
+msgid "Normal"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:908 src/Includes/UpgradePrompts.php:150
+msgid "Reduced"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:909 src/Includes/UpgradePrompts.php:151
+msgid "Off"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:932
+msgid "Debug Settings"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:933
+msgid "Configure settings to help with debugging and development."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:955
+msgid "Enable Global Debug Mode"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:958
+msgid ""
+"Sets the ODCM_DEBUG constant to true. Adds verbose debugging info server-"
+"wide. Use with caution."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:970
+msgid "Add Debug Info to Order Notes"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:973
+msgid ""
+"Include detailed product information in order notes when rules do not match. "
+"Helps with debugging but may add data bloat."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:991
+msgid "Data Management"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:992
+msgid "Advanced data management and export features."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1008
+msgid "Export Logs"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1009
+msgid "Exporting audit trail logs is a pro feature."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1011 src/Admin/InsightDashboard.php:1019
+msgid "Upgrade to Pro"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1016
+msgid "Log Retention Policy"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1017
+msgid ""
+"In the free version, audit trail logs are kept for 30 days. Retention "
+"controls are available in Pro."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1037 src/Admin/InsightDashboard.php:1074
+#: src/Admin/InsightDashboard.php:1223 src/Includes/functions.php:307
+msgid "Permission denied."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1050
+msgid "Entries per page must be between 10 and 200."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1059
+#, php-format
+msgid "Entries per page updated to %d."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1063
+msgid "Failed to update setting."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1103
+msgid "Debug settings saved successfully."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1246 src/Core/Core.php:342
+#, php-format
+msgid "%d order has been scheduled for reprocessing."
+msgid_plural "%d orders have been scheduled for reprocessing."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Admin/InsightDashboard.php:1261
+msgid "Failed to reprocess pending orders. Please try again."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1306
+msgid "Retry"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1321
+msgid "Welcome to Order Daemon Insights!"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1322
+msgid ""
+"This dashboard will show real-time activity from your order completion rules "
+"once they start running."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1326
+msgid "To get started:"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1328
+msgid "Create your first completion rule"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1328
+msgid "in WooCommerce → All Order Rules"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1329
+msgid "Place a test order"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1329
+msgid "that matches your rule conditions"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1330
+msgid "Return here"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1330
+msgid "to see the automation in action"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1336
+msgid "Create Your First Rule"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1344
+msgid ""
+"Tip: Activity will appear here automatically once your rules start "
+"processing orders. No additional setup required!"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1353
+msgid "No Recent Activity"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1354
+msgid ""
+"Your completion rules are set up but haven't processed any orders recently."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1360
+msgid "Manage Rules"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1382
+msgid "Select All"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1392
+msgid "Deleting..."
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1392
+msgid "Delete Selected"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1410
+msgid "Select log entry"
+msgstr ""
+
+#: src/Admin/InsightDashboard.php:1452
+msgid "of"
+msgstr ""
+
+#: src/Admin/Notices.php:80
+msgid "Order Daemon:"
+msgstr ""
+
+#: src/Admin/Notices.php:82
+msgid "Dismiss this notice."
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:153 src/Admin/RuleBuilder.php:774
+msgid "Rule Builder"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:287
+msgid "Saving..."
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:288 src/Includes/UpgradePrompts.php:152
+msgid "Saved"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:291
+msgid "Add Condition"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:293 src/Admin/RuleBuilder.php:813
+#: src/Admin/RuleBuilder.php:1062 src/Admin/RuleBuilder.php:1452
+msgid "Remove"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:294 src/Admin/RuleBuilder.php:1235
+msgid "Search conditions..."
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:295
+msgid "Search actions..."
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:296
+msgid "No settings required."
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:783
+msgid "Loading Rule Builder..."
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:792
+msgid "WHEN"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:793
+msgid "(Trigger)"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:801
+msgid "Add Trigger (to control when this rule should run)"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1008
+msgid "Search triggers..."
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1036
+msgid "IF"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1037
+msgid "(Conditions)"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1227
+msgid "Add Condition (to control when this rule applies)"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1263
+msgid "THEN"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1264
+msgid "(Actions)"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1276
+msgid "Add Primary Action (the status-changing action for this rule)"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1288
+msgid "Primary"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1294
+msgid "Change"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1405
+msgid "Search primary actions..."
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1432
+msgid "Secondary Actions"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1600
+msgid "Add Secondary Action (to run after the primary action)"
+msgstr ""
+
+#: src/Admin/RuleBuilder.php:1608
+msgid "Search additional actions..."
+msgstr ""
+
+#: src/Core/Core.php:156
+msgid "Error: Order rules post type not available. Please contact support."
+msgstr ""
+
+#: src/Core/Core.php:387
+#, php-format
+msgid "Admin reprocessed %d orders"
+msgstr ""
+
+#: src/Core/DashboardComponentRegistry.php:29
+msgid "Unified Header"
+msgstr ""
+
+#: src/Core/DashboardComponentRegistry.php:34
+msgid "Filter Pane"
+msgstr ""
+
+#: src/Core/DashboardComponentRegistry.php:44
+msgid "Detail Pane"
+msgstr ""
+
+#: src/Core/DashboardComponentRegistry.php:49
+msgid "Filters Tab"
+msgstr ""
+
+#: src/Core/DashboardComponentRegistry.php:54
+msgid "Settings Tab"
+msgstr ""
+
+#: src/Core/DashboardComponentRegistry.php:59
+msgid "Welcome State"
+msgstr ""
+
+#: src/Core/DashboardComponentRegistry.php:64
+msgid "Empty State"
+msgstr ""
+
+#: src/Core/DashboardComponentRegistry.php:69
+msgid "Pagination"
+msgstr ""
+
+#: src/Core/LogCleanup.php:193
+msgid "No old log records found to delete."
+msgstr ""
+
+#. translators: %1$d: number of deleted records, %2$d: retention period in days
+#: src/Core/LogCleanup.php:211
+#, php-format
+msgid "Successfully deleted %1$d old log records (older than %2$d days)."
+msgstr ""
+
+#. translators: %d: number of deleted payload records
+#: src/Core/LogCleanup.php:219
+#, php-format
+msgid "Also deleted %d associated payload records."
+msgstr ""
+
+#: src/Core/LogRegistries.php:157
+msgid "Order Completed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:158
+#, php-format
+msgid "Order #%d completed successfully"
+msgstr ""
+
+#: src/Core/LogRegistries.php:165
+msgid "Order Processing Started"
+msgstr ""
+
+#: src/Core/LogRegistries.php:166
+#, php-format
+msgid "Started processing order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:173
+msgid "Rule Matched"
+msgstr ""
+
+#: src/Core/LogRegistries.php:174
+#, php-format
+msgid "Order #%d matched completion rule: %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:181
+msgid "Rule Skipped"
+msgstr ""
+
+#: src/Core/LogRegistries.php:182
+#, php-format
+msgid "Order #%d skipped rule \"%s\": %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:189
+msgid "Invalid Order Object"
+msgstr ""
+
+#: src/Core/LogRegistries.php:190
+#, php-format
+msgid "Order #%d could not be loaded or is invalid"
+msgstr ""
+
+#: src/Core/LogRegistries.php:197
+msgid "No Rules Found"
+msgstr ""
+
+#: src/Core/LogRegistries.php:198
+#, php-format
+msgid "No completion rules found for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:205
+msgid "Action Execution Failed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:206
+#, php-format
+msgid "Failed to execute action \"%s\" for order #%d: %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:213
+msgid "Condition Check Failed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:214
+#, php-format
+msgid "Condition \"%s\" check failed for order #%d: %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:223
+msgid "Process Order Check Started"
+msgstr ""
+
+#: src/Core/LogRegistries.php:224
+#, php-format
+msgid "Starting order check process for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:233
+msgid "Condition Passed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:234
+#, php-format
+msgid "Condition \"%s\" passed for order #%d with value \"%s\""
+msgstr ""
+
+#: src/Core/LogRegistries.php:241
+msgid "Condition Failed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:242
+#, php-format
+msgid "Condition \"%s\" failed for order #%d. Expected: \"%s\", Actual: \"%s\""
+msgstr ""
+
+#: src/Core/LogRegistries.php:249
+msgid "Process Started"
+msgstr ""
+
+#: src/Core/LogRegistries.php:250
+#, php-format
+msgid "Started processing workflow for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:257
+msgid "Slow Execution Warning"
+msgstr ""
+
+#: src/Core/LogRegistries.php:258
+#, php-format
+msgid "Order #%d processing took %dms, exceeding %dms threshold"
+msgstr ""
+
+#: src/Core/LogRegistries.php:265
+msgid "Manual Status Change"
+msgstr ""
+
+#: src/Core/LogRegistries.php:266
+#, php-format
+msgid "Order #%d status manually changed from \"%s\" to \"%s\" by user ID %d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:280
+msgid "Webhook Status Change"
+msgstr ""
+
+#: src/Core/LogRegistries.php:281
+#, php-format
+msgid "Order #%d status changed from \"%s\" to \"%s\" by %s webhook"
+msgstr ""
+
+#: src/Core/LogRegistries.php:292
+msgid "Plugin Automated Change"
+msgstr ""
+
+#: src/Core/LogRegistries.php:293
+#, php-format
+msgid "Order #%d automatically updated by %s plugin via %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:304
+msgid "API Status Change"
+msgstr ""
+
+#: src/Core/LogRegistries.php:305
+#, php-format
+msgid "Order #%d status changed from \"%s\" to \"%s\" via REST API"
+msgstr ""
+
+#: src/Core/LogRegistries.php:316
+msgid "External Service Action"
+msgstr ""
+
+#: src/Core/LogRegistries.php:317
+#, php-format
+msgid "External service %s performed \"%s\" for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:330 src/Core/LogRegistries.php:870
+msgid "Order Partially Refunded"
+msgstr ""
+
+#: src/Core/LogRegistries.php:331
+#, php-format
+msgid "Order #%d partially refunded: %s (%d%% of total)"
+msgstr ""
+
+#: src/Core/LogRegistries.php:337 src/Core/LogRegistries.php:878
+msgid "Order Fully Refunded"
+msgstr ""
+
+#: src/Core/LogRegistries.php:338
+#, php-format
+msgid "Order #%d fully refunded: %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:344 src/Core/LogRegistries.php:886
+msgid "Refund Created"
+msgstr ""
+
+#: src/Core/LogRegistries.php:345
+#, php-format
+msgid "Refund #%d created for order #%d: %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:351 src/Core/LogRegistries.php:894
+msgid "Refund Deleted"
+msgstr ""
+
+#: src/Core/LogRegistries.php:352
+#, php-format
+msgid "Refund #%d deleted for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:358 src/Core/LogRegistries.php:902
+msgid "Order Deleted"
+msgstr ""
+
+#: src/Core/LogRegistries.php:359
+#, php-format
+msgid "Order #%d deleted by %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:365 src/Core/LogRegistries.php:910
+msgid "Order Trashed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:366
+#, php-format
+msgid "Order #%d moved to trash by %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:372 src/Core/LogRegistries.php:918
+msgid "Order Restored"
+msgstr ""
+
+#: src/Core/LogRegistries.php:373
+#, php-format
+msgid "Order #%d restored from trash by %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:380
+msgid "Step Timing"
+msgstr ""
+
+#: src/Core/LogRegistries.php:381
+#, php-format
+msgid "Step \"%s\" took %dms to execute"
+msgstr ""
+
+#: src/Core/LogRegistries.php:388
+msgid "No Rules Matched"
+msgstr ""
+
+#: src/Core/LogRegistries.php:389
+#, php-format
+msgid "No completion rules matched for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:396
+msgid "Rule Evaluation Started"
+msgstr ""
+
+#: src/Core/LogRegistries.php:397
+#, php-format
+msgid "Evaluating rule \"%s\" for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:404
+msgid "Condition Evaluation"
+msgstr ""
+
+#: src/Core/LogRegistries.php:405
+#, php-format
+msgid "Condition \"%s\" for order #%d: %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:412
+msgid "Action Execution Started"
+msgstr ""
+
+#: src/Core/LogRegistries.php:413
+#, php-format
+msgid "Executing action \"%s\" for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:420
+msgid "Database Query Executed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:421
+#, php-format
+msgid "Executed database query: %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:430
+msgid "Advanced Condition Matched"
+msgstr ""
+
+#: src/Core/LogRegistries.php:431
+#, php-format
+msgid "Order #%d matched premium condition: %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:438
+msgid "Custom Email Sent"
+msgstr ""
+
+#: src/Core/LogRegistries.php:439
+#, php-format
+msgid "Custom email sent for order #%d to %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:446
+msgid "Advanced Action Executed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:447
+#, php-format
+msgid "Premium action \"%s\" executed for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:454
+msgid "Bulk Operation Completed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:455
+#, php-format
+msgid "Bulk operation completed: %d orders processed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:464
+msgid "Plugin Activated"
+msgstr ""
+
+#: src/Core/LogRegistries.php:465
+#, php-format
+msgid "Order Daemon plugin activated (version %s)"
+msgstr ""
+
+#: src/Core/LogRegistries.php:472
+msgid "Database Upgraded"
+msgstr ""
+
+#: src/Core/LogRegistries.php:473
+#, php-format
+msgid "Database schema upgraded from version %s to %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:480
+msgid "Settings Updated"
+msgstr ""
+
+#: src/Core/LogRegistries.php:481
+#, php-format
+msgid "Plugin settings updated by user %s"
+msgstr ""
+
+#: src/Core/LogRegistries.php:488
+msgid "Log Cleanup Task"
+msgstr ""
+
+#: src/Core/LogRegistries.php:489
+#, php-format
+msgid "Log cleanup completed: %d entries removed (retention: %d days)"
+msgstr ""
+
+#: src/Core/LogRegistries.php:496
+msgid "Admin Reprocess Orders"
+msgstr ""
+
+#: src/Core/LogRegistries.php:497
+#, php-format
+msgid "Admin user \"%s\" initiated reprocessing of %d pending orders"
+msgstr ""
+
+#: src/Core/LogRegistries.php:507
+msgid "Test: API Call Success"
+msgstr ""
+
+#: src/Core/LogRegistries.php:508
+#, php-format
+msgid "Successful API integration for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:515
+msgid "Test: Rule Match Success"
+msgstr ""
+
+#: src/Core/LogRegistries.php:516
+#, php-format
+msgid "Rule evaluation successful for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:523
+msgid "Test: Database Success"
+msgstr ""
+
+#: src/Core/LogRegistries.php:524
+msgid "Database operation completed successfully"
+msgstr ""
+
+#: src/Core/LogRegistries.php:532
+msgid "Test: Critical Error"
+msgstr ""
+
+#: src/Core/LogRegistries.php:533
+#, php-format
+msgid "Critical system error with stack trace for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:540
+msgid "Test: Database Error"
+msgstr ""
+
+#: src/Core/LogRegistries.php:541
+msgid "Database operation failed with error"
+msgstr ""
+
+#: src/Core/LogRegistries.php:549
+msgid "Test: Warning Message"
+msgstr ""
+
+#: src/Core/LogRegistries.php:550
+#, php-format
+msgid "Warning condition detected for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:557
+msgid "Test: Performance Warning"
+msgstr ""
+
+#: src/Core/LogRegistries.php:558
+msgid "Slow database query detected (performance warning)"
+msgstr ""
+
+#: src/Core/LogRegistries.php:566
+msgid "Test: Performance Info"
+msgstr ""
+
+#: src/Core/LogRegistries.php:567
+#, php-format
+msgid "Performance monitoring report for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:574
+msgid "Test: WooCommerce Info"
+msgstr ""
+
+#: src/Core/LogRegistries.php:575
+#, php-format
+msgid "WooCommerce integration data for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:583
+msgid "Test: System Notice"
+msgstr ""
+
+#: src/Core/LogRegistries.php:584
+msgid "System information notice and monitoring data"
+msgstr ""
+
+#: src/Core/LogRegistries.php:591
+msgid "Test: Rule No Match"
+msgstr ""
+
+#: src/Core/LogRegistries.php:592
+#, php-format
+msgid "Rule evaluation notice: no match for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:600
+msgid "Test: Critical WP Error"
+msgstr ""
+
+#: src/Core/LogRegistries.php:601
+msgid "Critical WordPress error requiring immediate attention"
+msgstr ""
+
+#: src/Core/LogRegistries.php:609
+msgid "Test: Operation Completed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:610
+#, php-format
+msgid "Fallback operation completed for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:618
+msgid "Test: Debug Trace"
+msgstr ""
+
+#: src/Core/LogRegistries.php:619
+msgid "Debug trace information for development"
+msgstr ""
+
+#: src/Core/LogRegistries.php:627
+msgid "Test: Pending Operation"
+msgstr ""
+
+#: src/Core/LogRegistries.php:628
+#, php-format
+msgid "Asynchronous operation pending for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:636
+msgid "Test: Operation Skipped"
+msgstr ""
+
+#: src/Core/LogRegistries.php:637
+#, php-format
+msgid "Operation skipped due to conditions for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:645
+msgid "Test: Pure API Event"
+msgstr ""
+
+#: src/Core/LogRegistries.php:646
+#, php-format
+msgid "Pure API operation for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:654
+msgid "Test: Pure Database Event"
+msgstr ""
+
+#: src/Core/LogRegistries.php:655
+#, php-format
+msgid "Pure database operation for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:663
+msgid "Test: Complex Multi-API Event"
+msgstr ""
+
+#: src/Core/LogRegistries.php:664
+#, php-format
+msgid "Complex multi-API operation for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:672
+msgid "Test: Webhook Processing Event"
+msgstr ""
+
+#: src/Core/LogRegistries.php:673
+#, php-format
+msgid "Webhook processing for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:681
+msgid "Test: Background Task Event"
+msgstr ""
+
+#: src/Core/LogRegistries.php:682
+#, php-format
+msgid "Background task processing for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:690
+msgid "Test: Integration Event"
+msgstr ""
+
+#: src/Core/LogRegistries.php:691
+#, php-format
+msgid "Third-party integration for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:699
+msgid "Test: Import/Export Event"
+msgstr ""
+
+#: src/Core/LogRegistries.php:700
+#, php-format
+msgid "Import/export operation for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:710
+msgid "Test: Large Payload Stress"
+msgstr ""
+
+#: src/Core/LogRegistries.php:711
+#, php-format
+msgid "Large payload stress test for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:719
+msgid "Test: Deep Nesting Stress"
+msgstr ""
+
+#: src/Core/LogRegistries.php:720
+#, php-format
+msgid "Deep nesting stress test for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:728
+msgid "Test: Long Text Stress"
+msgstr ""
+
+#: src/Core/LogRegistries.php:729
+#, php-format
+msgid "Long text stress test for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:737
+msgid "Test: Unicode Stress"
+msgstr ""
+
+#: src/Core/LogRegistries.php:738
+#, php-format
+msgid "Unicode stress test for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:746
+msgid "Test: Special Character Stress"
+msgstr ""
+
+#: src/Core/LogRegistries.php:747
+#, php-format
+msgid "Special character stress test for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:755
+msgid "Test: Memory Stress"
+msgstr ""
+
+#: src/Core/LogRegistries.php:756
+#, php-format
+msgid "Memory stress test for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:764
+msgid "Test: Performance Edge Stress"
+msgstr ""
+
+#: src/Core/LogRegistries.php:765
+#, php-format
+msgid "Performance edge case stress test for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:775
+msgid "Test: Multi-Component Integration"
+msgstr ""
+
+#: src/Core/LogRegistries.php:776
+#, php-format
+msgid "Multi-component integration test for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:784
+msgid "Test: Workflow Start"
+msgstr ""
+
+#: src/Core/LogRegistries.php:785
+#, php-format
+msgid "Workflow progression started for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:792
+msgid "Test: Workflow Progress"
+msgstr ""
+
+#: src/Core/LogRegistries.php:793
+#, php-format
+msgid "Workflow progression continuing for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:800
+msgid "Test: Workflow Complete"
+msgstr ""
+
+#: src/Core/LogRegistries.php:801
+#, php-format
+msgid "Workflow progression completed for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:809
+msgid "Test: Cross-Reference Event"
+msgstr ""
+
+#: src/Core/LogRegistries.php:810
+#, php-format
+msgid "Cross-reference event for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:818
+msgid "Test: Time-Series Event"
+msgstr ""
+
+#: src/Core/LogRegistries.php:819
+#, php-format
+msgid "Time-series progression for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:827
+msgid "Test: Recovery Failure"
+msgstr ""
+
+#: src/Core/LogRegistries.php:828
+#, php-format
+msgid "Error recovery failure for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:835
+msgid "Test: Recovery Retry"
+msgstr ""
+
+#: src/Core/LogRegistries.php:836
+#, php-format
+msgid "Error recovery retry for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:843
+msgid "Test: Recovery Success"
+msgstr ""
+
+#: src/Core/LogRegistries.php:844
+#, php-format
+msgid "Error recovery success for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:852
+msgid "Test: Real-World Order Workflow"
+msgstr ""
+
+#: src/Core/LogRegistries.php:853
+#, php-format
+msgid "Real-world order workflow for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:861
+msgid "Test: Plugin Interaction"
+msgstr ""
+
+#: src/Core/LogRegistries.php:862
+#, php-format
+msgid "Plugin interaction event for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:871
+#, php-format
+msgid "Order #%d partially refunded"
+msgstr ""
+
+#: src/Core/LogRegistries.php:879
+#, php-format
+msgid "Order #%d fully refunded"
+msgstr ""
+
+#: src/Core/LogRegistries.php:887
+#, php-format
+msgid "Refund created for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:895
+#, php-format
+msgid "Refund deleted for order #%d"
+msgstr ""
+
+#: src/Core/LogRegistries.php:903
+#, php-format
+msgid "Order #%d deleted"
+msgstr ""
+
+#: src/Core/LogRegistries.php:911
+#, php-format
+msgid "Order #%d moved to trash"
+msgstr ""
+
+#: src/Core/LogRegistries.php:919
+#, php-format
+msgid "Order #%d restored from trash"
+msgstr ""
+
+#: src/Core/LogRegistries.php:1033
+msgid "Notice"
+msgstr ""
+
+#: src/Core/LogRegistries.php:1039
+msgid "Debug"
+msgstr ""
+
+#: src/Core/LogRegistries.php:1045
+msgid "Critical"
+msgstr ""
+
+#: src/Core/LogRegistries.php:1051
+msgid "Pending"
+msgstr ""
+
+#: src/Core/LogRegistries.php:1057
+msgid "Skipped"
+msgstr ""
+
+#: src/Core/LogRegistries.php:1063
+msgid "Completed"
+msgstr ""
+
+#: src/Core/LogRegistries.php:1100
+msgid "Event Processor"
+msgstr ""
+
+#: src/Core/LogRegistries.php:1104
+msgid "Logger"
+msgstr ""
+
+#: src/Core/Logging/ProcessLogger.php:90
+msgid "Process started"
+msgstr ""
+
+#: src/Core/PremiumComponentFallback.php:137
+#, php-format
+msgid ""
+"Warning: %d completion rule uses premium components that require the pro "
+"plugin."
+msgid_plural ""
+"Warning: %d completion rules use premium components that require the pro "
+"plugin."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Core/PremiumComponentFallback.php:147
+msgid ""
+"These rules will not function until the pro plugin is activated or the rules "
+"are updated to use free components."
+msgstr ""
+
+#: src/Core/PremiumComponentFallback.php:166
+#, php-format
+msgid "This component has been moved to the pro plugin as of version %s."
+msgstr ""
+
+#: src/Core/ProcessLifecycleDiscovery.php:125
+msgid "Payment Gateway Events"
+msgstr ""
+
+#: src/Core/ProcessLifecycleDiscovery.php:133
+msgid "Subscription Lifecycle"
+msgstr ""
+
+#: src/Core/RefundDeletionDiagnostics.php:1409
+msgid "system"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleActions/CompleteOrderAction.php:24
+#: src/Core/options.php:331
+msgid "Change Status to 'Completed'"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleActions/CompleteOrderAction.php:29
+msgid "Marks the order as complete. This is the default action."
+msgstr ""
+
+#: src/Core/RuleComponents/RuleActions/CompleteOrderAction.php:45
+msgid "Order completed automatically by rule."
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:24
+msgid "Order Total Amount"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:29
+msgid "Checks if the order total meets the specified criteria."
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:44
+msgid "Operator"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:45
+msgid "How to compare the order total."
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:48
+msgid "Greater than"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:49
+msgid "Less than"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:50
+msgid "Equal to"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:51
+msgid "Greater than or equal to"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:52
+msgid "Less than or equal to"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:24
+#: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:66
+#: src/Core/options.php:245
+msgid "Product Category"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:29
+msgid "Checks if the order contains products from specific categories."
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:57
+msgid "No categories found"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:67
+msgid ""
+"Select one product category to match. Pro unlocks multiple categories and "
+"advanced logic."
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:27
+#: src/Core/options.php:224
+msgid "Product Type"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:32
+msgid ""
+"Checks if all products in the order are of specific types. Virtual and "
+"downloadable products are available in the free version."
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:57
+msgid "Product Types"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:59
+msgid ""
+"Select the product types to match. Use the search box to quickly find "
+"product types."
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:60
+msgid ""
+"Select virtual or downloadable product types. Upgrade to premium for all "
+"other product types."
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:67
+msgid "Search product types..."
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:74
+msgid "Match Mode"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:75
+msgid "How to match product types in the order."
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:77
+msgid "All products must match selected types"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:78
+msgid "At least one product must match selected types"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:79
+msgid "No products should match selected types"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:155
+msgid "Virtual Products"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:156
+msgid "Downloadable Products"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:172
+msgid "Simple Products"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:173
+msgid "Variable Products"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:174
+msgid "Grouped Products"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:175
+msgid "External/Affiliate Products"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:232
+msgid "Subscription Products"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:233
+msgid "Variable Subscription Products"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:236
+msgid "Bookable Products"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:239
+msgid "Membership Products"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:242
+msgid "Product Bundles"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:245
+msgid "Composite Products"
+msgstr ""
+
+#: src/Core/RuleComponents/RuleTriggers/OrderProcessingTrigger.php:39
+#: src/Core/options.php:161
+msgid ""
+"Runs when an order status changes to \"Processing\". Ideal for most standard "
+"automations."
+msgstr ""
+
+#: src/Core/audit-filters.php:207
+msgid "to"
+msgstr ""
+
+#: src/Core/options.php:225
+msgid "Check if the order contains only specific types of products."
+msgstr ""
+
+#: src/Core/options.php:246
+msgid "Check if the order contains products from specific categories."
+msgstr ""
+
+#: src/Core/options.php:265
+msgid "Order Total"
+msgstr ""
+
+#: src/Core/options.php:266
+msgid ""
+"Check if the order total is above, below, or equal to a specific amount."
+msgstr ""
+
+#: src/Core/options.php:332
+msgid "Mark the order as complete."
+msgstr ""
+
+#: src/Includes/DependencyChecker.php:121
+#: src/Includes/DependencyChecker.php:127
+#: src/Includes/DependencyChecker.php:133
+msgid "This feature is available in the premium version."
+msgstr ""
+
+#: src/Includes/DependencyChecker.php:122
+msgid "Learn more about advanced filtering options in the documentation."
+msgstr ""
+
+#: src/Includes/DependencyChecker.php:123
+#: src/Includes/DependencyChecker.php:129
+#: src/Includes/DependencyChecker.php:135
+msgid "Visit our website for more information."
+msgstr ""
+
+#: src/Includes/DependencyChecker.php:124
+#: src/Includes/DependencyChecker.php:130
+#: src/Includes/DependencyChecker.php:136
+msgid "Upgrade to unlock additional capabilities."
+msgstr ""
+
+#: src/Includes/DependencyChecker.php:128
+msgid "Learn more about advanced rule components in the documentation."
+msgstr ""
+
+#: src/Includes/DependencyChecker.php:134
+msgid "Learn more about available options in the documentation."
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:98
+msgid "Advanced filtering (dashboard)"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:99
+msgid "Basic search"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:100
+msgid "Status, event type, source, date range, and more"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:103
+msgid "Rule conditions"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:104
+msgid "Common conditions"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:105
+msgid "Extended conditions and combination options"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:108
+msgid "Actions"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:109
+msgid "Primary action"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:110
+msgid "Additional secondary actions and workflows"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:115
+msgid "This feature is available in the premium version"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:116
+msgid "Learn more about advanced filtering options"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:117
+msgid "Visit our website for more information"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:118
+msgid "Upgrade to unlock additional capabilities"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:119
+msgid "See what's possible with premium features"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:133
+msgid "Premium Rule Components"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:138
+msgid "Advanced Dashboard Filters"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:144 src/Includes/UpgradePrompts.php:187
+msgid "Learn more"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:146 src/Includes/UpgradePrompts.php:183
+msgid "Don't show again"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:147
+msgid "Preferences"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:148
+msgid "Prompt frequency"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:253 src/Includes/UpgradePrompts.php:280
+msgid "Insufficient permissions"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:257 src/Includes/UpgradePrompts.php:284
+msgid "Security check failed"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:266
+msgid "Preferences saved"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:268
+msgid "No changes"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:289
+msgid "Invalid prompt key"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:298
+msgid "Dismissed"
+msgstr ""
+
+#: src/Includes/UpgradePrompts.php:300
+msgid "Failed to update"
+msgstr ""
+
+#: src/Includes/actions.php:1033
+msgid "Invalid data provided."
+msgstr ""
+
+#: src/Includes/actions.php:1042
+msgid "No valid rule IDs provided."
+msgstr ""
+
+#: src/Plugin.php:86
+msgid ""
+"Order Daemon for WooCommerce requires WooCommerce to be installed and active."
+msgstr ""
+
+#: src/View/PayloadRenderer/PayloadComponentUIToolkit.php:490
+#, php-format
+msgid " | Started: %s"
+msgstr ""
+
+#: src/View/PayloadRenderer/PayloadComponentUIToolkit.php:492
+#, php-format
+msgid "(Trigger: %s)"
+msgstr ""
+
+#: src/View/PayloadRenderer/PayloadComponentUIToolkit.php:498
+msgid "Toggle component expansion"
+msgstr ""
+
+#. Plugin Name of the plugin/theme
+msgid "Order Daemon for WooCommerce"
+msgstr ""
+
+#. Plugin URI of the plugin/theme
+msgid "https://orderdaemon.com/docs"
+msgstr ""
+
+#. Description of the plugin/theme
+msgid ""
+"Automate WooCommerce order completion with intelligent rule-based "
+"processing. The free version includes basic triggers, conditions, and "
+"actions."
+msgstr ""
+
+#. Author URI of the plugin/theme
+msgid "https://www.orderdaemon.com"
+msgstr ""
