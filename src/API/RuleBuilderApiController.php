@@ -62,7 +62,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'permission_callback' => [$this, 'get_item_permissions_check'],
                 'args'                => [
                     'id' => [
-                        'description' => __('Unique identifier for the rule.'),
+                        'description' => __('Unique identifier for the rule.', 'order-daemon'),,
                         'type'        => 'integer',
                     ],
                 ],
@@ -73,7 +73,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'permission_callback' => [$this, 'update_item_permissions_check'],
                 'args'                => [
                     'id' => [
-                        'description' => __('Unique identifier for the rule.'),
+                        'description' => __('Unique identifier for the rule.', 'order-daemon'),
                         'type'        => 'integer',
                     ],
                 ],
@@ -87,18 +87,18 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'permission_callback' => [$this, 'get_items_permissions_check'],
                 'args'                => [
                     'source' => [
-                        'description' => __('Data source to search (products, categories, posts, etc.)'),
+                        'description' => __('Data source to search (products, categories, posts, etc.)', 'order-daemon'),
                         'type'        => 'string',
                         'required'    => true,
                         'enum'        => ['products', 'categories', 'posts', 'users', 'order_statuses', 'payment_methods', 'shipping_methods', 'product_tags'],
                     ],
                     'search' => [
-                        'description' => __('Search term'),
+                        'description' => __('Search term', 'order-daemon'),
                         'type'        => 'string',
                         'default'     => '',
                     ],
                     'limit' => [
-                        'description' => __('Maximum number of results'),
+                        'description' => __('Maximum number of results', 'order-daemon'),
                         'type'        => 'integer',
                         'default'     => 50,
                         'minimum'     => 1,
@@ -530,7 +530,7 @@ class RuleBuilderApiController extends WP_REST_Controller
         if (!empty($inaccessible_options)) {
             return new WP_Error(
                 'premium_options',
-                sprintf(__('The following options require Pro access: %s'), implode(', ', $inaccessible_options))
+                sprintf(__('The following options require Pro access: %s', 'order-daemon'), implode(', ', $inaccessible_options))
             );
         }
 
@@ -657,7 +657,7 @@ class RuleBuilderApiController extends WP_REST_Controller
     {
         // Basic capability check - rule building is core functionality
         if (!current_user_can('manage_woocommerce')) {
-            return new WP_Error('rest_forbidden', esc_html__('You do not have permissions to view these components.'), ['status' => 401]);
+            return new WP_Error('rest_forbidden', esc_html__('You do not have permissions to view these components.', 'order-daemon'), ['status' => 401]);
         }
 
         return true;
@@ -672,7 +672,7 @@ class RuleBuilderApiController extends WP_REST_Controller
     public function get_item_permissions_check($request)
     {
         if (!current_user_can('edit_post', (int) $request['id'])) {
-            return new WP_Error('rest_forbidden', esc_html__('You do not have permissions to view this rule.'), ['status' => 401]);
+            return new WP_Error('rest_forbidden', esc_html__('You do not have permissions to view this rule.', 'order-daemon'), ['status' => 401]);
         }
         return true;
     }
@@ -686,7 +686,7 @@ class RuleBuilderApiController extends WP_REST_Controller
     public function update_item_permissions_check($request)
     {
         if (!current_user_can('edit_post', (int) $request['id'])) {
-            return new WP_Error('rest_forbidden', esc_html__('You do not have permissions to save this rule.'), ['status' => 401]);
+            return new WP_Error('rest_forbidden', esc_html__('You do not have permissions to save this rule.', 'order-daemon'), ['status' => 401]);
         }
         return true;
     }
