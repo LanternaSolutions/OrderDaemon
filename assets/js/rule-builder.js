@@ -291,6 +291,9 @@ function ruleBuilder() {
                 case 'product_category':
                     return this.buildProductCategorySummary(settings, componentDef);
                 
+                case 'product_type':
+                    return this.buildProductTypeSummary(settings, componentDef);
+                
                 case 'order_item_count':
                     return this.buildOrderItemCountSummary(settings, componentDef);
                 
@@ -383,6 +386,18 @@ function ruleBuilder() {
             summary += ')</span>';
             
             return summary;
+        },
+
+        /**
+         * Build Product Type condition summary.
+         */
+        buildProductTypeSummary(settings, componentDef) {
+            const types = this.formatValue(settings.types || [], componentDef?.schema?.properties?.types);
+            const matchMode = settings.match_mode === 'all' ? 'All match' : 
+                              settings.match_mode === 'any' ? 'Any match' : 
+                              settings.match_mode === 'none' ? 'None match' : 'All match';
+            
+            return `<span class="odcm-summary-title">Product Type</span>: <span class="odcm-summary-values">${this.escapeHtml(types)}</span> <span class="odcm-summary-match">(${matchMode})</span>`;
         },
 
         /**

@@ -38,7 +38,7 @@ class CompletionRulesListTable extends \WP_List_Table
     public function get_columns()
     {
         return [
-            'handle'   => '<span class="dashicons dashicons-menu"></span>',  // Drag handle column with icon as header
+            'handle'   => __('Drag', Odcm_Config::$text_domain),
             'cb'       => '<input type="checkbox" />',
             'active'   => __('Active', 'order-daemon'),
             'title'    => __('Title', 'order-daemon'),
