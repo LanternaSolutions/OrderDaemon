@@ -137,7 +137,7 @@ final class Odcm_Strings
      */
     public static function __( string $text ): string
     {
-        return __( $text, Odcm_Config::$text_domain );
+        return __( $text, 'order-daemon' );
     }
 
     /**
@@ -148,7 +148,7 @@ final class Odcm_Strings
      */
     public static function esc_html__( string $text ): string
     {
-        return esc_html__( $text, Odcm_Config::$text_domain );
+        return esc_html__( $text, 'order-daemon' );
     }
 
     /**
@@ -159,7 +159,7 @@ final class Odcm_Strings
      */
     public static function esc_attr__( string $text ): string
     {
-        return esc_attr__( $text, Odcm_Config::$text_domain );
+        return esc_attr__( $text, 'order-daemon' );
     }
 
     /**
@@ -172,7 +172,7 @@ final class Odcm_Strings
      */
     public static function _n( string $singular, string $plural, int $number ): string
     {
-        return _n( $singular, $plural, $number, Odcm_Config::$text_domain );
+        return _n( $singular, $plural, $number, 'order-daemon' );
     }
 
     /**
@@ -183,6 +183,6 @@ final class Odcm_Strings
      */
     public static function esc_js__( string $text ): string
     {
-        return esc_js( __( $text, Odcm_Config::$text_domain ) );
+        return esc_js( __( $text, 'order-daemon' ) );
     }
 }

@@ -18,9 +18,6 @@ final class Odcm_Config {
     /** @var string The main settings page menu title. */
     public static $menu_title = 'Order Daemon';
     
-    /** @var string The plugin's text domain for all l10n functions. */
-    public static $text_domain = 'order-daemon';
-
     /** @var string The primary slug for admin pages and assets. */
     public static $plugin_slug = 'order-daemon';
 

@@ -26,47 +26,47 @@ class DashboardComponentRegistry
         // Note: Keep minimal to avoid unnecessary complexity. This can be extended later.
         return [
             'unified_header' => [
-                'label' => __('Unified Header', Odcm_Config::$text_domain),
+                'label' => __('Unified Header', 'order-daemon'),
                 'css_class' => 'odcm-unified-header',
                 'priority' => 5,
             ],
             'filter_pane' => [
-                'label' => __('Filter Pane', Odcm_Config::$text_domain),
+                'label' => __('Filter Pane', 'order-daemon'),
                 'css_class' => 'odcm-filter-pane',
                 'priority' => 10,
             ],
             'log_stream' => [
-                'label' => __('Log Stream', Odcm_Config::$text_domain),
+                'label' => __('Log Stream', 'order-daemon'),
                 'css_class' => 'odcm-log-stream',
                 'priority' => 20,
             ],
             'detail_pane' => [
-                'label' => __('Detail Pane', Odcm_Config::$text_domain),
+                'label' => __('Detail Pane', 'order-daemon'),
                 'css_class' => 'odcm-detail-pane',
                 'priority' => 30,
             ],
             'filters_tab' => [
-                'label' => __('Filters Tab', Odcm_Config::$text_domain),
+                'label' => __('Filters Tab', 'order-daemon'),
                 'css_class' => 'odcm-filters-tab',
                 'priority' => 12,
             ],
             'settings_tab' => [
-                'label' => __('Settings Tab', Odcm_Config::$text_domain),
+                'label' => __('Settings Tab', 'order-daemon'),
                 'css_class' => 'odcm-settings-tab',
                 'priority' => 13,
             ],
             'welcome_state' => [
-                'label' => __('Welcome State', Odcm_Config::$text_domain),
+                'label' => __('Welcome State', 'order-daemon'),
                 'css_class' => 'odcm-welcome-state',
                 'priority' => 1,
             ],
             'empty_state' => [
-                'label' => __('Empty State', Odcm_Config::$text_domain),
+                'label' => __('Empty State', 'order-daemon'),
                 'css_class' => 'odcm-empty-state',
                 'priority' => 1,
             ],
             'pagination' => [
-                'label' => __('Pagination', Odcm_Config::$text_domain),
+                'label' => __('Pagination', 'order-daemon'),
                 'css_class' => 'odcm-pagination',
                 'priority' => 100,
             ],

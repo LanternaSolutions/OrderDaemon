@@ -40,10 +40,10 @@ class CompletionRulesListTable extends \WP_List_Table
         return [
             'handle'   => '<span class="dashicons dashicons-menu"></span>',  // Drag handle column with icon as header
             'cb'       => '<input type="checkbox" />',
-            'active'   => __('Active', Odcm_Config::$text_domain),
-            'title'    => __('Title', Odcm_Config::$text_domain),
-            'priority' => __('Priority', Odcm_Config::$text_domain),
-            'date'     => __('Date', Odcm_Config::$text_domain),
+            'active'   => __('Active', 'order-daemon'),
+            'title'    => __('Title', 'order-daemon'),
+            'priority' => __('Priority', 'order-daemon'),
+            'date'     => __('Date', 'order-daemon'),
         ];
     }
 
@@ -69,9 +69,9 @@ class CompletionRulesListTable extends \WP_List_Table
     public function get_bulk_actions()
     {
         return [
-            'activate'   => __('Activate', Odcm_Config::$text_domain),
-            'deactivate' => __('Deactivate', Odcm_Config::$text_domain),
-            'trash'      => __('Move to Trash', Odcm_Config::$text_domain),
+            'activate'   => __('Activate', 'order-daemon'),
+            'deactivate' => __('Deactivate', 'order-daemon'),
+            'trash'      => __('Move to Trash', 'order-daemon'),
         ];
     }
 
@@ -89,12 +89,12 @@ class CompletionRulesListTable extends \WP_List_Table
 
             // Verify the nonce
             if (!wp_verify_nonce($nonce, 'bulk-' . $this->_args['plural'])) {
-                wp_die(__('Security check failed.', Odcm_Config::$text_domain));
+                wp_die(__('Security check failed.', 'order-daemon'));
             }
 
             // Only allow users with manage_woocommerce capability
             if (!current_user_can('manage_woocommerce')) {
-                wp_die(__('You do not have permission to perform this action.', Odcm_Config::$text_domain));
+                wp_die(__('You do not have permission to perform this action.', 'order-daemon'));
             }
 
             // Sanitize rule IDs
@@ -174,8 +174,8 @@ class CompletionRulesListTable extends \WP_List_Table
 
         $output = '<div class="odcm-toggle-container">';
         $output .= '<label class="odcm-toggle-switch" title="' . ($is_active ? 
-            esc_attr__('Active', Odcm_Config::$text_domain) : 
-            esc_attr__('Inactive', Odcm_Config::$text_domain)) . '">';
+            esc_attr__('Active', 'order-daemon') : 
+            esc_attr__('Inactive', 'order-daemon')) . '">';
         $output .= '<input type="checkbox" ' . checked($is_active, true, false) . 
             ' data-rule-id="' . esc_attr($item->ID) . 
             '" data-nonce="' . esc_attr(wp_create_nonce('odcm_toggle_rule_' . $item->ID)) . '">';
@@ -201,14 +201,14 @@ class CompletionRulesListTable extends \WP_List_Table
         $title = '<strong><a href="' . esc_url($edit_link) . '">' . esc_html($item->post_title) . '</a>';
 
         if ($item->post_status === 'draft') {
-            $title .= ' - <span class="post-state">' . esc_html__('Draft', Odcm_Config::$text_domain) . '</span>';
+            $title .= ' - <span class="post-state">' . esc_html__('Draft', 'order-daemon') . '</span>';
         }
 
         $title .= '</strong>';
 
         // Row actions
         $actions = [];
-        $actions['edit'] = '<a href="' . esc_url($edit_link) . '">' . esc_html__('Edit', Odcm_Config::$text_domain) . '</a>';
+        $actions['edit'] = '<a href="' . esc_url($edit_link) . '">' . esc_html__('Edit', 'order-daemon') . '</a>';
 
         // Custom delete link using admin_post handler
         $delete_url = wp_nonce_url(
@@ -219,8 +219,8 @@ class CompletionRulesListTable extends \WP_List_Table
             'odcm_delete_rule_' . $item->ID
         );
         $actions['delete'] = '<a href="' . esc_url($delete_url) . '" class="submitdelete" onclick="return confirm(\'' . 
-            esc_js(__('Are you sure you want to delete this rule? This action cannot be undone.', Odcm_Config::$text_domain)) . 
-            '\');">' . esc_html__('Delete', Odcm_Config::$text_domain) . '</a>';
+            esc_js(__('Are you sure you want to delete this rule? This action cannot be undone.', 'order-daemon')) . 
+            '\');">' . esc_html__('Delete', 'order-daemon') . '</a>';
 
         return $title . $this->row_actions($actions);
     }
@@ -249,9 +249,9 @@ class CompletionRulesListTable extends \WP_List_Table
         $output = '';
 
         if ($item->post_status === 'publish') {
-            $output .= esc_html__('Published', Odcm_Config::$text_domain) . '<br>';
+            $output .= esc_html__('Published', 'order-daemon') . '<br>';
         } else {
-            $output .= esc_html__('Last Modified', Odcm_Config::$text_domain) . '<br>';
+            $output .= esc_html__('Last Modified', 'order-daemon') . '<br>';
         }
 
         $output .= '<abbr title="' . esc_attr(get_the_time('Y/m/d g:i:s a', $item)) . '">' . 
@@ -265,7 +265,7 @@ class CompletionRulesListTable extends \WP_List_Table
      */
     public function no_items()
     {
-        echo esc_html__('No order rules found. Click "Add New" to create your first rule.', Odcm_Config::$text_domain);
+        echo esc_html__('No order rules found. Click "Add New" to create your first rule.', 'order-daemon');
     }
 
     /**
