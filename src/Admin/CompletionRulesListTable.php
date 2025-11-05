@@ -38,7 +38,7 @@ class CompletionRulesListTable extends \WP_List_Table
     public function get_columns()
     {
         return [
-            'handle'   => __('Drag', Odcm_Config::$text_domain),
+            'handle'   => __('Drag', 'order-daemon'),
             'cb'       => '<input type="checkbox" />',
             'active'   => __('Active', 'order-daemon'),
             'title'    => __('Title', 'order-daemon'),
