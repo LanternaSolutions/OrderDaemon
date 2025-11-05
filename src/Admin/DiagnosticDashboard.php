@@ -105,9 +105,9 @@ class DiagnosticDashboard
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('odcm_diagnostics'),
             'strings' => [
-                'running' => __('Running diagnostics...', 'order-daemon-devtools'),
-                'success' => __('Diagnostics completed successfully', 'order-daemon-devtools'),
-                'error' => __('Error running diagnostics', 'order-daemon-devtools'),
+                'running' => __('Running diagnostics...', 'order-daemon'),
+                'success' => __('Diagnostics completed successfully', 'order-daemon'),
+                'error' => __('Error running diagnostics', 'order-daemon'),
             ],
         ]);
     }
