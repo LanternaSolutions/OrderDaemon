@@ -89,12 +89,12 @@ class CompletionRulesListTable extends \WP_List_Table
 
             // Verify the nonce
             if (!wp_verify_nonce($nonce, 'bulk-' . $this->_args['plural'])) {
-                wp_die(__('Security check failed.', 'order-daemon'));
+                wp_die(esc_html__('Security check failed.', 'order-daemon'));
             }
 
             // Only allow users with manage_woocommerce capability
             if (!current_user_can('manage_woocommerce')) {
-                wp_die(__('You do not have permission to perform this action.', 'order-daemon'));
+                wp_die(esc_html__('You do not have permission to perform this action.', 'order-daemon'));
             }
 
             // Sanitize rule IDs
@@ -312,7 +312,7 @@ class CompletionRulesListTable extends \WP_List_Table
      */
     public function single_row($item) {
         $class = 'odcm-rule-row';
-        echo '<tr class="' . $class . '" id="rule-row-' . esc_attr($item->ID) . '" data-id="' . esc_attr($item->ID) . '">';
+        echo '<tr class="' . esc_attr($class) . '" id="rule-row-' . esc_attr($item->ID) . '" data-id="' . esc_attr($item->ID) . '">';
         $this->single_row_columns($item);
         echo '</tr>';
     }

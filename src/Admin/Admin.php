@@ -166,7 +166,7 @@ class Admin
             
             // Add JavaScript to inject data-id attribute
             echo '<script>jQuery(document).ready(function($) { 
-                $("#post-' . $post_id . '").attr("data-id", "' . $post_id . '"); 
+                $("#post-' . esc_attr__($post_id, 'order-daemon') . '").attr("data-id", "' . esc_attr__($post_id, 'order-daemon') . '"); 
             });</script>';
             
             $already_added[$post_id] = true;

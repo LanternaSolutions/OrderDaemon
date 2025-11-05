@@ -60,7 +60,7 @@ if ($payloadTableExists) {
     } else {
         echo "<p><strong>✅ Found " . count($eventsWithRawData) . " events with rawData:</strong></p>\n";
         foreach ($eventsWithRawData as $event) {
-            echo "<p>ID: {$event->id}, Type: {$event->event_type}, Summary: {$event->summary}</p>\n";
+            echo wp_kses("<p>ID: {$event->id}, Type: {$event->event_type}, Summary: {$event->summary}</p>\n");
         }
     }
     
@@ -75,12 +75,12 @@ if ($payloadTableExists) {
     ");
     
     foreach ($fullPayloads as $event) {
-        echo "<hr>\n";
-        echo "<h4>Event ID: {$event->id} ({$event->event_type})</h4>\n";
+        echo wp_kses("<hr>\n");
+        echo wp_kses("<h4>Event ID: {$event->id} ({$event->event_type})</h4>\n");
         $payloadData = json_decode($event->payload, true);
         if ($payloadData && isset($payloadData['rawData'])) {
-            echo "<p><strong>✅ Has rawData with keys:</strong> " . implode(', ', array_keys($payloadData['rawData'])) . "</p>\n";
-            echo "<pre>" . htmlspecialchars(json_encode($payloadData, JSON_PRETTY_PRINT)) . "</pre>\n";
+            echo wp_kses("<p><strong>✅ Has rawData with keys:</strong> " . implode(', ', array_keys($payloadData['rawData'])) . "</p>\n");
+            echo wp_kses("<pre>" . htmlspecialchars(json_encode($payloadData, JSON_PRETTY_PRINT)) . "</pre>\n");
         }
     }
 }
@@ -101,12 +101,12 @@ if (empty($eventsWithRawDataInDetails)) {
 } else {
     echo "<p><strong>✅ Found " . count($eventsWithRawDataInDetails) . " events with rawData in details:</strong></p>\n";
     foreach ($eventsWithRawDataInDetails as $event) {
-        echo "<p>ID: {$event->id}, Type: {$event->event_type}</p>\n";
+        echo wp_kses("<p>ID: {$event->id}, Type: {$event->event_type}</p>\n");
     }
 }
 
 // Let's also check what types of events exist that might contain rich data
-echo "<h2>Event Types That Might Contain Rich Data</h2>\n";
+echo wp_kses("<h2>Event Types That Might Contain Rich Data</h2>\n");
 $richEventTypes = $wpdb->get_results("
     SELECT DISTINCT l.event_type, COUNT(*) as count,
            MAX(CHAR_LENGTH(COALESCE(p.payload, l.details, ''))) as max_payload_size
@@ -121,7 +121,7 @@ $richEventTypes = $wpdb->get_results("
 echo "<table border='1'>\n";
 echo "<tr><th>Event Type</th><th>Count</th><th>Max Payload Size</th></tr>\n";
 foreach ($richEventTypes as $eventType) {
-    echo "<tr><td>{$eventType->event_type}</td><td>{$eventType->count}</td><td>{$eventType->max_payload_size}</td></tr>\n";
+    echo wp_kses("<tr><td>{$eventType->event_type}</td><td>{$eventType->count}</td><td>{$eventType->max_payload_size}</td></tr>\n");
 }
 echo "</table>\n";
 

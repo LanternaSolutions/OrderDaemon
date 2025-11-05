@@ -425,24 +425,24 @@ class InsightDashboard
 
             <!-- Unified Sticky Header Bar -->
             <div class="odcm-unified-header">
-                <?php echo $this->componentRenderers['unified_header']->renderWithContext($context); ?>
+                <?php echo wp_kses($this->componentRenderers['unified_header']->renderWithContext($context)); ?>
             </div>
 
             <!-- Content Grid -->
             <div class="odcm-content-grid">
                 <!-- Filter Pane -->
                 <div class="odcm-filter-pane">
-                    <?php echo $this->componentRenderers['filter_pane']->renderWithContext($context); ?>
+                    <?php echo wp_kses($this->componentRenderers['filter_pane']->renderWithContext($context)); ?>
                 <!--</div> DO NOT UNCOMMENT THIS DIV - IT WILL BREAK UI -->
 
                 <!-- Log Stream -->
                 <div class="odcm-log-stream">
-                    <?php echo $this->componentRenderers['log_stream']->renderWithContext($context); ?>
+                    <?php echo wp_kses($this->componentRenderers['log_stream']->renderWithContext($context)); ?>
                 </div>
 
                 <!-- Detail Pane -->
                 <div class="odcm-detail-pane">
-                    <?php echo $this->componentRenderers['detail_pane']->renderWithContext($context); ?>
+                    <?php echo wp_kses($this->componentRenderers['detail_pane']->renderWithContext($context)); ?>
                 </div>
             </div>
 
@@ -1318,30 +1318,30 @@ class InsightDashboard
                                 <span class="dashicons dashicons-chart-line"></span>
                             </div>
                             <div class="odcm-welcome-text">
-                                <h3><?php echo Odcm_Strings::esc_html__('Welcome to Order Daemon Insights!'); ?></h3>
-                                <p><?php echo Odcm_Strings::esc_html__('This dashboard will show real-time activity from your order completion rules once they start running.'); ?></p>
+                                <h3><?php echo esc_html__('Welcome to Order Daemon Insights!', 'order-daemon'); ?></h3>
+                                <p><?php echo esc_html__('This dashboard will show real-time activity from your order completion rules once they start running.', 'order-daemon'); ?></p>
                            </div>
 
                             <div class="odcm-welcome-steps">
-                                <h4><?php echo Odcm_Strings::esc_html__('To get started:'); ?></h4>
+                                <h4><?php echo esc_html__('To get started:', 'order-daemon'); ?></h4>
                                 <ol>
-                                    <li><strong><?php echo Odcm_Strings::esc_html__('Create your first completion rule'); ?></strong> <?php echo Odcm_Strings::esc_html__('in WooCommerce → All Order Rules'); ?></li>
-                                    <li><strong><?php echo Odcm_Strings::esc_html__('Place a test order'); ?></strong> <?php echo Odcm_Strings::esc_html__('that matches your rule conditions'); ?></li>
-                                    <li><strong><?php echo Odcm_Strings::esc_html__('Return here'); ?></strong> <?php echo Odcm_Strings::esc_html__('to see the automation in action'); ?></li>
+                                    <li><strong><?php echo esc_html__('Create your first completion rule', 'order-daemon'); ?></strong> <?php echo esc_html__('in WooCommerce → All Order Rules', 'order-daemon'); ?></li>
+                                    <li><strong><?php echo esc_html__('Place a test order', 'order-daemon'); ?></strong> <?php echo esc_html__('that matches your rule conditions', 'order-daemon'); ?></li>
+                                    <li><strong><?php echo esc_html__('Return here', 'order-daemon'); ?></strong> <?php echo esc_html__('to see the automation in action', 'order-daemon'); ?></li>
                                 </ol>
                             </div>
 
                             <div class="odcm-welcome-actions">
                                 <a href="<?php echo esc_url(admin_url('edit.php?post_type=odcm_order_rule')); ?>" class="button button-primary">
-                                    <?php echo Odcm_Strings::esc_html__('Create Your First Rule'); ?>
+                                    <?php echo esc_html__('Create Your First Rule', 'order-daemon'); ?>
                                 </a>
                                 <a href="https://orderdaemon.com/docs" target="_blank" class="button button-secondary odcm-docs-link">
-                                    <?php echo Odcm_Strings::esc_html__('View Documentation'); ?>
+                                    <?php echo esc_html__('View Documentation', 'order-daemon'); ?>
                                 </a>
                             </div>
 
                             <div class="odcm-welcome-note">
-                                <p><em>💡 <?php echo Odcm_Strings::esc_html__('Tip: Activity will appear here automatically once your rules start processing orders. No additional setup required!'); ?></em></p>
+                                <p><em>💡 <?php echo esc_html__('Tip: Activity will appear here automatically once your rules start processing orders. No additional setup required!', 'order-daemon'); ?></em></p>
                             </div>
                         </div>
                     </template>
@@ -1350,14 +1350,14 @@ class InsightDashboard
                     <template x-if="!isWelcomeScenario">
                         <div class="odcm-regular-empty-state">
                             <span class="dashicons dashicons-admin-post"></span>
-                            <h4><?php echo Odcm_Strings::esc_html__('No Recent Activity'); ?></h4>
-                            <p><?php echo Odcm_Strings::esc_html__('Your completion rules are set up but haven\'t processed any orders recently.'); ?></p>
+                            <h4><?php echo esc_html__('No Recent Activity', 'order-daemon'); ?></h4>
+                            <p><?php echo esc_html__('Your completion rules are set up but haven\'t processed any orders recently.', 'order-daemon'); ?></p>
                             <div class="odcm-empty-actions">
                                 <button type="button" class="button" @click="fetchLogs()">
-                                    <?php echo Odcm_Strings::esc_html__(Odcm_Strings::REFRESH); ?>
+                                    <?php echo esc_html__(Odcm_Strings::REFRESH, 'order-daemon'); ?>
                                 </button>
                                 <a href="<?php echo esc_url(admin_url('edit.php?post_type=odcm_order_rule')); ?>" class="button button-secondary">
-                                    <?php echo Odcm_Strings::esc_html__('Manage Rules'); ?>
+                                    <?php echo esc_html__('Manage Rules', 'order-daemon'); ?>
                                 </a>
                             </div>
                         </div>

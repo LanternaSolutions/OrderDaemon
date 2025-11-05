@@ -12,13 +12,13 @@ require_once __DIR__ . '/src/Includes/Installer.php';
 
 use OrderDaemon\CompletionManager\Includes\Installer;
 
-echo "=== Order Daemon Database Upgrade Script ===\n";
-echo "Current time: " . date('Y-m-d H:i:s') . "\n\n";
+echo wp_kses("=== Order Daemon Database Upgrade Script ===\n");
+echo wp_kses("Current time: " . date('Y-m-d H:i:s') . "\n\n");
 
 // Check current database version
 $current_version = get_option(Installer::DB_VERSION_OPTION_KEY);
-echo "Current database version: " . ($current_version ?: 'Not set') . "\n";
-echo "Target database version: " . Installer::DB_VERSION . "\n\n";
+echo wp_kses("Current database version: " . ($current_version ?: 'Not set') . "\n");
+echo wp_kses("Target database version: " . Installer::DB_VERSION . "\n\n");
 
 // Check if source column exists
 global $wpdb;
@@ -33,40 +33,40 @@ $source_column_exists = $wpdb->get_var(
     )
 );
 
-echo "Source column exists: " . ($source_column_exists ? 'YES' : 'NO') . "\n\n";
+echo wp_kses("Source column exists: " . ($source_column_exists ? 'YES' : 'NO') . "\n\n");
 
 if (!$source_column_exists) {
-    echo "Adding source column...\n";
+    echo wp_kses("Adding source column...\n");
     
     // Add the source column
     $result = $wpdb->query("ALTER TABLE {$log_table} ADD COLUMN source varchar(50) DEFAULT 'system' AFTER event_type");
     
     if ($result !== false) {
-        echo "✅ Source column added successfully\n";
+        echo wp_kses("✅ Source column added successfully\n");
         
         // Add the index
         $index_result = $wpdb->query("ALTER TABLE {$log_table} ADD KEY idx_source_timestamp (source, timestamp)");
         if ($index_result !== false) {
-            echo "✅ Source index added successfully\n";
+            echo wp_kses("✅ Source index added successfully\n");
         } else {
-            echo "⚠️  Source index may already exist or failed to add\n";
+            echo wp_kses("⚠️  Source index may already exist or failed to add\n");
         }
     } else {
-        echo "❌ Failed to add source column\n";
-        echo "Error: " . $wpdb->last_error . "\n";
+        echo wp_kses("❌ Failed to add source column\n");
+        echo wp_kses("Error: " . $wpdb->last_error . "\n");
         exit(1);
     }
 } else {
-    echo "✅ Source column already exists\n";
+    echo wp_kses("✅ Source column already exists\n");
 }
 
 // Force the installer to run
-echo "\nRunning full database upgrade...\n";
+echo wp_kses("\nRunning full database upgrade...\n");
 Installer::install();
 
 // Verify the upgrade
 $new_version = get_option(Installer::DB_VERSION_OPTION_KEY);
-echo "New database version: " . $new_version . "\n";
+echo wp_kses("New database version: " . $new_version . "\n");
 
 // Check source column again
 $source_column_exists_after = $wpdb->get_var(
@@ -78,14 +78,14 @@ $source_column_exists_after = $wpdb->get_var(
     )
 );
 
-echo "Source column exists after upgrade: " . ($source_column_exists_after ? 'YES' : 'NO') . "\n";
+echo wp_kses("Source column exists after upgrade: " . ($source_column_exists_after ? 'YES' : 'NO') . "\n");
 
 if ($source_column_exists_after) {
-    echo "\n✅ Database upgrade completed successfully!\n";
-    echo "The audit log page should now work properly.\n";
+    echo wp_kses("\n✅ Database upgrade completed successfully!\n");
+    echo wp_kses("The audit log page should now work properly.\n");
 } else {
-    echo "\n❌ Database upgrade failed!\n";
+    echo wp_kses("\n❌ Database upgrade failed!\n");
     exit(1);
 }
 
-echo "\n=== Upgrade Complete ===\n";
+echo wp_kses("\n=== Upgrade Complete ===\n");
