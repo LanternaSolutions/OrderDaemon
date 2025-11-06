@@ -56,24 +56,25 @@ abstract class DashboardComponentRenderer
      *
      * @param array $context Arbitrary context (user caps, i18n, settings, etc.)
      * @param array $data Optional rendering data
-     * @return string HTML output or an error placeholder
      */
-    final public function renderWithContext(array $context, array $data = []): string
+    final public function renderWithContext(array $context, array $data = []): void
     {
+        $rendered_html = '';
+
         try {
             $this->validateData($data);
             // Retrieve metadata to ensure the component is registered. Not used directly
             // here but validates availability and can drive theming if needed.
             $this->getMetadataFromRegistry();
 
-            if (!$this->canHandle($context)) {
-                return '';
+            if ($this->canHandle($context)) {
+                $rendered_html = $this->render($data);
             }
-
-            return $this->render($data);
         } catch (Exception $e) {
-            return $this->renderErrorComponent($e, $data);
+            $rendered_html = $this->renderErrorComponent($e, $data);
         }
+
+        _e($rendered_html);
     }
 
     /**

@@ -473,24 +473,24 @@ class InsightDashboard
 
             <!-- Unified Sticky Header Bar -->
             <div class="odcm-unified-header">
-                <?php echo wp_kses($this->componentRenderers['unified_header']->renderWithContext($context)); ?>
+                <?php $this->componentRenderers['unified_header']->renderWithContext($context); ?>
             </div>
 
             <!-- Content Grid -->
             <div class="odcm-content-grid">
                 <!-- Filter Pane -->
                 <div class="odcm-filter-pane">
-                    <?php echo wp_kses($this->componentRenderers['filter_pane']->renderWithContext($context)); ?>
+                    <?php $this->componentRenderers['filter_pane']->renderWithContext($context); ?>
                 <!--</div> DO NOT UNCOMMENT THIS DIV - IT WILL BREAK UI -->
 
                 <!-- Log Stream -->
                 <div class="odcm-log-stream">
-                    <?php echo wp_kses($this->componentRenderers['log_stream']->renderWithContext($context)); ?>
+                    <?php $this->componentRenderers['log_stream']->renderWithContext($context); ?>
                 </div>
 
                 <!-- Detail Pane -->
                 <div class="odcm-detail-pane">
-                    <?php echo wp_kses($this->componentRenderers['detail_pane']->renderWithContext($context)); ?>
+                    <?php $this->componentRenderers['detail_pane']->renderWithContext($context); ?>
                 </div>
             </div>
 
