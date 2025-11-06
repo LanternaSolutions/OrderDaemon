@@ -52,50 +52,50 @@ if (!$event) {
     exit;
 }
 
-echo wp_kses("<h2>Event 838 Details</h2>\n");
-echo wp_kses("<ul>\n");
-echo wp_kses("<li>Event Type: {$event['event_type']}</li>\n");
-echo wp_kses("<li>Summary: {$event['summary']}</li>\n");
-echo wp_kses("<li>Order ID: {$event['order_id']}</li>\n");
-echo wp_kses("<li>Process ID: {$event['process_id']}</li>\n");
-echo wp_kses("</ul>\n");
+echo wp_kses("<h2>Event 838 Details</h2>\n", 'post');
+echo wp_kses("<ul>\n", 'post');
+echo wp_kses("<li>Event Type: {$event['event_type']}</li>\n", 'post');
+echo wp_kses("<li>Summary: {$event['summary']}</li>\n", 'post');
+echo wp_kses("<li>Order ID: {$event['order_id']}</li>\n", 'post');
+echo wp_kses("<li>Process ID: {$event['process_id']}</li>\n", 'post');
+echo wp_kses("</ul>\n", 'post');
 
 $payloadData = json_decode($event['payload'], true);
 if (!$payloadData) {
-    echo wp_kses("<p><strong>Failed to decode payload JSON!</strong></p>\n");
+    echo wp_kses("<p><strong>Failed to decode payload JSON!</strong></p>\n", 'post');
     exit;
 }
 
-echo wp_kses("<h3>Payload Structure</h3>\n");
-echo wp_kses("<p><strong>Top-level keys:</strong> " . implode(', ', array_keys($payloadData)) . "</p>\n");
-echo wp_kses("<p><strong>Has rawData:</strong> " . (isset($payloadData['rawData']) ? 'YES' : 'NO') . "</p>\n");
+echo wp_kses("<h3>Payload Structure</h3>\n", 'post');
+echo wp_kses("<p><strong>Top-level keys:</strong> " . implode(', ', array_keys($payloadData)) . "</p>\n", 'post');
+echo wp_kses("<p><strong>Has rawData:</strong> " . (isset($payloadData['rawData']) ? 'YES' : 'NO') . "</p>\n", 'post');
 
 if (isset($payloadData['rawData'])) {
-    echo wp_kses("<p><strong>rawData keys:</strong> " . implode(', ', array_keys($payloadData['rawData'])) . "</p>\n");
-    echo wp_kses("<p><strong>rawData size:</strong> " . strlen(json_encode($payloadData['rawData'])) . " characters</p>\n");
+    echo wp_kses("<p><strong>rawData keys:</strong> " . implode(', ', array_keys($payloadData['rawData'])) . "</p>\n", 'post');
+    echo wp_kses("<p><strong>rawData size:</strong> " . strlen(json_encode($payloadData['rawData'])) . " characters</p>\n", 'post');
 }
 
-echo wp_kses("<h3>Components</h3>\n");
+echo wp_kses("<h3>Components</h3>\n", 'post');
 if (isset($payloadData['components'])) {
-    echo wp_kses("<p><strong>Component count:</strong> " . count($payloadData['components']) . "</p>\n");
+    echo wp_kses("<p><strong>Component count:</strong> " . count($payloadData['components']) . "</p>\n", 'post');
     foreach ($payloadData['components'] as $i => $component) {
-        echo wp_kses("<h4>Component $i:</h4>\n");
-        echo wp_kses("<ul>\n");
-        echo wp_kses("<li>Event type: " . ($component['event_type'] ?? 'MISSING') . "</li>\n");
-        echo wp_kses("<li>Label: " . ($component['label'] ?? 'MISSING') . "</li>\n");
-        echo wp_kses("<li>Data keys: " . (isset($component['data']) ? implode(', ', array_keys($component['data'])) : 'NONE') . "</li>\n");
-        echo wp_kses("</ul>\n");
+        echo wp_kses("<h4>Component $i:</h4>\n", 'post');
+        echo wp_kses("<ul>\n", 'post');
+        echo wp_kses("<li>Event type: " . ($component['event_type'] ?? 'MISSING') . "</li>\n", 'post');
+        echo wp_kses("<li>Label: " . ($component['label'] ?? 'MISSING') . "</li>\n", 'post');
+        echo wp_kses("<li>Data keys: " . (isset($component['data']) ? implode(', ', array_keys($component['data'])) : 'NONE') . "</li>\n", 'post');
+        echo wp_kses("</ul>\n", 'post');
     }
 }
 
-echo wp_kses("<h3>Full Payload</h3>\n");
-echo wp_kses("<pre>");
-echo wp_kses(htmlspecialchars(json_encode($payloadData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)));
-echo wp_kses("</pre>\n");
+echo wp_kses("<h3>Full Payload</h3>\n", 'post');
+echo wp_kses("<pre>", 'post');
+echo wp_kses(htmlspecialchars(json_encode($payloadData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)), 'post');
+echo wp_kses("</pre>\n", 'post');
 
 // Now test the current extractor with this event
-echo wp_kses("<hr>\n");
-echo wp_kses("<h2>Test Current Extractor</h2>\n");
+echo wp_kses("<hr>\n", 'post');
+echo wp_kses("<h2>Test Current Extractor</h2>\n", 'post');
 
 if (!class_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\ProcessLoggerComponentExtractor')) {
     require_once __DIR__ . '/src/API/Timeline/ProcessLoggerComponentExtractor.php';
@@ -104,22 +104,22 @@ if (!class_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\ProcessLoggerC
 $extractor = new OrderDaemon\CompletionManager\API\Timeline\ProcessLoggerComponentExtractor();
 
 echo wp_kses( "<p><strong>isProcessLoggerFormat():</strong> " .
-     ($extractor->isProcessLoggerFormat($payloadData) ? 'TRUE' : 'FALSE') . "</p>\n");
+     ($extractor->isProcessLoggerFormat($payloadData) ? 'TRUE' : 'FALSE') . "</p>\n", 'post');
 
 $components = $extractor->extractComponents($payloadData, true);
-echo wp_kses("<p><strong>Extracted components:</strong> " . count($components) . "</p>\n");
+echo wp_kses("<p><strong>Extracted components:</strong> " . count($components) . "</p>\n", 'post');
 
 foreach ($components as $j => $component) {
-    echo wp_kses("<h4>Extracted Component $j:</h4>\n");
-    echo wp_kses("<ul>\n");
-    echo wp_kses("<li>Event type: " . ($component['event_type'] ?? 'MISSING') . "</li>\n");
-    echo wp_kses("<li>Has rawData: " . (isset($component['rawData']) ? 'YES' : 'NO') . "</li>\n");
+    echo wp_kses("<h4>Extracted Component $j:</h4>\n", 'post');
+    echo wp_kses("<ul>\n", 'post');
+    echo wp_kses("<li>Event type: " . ($component['event_type'] ?? 'MISSING') . "</li>\n", 'post');
+    echo wp_kses("<li>Has rawData: " . (isset($component['rawData']) ? 'YES' : 'NO') . "</li>\n", 'post');
     if (isset($component['rawData'])) {
-        echo wp_kses("<li>rawData keys: " . implode(', ', array_keys($component['rawData'])) . "</li>\n");
-        echo wp_kses("<li>rawData size: " . strlen(json_encode($component['rawData'])) . " chars</li>\n");
+        echo wp_kses("<li>rawData keys: " . implode(', ', array_keys($component['rawData'])) . "</li>\n", 'post');
+        echo wp_kses("<li>rawData size: " . strlen(json_encode($component['rawData'])) . " chars</li>\n", 'post');
     }
-    echo wp_kses("</ul>\n");
+    echo wp_kses("</ul>\n", 'post');
 }
 
-echo wp_kses("<hr>\n");
-echo wp_kses("<h2>Analysis Complete</h2>\n");
+echo wp_kses("<hr>\n", 'post');
+echo wp_kses("<h2>Analysis Complete</h2>\n", 'post');
