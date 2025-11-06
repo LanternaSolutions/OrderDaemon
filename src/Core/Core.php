@@ -381,7 +381,7 @@ class Core
         
         $components = [
             [
-                'k' => 'c' . time() . rand(10,99),
+                'k' => odcm_component_key(),
                 'event_type' => 'admin_action',
                 'ts' => time(),
                 'label' => sprintf(__('Admin reprocessed %d orders', 'order-daemon'), $count),

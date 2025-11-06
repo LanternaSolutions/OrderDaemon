@@ -1049,7 +1049,7 @@ function odcm_log_event(
         }
         
         $components = [[
-            'k' => 'c' . time() . rand(10,99),
+            'k' => odcm_component_key(),
             'event_type' => $event_type,
             'ts' => time(),
             'label' => $summary,
@@ -1565,4 +1565,16 @@ function odcm_iso8601_now(): string
 function odcm_iso8601_from_timestamp(int $timestamp): string
 {
     return wp_date('c', $timestamp);
+}
+
+/**
+ * Generate a unique component key.
+ * Uses optimized format: c{timestamp}{random}[-{suffix}]
+ *
+ * @param string|null $suffix
+ * @return string
+ */
+function odcm_component_key(string $suffix = null): string
+{
+    return 'c' . time() . wp_rand(10, 99) . ($suffix ? '-' . $suffix : '');
 }

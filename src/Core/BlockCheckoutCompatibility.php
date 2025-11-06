@@ -338,7 +338,7 @@ final class BlockCheckoutCompatibility
         
         $components = [
             [
-                'k'     => 'c' . time() . rand(10,99),
+                'k'     => odcm_component_key(),
                 'event_type'  => 'info',
                 'ts'    => time(),
                 'label' => 'Block Checkout Processed',
@@ -352,7 +352,7 @@ final class BlockCheckoutCompatibility
                 ],
             ],
             [
-                'k'     => 'c' . time() . rand(10,99),
+                'k'     => odcm_component_key(),
                 'event_type'  => 'order_loaded',
                 'ts'    => time(),
                 'label' => 'Cart Analysis',
@@ -360,7 +360,7 @@ final class BlockCheckoutCompatibility
                 'data'  => $checkout_context['cart_analysis'] ?? [],
             ],
             [
-                'k'     => 'c' . time() . rand(10,99),
+                'k'     => odcm_component_key(),
                 'event_type'  => 'payment.' . $gateway . '.checkout_processed',
                 'ts'    => time(),
                 'label' => 'Payment Event',
@@ -438,7 +438,7 @@ final class BlockCheckoutCompatibility
         // Create the components array - this is what drives the "Checkout Completed" UI display
         $components = [
             [
-                'k' => 'c' . time() . rand(10, 99),
+                'k' => odcm_component_key(),
                 'event_type' => 'checkout_processed',
                 'ts' => time(),
                 'label' => 'Checkout Completed',
@@ -454,7 +454,7 @@ final class BlockCheckoutCompatibility
                 ]
             ],
             [
-                'k' => 'c' . time() . rand(10, 99),
+                'k' => odcm_component_key(),
                 'event_type' => 'order_loaded',
                 'ts' => time(),
                 'label' => 'Cart Analysis',
@@ -462,7 +462,7 @@ final class BlockCheckoutCompatibility
                 'data' => $checkout_context['cart_analysis'] ?? []
             ],
             [
-                'k' => 'c' . time() . rand(10, 99),
+                'k' => odcm_component_key(),
                 'event_type' => 'payment.' . $gateway . '.checkout_processed',
                 'ts' => time(),
                 'label' => 'Payment Event',

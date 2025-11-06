@@ -134,7 +134,7 @@ final class ProcessLogger
 
             // Add process started as first component with debug flag (bypass recursion guard safely)
             $this->components[] = [
-                'k'     => $this->generate_component_key('process_started'),
+                'k'     => odcm_component_key('process_started'),
                 'event_type'  => 'process_started',
                 'ts'    => time(),
                 'label' => 'Process started',
@@ -178,7 +178,7 @@ final class ProcessLogger
             // 2) Set the Lock
             self::$is_logging = true;
 
-            $component_key = $key ?: $this->generate_component_key($event_type);
+            $component_key = $key ?: odcm_component_key($event_type);
             $this->components[] = [
                 'k'     => $component_key,         // Optimized field name
                 'event_type'  => sanitize_key($event_type),
@@ -351,18 +351,6 @@ final class ProcessLogger
             ];
         }
         return ['id' => null, 'role' => 'system', 'name' => 'system'];
-    }
-
-    /**
-     * Generate a unique component key.
-     * Uses optimized format: c{timestamp}{random}
-     *
-     * @param string $event_type
-     * @return string
-     */
-    private function generate_component_key(string $event_type): string
-    {
-        return 'c' . time() . rand(10, 99); // Optimized format
     }
 
     /**
