@@ -62,7 +62,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'permission_callback' => [$this, 'get_item_permissions_check'],
                 'args'                => [
                     'id' => [
-                        'description' => __('Unique identifier for the rule.', 'order-daemon'),
+                        'description' => __('api.rule_builder.rule_id_description', 'order-daemon'),
                         'type'        => 'integer',
                     ],
                 ],
@@ -73,7 +73,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'permission_callback' => [$this, 'update_item_permissions_check'],
                 'args'                => [
                     'id' => [
-                        'description' => __('Unique identifier for the rule.', 'order-daemon'),
+                        'description' => __('api.rule_builder.rule_id_description', 'order-daemon'),
                         'type'        => 'integer',
                     ],
                 ],
@@ -87,18 +87,18 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'permission_callback' => [$this, 'get_items_permissions_check'],
                 'args'                => [
                     'source' => [
-                        'description' => __('Data source to search (products, categories, posts, etc.)', 'order-daemon'),
+                        'description' => __('api.rule_builder.data_source_description', 'order-daemon'),
                         'type'        => 'string',
                         'required'    => true,
                         'enum'        => ['products', 'categories', 'posts', 'users', 'order_statuses', 'payment_methods', 'shipping_methods', 'product_tags'],
                     ],
                     'search' => [
-                        'description' => __('Search term', 'order-daemon'),
+                        'description' => __('api.rule_builder.search_term_description', 'order-daemon'),
                         'type'        => 'string',
                         'default'     => '',
                     ],
                     'limit' => [
-                        'description' => __('Maximum number of results', 'order-daemon'),
+                        'description' => __('api.rule_builder.max_results_description', 'order-daemon'),
                         'type'        => 'integer',
                         'default'     => 50,
                         'minimum'     => 1,
@@ -121,20 +121,20 @@ class RuleBuilderApiController extends WP_REST_Controller
         try {
             // Start performance monitoring
             $start_time = microtime(true);
-            
+
             // Ensure component registry is available
             if (!$this->component_registry) {
                 $this->component_registry = new RuleComponentRegistry();
             }
-            
+
             // Get components with error handling
             $triggers = $this->component_registry->get_triggers();
             $conditions = $this->component_registry->get_conditions();
             $actions = $this->component_registry->get_actions();
-            
+
             // Categorize actions into primary (status-changing) and secondary
             $categorized_actions = $this->categorize_actions($actions);
-            
+
             // Get current rule data for component state detection
             $rule_id = $request->get_param('rule_id');
             $current_rule_data = null;
@@ -144,7 +144,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                     $current_rule_data = json_decode($rule_data_json, true);
                 }
             }
-            
+
             // Format components for API response
             $components = [
                 'triggers'         => $this->format_components($triggers, $current_rule_data),
@@ -154,7 +154,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 // Keep legacy 'actions' for backward compatibility
                 'actions'          => $this->format_components($categorized_actions['secondary'], $current_rule_data),
             ];
-            
+
             // Performance monitoring
             $execution_time = microtime(true) - $start_time;
             $this->log_api_performance('get_components', $execution_time, [
@@ -163,7 +163,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'primary_actions_count' => count($categorized_actions['primary']),
                 'secondary_actions_count' => count($categorized_actions['secondary'])
             ]);
-            
+
             return new WP_REST_Response([
                 'triggers' => $components['triggers'],
                 'conditions' => $components['conditions'],
@@ -175,14 +175,14 @@ class RuleBuilderApiController extends WP_REST_Controller
                     'timestamp' => current_time('mysql'),
                 ],
             ], 200);
-            
+
         } catch (\Exception $e) {
             // Log error for debugging
             $this->log_api_error('get_components', $e, []);
-            
+
             return new WP_Error(
                 'odcm_component_load_error',
-                __('Failed to load rule builder components', 'order-daemon'),
+                __('api.rule_builder.components_load_failure', 'order-daemon'),
                 ['status' => 500]
             );
         }
@@ -212,14 +212,14 @@ class RuleBuilderApiController extends WP_REST_Controller
             ];
         } else {
             $rule_data = json_decode($rule_data_json, true);
-            
+
             // Migration: Convert old structure to new structure
             if (isset($rule_data['action']) && !isset($rule_data['primaryAction'])) {
                 $rule_data['primaryAction'] = $rule_data['action'];
                 $rule_data['secondaryActions'] = [];
                 unset($rule_data['action']);
             }
-            
+
             // Ensure primary action exists
             if (!isset($rule_data['primaryAction'])) {
                 $rule_data['primaryAction'] = [
@@ -227,7 +227,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                     'settings' => []
                 ];
             }
-            
+
             // Ensure secondary actions array exists
             if (!isset($rule_data['secondaryActions'])) {
                 $rule_data['secondaryActions'] = [];
@@ -259,8 +259,8 @@ class RuleBuilderApiController extends WP_REST_Controller
         $post = get_post($rule_id);
         if (!$post || $post->post_type !== 'odcm_order_rule') {
             return new WP_Error(
-                'invalid_post_id', 
-                __('Invalid completion rule ID.', 'order-daemon'), 
+                'invalid_post_id',
+                __('api.rule_builder.invalid_rule_id', 'order-daemon'),
                 ['status' => 404]
             );
         }
@@ -268,8 +268,8 @@ class RuleBuilderApiController extends WP_REST_Controller
         // Validate JSON data exists
         if (empty($json_params)) {
             return new WP_Error(
-                'invalid_data', 
-                __('Invalid or empty rule data provided.', 'order-daemon'), 
+                'invalid_data',
+                __('api.rule_builder.invalid_rule_data', 'order-daemon'),
                 ['status' => 400]
             );
         }
@@ -303,65 +303,65 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'post_modified' => current_time('mysql'),
                 'post_modified_gmt' => current_time('mysql', true),
             ];
-            
+
             // Update the post to update modification time
             $post_id = wp_update_post($post_data, true);
-            
+
             if (is_wp_error($post_id)) {
                 // Handle WordPress core error
                 return new WP_Error(
                     'post_update_failed',
-                    __('Failed to update rule post: ', 'order-daemon') . $post_id->get_error_message(),
+                    __('api.rule_builder.rule_update_failure', 'order-daemon') . $post_id->get_error_message(),
                     ['status' => 500]
                 );
             }
-            
+
             // Save the rule data as post meta
             $json_data = wp_json_encode($sanitized_data);
             if (false === $json_data) {
                 return new WP_Error(
                     'json_encode_failed',
-                    __('Failed to encode rule data as JSON.', 'order-daemon'),
+                    __('api.rule_builder.json_encode_failure', 'order-daemon'),
                     ['status' => 500]
                 );
             }
-            
+
             // Update the meta field with slashed data (WordPress requirement)
             $meta_result = update_post_meta($rule_id, '_odcm_rule_data', wp_slash($json_data));
-            
+
             if (false === $meta_result && get_post_meta($rule_id, '_odcm_rule_data', true) !== $json_data) {
                 return new WP_Error(
                     'meta_update_failed',
-                    __('Failed to save rule data to post meta.', 'order-daemon'),
+                    __('api.rule_builder.meta_save_failure', 'order-daemon'),
                     ['status' => 500]
                 );
             }
-            
+
             // Process audit logging if provided
             if ($audit_data && is_array($audit_data)) {
                 $this->log_rule_audit_event($rule_id, $audit_data, $sanitized_data);
             }
-            
+
             // Clear any caches
             clean_post_cache($rule_id);
-            
+
             // WordPress hook after rule save (for post-processing)
             do_action('odcm_after_rule_save', $sanitized_data, $rule_id, $post);
-            
+
             return new WP_REST_Response([
-                'success' => true, 
-                'message' => __('Rule saved successfully.', 'order-daemon'),
+                'success' => true,
+                'message' => __('api.rule_builder.rule_save_success', 'order-daemon'),
                 'rule_id' => $rule_id,
                 'audit_logged' => !empty($audit_data)
             ], 200);
-            
+
         } catch (\Exception $e) {
             // Log the error for debugging
             error_log('ODCM Rule Save Error: ' . $e->getMessage());
-            
+
             return new WP_Error(
                 'rule_save_exception',
-                __('An unexpected error occurred while saving the rule: ', 'order-daemon') . $e->getMessage(),
+                __('api.rule_builder.unexpected_save_error', 'order-daemon') . $e->getMessage(),
                 ['status' => 500]
             );
         }
@@ -390,7 +390,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             // Defensive guard: explicitly block the premium "Any Status Change" trigger for free users
             if (is_array($trigger_data) && isset($trigger_data['id']) && $trigger_data['id'] === 'order_status_any_change') {
                 if (!function_exists('odcm_can_use') || !odcm_can_use('trigger_premium')) {
-                    $errors[] = __('Trigger "Any Status Change" is a Pro feature and cannot be saved without a license.', 'order-daemon');
+                    $errors[] = __('api.rule_builder.entitlement.any_status_change_premium', 'order-daemon');
                 }
             }
         }
@@ -400,7 +400,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             foreach ($rule_data['conditions'] as $index => $condition) {
                 $condition_error = $this->validate_component_entitlement($condition, 'condition');
                 if (is_wp_error($condition_error)) {
-                    $errors[] = sprintf(__('Condition %d: %s', 'order-daemon'), $index + 1, $condition_error->get_error_message());
+                    $errors[] = sprintf(__('api.rule_builder.entitlement.condition_error', 'order-daemon'), $index + 1, $condition_error->get_error_message());
                 }
             }
         }
@@ -410,7 +410,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             foreach ($rule_data['secondaryActions'] as $index => $action) {
                 $action_error = $this->validate_component_entitlement($action, 'action');
                 if (is_wp_error($action_error)) {
-                    $errors[] = sprintf(__('Action %d: %s', 'order-daemon'), $index + 1, $action_error->get_error_message());
+                    $errors[] = sprintf(__('api.rule_builder.entitlement.action_error', 'order-daemon'), $index + 1, $action_error->get_error_message());
                 }
             }
         }
@@ -418,7 +418,7 @@ class RuleBuilderApiController extends WP_REST_Controller
         if (!empty($errors)) {
             return new WP_Error(
                 'odcm_premium_blocked',
-                __('Rules containing Pro components can’t be saved without a license. Upgrade or remove Pro components to continue.', 'order-daemon'),
+                __('api.rule_builder.entitlement.premium_blocked', 'order-daemon'),
                 ['status' => 403, 'violations' => $errors]
             );
         }
@@ -436,7 +436,7 @@ class RuleBuilderApiController extends WP_REST_Controller
     private function validate_component_entitlement(array $component_data, string $component_type)
     {
         if (!isset($component_data['id'])) {
-            return new WP_Error('invalid_component', __('Component missing ID', 'order-daemon'));
+            return new WP_Error('invalid_component', __('api.rule_builder.component_missing_id', 'order-daemon'));
         }
 
         $component_id = $component_data['id'];
@@ -444,14 +444,14 @@ class RuleBuilderApiController extends WP_REST_Controller
         // Get the component instance to check its capability
         $component = $this->get_component_by_id($component_id, $component_type);
         if (!$component) {
-            return new WP_Error('unknown_component', sprintf(__('Unknown %s: %s', 'order-daemon'), $component_type, $component_id));
+            return new WP_Error('unknown_component', sprintf(__('api.rule_builder.unknown_component', 'order-daemon'), $component_type, $component_id));
         }
 
         // Check if user can access this component
         if (!function_exists('odcm_can_use') || !odcm_can_use($component->get_capability())) {
             return new WP_Error(
                 'premium_component',
-                sprintf(__('%s "%s" requires Pro access', 'order-daemon'), ucfirst($component_type), $component->get_label())
+                sprintf(__('api.rule_builder.entitlement.component_requires_pro', 'order-daemon'), ucfirst($component_type), $component->get_label())
             );
         }
 
@@ -486,7 +486,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             }
 
             $property = $schema['properties'][$setting_key];
-            
+
             // Validate tiered checkbox selections
             if (isset($property['ui:widget']) && $property['ui:widget'] === 'tiered_checkboxes') {
                 $validation_error = $this->validate_tiered_checkbox_settings($setting_value, $property);
@@ -632,7 +632,7 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         foreach ($settings as $key => $value) {
             $clean_key = sanitize_key($key);
-            
+
             if (is_array($value)) {
                 $sanitized[$clean_key] = $this->sanitize_settings($value);
             } elseif (is_bool($value)) {
@@ -649,7 +649,7 @@ class RuleBuilderApiController extends WP_REST_Controller
 
     /**
      * Check API permissions
-     * 
+     *
      * Rule building is core functionality available to all users with WooCommerce management capabilities.
      * Individual components have their own entitlement checks for premium features.
      */
@@ -657,7 +657,7 @@ class RuleBuilderApiController extends WP_REST_Controller
     {
         // Basic capability check - rule building is core functionality
         if (!current_user_can('manage_woocommerce')) {
-            return new WP_Error('rest_forbidden', esc_html__('You do not have permissions to view these components.', 'order-daemon'), ['status' => 401]);
+            return new WP_Error('rest_forbidden', esc_html__('api.rule_builder.permission.view_components_denied', 'order-daemon'), ['status' => 401]);
         }
 
         return true;
@@ -672,7 +672,7 @@ class RuleBuilderApiController extends WP_REST_Controller
     public function get_item_permissions_check($request)
     {
         if (!current_user_can('edit_post', (int) $request['id'])) {
-            return new WP_Error('rest_forbidden', esc_html__('You do not have permissions to view this rule.', 'order-daemon'), ['status' => 401]);
+            return new WP_Error('rest_forbidden', esc_html__('api.rule_builder.permission.view_rule_denied', 'order-daemon'), ['status' => 401]);
         }
         return true;
     }
@@ -686,7 +686,7 @@ class RuleBuilderApiController extends WP_REST_Controller
     public function update_item_permissions_check($request)
     {
         if (!current_user_can('edit_post', (int) $request['id'])) {
-            return new WP_Error('rest_forbidden', esc_html__('You do not have permissions to save this rule.', 'order-daemon'), ['status' => 401]);
+            return new WP_Error('rest_forbidden', esc_html__('api.rule_builder.permission.save_rule_denied', 'order-daemon'), ['status' => 401]);
         }
         return true;
     }
@@ -709,7 +709,7 @@ class RuleBuilderApiController extends WP_REST_Controller
         if (!current_user_can('manage_woocommerce')) {
             return new WP_Error(
                 'odcm_insufficient_permissions',
-                __('You do not have permission to access this resource.', 'order-daemon'),
+                __('api.rule_builder.permission.resource_access_denied', 'order-daemon'),
                 ['status' => 403]
             );
         }
@@ -719,7 +719,7 @@ class RuleBuilderApiController extends WP_REST_Controller
         if (!$nonce || !wp_verify_nonce($nonce, 'wp_rest')) {
             return new WP_Error(
                 'odcm_invalid_nonce',
-                __('Invalid nonce. Please refresh the page and try again.', 'order-daemon'),
+                __('api.rule_builder.permission.invalid_nonce', 'order-daemon'),
                 ['status' => 401]
             );
         }
@@ -761,7 +761,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'free_condition',
                 'free_action'
             ];
-            
+
             // Complete list of all free component IDs for explicit matching
             // Updated to ensure consistent identification of core free components
             $free_component_ids = [
@@ -775,18 +775,18 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'product_category_condition', // Alternative naming
                 'product_type_condition'  // Alternative naming
             ];
-            
+
             // Determine if component is free by capability OR explicit ID
             $capability = $component->get_capability();
             $component_id = $component->get_id();
-            
+
             // Force-mark specific components as free regardless of their current capability
             $is_core_free_component = in_array($component_id, $free_component_ids);
-            
-            $is_free = ($is_core_free_component || 
-                       in_array($capability, $free_capabilities) || 
-                       strpos($capability, 'free_') === 0);
-            
+
+            $is_free = ($is_core_free_component ||
+                in_array($capability, $free_capabilities) ||
+                strpos($capability, 'free_') === 0);
+
             $can_use = $is_free || (function_exists('odcm_can_use') && odcm_can_use($capability));
             $already_in_rule = $this->is_component_in_current_rule($component_id, $current_rule_data);
 
@@ -794,7 +794,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             if (!$can_use && !$already_in_rule) {
                 continue;
             }
-            
+
             // Determine component state for graceful degradation
             $component_state = 'available';
             if (!$can_use && $already_in_rule) {
@@ -802,11 +802,11 @@ class RuleBuilderApiController extends WP_REST_Controller
             } elseif (!$can_use) {
                 $component_state = 'unavailable';
             }
-            
+
             // Get ordering metadata from component if available
             $is_default = method_exists($component, 'is_default') ? $component->is_default() : false;
             $priority = method_exists($component, 'get_priority') ? $component->get_priority() : 999;
-            
+
             // Assign consistent priorities based on component ID regardless of free/premium status
             // This ensures consistent ordering across both versions
             // FIXED: Ensuring order_processing is ALWAYS at the top of the trigger list
@@ -826,12 +826,12 @@ class RuleBuilderApiController extends WP_REST_Controller
                 // Premium components maintain their original priority but offset to come after free
                 $priority = 100 + $priority;
             }
-            
+
             // For already selected unavailable components, provide full schema for editing
             // Ensure schema is NULL for inaccessible components not in the rule
-            $schema = ($can_use || $component_state === 'already_selected_unavailable') ? 
-                     $component->get_settings_schema() : null;
-            
+            $schema = ($can_use || $component_state === 'already_selected_unavailable') ?
+                $component->get_settings_schema() : null;
+
             // Defense-in-depth: if somehow schema exists for inaccessible components not in rule, nullify it
             if ($schema && !$can_use && !$already_in_rule) {
                 $schema = null;
@@ -842,12 +842,12 @@ class RuleBuilderApiController extends WP_REST_Controller
                 // This ensures free users get filtered options even for accessible components
                 $schema = $this->filter_schema_by_entitlement($schema);
             }
-            
+
             // Force specific components to always be treated as free (core features)
             if ($is_core_free_component) {
                 $capability = 'free'; // Override any other capability to ensure no premium badge
             }
-            
+
             $formatted[] = [
                 'id'          => $component->get_id(),
                 'label'       => $component->get_label(),
@@ -863,7 +863,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'is_core_free' => $is_core_free_component, // Mark core free components explicitly
             ];
         }
-        
+
         // Sort components by accessibility and priority
         return $this->sort_components($formatted);
     }
@@ -954,17 +954,17 @@ class RuleBuilderApiController extends WP_REST_Controller
         if (isset($property['ui:widget']) && $property['ui:widget'] === 'tiered_checkboxes') {
             $property = $this->filter_tiered_checkboxes($property);
         }
-        
+
         // Handle searchable checkboxes (like ShippingMethodCondition)
         elseif (isset($property['ui:widget']) && $property['ui:widget'] === 'searchable_checkboxes') {
             $property = $this->filter_searchable_checkboxes($property);
         }
-        
+
         // Handle regular enums with potential premium options
         elseif (isset($property['enum'])) {
             $property = $this->filter_enum_options($property);
         }
-        
+
         // Handle array items with enums (like multi-select options)
         elseif (isset($property['items']['enum'])) {
             $property['items'] = $this->filter_enum_options($property['items']);
@@ -990,7 +990,7 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         $filtered_tiers = [];
         $filtered_enum = [];
-        
+
         foreach ($property['ui:tiers'] as $tier_id => $tier_config) {
             // Check if user can access this tier
             $tier_accessible = true;
@@ -1001,7 +1001,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             if ($tier_accessible) {
                 // Include the tier and its options
                 $filtered_tiers[$tier_id] = $tier_config;
-                
+
                 // Add tier's options to the enum
                 if (isset($tier_config['types'])) {
                     foreach ($tier_config['types'] as $type_id) {
@@ -1057,7 +1057,7 @@ class RuleBuilderApiController extends WP_REST_Controller
         // For now, pass through all enum options
         // This can be extended to filter specific premium options
         // based on naming conventions or explicit capability mappings
-        
+
         return $enum_container;
     }
 
@@ -1111,15 +1111,15 @@ class RuleBuilderApiController extends WP_REST_Controller
     {
         $primary_actions = [];
         $secondary_actions = [];
-        
+
         // Define which action IDs are considered primary (status-changing)
         $primary_action_ids = [
             'change_status_to_completed',
-            'change_status_to_processing', 
+            'change_status_to_processing',
             'change_status_to_on_hold',
             // Add more status-changing actions here as they're created
         ];
-        
+
         foreach ($actions as $action_id => $action) {
             if (in_array($action_id, $primary_action_ids)) {
                 $primary_actions[$action_id] = $action;
@@ -1127,7 +1127,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 $secondary_actions[$action_id] = $action;
             }
         }
-        
+
         return [
             'primary' => $primary_actions,
             'secondary' => $secondary_actions
@@ -1152,21 +1152,21 @@ class RuleBuilderApiController extends WP_REST_Controller
             if (isset($a['is_free']) && isset($b['is_free']) && $a['is_free'] !== $b['is_free']) {
                 return $b['is_free'] - $a['is_free']; // free (true=1) before premium (false=0)
             }
-            
+
             // 2. For non-free components, accessible first
             if ((!isset($a['is_free']) || !$a['is_free']) && $a['accessible'] !== $b['accessible']) {
                 return $b['accessible'] - $a['accessible'];
             }
-            
+
             // 3. Then by priority (lower number = higher priority)
             if ($a['priority'] !== $b['priority']) {
                 return $a['priority'] - $b['priority'];
             }
-            
+
             // 4. Finally by label alphabetically
             return strcmp($a['label'], $b['label']);
         });
-        
+
         return $components;
     }
 
@@ -1210,7 +1210,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             // Log using the plugin's audit system if available
             if (function_exists('odcm_log_event')) {
                 $message = $this->generate_audit_message($action, $rule_id, $audit_entry['changes_summary']);
-                
+
                 odcm_log_event(
                     $message,
                     $audit_entry,
@@ -1254,7 +1254,7 @@ class RuleBuilderApiController extends WP_REST_Controller
     {
         $user = wp_get_current_user();
         $user_display = $user->display_name ?: $user->user_login;
-        
+
         switch ($action) {
             case 'rule_created':
                 return sprintf(
@@ -1350,13 +1350,13 @@ class RuleBuilderApiController extends WP_REST_Controller
     {
         // Store last modified timestamp
         update_post_meta($rule_id, '_odcm_last_modified', current_time('mysql'));
-        
+
         // Store last modified user
         update_post_meta($rule_id, '_odcm_last_modified_by', get_current_user_id());
-        
+
         // Store component counts for quick filtering
         update_post_meta($rule_id, '_odcm_component_counts', $audit_entry['component_counts']);
-        
+
         // Store audit trail reference (for linking to full audit logs)
         $audit_reference = [
             'timestamp' => $audit_entry['user_context']['timestamp'],
@@ -1374,7 +1374,7 @@ class RuleBuilderApiController extends WP_REST_Controller
     private function get_client_ip(): string
     {
         $ip_keys = ['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'HTTP_CLIENT_IP', 'REMOTE_ADDR'];
-        
+
         foreach ($ip_keys as $key) {
             if (!empty($_SERVER[$key])) {
                 $ip = sanitize_text_field($_SERVER[$key]);
@@ -1387,7 +1387,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 }
             }
         }
-        
+
         return sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
     }
 
@@ -1405,9 +1405,9 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         try {
             $start_time = microtime(true);
-            
+
             $results = $this->perform_content_search($source, $search, $limit);
-            
+
             $execution_time = microtime(true) - $start_time;
             $this->log_api_performance('search_dynamic_content', $execution_time, [
                 'source' => $source,
@@ -1509,11 +1509,11 @@ class RuleBuilderApiController extends WP_REST_Controller
                 $where_conditions[] = "p.ID = %d";
                 $search_params[] = (int) $search;
             }
-            
+
             // Search by title (partial match)
             $where_conditions[] = "p.post_title LIKE %s";
             $search_params[] = '%' . $wpdb->esc_like($search) . '%';
-            
+
             // Search by SKU (partial match)
             $where_conditions[] = "pm.meta_value LIKE %s";
             $search_params[] = '%' . $wpdb->esc_like($search) . '%';
@@ -1629,7 +1629,7 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         foreach ($posts as $post) {
             $post_type_label = get_post_type_object($post->post_type)->labels->singular_name;
-            
+
             $formatted_results[] = [
                 'value' => (string) $post->ID,
                 'label' => $post->post_title . " ({$post_type_label}, ID: {$post->ID})",
@@ -1667,7 +1667,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             // Filter by search term if provided
             if (!empty($search)) {
                 $search_lower = strtolower($search);
-                if (strpos(strtolower($role_name), $search_lower) === false && 
+                if (strpos(strtolower($role_name), $search_lower) === false &&
                     strpos(strtolower($role_key), $search_lower) === false) {
                     continue;
                 }
@@ -1711,7 +1711,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             // Filter by search term if provided
             if (!empty($search)) {
                 $search_lower = strtolower($search);
-                if (strpos(strtolower($status_name), $search_lower) === false && 
+                if (strpos(strtolower($status_name), $search_lower) === false &&
                     strpos(strtolower($status_key), $search_lower) === false) {
                     continue;
                 }
@@ -1755,7 +1755,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             // Filter by search term if provided
             if (!empty($search)) {
                 $search_lower = strtolower($search);
-                if (strpos(strtolower($gateway->get_title()), $search_lower) === false && 
+                if (strpos(strtolower($gateway->get_title()), $search_lower) === false &&
                     strpos(strtolower($gateway_id), $search_lower) === false) {
                     continue;
                 }
@@ -1800,7 +1800,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             // Filter by search term if provided
             if (!empty($search)) {
                 $search_lower = strtolower($search);
-                if (strpos(strtolower($method->get_method_title()), $search_lower) === false && 
+                if (strpos(strtolower($method->get_method_title()), $search_lower) === false &&
                     strpos(strtolower($method_id), $search_lower) === false) {
                     continue;
                 }

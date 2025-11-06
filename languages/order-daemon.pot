@@ -88,1084 +88,1076 @@ msgid "status.info"
 msgstr "Info"
 
 #: src/API/AuditLogEndpoint.php:1453
-msgid "No timeline data available"
-msgstr ""
+msgid "audit.logs.timeline.empty"
+msgstr "No timeline data available"
 
 #: src/API/AuditLogEndpoint.php:1552 src/API/AuditLogEndpoint.php:2153
-msgid "Invalid process ID"
-msgstr ""
+msgid "audit.logs.process.invalid_id"
+msgstr "Invalid process ID"
 
 #: src/API/AuditLogEndpoint.php:1611
-msgid "Failed to fetch process logs"
-msgstr ""
+msgid "audit.logs.process.fetch_failure"
+msgstr "Failed to fetch process logs"
 
 #: src/API/AuditLogEndpoint.php:2183
-msgid "No events found for this process"
-msgstr ""
+msgid "audit.logs.process.no_events"
+msgstr "No events found for this process"
 
 #: src/API/AuditLogEndpoint.php:2249
-msgid "All process events filtered (debug mode disabled)"
-msgstr ""
+msgid "audit.logs.process.events_filtered_debug"
+msgstr "All process events filtered (debug mode disabled)"
 
 #: src/API/AuditLogEndpoint.php:2251
-msgid "No process components available"
-msgstr ""
+msgid "audit.logs.process.no_components"
+msgstr "No process components available"
 
 #: src/API/AuditLogEndpoint.php:2265
-msgid "Error rendering process timeline"
-msgstr ""
+msgid "audit.logs.process.timeline_render_error"
+msgstr "Error rendering process timeline"
 
 #: src/API/RuleBuilderApiController.php:65
 #: src/API/RuleBuilderApiController.php:76
-msgid "Unique identifier for the rule."
-msgstr ""
+msgid "api.rule_builder.rule_id_description"
+msgstr "Unique identifier for the rule."
 
 #: src/API/RuleBuilderApiController.php:90
-msgid "Data source to search (products, categories, posts, etc.)"
-msgstr ""
+msgid "api.rule_builder.data_source_description"
+msgstr "Data source to search (products, categories, posts, etc.)"
 
 #: src/API/RuleBuilderApiController.php:96
-msgid "Search term"
-msgstr ""
+msgid "api.rule_builder.search_term_description"
+msgstr "Search term"
 
 #: src/API/RuleBuilderApiController.php:101
-msgid "Maximum number of results"
-msgstr ""
+msgid "api.rule_builder.max_results_description"
+msgstr "Maximum number of results"
 
 #: src/API/RuleBuilderApiController.php:185
-msgid "Failed to load rule builder components"
-msgstr ""
+msgid "api.rule_builder.components_load_failure"
+msgstr "Failed to load rule builder components"
 
 #: src/API/RuleBuilderApiController.php:263
-msgid "Invalid completion rule ID."
-msgstr ""
+msgid "api.rule_builder.invalid_rule_id"
+msgstr "Invalid completion rule ID."
 
 #: src/API/RuleBuilderApiController.php:272
-msgid "Invalid or empty rule data provided."
-msgstr ""
+msgid "api.rule_builder.invalid_rule_data"
+msgstr "Invalid or empty rule data provided."
 
 #: src/API/RuleBuilderApiController.php:314
-msgid "Failed to update rule post: "
-msgstr ""
+msgid "api.rule_builder.rule_update_failure"
+msgstr "Failed to update rule post: "
 
 #: src/API/RuleBuilderApiController.php:324
-msgid "Failed to encode rule data as JSON."
-msgstr ""
+msgid "api.rule_builder.json_encode_failure"
+msgstr "Failed to encode rule data as JSON."
 
 #: src/API/RuleBuilderApiController.php:335
-msgid "Failed to save rule data to post meta."
-msgstr ""
+msgid "api.rule_builder.meta_save_failure"
+msgstr "Failed to save rule data to post meta."
 
 #: src/API/RuleBuilderApiController.php:353
-msgid "Rule saved successfully."
-msgstr ""
+msgid "api.rule_builder.rule_save_success"
+msgstr "Rule saved successfully."
 
 #: src/API/RuleBuilderApiController.php:364
-msgid "An unexpected error occurred while saving the rule: "
-msgstr ""
+msgid "api.rule_builder.unexpected_save_error"
+msgstr "An unexpected error occurred while saving the rule: "
 
 #: src/API/RuleBuilderApiController.php:393
-msgid ""
+msgid "api.rule_builder.entitlement.any_status_change_premium"
+msgstr ""
 "Trigger \"Any Status Change\" is a Pro feature and cannot be saved without a "
 "license."
-msgstr ""
 
 #: src/API/RuleBuilderApiController.php:403
 #, php-format
-msgid "Condition %d: %s"
-msgstr ""
+msgid "api.rule_builder.entitlement.condition_error"
+msgstr "Condition %d: %s"
 
 #: src/API/RuleBuilderApiController.php:413
 #, php-format
-msgid "Action %d: %s"
-msgstr ""
+msgid "api.rule_builder.entitlement.action_error"
+msgstr "Action %d: %s"
 
 #: src/API/RuleBuilderApiController.php:421
-msgid ""
-"Rules containing Pro components can’t be saved without a license. Upgrade or "
-"remove Pro components to continue."
+msgid "api.rule_builder.entitlement.premium_blocked"
 msgstr ""
+"Rules containing Pro components can't be saved without a license. Upgrade or "
+"remove Pro components to continue."
 
 #: src/API/RuleBuilderApiController.php:439
-msgid "Component missing ID"
-msgstr ""
+msgid "api.rule_builder.component_missing_id"
+msgstr "Component missing ID"
 
 #: src/API/RuleBuilderApiController.php:447
 #, php-format
-msgid "Unknown %s: %s"
-msgstr ""
+msgid "api.rule_builder.unknown_component"
+msgstr "Unknown %s: %s"
 
 #: src/API/RuleBuilderApiController.php:454
 #, php-format
-msgid "%s \"%s\" requires Pro access"
-msgstr ""
+msgid "api.rule_builder.entitlement.component_requires_pro"
+msgstr "%s \"%s\" requires Pro access"
 
 #: src/API/RuleBuilderApiController.php:533
 #, php-format
-msgid "The following options require Pro access: %s"
-msgstr ""
+msgid "api.rule_builder.entitlement.options_require_pro"
+msgstr "The following options require Pro access: %s"
 
 #: src/API/RuleBuilderApiController.php:660
-msgid "You do not have permissions to view these components."
-msgstr ""
+msgid "api.rule_builder.permission.view_components_denied"
+msgstr "You do not have permissions to view these components."
 
 #: src/API/RuleBuilderApiController.php:675
-msgid "You do not have permissions to view this rule."
-msgstr ""
+msgid "api.rule_builder.permission.view_rule_denied"
+msgstr "You do not have permissions to view this rule."
 
 #: src/API/RuleBuilderApiController.php:689
-msgid "You do not have permissions to save this rule."
-msgstr ""
+msgid "api.rule_builder.permission.save_rule_denied"
+msgstr "You do not have permissions to save this rule."
 
 #: src/API/RuleBuilderApiController.php:712
-msgid "You do not have permission to access this resource."
-msgstr ""
+msgid "api.rule_builder.permission.resource_access_denied"
+msgstr "You do not have permission to access this resource."
 
 #: src/API/RuleBuilderApiController.php:722
-msgid "Invalid nonce. Please refresh the page and try again."
-msgstr ""
+msgid "api.rule_builder.permission.invalid_nonce"
+msgstr "Invalid nonce. Please refresh the page and try again."
 
 #: src/API/RuleBuilderApiController.php:1438
-msgid "Failed to search content"
-msgstr ""
+msgid "api.rule_builder.search.content_search_failure"
+msgstr "Failed to search content"
 
 #: src/API/Timeline/RegistryTimelineRenderer.php:210
-msgid "No timeline data available for this process group"
-msgstr ""
+msgid "audit.logs.timeline.process_group_empty"
+msgstr "No timeline data available for this process group"
 
 #: src/API/Timeline/RegistryTimelineRenderer.php:211
-msgid "No timeline data available for this log entry"
-msgstr ""
+msgid "audit.logs.timeline.log_entry_empty"
+msgstr "No timeline data available for this log entry"
 
 #: src/Admin/Admin.php:114
-msgid ""
-"Tip: Drag rules using the handle to change their priority. Lower number = "
-"higher priority. Higher priority rules run first."
-msgstr ""
+msgid "admin.ui.drag_drop_tip"
+msgstr "Tip: Drag rules using the handle to change their priority. Lower number = higher priority. Higher priority rules run first."
 
 #: src/Admin/Admin.php:188 src/Admin/Admin.php:487
 #: src/Admin/CompletionRulesListTable.php:92
 #: src/Admin/InsightDashboard.php:1042 src/Admin/InsightDashboard.php:1079
 #: src/Admin/InsightDashboard.php:1228 src/Includes/actions.php:1017
-msgid "Security check failed."
-msgstr ""
+msgid "admin.ajax.security_check_failed"
+msgstr "Security check failed."
 
 #: src/Admin/Admin.php:196
-msgid "No rule order data received."
-msgstr ""
+msgid "admin.ajax.no_rule_order_data"
+msgstr "No rule order data received."
 
 #: src/Admin/Admin.php:221 src/Includes/actions.php:1067
-msgid "Rule order updated successfully."
-msgstr ""
+msgid "admin.ajax.rule_order_update_success"
+msgstr "Rule order updated successfully."
 
 #: src/Admin/Admin.php:223
-msgid "Error updating some rules. Please try again."
-msgstr ""
+msgid "admin.ajax.rule_order_update_error"
+msgstr "Error updating some rules. Please try again."
 
 #: src/Admin/Admin.php:319 src/Admin/Admin.php:418 src/Admin/Admin.php:456
 #: src/Admin/CompletionRulesListTable.php:43
 #: src/Admin/CompletionRulesListTable.php:177
-msgid "Active"
-msgstr ""
+msgid "admin.ui.active"
+msgstr "Active"
 
 #: src/Admin/Admin.php:320 src/Admin/Admin.php:456
 #: src/Admin/CompletionRulesListTable.php:178
-msgid "Inactive"
-msgstr ""
+msgid "admin.ui.inactive"
+msgstr "Inactive"
 
 #: src/Admin/Admin.php:321
-msgid "Error updating rule status. Please try again."
-msgstr ""
+msgid "admin.ui.rule_status_update_error"
+msgstr "Error updating rule status. Please try again."
 
 #: src/Admin/Admin.php:322 src/Admin/Admin.php:552
 #: src/Admin/CompletionRulesListTable.php:204
-msgid "Draft"
-msgstr ""
+msgid "admin.ui.draft"
+msgstr "Draft"
 
 #: src/Admin/Admin.php:323 src/Admin/Admin.php:546
 #: src/Admin/CompletionRulesListTable.php:252
-msgid "Published"
-msgstr ""
+msgid "admin.ui.published"
+msgstr "Published"
 
 #: src/Admin/Admin.php:324 src/Admin/Admin.php:546
 #: src/Admin/CompletionRulesListTable.php:254
-msgid "Last Modified"
-msgstr ""
+msgid "admin.ui.last_modified"
+msgstr "Last Modified"
 
 #: src/Admin/Admin.php:326
-msgid "Error updating rule order. Please try again."
-msgstr ""
+msgid "admin.ui.rule_order_update_error"
+msgstr "Error updating rule order. Please try again."
 
 #: src/Admin/Admin.php:358
 msgctxt "post type general name"
-msgid "Order Rules"
-msgstr ""
+msgid "admin.post_type.order_rules_plural"
+msgstr "Order Rules"
 
 #: src/Admin/Admin.php:359
 msgctxt "post type singular name"
-msgid "Order Rule"
-msgstr ""
+msgid "admin.post_type.order_rule_singular"
+msgstr "Order Rule"
 
 #: src/Admin/Admin.php:360
 msgctxt "admin menu"
-msgid "Order Rules"
-msgstr ""
+msgid "admin.post_type.order_rules_menu"
+msgstr "Order Rules"
 
 #: src/Admin/Admin.php:361
 msgctxt "add new on admin bar"
-msgid "Order Rule"
-msgstr ""
+msgid "admin.post_type.order_rule_admin_bar"
+msgstr "Order Rule"
 
 #: src/Admin/Admin.php:362
 msgctxt "order rule"
-msgid "Add New"
-msgstr ""
+msgid "admin.post_type.add_new"
+msgstr "Add New"
 
 #: src/Admin/Admin.php:363
-msgid "Add New Order Rule"
-msgstr ""
+msgid "admin.post_type.add_new_item"
+msgstr "Add New Order Rule"
 
 #: src/Admin/Admin.php:364
-msgid "New Order Rule"
-msgstr ""
+msgid "admin.post_type.new_item"
+msgstr "New Order Rule"
 
 #: src/Admin/Admin.php:365
-msgid "Edit Order Rule"
-msgstr ""
+msgid "admin.post_type.edit_item"
+msgstr "Edit Order Rule"
 
 #: src/Admin/Admin.php:366
-msgid "View Order Rule"
-msgstr ""
+msgid "admin.post_type.view_item"
+msgstr "View Order Rule"
 
 #: src/Admin/Admin.php:367 src/Admin/InsightDashboard.php:125
 #: src/Admin/InsightDashboard.php:126
-msgid "All Order Rules"
-msgstr ""
+msgid "admin.post_type.all_items"
+msgstr "All Order Rules"
 
 #: src/Admin/Admin.php:368
-msgid "Search Order Rules"
-msgstr ""
+msgid "admin.post_type.search_items"
+msgstr "Search Order Rules"
 
 #: src/Admin/Admin.php:369
-msgid "Parent Order Rules:"
-msgstr ""
+msgid "admin.post_type.parent_item_colon"
+msgstr "Parent Order Rules:"
 
 #: src/Admin/Admin.php:370
-msgid "No order rules found."
-msgstr ""
+msgid "admin.post_type.not_found"
+msgstr "No order rules found."
 
 #: src/Admin/Admin.php:371
-msgid "No order rules found in Trash."
-msgstr ""
+msgid "admin.post_type.not_found_in_trash"
+msgstr "No order rules found in Trash."
 
 #: src/Admin/Admin.php:376
-msgid "Completion rules for WooCommerce"
-msgstr ""
+msgid "admin.post_type.description"
+msgstr "Order completion rules for WooCommerce"
 
 #: src/Admin/Admin.php:426 src/Admin/Admin.php:429
 #: src/Admin/CompletionRulesListTable.php:45
-msgid "Priority"
-msgstr ""
+msgid "admin.columns.priority"
+msgstr "Priority"
 
 #: src/Admin/Admin.php:466
-msgid "Lower number = Higher priority"
-msgstr ""
+msgid "admin.ui.priority_tooltip"
+msgstr "Lower number = Higher priority"
 
 #: src/Admin/Admin.php:493
-msgid "You do not have permission to edit this rule."
-msgstr ""
+msgid "admin.ajax.no_permission_edit_rule"
+msgstr "You do not have permission to edit this rule."
 
 #: src/Admin/Admin.php:500
-msgid "Rule not found."
-msgstr ""
+msgid "admin.ajax.rule_not_found"
+msgstr "Rule not found."
 
 #: src/Admin/Admin.php:556
-msgid "Rule status updated successfully."
-msgstr ""
+msgid "admin.ajax.rule_status_update_success"
+msgstr "Rule status updated successfully."
 
 #: src/Admin/Admin.php:567
-msgid "Failed to update rule status."
-msgstr ""
+msgid "admin.ajax.rule_status_update_failure"
+msgstr "Failed to update rule status."
 
 #: src/Admin/Admin.php:605
-msgid "Order Rule"
-msgstr ""
+msgid "admin.ui.order_rule"
+msgstr "Order Rule"
 
 #: src/Admin/CompletionRulesListTable.php:44
-msgid "Title"
-msgstr ""
+msgid "admin.columns.title"
+msgstr "Title"
 
 #: src/Admin/CompletionRulesListTable.php:46
-msgid "Date"
-msgstr ""
+msgid "admin.columns.date"
+msgstr "Date"
 
 #: src/Admin/CompletionRulesListTable.php:72
-msgid "Activate"
-msgstr ""
+msgid "admin.actions.activate"
+msgstr "Activate"
 
 #: src/Admin/CompletionRulesListTable.php:73
-msgid "Deactivate"
-msgstr ""
+msgid "admin.actions.deactivate"
+msgstr "Deactivate"
 
 #: src/Admin/CompletionRulesListTable.php:74
-msgid "Move to Trash"
-msgstr ""
+msgid "admin.actions.move_to_trash"
+msgstr "Move to Trash"
 
 #: src/Admin/CompletionRulesListTable.php:97 src/Includes/actions.php:1025
-msgid "You do not have permission to perform this action."
-msgstr ""
+msgid "admin.permission.no_action_permission"
+msgstr "You do not have permission to perform this action."
 
 #: src/Admin/CompletionRulesListTable.php:211 src/Admin/RuleBuilder.php:292
-msgid "Edit"
-msgstr ""
+msgid "admin.actions.edit"
+msgstr "Edit"
 
 #: src/Admin/CompletionRulesListTable.php:222
-msgid ""
-"Are you sure you want to delete this rule? This action cannot be undone."
-msgstr ""
+msgid "admin.confirmation.delete_rule_warning"
+msgstr "Are you sure you want to delete this rule? This action cannot be undone."
 
 #: src/Admin/CompletionRulesListTable.php:223
-msgid "Delete"
-msgstr ""
+msgid "admin.actions.delete"
+msgstr "Delete"
 
 #: src/Admin/CompletionRulesListTable.php:268
-msgid "No order rules found. Click \"Add New\" to create your first rule."
-msgstr ""
+msgid "admin.empty_state.no_rules_found"
+msgstr "No order rules found. Click \"Add New\" to create your first rule."
 
 #: src/Admin/ComponentSummaryBuilder.php:122
 #: src/Admin/ComponentSummaryBuilder.php:137
 #: src/Admin/ComponentSummaryBuilder.php:461
-msgid "includes"
-msgstr ""
+msgid "component.operator.includes"
+msgstr "includes"
 
 #: src/Admin/ComponentSummaryBuilder.php:123
-msgid "includes all of"
-msgstr ""
+msgid "component.operator.includes_all"
+msgstr "includes all of"
 
 #: src/Admin/ComponentSummaryBuilder.php:136
-msgid "is only"
-msgstr ""
+msgid "component.operator.is_only"
+msgstr "is only"
 
 #: src/Admin/ComponentSummaryBuilder.php:138
 #: src/Admin/ComponentSummaryBuilder.php:141
-msgid "is not"
-msgstr ""
+msgid "component.operator.is_not"
+msgstr "is not"
 
 #: src/Admin/ComponentSummaryBuilder.php:139
-msgid "only"
-msgstr ""
+msgid "component.operator.only"
+msgstr "only"
 
 #: src/Admin/ComponentSummaryBuilder.php:140
 #: src/Admin/ComponentSummaryBuilder.php:149
 #: src/Admin/ComponentSummaryBuilder.php:154
-msgid "equals"
-msgstr ""
+msgid "component.operator.equals"
+msgstr "equals"
 
 #: src/Admin/ComponentSummaryBuilder.php:142
-msgid "greater than"
-msgstr ""
+msgid "component.operator.greater_than"
+msgstr "greater than"
 
 #: src/Admin/ComponentSummaryBuilder.php:143
 #: src/Admin/ComponentSummaryBuilder.php:148
 #: src/Admin/ComponentSummaryBuilder.php:153
-msgid "less than"
-msgstr ""
+msgid "component.operator.less_than"
+msgstr "less than"
 
 #: src/Admin/ComponentSummaryBuilder.php:144
 #: src/Admin/ComponentSummaryBuilder.php:150
 #: src/Admin/ComponentSummaryBuilder.php:155
-msgid "at least"
-msgstr ""
+msgid "component.operator.at_least"
+msgstr "at least"
 
 #: src/Admin/ComponentSummaryBuilder.php:145
 #: src/Admin/ComponentSummaryBuilder.php:151
 #: src/Admin/ComponentSummaryBuilder.php:156
-msgid "at most"
-msgstr ""
+msgid "component.operator.at_most"
+msgstr "at most"
 
 #: src/Admin/ComponentSummaryBuilder.php:146
-msgid "contains"
-msgstr ""
+msgid "component.operator.contains"
+msgstr "contains"
 
 #: src/Admin/ComponentSummaryBuilder.php:147
 #: src/Admin/ComponentSummaryBuilder.php:152
-msgid "more than"
-msgstr ""
+msgid "component.operator.more_than"
+msgstr "more than"
 
 #: src/Admin/ComponentSummaryBuilder.php:200
-msgid "including product variations"
-msgstr ""
+msgid "component.option.including_product_variations"
+msgstr "including product variations"
 
 #: src/Admin/ComponentSummaryBuilder.php:204
-msgid "including guests"
-msgstr ""
+msgid "component.option.including_guests"
+msgstr "including guests"
 
 #: src/Admin/ComponentSummaryBuilder.php:241
-msgid "enabled"
-msgstr ""
+msgid "component.state.enabled"
+msgstr "enabled"
 
 #: src/Admin/ComponentSummaryBuilder.php:241
-msgid "disabled"
-msgstr ""
+msgid "component.state.disabled"
+msgstr "disabled"
 
 #: src/Admin/ComponentSummaryBuilder.php:300
 #: src/Admin/ComponentSummaryBuilder.php:525
-msgid "Component"
-msgstr ""
+msgid "component.label.component"
+msgstr "Component"
 
 #: src/Admin/ComponentSummaryBuilder.php:475
-msgid "Total quantity"
-msgstr ""
+msgid "component.quantity.total_quantity"
+msgstr "Total quantity"
 
 #: src/Admin/ComponentSummaryBuilder.php:476
-msgid "Unique products"
-msgstr ""
+msgid "component.quantity.unique_products"
+msgstr "Unique products"
 
 #: src/Admin/ComponentSummaryBuilder.php:519
-msgid "Trigger"
-msgstr ""
+msgid "component.type.trigger"
+msgstr "Trigger"
 
 #: src/Admin/ComponentSummaryBuilder.php:520
-msgid "Condition"
-msgstr ""
+msgid "component.type.condition"
+msgstr "Condition"
 
 #: src/Admin/ComponentSummaryBuilder.php:521
-msgid "Action"
-msgstr ""
+msgid "component.type.action"
+msgstr "Action"
 
 #: src/Admin/ComponentSummaryBuilder.php:522 src/Admin/RuleBuilder.php:1269
-msgid "Primary Action"
-msgstr ""
+msgid "component.type.primary_action"
+msgstr "Primary Action"
 
 #: src/Admin/DiagnosticDashboard.php:108
-msgid "Running diagnostics..."
-msgstr ""
+msgid "admin.diagnostics.running"
+msgstr "Running diagnostics..."
 
 #: src/Admin/DiagnosticDashboard.php:109
-msgid "Diagnostics completed successfully"
-msgstr ""
+msgid "admin.diagnostics.completed_successfully"
+msgstr "Diagnostics completed successfully"
 
 #: src/Admin/DiagnosticDashboard.php:110
-msgid "Error running diagnostics"
-msgstr ""
+msgid "admin.diagnostics.error_running"
+msgstr "Error running diagnostics"
 
 #. Author of the plugin/theme
 #: src/Admin/InsightDashboard.php:102 src/Admin/InsightDashboard.php:103
-msgid "Order Daemon"
-msgstr ""
+msgid "admin.insight_dashboard.menu.title"
+msgstr "Order Daemon"
 
 #: src/Admin/InsightDashboard.php:115 src/Admin/InsightDashboard.php:116
-msgid "Insight Dashboard"
-msgstr ""
+msgid "admin.insight_dashboard.submenu.insight_dashboard"
+msgstr "Insight Dashboard"
 
 #: src/Admin/InsightDashboard.php:135 src/Admin/InsightDashboard.php:136
-msgid "Diagnostics"
-msgstr ""
+msgid "admin.insight_dashboard.submenu.diagnostics"
+msgstr "Diagnostics"
 
 #: src/Admin/InsightDashboard.php:286 src/Admin/RuleBuilder.php:290
-msgid "Loading..."
-msgstr ""
+msgid "admin.insight_dashboard.loading"
+msgstr "Loading..."
 
 #: src/Admin/InsightDashboard.php:287
-msgid "Error loading data"
-msgstr ""
+msgid "admin.insight_dashboard.error_loading_data"
+msgstr "Error loading data"
 
 #: src/Admin/InsightDashboard.php:288
-msgid "No log entries found"
-msgstr ""
+msgid "admin.insight_dashboard.no_logs"
+msgstr "No log entries found"
 
 #: src/Admin/InsightDashboard.php:289
-msgid "Select a log entry to view details"
-msgstr ""
+msgid "admin.insight_dashboard.select_log_entry"
+msgstr "Select a log entry to view details"
 
 #: src/Admin/InsightDashboard.php:290 src/Admin/InsightDashboard.php:542
-msgid "Filters"
-msgstr ""
+msgid "admin.insight_dashboard.filters"
+msgstr "Filters"
 
 #: src/Admin/InsightDashboard.php:291
-msgid "Details"
-msgstr ""
+msgid "admin.insight_dashboard.details"
+msgstr "Details"
 
 #: src/Admin/InsightDashboard.php:292 src/Includes/UpgradePrompts.php:145
 #: src/Includes/UpgradePrompts.php:169 src/Includes/UpgradePrompts.php:186
-msgid "Close"
-msgstr ""
+msgid "admin.insight_dashboard.close"
+msgstr "Close"
 
 #: src/Admin/InsightDashboard.php:293 src/Admin/InsightDashboard.php:578
-msgid "Refresh"
-msgstr ""
+msgid "admin.insight_dashboard.refresh"
+msgstr "Refresh"
 
 #: src/Admin/InsightDashboard.php:294
-msgid "New log entries available"
-msgstr ""
+msgid "admin.insight_dashboard.new_logs_available"
+msgstr "New log entries available"
 
 #: src/Admin/InsightDashboard.php:295 src/Admin/InsightDashboard.php:742
-msgid "Include Debug Logs"
-msgstr ""
+msgid "admin.insight_dashboard.include_debug_logs"
+msgstr "Include Debug Logs"
 
 #: src/Admin/InsightDashboard.php:296
-msgid "Time Only"
-msgstr ""
+msgid "admin.insight_dashboard.timestamp.time_only"
+msgstr "Time Only"
 
 #: src/Admin/InsightDashboard.php:297
-msgid "Date & Time"
-msgstr ""
+msgid "admin.insight_dashboard.timestamp.date_and_time"
+msgstr "Date & Time"
 
 #: src/Admin/InsightDashboard.php:298
-msgid "Relative Time"
-msgstr ""
+msgid "admin.insight_dashboard.timestamp.relative_time"
+msgstr "Relative Time"
 
 #: src/Admin/InsightDashboard.php:474
-msgid "You do not have sufficient permissions to access this page."
-msgstr ""
+msgid "admin.insight_dashboard.permission.insufficient_permissions"
+msgstr "You do not have sufficient permissions to access this page."
 
 #: src/Admin/InsightDashboard.php:524
-msgid "Close pane"
-msgstr ""
+msgid "admin.insight_dashboard.pane.close"
+msgstr "Close pane"
 
 #: src/Admin/InsightDashboard.php:533
-msgid "Open last pane"
-msgstr ""
+msgid "admin.insight_dashboard.pane.open_last"
+msgstr "Open last pane"
 
 #: src/Admin/InsightDashboard.php:551
-msgid "Settings"
-msgstr ""
+msgid "admin.insight_dashboard.settings.title"
+msgstr "Settings"
 
 #: src/Admin/InsightDashboard.php:559 src/Admin/InsightDashboard.php:1339
-msgid "View Documentation"
-msgstr ""
+msgid "admin.insight_dashboard.docs.view_documentation"
+msgstr "View Documentation"
 
 #: src/Admin/InsightDashboard.php:569
 #: src/Core/DashboardComponentRegistry.php:39
-msgid "Log Stream"
-msgstr ""
-
-#: src/Admin/InsightDashboard.php:580
-msgid "every"
-msgstr ""
+msgid "admin.insight_dashboard.stream.title"
+msgstr "Log Stream"
 
 #: src/Admin/InsightDashboard.php:597
-msgid "Auto-refresh"
-msgstr ""
+msgid "admin.insight_dashboard.actions.auto_refresh"
+msgstr "Auto-refresh"
 
 #: src/Admin/InsightDashboard.php:605
-msgid "Events Timeline"
-msgstr ""
+msgid "admin.insight_dashboard.detail_pane.events_timeline"
+msgstr "Events Timeline"
 
 #: src/Admin/InsightDashboard.php:610
-msgid "Contract details pane"
-msgstr ""
+msgid "admin.insight_dashboard.detail_pane.contract_details_pane"
+msgstr "Contract details pane"
 
 #: src/Admin/InsightDashboard.php:610
-msgid "Expand details pane"
-msgstr ""
+msgid "admin.insight_dashboard.detail_pane.expand_details_pane"
+msgstr "Expand details pane"
 
 #: src/Admin/InsightDashboard.php:654 src/Core/audit-filters.php:75
-msgid "Search"
-msgstr ""
+msgid "admin.insight_dashboard.filters.search.label"
+msgstr "Search"
 
 #: src/Admin/InsightDashboard.php:658 src/Core/audit-filters.php:165
-msgid "Search Order ID or free text..."
-msgstr ""
+msgid "admin.insight_dashboard.filters.search.placeholder"
+msgstr "Search Order ID or free text..."
 
 #: src/Admin/InsightDashboard.php:664
-msgid "PREMIUM"
-msgstr ""
+msgid "admin.insight_dashboard.premium.badge"
+msgstr "PREMIUM"
 
 #: src/Admin/InsightDashboard.php:669 src/Core/audit-filters.php:107
-msgid "Status"
-msgstr ""
+msgid "admin.insight_dashboard.filters.status.label"
+msgstr "Status"
 
 #: src/Admin/InsightDashboard.php:673 src/Core/audit-filters.php:239
-msgid "All Statuses"
-msgstr ""
+msgid "admin.insight_dashboard.filters.status.all"
+msgstr "All Statuses"
 
 #: src/Admin/InsightDashboard.php:683 src/Core/audit-filters.php:121
-msgid "Event Type"
-msgstr ""
+msgid "admin.insight_dashboard.filters.event_type.label"
+msgstr "Event Type"
 
 #: src/Admin/InsightDashboard.php:687 src/Core/audit-filters.php:277
-msgid "All Event Types"
-msgstr ""
+msgid "admin.insight_dashboard.filters.event_type.all"
+msgstr "All Event Types"
 
 #: src/Admin/InsightDashboard.php:688 src/Core/audit-filters.php:278
-msgid "Rule Check"
-msgstr ""
+msgid "admin.insight_dashboard.filters.event_type.rule_check"
+msgstr "Rule Check"
 
 #: src/Admin/InsightDashboard.php:689 src/Core/audit-filters.php:279
-msgid "Order Completion"
-msgstr ""
+msgid "admin.insight_dashboard.filters.event_type.order_completion"
+msgstr "Order Completion"
 
 #: src/Admin/InsightDashboard.php:690 src/Core/audit-filters.php:280
-msgid "Manual Trigger"
-msgstr ""
+msgid "admin.insight_dashboard.filters.event_type.manual_trigger"
+msgstr "Manual Trigger"
 
 #: src/Admin/InsightDashboard.php:691 src/Core/audit-filters.php:281
-msgid "Scheduled Task"
-msgstr ""
+msgid "admin.insight_dashboard.filters.event_type.scheduled_task"
+msgstr "Scheduled Task"
 
 #: src/Admin/InsightDashboard.php:692 src/Core/audit-filters.php:282
-msgid "Webhook Received"
-msgstr ""
+msgid "admin.insight_dashboard.filters.event_type.webhook_received"
+msgstr "Webhook Received"
 
 #: src/Admin/InsightDashboard.php:693 src/Core/audit-filters.php:283
-msgid "Error Occurred"
-msgstr ""
+msgid "admin.insight_dashboard.filters.event_type.error_occurred"
+msgstr "Error Occurred"
 
 #: src/Admin/InsightDashboard.php:699 src/Core/audit-filters.php:136
-msgid "Source"
-msgstr ""
+msgid "admin.insight_dashboard.filters.source.label"
+msgstr "Source"
 
 #: src/Admin/InsightDashboard.php:703 src/Core/audit-filters.php:318
-msgid "All Sources"
-msgstr ""
+msgid "admin.insight_dashboard.filters.source.all"
+msgstr "All Sources"
 
 #: src/Admin/InsightDashboard.php:704 src/Core/LogRegistries.php:1084
 #: src/Core/audit-filters.php:319
-msgid "Manual"
-msgstr ""
+msgid "admin.insight_dashboard.filters.source.manual"
+msgstr "Manual"
 
 #: src/Admin/InsightDashboard.php:705 src/Core/LogRegistries.php:1096
 #: src/Core/audit-filters.php:320
-msgid "Scheduled"
-msgstr ""
+msgid "admin.insight_dashboard.filters.source.scheduled"
+msgstr "Scheduled"
 
 #: src/Admin/InsightDashboard.php:706 src/Core/LogRegistries.php:1088
 #: src/Core/audit-filters.php:321
-msgid "Webhook"
-msgstr ""
+msgid "admin.insight_dashboard.filters.source.webhook"
+msgstr "Webhook"
 
 #: src/Admin/InsightDashboard.php:707 src/Core/LogRegistries.php:1092
 #: src/Core/audit-filters.php:322
-msgid "API"
-msgstr ""
+msgid "admin.insight_dashboard.filters.source.api"
+msgstr "API"
 
 #: src/Admin/InsightDashboard.php:708 src/Core/LogRegistries.php:1080
 #: src/Core/audit-filters.php:323
-msgid "System"
-msgstr ""
+msgid "admin.insight_dashboard.filters.source.system"
+msgstr "System"
 
 #: src/Admin/InsightDashboard.php:714 src/Core/audit-filters.php:93
-msgid "Date Range"
-msgstr ""
+msgid "admin.insight_dashboard.filters.date_range.label"
+msgstr "Date Range"
 
 #: src/Admin/InsightDashboard.php:736
-msgid "Include Test Logs"
-msgstr ""
+msgid "admin.insight_dashboard.filters.include_test_logs"
+msgstr "Include Test Logs"
 
 #: src/Admin/InsightDashboard.php:750
-msgid "Apply Filters"
-msgstr ""
+msgid "admin.insight_dashboard.filters.apply_filters"
+msgstr "Apply Filters"
 
 #: src/Admin/InsightDashboard.php:753
-msgid "Clear All"
-msgstr ""
+msgid "admin.insight_dashboard.filters.clear_all"
+msgstr "Clear All"
 
 #: src/Admin/InsightDashboard.php:782
-msgid "Display Options"
-msgstr ""
+msgid "admin.insight_dashboard.settings.display_options.title"
+msgstr "Display Options"
 
 #: src/Admin/InsightDashboard.php:783
-msgid "Configure how the dashboard displays information."
-msgstr ""
+msgid "admin.insight_dashboard.settings.display_options.description"
+msgstr "Configure how the dashboard displays information."
 
 #: src/Admin/InsightDashboard.php:799
-msgid "Timestamp Format"
-msgstr ""
+msgid "admin.insight_dashboard.settings.timestamp_format.label"
+msgstr "Timestamp Format"
 
 #: src/Admin/InsightDashboard.php:801
-msgid "Choose how timestamps are displayed in log entries."
-msgstr ""
+msgid "admin.insight_dashboard.settings.timestamp_format.description"
+msgstr "Choose how timestamps are displayed in log entries."
 
 #: src/Admin/InsightDashboard.php:814
-msgid "Entries Per Page"
-msgstr ""
+msgid "admin.insight_dashboard.settings.entries_per_page.label"
+msgstr "Entries Per Page"
 
 #: src/Admin/InsightDashboard.php:816
-msgid "Number of log entries to display per page (10-200)."
-msgstr ""
+msgid "admin.insight_dashboard.settings.entries_per_page.description"
+msgstr "Number of log entries to display per page (10-200)."
 
 #: src/Admin/InsightDashboard.php:840
 #: src/Core/ProcessLifecycleDiscovery.php:118
 #: src/Core/RuleComponents/RuleTriggers/OrderProcessingTrigger.php:34
 #: src/Core/options.php:160
-msgid "Order Processing"
-msgstr ""
+msgid "admin.insight_dashboard.settings.order_processing.title"
+msgstr "Order Processing"
 
 #: src/Admin/InsightDashboard.php:841
-msgid "Manage and reprocess pending orders in your WooCommerce store."
-msgstr ""
+msgid "admin.insight_dashboard.settings.order_processing.description"
+msgstr "Manage and reprocess pending orders in your WooCommerce store."
 
 #: src/Admin/InsightDashboard.php:857 src/Admin/InsightDashboard.php:864
-msgid "Reprocess Pending Orders"
-msgstr ""
+msgid "admin.insight_dashboard.settings.reprocess_orders.label"
+msgstr "Reprocess Pending Orders"
 
 #: src/Admin/InsightDashboard.php:858
-msgid ""
+msgid "admin.insight_dashboard.settings.reprocess_orders.description"
+msgstr ""
 "Find all orders with \"processing\" or \"on-hold\" status and reprocess them "
 "against your order rules. This operation runs in the background to prevent "
 "timeouts."
-msgstr ""
 
 #: src/Admin/InsightDashboard.php:864
-msgid "Processing..."
-msgstr ""
+msgid "admin.insight_dashboard.ajax.processing"
+msgstr "Processing..."
 
 #: src/Admin/InsightDashboard.php:887
-msgid "Educational Prompts"
-msgstr ""
+msgid "admin.insight_dashboard.settings.educational_prompts.title"
+msgstr "Educational Prompts"
 
 #: src/Admin/InsightDashboard.php:888
-msgid "Control how often upgrade and feature education prompts appear."
-msgstr ""
+msgid "admin.insight_dashboard.settings.educational_prompts.description"
+msgstr "Control how often upgrade and feature education prompts appear."
 
 #: src/Admin/InsightDashboard.php:903 src/Admin/InsightDashboard.php:906
-msgid "Prompt Frequency"
-msgstr ""
+msgid "admin.insight_dashboard.settings.prompt_frequency.label"
+msgstr "Prompt Frequency"
 
 #: src/Admin/InsightDashboard.php:905
-msgid ""
+msgid "admin.insight_dashboard.settings.prompt_frequency.description"
+msgstr ""
 "These prompts are educational and help you discover features. You can adjust "
 "how often they appear."
-msgstr ""
 
 #: src/Admin/InsightDashboard.php:907 src/Includes/UpgradePrompts.php:149
-msgid "Normal"
-msgstr ""
+msgid "admin.insight_dashboard.settings.prompt_frequency.normal"
+msgstr "Normal"
 
 #: src/Admin/InsightDashboard.php:908 src/Includes/UpgradePrompts.php:150
-msgid "Reduced"
-msgstr ""
+msgid "admin.insight_dashboard.settings.prompt_frequency.reduced"
+msgstr "Reduced"
 
 #: src/Admin/InsightDashboard.php:909 src/Includes/UpgradePrompts.php:151
-msgid "Off"
-msgstr ""
+msgid "admin.insight_dashboard.settings.prompt_frequency.off"
+msgstr "Off"
 
 #: src/Admin/InsightDashboard.php:932
-msgid "Debug Settings"
-msgstr ""
+msgid "admin.insight_dashboard.settings.debug_settings.title"
+msgstr "Debug Settings"
 
 #: src/Admin/InsightDashboard.php:933
-msgid "Configure settings to help with debugging and development."
-msgstr ""
+msgid "admin.insight_dashboard.settings.debug_settings.description"
+msgstr "Configure settings to help with debugging and development."
 
 #: src/Admin/InsightDashboard.php:955
-msgid "Enable Global Debug Mode"
-msgstr ""
+msgid "admin.insight_dashboard.settings.global_debug_mode.label"
+msgstr "Enable Global Debug Mode"
 
 #: src/Admin/InsightDashboard.php:958
-msgid ""
+msgid "admin.insight_dashboard.settings.global_debug_mode.description"
+msgstr ""
 "Sets the ODCM_DEBUG constant to true. Adds verbose debugging info server-"
 "wide. Use with caution."
-msgstr ""
 
 #: src/Admin/InsightDashboard.php:970
-msgid "Add Debug Info to Order Notes"
-msgstr ""
+msgid "admin.insight_dashboard.settings.detailed_notes.label"
+msgstr "Add Debug Info to Order Notes"
 
 #: src/Admin/InsightDashboard.php:973
-msgid ""
+msgid "admin.insight_dashboard.settings.detailed_notes.description"
+msgstr ""
 "Include detailed product information in order notes when rules do not match. "
 "Helps with debugging but may add data bloat."
-msgstr ""
 
 #: src/Admin/InsightDashboard.php:991
-msgid "Data Management"
-msgstr ""
+msgid "admin.insight_dashboard.settings.data_management.title"
+msgstr "Data Management"
 
 #: src/Admin/InsightDashboard.php:992
-msgid "Advanced data management and export features."
-msgstr ""
+msgid "admin.insight_dashboard.settings.data_management.description"
+msgstr "Advanced data management and export features."
 
 #: src/Admin/InsightDashboard.php:1008
-msgid "Export Logs"
-msgstr ""
+msgid "admin.insight_dashboard.settings.export_logs.label"
+msgstr "Export Logs"
 
 #: src/Admin/InsightDashboard.php:1009
-msgid "Exporting audit trail logs is a pro feature."
-msgstr ""
+msgid "admin.insight_dashboard.settings.export_logs.description"
+msgstr "Exporting audit trail logs is a pro feature."
 
 #: src/Admin/InsightDashboard.php:1011 src/Admin/InsightDashboard.php:1019
-msgid "Upgrade to Pro"
-msgstr ""
+msgid "admin.insight_dashboard.settings.upgrade_to_pro"
+msgstr "Upgrade to Pro"
 
 #: src/Admin/InsightDashboard.php:1016
-msgid "Log Retention Policy"
-msgstr ""
+msgid "admin.insight_dashboard.settings.log_retention.label"
+msgstr "Log Retention Policy"
 
 #: src/Admin/InsightDashboard.php:1017
-msgid ""
+msgid "admin.insight_dashboard.settings.log_retention.description"
+msgstr ""
 "In the free version, audit trail logs are kept for 30 days. Retention "
 "controls are available in Pro."
-msgstr ""
 
 #: src/Admin/InsightDashboard.php:1037 src/Admin/InsightDashboard.php:1074
 #: src/Admin/InsightDashboard.php:1223 src/Includes/functions.php:307
-msgid "Permission denied."
-msgstr ""
+msgid "admin.insight_dashboard.ajax.permission_denied"
+msgstr "Permission denied."
 
 #: src/Admin/InsightDashboard.php:1050
-msgid "Entries per page must be between 10 and 200."
-msgstr ""
+msgid "admin.insight_dashboard.ajax.invalid_per_page_range"
+msgstr "Entries per page must be between 10 and 200."
 
 #: src/Admin/InsightDashboard.php:1059
 #, php-format
-msgid "Entries per page updated to %d."
-msgstr ""
+msgid "admin.insight_dashboard.ajax.per_page_updated"
+msgstr "Entries per page updated to %d."
 
 #: src/Admin/InsightDashboard.php:1063
-msgid "Failed to update setting."
-msgstr ""
+msgid "admin.insight_dashboard.ajax.failed_to_update_setting"
+msgstr "Failed to update setting."
 
 #: src/Admin/InsightDashboard.php:1103
-msgid "Debug settings saved successfully."
-msgstr ""
+msgid "admin.insight_dashboard.ajax.debug_settings_saved"
+msgstr "Debug settings saved successfully."
 
 #: src/Admin/InsightDashboard.php:1246 src/Core/Core.php:342
 #, php-format
-msgid "%d order has been scheduled for reprocessing."
-msgid_plural "%d orders have been scheduled for reprocessing."
-msgstr[0] ""
-msgstr[1] ""
+msgid "admin.insight_dashboard.ajax.reprocess_success_singular"
+msgid_plural "admin.insight_dashboard.ajax.reprocess_success_plural"
+msgstr[0] "%d order has been scheduled for reprocessing."
+msgstr[1] "%d orders have been scheduled for reprocessing."
 
 #: src/Admin/InsightDashboard.php:1261
-msgid "Failed to reprocess pending orders. Please try again."
-msgstr ""
+msgid "admin.insight_dashboard.ajax.failed_reprocess_orders"
+msgstr "Failed to reprocess pending orders. Please try again."
 
 #: src/Admin/InsightDashboard.php:1306
-msgid "Retry"
-msgstr ""
+msgid "admin.insight_dashboard.actions.retry"
+msgstr "Retry"
 
 #: src/Admin/InsightDashboard.php:1321
-msgid "Welcome to Order Daemon Insights!"
-msgstr ""
+msgid "admin.insight_dashboard.welcome.title"
+msgstr "Welcome to Order Daemon Insights!"
 
 #: src/Admin/InsightDashboard.php:1322
-msgid ""
+msgid "admin.insight_dashboard.welcome.description"
+msgstr ""
 "This dashboard will show real-time activity from your order completion rules "
 "once they start running."
-msgstr ""
 
 #: src/Admin/InsightDashboard.php:1326
-msgid "To get started:"
-msgstr ""
+msgid "admin.insight_dashboard.welcome.steps.title"
+msgstr "To get started:"
 
 #: src/Admin/InsightDashboard.php:1328
-msgid "Create your first completion rule"
-msgstr ""
+msgid "admin.insight_dashboard.welcome.steps.create_rule"
+msgstr "Create your first completion rule"
 
 #: src/Admin/InsightDashboard.php:1328
-msgid "in WooCommerce → All Order Rules"
-msgstr ""
+msgid "admin.insight_dashboard.welcome.steps.create_rule_location"
+msgstr "in WooCommerce → All Order Rules"
 
 #: src/Admin/InsightDashboard.php:1329
-msgid "Place a test order"
-msgstr ""
+msgid "admin.insight_dashboard.welcome.steps.place_order"
+msgstr "Place a test order"
 
 #: src/Admin/InsightDashboard.php:1329
-msgid "that matches your rule conditions"
-msgstr ""
+msgid "admin.insight_dashboard.welcome.steps.place_order_description"
+msgstr "that matches your rule conditions"
 
 #: src/Admin/InsightDashboard.php:1330
-msgid "Return here"
-msgstr ""
+msgid "admin.insight_dashboard.welcome.steps.return_here"
+msgstr "Return here"
 
 #: src/Admin/InsightDashboard.php:1330
-msgid "to see the automation in action"
-msgstr ""
+msgid "admin.insight_dashboard.welcome.steps.return_here_description"
+msgstr "to see the automation in action"
 
 #: src/Admin/InsightDashboard.php:1336
-msgid "Create Your First Rule"
-msgstr ""
+msgid "admin.insight_dashboard.welcome.actions.create_first_rule"
+msgstr "Create Your First Rule"
 
 #: src/Admin/InsightDashboard.php:1344
-msgid ""
+msgid "admin.insight_dashboard.welcome.tip"
+msgstr ""
 "Tip: Activity will appear here automatically once your rules start "
 "processing orders. No additional setup required!"
-msgstr ""
 
 #: src/Admin/InsightDashboard.php:1353
-msgid "No Recent Activity"
-msgstr ""
+msgid "admin.insight_dashboard.empty.no_activity.title"
+msgstr "No Recent Activity"
 
 #: src/Admin/InsightDashboard.php:1354
-msgid ""
-"Your completion rules are set up but haven't processed any orders recently."
-msgstr ""
+msgid "admin.insight_dashboard.empty.no_activity.description"
+msgstr "Your completion rules are set up but haven't processed any orders recently."
 
 #: src/Admin/InsightDashboard.php:1360
-msgid "Manage Rules"
-msgstr ""
+msgid "admin.insight_dashboard.empty.manage_rules"
+msgstr "Manage Rules"
 
 #: src/Admin/InsightDashboard.php:1382
-msgid "Select All"
-msgstr ""
+msgid "admin.insight_dashboard.log_stream.select_all"
+msgstr "Select All"
 
 #: src/Admin/InsightDashboard.php:1392
-msgid "Deleting..."
-msgstr ""
+msgid "admin.insight_dashboard.log_stream.deleting"
+msgstr "Deleting..."
 
 #: src/Admin/InsightDashboard.php:1392
-msgid "Delete Selected"
-msgstr ""
+msgid "admin.insight_dashboard.log_stream.delete_selected"
+msgstr "Delete Selected"
 
 #: src/Admin/InsightDashboard.php:1410
-msgid "Select log entry"
-msgstr ""
+msgid "admin.insight_dashboard.log_stream.select_log_entry"
+msgstr "Select log entry"
 
 #: src/Admin/InsightDashboard.php:1452
-msgid "of"
-msgstr ""
+msgid "admin.insight_dashboard.pagination.of"
+msgstr "of"
 
 #: src/Admin/Notices.php:80
-msgid "Order Daemon:"
-msgstr ""
+msgid "admin.notices.prefix"
+msgstr "Order Daemon:"
 
 #: src/Admin/Notices.php:82
-msgid "Dismiss this notice."
-msgstr ""
+msgid "admin.notices.dismiss"
+msgstr "Dismiss this notice."
 
 #: src/Admin/RuleBuilder.php:153 src/Admin/RuleBuilder.php:774
-msgid "Rule Builder"
-msgstr ""
+msgid "admin.rule_builder.title"
+msgstr "Rule Builder"
 
 #: src/Admin/RuleBuilder.php:287
-msgid "Saving..."
-msgstr ""
+msgid "admin.rule_builder.saving"
+msgstr "Saving..."
 
 #: src/Admin/RuleBuilder.php:288 src/Includes/UpgradePrompts.php:152
-msgid "Saved"
-msgstr ""
+msgid "admin.rule_builder.saved"
+msgstr "Saved"
 
 #: src/Admin/RuleBuilder.php:291
-msgid "Add Condition"
-msgstr ""
+msgid "admin.rule_builder.add_condition"
+msgstr "Add Condition"
 
 #: src/Admin/RuleBuilder.php:293 src/Admin/RuleBuilder.php:813
 #: src/Admin/RuleBuilder.php:1062 src/Admin/RuleBuilder.php:1452
-msgid "Remove"
-msgstr ""
+msgid "admin.rule_builder.remove"
+msgstr "Remove"
 
 #: src/Admin/RuleBuilder.php:294 src/Admin/RuleBuilder.php:1235
-msgid "Search conditions..."
-msgstr ""
+msgid "admin.rule_builder.search_conditions"
+msgstr "Search conditions..."
 
 #: src/Admin/RuleBuilder.php:295
-msgid "Search actions..."
-msgstr ""
+msgid "admin.rule_builder.search_actions"
+msgstr "Search actions..."
 
 #: src/Admin/RuleBuilder.php:296
-msgid "No settings required."
-msgstr ""
+msgid "admin.rule_builder.no_settings_required"
+msgstr "No settings required."
 
 #: src/Admin/RuleBuilder.php:783
-msgid "Loading Rule Builder..."
-msgstr ""
+msgid "admin.rule_builder.loading_rule_builder"
+msgstr "Loading Rule Builder..."
 
 #: src/Admin/RuleBuilder.php:792
-msgid "WHEN"
-msgstr ""
+msgid "admin.rule_builder.section.when"
+msgstr "WHEN"
 
 #: src/Admin/RuleBuilder.php:793
-msgid "(Trigger)"
-msgstr ""
+msgid "admin.rule_builder.section.trigger_label"
+msgstr "(Trigger)"
 
 #: src/Admin/RuleBuilder.php:801
-msgid "Add Trigger (to control when this rule should run)"
-msgstr ""
+msgid "admin.rule_builder.add_trigger"
+msgstr "Add Trigger (to control when this rule should run)"
 
 #: src/Admin/RuleBuilder.php:1008
-msgid "Search triggers..."
-msgstr ""
+msgid "admin.rule_builder.search_triggers"
+msgstr "Search triggers..."
 
 #: src/Admin/RuleBuilder.php:1036
-msgid "IF"
-msgstr ""
+msgid "admin.rule_builder.section.if"
+msgstr "IF"
 
 #: src/Admin/RuleBuilder.php:1037
-msgid "(Conditions)"
-msgstr ""
+msgid "admin.rule_builder.section.conditions_label"
+msgstr "(Conditions)"
 
 #: src/Admin/RuleBuilder.php:1227
-msgid "Add Condition (to control when this rule applies)"
-msgstr ""
+msgid "admin.rule_builder.add_condition_help"
+msgstr "Add Condition (to control when this rule applies)"
 
 #: src/Admin/RuleBuilder.php:1263
-msgid "THEN"
-msgstr ""
+msgid "admin.rule_builder.section.then"
+msgstr "THEN"
 
 #: src/Admin/RuleBuilder.php:1264
-msgid "(Actions)"
-msgstr ""
+msgid "admin.rule_builder.section.actions_label"
+msgstr "(Actions)"
 
 #: src/Admin/RuleBuilder.php:1276
-msgid "Add Primary Action (the status-changing action for this rule)"
-msgstr ""
+msgid "admin.rule_builder.add_primary_action"
+msgstr "Add Primary Action (the status-changing action for this rule)"
 
 #: src/Admin/RuleBuilder.php:1288
-msgid "Primary"
-msgstr ""
+msgid "admin.rule_builder.primary"
+msgstr "Primary"
 
 #: src/Admin/RuleBuilder.php:1294
-msgid "Change"
-msgstr ""
+msgid "admin.rule_builder.change"
+msgstr "Change"
 
 #: src/Admin/RuleBuilder.php:1405
-msgid "Search primary actions..."
-msgstr ""
+msgid "admin.rule_builder.search_primary_actions"
+msgstr "Search primary actions..."
 
 #: src/Admin/RuleBuilder.php:1432
-msgid "Secondary Actions"
-msgstr ""
+msgid "admin.rule_builder.secondary_actions"
+msgstr "Secondary Actions"
 
 #: src/Admin/RuleBuilder.php:1600
-msgid "Add Secondary Action (to run after the primary action)"
-msgstr ""
+msgid "admin.rule_builder.add_secondary_action"
+msgstr "Add Secondary Action (to run after the primary action)"
 
 #: src/Admin/RuleBuilder.php:1608
-msgid "Search additional actions..."
-msgstr ""
+msgid "admin.rule_builder.search_additional_actions"
+msgstr "Search additional actions..."
 
 #: src/Core/Core.php:156
-msgid "Error: Order rules post type not available. Please contact support."
-msgstr ""
+msgid "core.errors.post_type_not_available"
+msgstr "Error: Order rules post type not available. Please contact support."
 
 #: src/Core/Core.php:387
 #, php-format
-msgid "Admin reprocessed %d orders"
-msgstr ""
+msgid "core.admin.reprocessed_orders"
+msgstr "Admin reprocessed %d orders"
 
 #: src/Core/DashboardComponentRegistry.php:29
-msgid "Unified Header"
-msgstr ""
+msgid "core.dashboard.component.unified_header"
+msgstr "Unified Header"
 
 #: src/Core/DashboardComponentRegistry.php:34
-msgid "Filter Pane"
-msgstr ""
+msgid "core.dashboard.component.filter_pane"
+msgstr "Filter Pane"
 
 #: src/Core/DashboardComponentRegistry.php:44
-msgid "Detail Pane"
-msgstr ""
+msgid "core.dashboard.component.detail_pane"
+msgstr "Detail Pane"
 
 #: src/Core/DashboardComponentRegistry.php:49
-msgid "Filters Tab"
-msgstr ""
+msgid "core.dashboard.component.filters_tab"
+msgstr "Filters Tab"
 
 #: src/Core/DashboardComponentRegistry.php:54
-msgid "Settings Tab"
-msgstr ""
+msgid "core.dashboard.component.settings_tab"
+msgstr "Settings Tab"
 
 #: src/Core/DashboardComponentRegistry.php:59
-msgid "Welcome State"
-msgstr ""
+msgid "core.dashboard.component.welcome_state"
+msgstr "Welcome State"
 
 #: src/Core/DashboardComponentRegistry.php:64
-msgid "Empty State"
-msgstr ""
+msgid "core.dashboard.component.empty_state"
+msgstr "Empty State"
 
 #: src/Core/DashboardComponentRegistry.php:69
-msgid "Pagination"
-msgstr ""
+msgid "core.dashboard.component.pagination"
+msgstr "Pagination"
 
 #: src/Core/LogCleanup.php:193
 msgid "No old log records found to delete."

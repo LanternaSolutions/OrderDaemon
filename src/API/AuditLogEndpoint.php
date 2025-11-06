@@ -1451,7 +1451,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         } catch (\Throwable $e) {
             // Fallback for completely broken entries
             error_log('ODCM: render_log_components failed: ' . $e->getMessage());
-            return '<div class="odcm-empty-data">' . esc_html__('No timeline data available', 'order-daemon') . '</div>';
+            return '<div class="odcm-empty-data">' . esc_html__('audit.logs.timeline.empty', 'order-daemon') . '</div>';
         }
     }
 
@@ -1550,7 +1550,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             global $wpdb;
             $process_id = sanitize_text_field((string)$request->get_param('process_id'));
             if ($process_id === '') {
-                return new WP_Error('odcm_invalid_process_id', __('Invalid process ID', 'order-daemon'), ['status' => 400]);
+                return new WP_Error('odcm_invalid_process_id', __('audit.logs.process.invalid_id', 'order-daemon'), ['status' => 400]);
             }
 
             $log_table = $wpdb->prefix . 'odcm_audit_log';
@@ -1609,7 +1609,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             ], 200);
         } catch (\Throwable $e) {
             $this->log_api_error('get_logs_by_process', $e, [ 'process_id' => $request->get_param('process_id') ]);
-            return new WP_Error('odcm_process_fetch_error', __('Failed to fetch process logs', 'order-daemon'), ['status' => 500]);
+            return new WP_Error('odcm_process_fetch_error', __('audit.logs.process.fetch_failure', 'order-daemon'), ['status' => 500]);
         }
     }
 
@@ -2181,7 +2181,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $process_events = $wpdb->get_results($wpdb->prepare($sql, $process_id), 'ARRAY_A');
 
             if (empty($process_events)) {
-                return '<div class="odcm-empty-data">' . esc_html__('No events found for this process', 'order-daemon') . '</div>';
+                return '<div class="odcm-empty-data">' . esc_html__('audit.logs.process.no_events', 'order-daemon') . '</div>';
             }
 
             // Extract all payload components from the process events
@@ -2247,9 +2247,9 @@ class AuditLogEndpoint extends WP_REST_Controller
             // If no components after filtering, show appropriate message
             if (empty($all_components)) {
                 if (!$include_debug) {
-                    return '<div class="odcm-empty-data">' . esc_html__('All process events filtered (debug mode disabled)', 'order-daemon') . '</div>';
+                    return '<div class="odcm-empty-data">' . esc_html__('audit.logs.process.events_filtered_debug', 'order-daemon') . '</div>';
                 } else {
-                    return '<div class="odcm-empty-data">' . esc_html__('No process components available', 'order-daemon') . '</div>';
+                    return '<div class="odcm-empty-data">' . esc_html__('audit.logs.process.no_components', 'order-daemon') . '</div>';
                 }
             }
 
@@ -2263,7 +2263,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         } catch (\Throwable $e) {
             error_log('ODCM: render_process_timeline_by_process_id failed: ' . $e->getMessage());
-            return '<div class="odcm-empty-data">' . esc_html__('Error rendering process timeline', 'order-daemon') . '</div>';
+            return '<div class="odcm-empty-data">' . esc_html__('audit.logs.process.timeline_render_error', 'order-daemon') . '</div>';
         }
     }
 

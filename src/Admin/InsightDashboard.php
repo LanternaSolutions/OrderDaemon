@@ -100,8 +100,8 @@ class InsightDashboard
         // 1. First, add the main top-level menu (Order Daemon) pointing to the dashboard
         // WooCommerce uses position 55-56, Products around 57, so we use 56.5
         add_menu_page(
-            __('Order Daemon', 'order-daemon'),
-            __('Order Daemon', 'order-daemon'),
+            __('admin.insight_dashboard.menu.title', 'order-daemon'),
+            __('admin.insight_dashboard.menu.title', 'order-daemon'),
             'manage_woocommerce',
             self::PAGE_SLUG,
             [$this, 'render_dashboard_page'],
@@ -113,8 +113,8 @@ class InsightDashboard
         // to ensure the parent menu links to the Insight Dashboard
         add_submenu_page(
             self::PAGE_SLUG,
-            __('Insight Dashboard', 'order-daemon'),
-            __('Insight Dashboard', 'order-daemon'),
+            __('admin.insight_dashboard.submenu.insight_dashboard', 'order-daemon'),
+            __('admin.insight_dashboard.submenu.insight_dashboard', 'order-daemon'),
             'manage_woocommerce',
             self::PAGE_SLUG,
             [$this, 'render_dashboard_page']
@@ -123,8 +123,8 @@ class InsightDashboard
         // 3. Then add remaining submenu items
         add_submenu_page(
             self::PAGE_SLUG,
-            __('All Order Rules', 'order-daemon'),
-            __('All Order Rules', 'order-daemon'),
+            __('admin.insight_dashboard.submenu.all_order_rules', 'order-daemon'),
+            __('admin.insight_dashboard.submenu.all_order_rules', 'order-daemon'),
             'manage_woocommerce', 
             'edit.php?post_type=odcm_order_rule',
             null
@@ -133,8 +133,8 @@ class InsightDashboard
         // Add "Diagnostics" as third submenu item
         add_submenu_page(
             self::PAGE_SLUG,
-            __('Diagnostics', 'order-daemon'),
-            __('Diagnostics', 'order-daemon'),
+            __('admin.insight_dashboard.submenu.diagnostics', 'order-daemon'),
+            __('admin.insight_dashboard.submenu.diagnostics', 'order-daemon'),
             'manage_woocommerce',
             'odcm-diagnostics',
             [$this, 'render_diagnostics_page']
@@ -284,19 +284,19 @@ class InsightDashboard
                 'use24Hour' => strpos(get_option('time_format', 'g:i a'), 'H') !== false || strpos(get_option('time_format', 'g:i a'), 'G') !== false,
             ],
             'i18n' => [
-            'loading' => __('Loading...', 'order-daemon'),
-            'error' => __('Error loading data', 'order-daemon'),
-            'noLogs' => __('No log entries found', 'order-daemon'),
-            'selectLog' => __('Select a log entry to view details', 'order-daemon'),
-            'filters' => __('Filters', 'order-daemon'),
-            'details' => __('Details', 'order-daemon'),
-            'close' => __('Close', 'order-daemon'),
-            'refresh' => __('Refresh', 'order-daemon'),
-            'newLogsAvailable' => __('New log entries available', 'order-daemon'),
-            'includeDebug' => __('Include Debug Logs', 'order-daemon'),
-            'timeOnly' => __('Time Only', 'order-daemon'),
-            'dateAndTime' => __('Date & Time', 'order-daemon'),
-            'relativeTime' => __('Relative Time', 'order-daemon'),
+            'loading' => __('admin.insight_dashboard.loading', 'order-daemon'),
+            'error' => __('admin.insight_dashboard.error_loading_data', 'order-daemon'),
+            'noLogs' => __('admin.insight_dashboard.no_logs', 'order-daemon'),
+            'selectLog' => __('admin.insight_dashboard.select_log_entry', 'order-daemon'),
+            'filters' => __('admin.insight_dashboard.filters', 'order-daemon'),
+            'details' => __('admin.insight_dashboard.details', 'order-daemon'),
+            'close' => __('admin.insight_dashboard.close', 'order-daemon'),
+            'refresh' => __('admin.insight_dashboard.refresh', 'order-daemon'),
+            'newLogsAvailable' => __('admin.insight_dashboard.new_logs_available', 'order-daemon'),
+            'includeDebug' => __('admin.insight_dashboard.include_debug_logs', 'order-daemon'),
+            'timeOnly' => __('admin.insight_dashboard.timestamp.time_only', 'order-daemon'),
+            'dateAndTime' => __('admin.insight_dashboard.timestamp.date_and_time', 'order-daemon'),
+            'relativeTime' => __('admin.insight_dashboard.timestamp.relative_time', 'order-daemon'),
         ],
         'upgrade' => [
             'enabled' => DependencyChecker::should_show_upgrade_prompts(),
@@ -378,17 +378,17 @@ class InsightDashboard
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
-            wp_die('Security check failed');
+            wp_die(esc_html__('admin.insight_dashboard.ajax.security_check_failed', 'order-daemon'));
         }
 
         // Check user capabilities
         if (!current_user_can('manage_woocommerce')) {
-            wp_send_json_error('Insufficient permissions');
+            wp_send_json_error(__('admin.insight_dashboard.ajax.insufficient_permissions', 'order-daemon'));
         }
 
         // Check if user has access to insight dashboard (defensive check)
         if (function_exists('odcm_can_use') && !odcm_can_use('insight_dashboard')) {
-            wp_send_json_error('Feature not available');
+            wp_send_json_error(__('admin.insight_dashboard.ajax.feature_not_available', 'order-daemon'));
         }
 
         try {
@@ -399,7 +399,7 @@ class InsightDashboard
             ]);
         } catch (\Exception $e) {
             error_log('ODCM: Error checking welcome scenario: ' . $e->getMessage());
-            wp_send_json_error('Failed to check welcome scenario');
+            wp_send_json_error(__('admin.insight_dashboard.ajax.failed_welcome_scenario_check', 'order-daemon'));
         }
     }
 
@@ -519,7 +519,7 @@ class InsightDashboard
     {
         // Check user capabilities
         if (!current_user_can('manage_woocommerce')) {
-            wp_die(esc_html__('You do not have sufficient permissions to access this page.', 'order-daemon'));
+            wp_die(esc_html__('admin.insight_dashboard.permission.insufficient_permissions', 'order-daemon'));
         }
 
         // Check if user has access to audit trail functionality
@@ -569,7 +569,7 @@ class InsightDashboard
                                 class="odcm-pane-icon-button"
                                 x-show="filterPaneVisible"
                                 @click="closeFilterPane()"
-                                title="<?php echo esc_attr__('Close pane', 'order-daemon'); ?>">
+                                title="<?php echo esc_attr__('admin.insight_dashboard.pane.close', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-arrow-left-alt"></span>
                         </button>
                         
@@ -578,7 +578,7 @@ class InsightDashboard
                                 class="odcm-pane-icon-button"
                                 x-show="!filterPaneVisible"
                                 @click="openLastOpenedPane()"
-                                title="<?php echo esc_attr__('Open last pane', 'order-daemon'); ?>">
+                                title="<?php echo esc_attr__('admin.insight_dashboard.pane.open_last', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-arrow-right-alt"></span>
                         </button>
                         
@@ -587,7 +587,7 @@ class InsightDashboard
                                 class="odcm-pane-icon-button"
                                 @click="showFiltersPane()"
                                 :aria-pressed="activeFilterTab === 'filters' && filterPaneVisible"
-                                title="<?php echo esc_attr__('Filters', 'order-daemon'); ?>">
+                                title="<?php echo esc_attr__('admin.insight_dashboard.filters.title', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-search"></span>
                         </button>
                         
@@ -596,7 +596,7 @@ class InsightDashboard
                                 class="odcm-pane-icon-button"
                                 @click="showSettingsPane()"
                                 :aria-pressed="activeFilterTab === 'settings' && filterPaneVisible"
-                                title="<?php echo esc_attr__('Settings', 'order-daemon'); ?>">
+                                title="<?php echo esc_attr__('admin.insight_dashboard.settings.title', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-admin-generic"></span>
                         </button>
 
@@ -604,7 +604,7 @@ class InsightDashboard
                         <a href="<?php echo esc_url(ODCM_DOCS_URL); ?>"
                            target="_blank"
                            class="odcm-docs-link"
-                           title="<?php echo esc_attr__('View Documentation', 'order-daemon'); ?>">
+                           title="<?php echo esc_attr__('admin.insight_dashboard.docs.view_documentation', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-editor-help"></span>
                         </a>
                     </div>
@@ -614,7 +614,7 @@ class InsightDashboard
             <!-- Log Stream Header -->
             <div class="odcm-unified-header-section odcm-unified-header-stream">
                 <div class="odcm-stream-header-content">
-                    <h3><?php echo esc_html__('Log Stream', 'order-daemon'); ?></h3>
+                    <h3><?php echo esc_html__('admin.insight_dashboard.stream.title', 'order-daemon'); ?></h3>
                 </div>
                 <div class="odcm-stream-controls">
                     <div class="odcm-refresh-controls">
@@ -623,9 +623,9 @@ class InsightDashboard
                                 @click="manualRefresh()"
                                 :disabled="loading">
                             <span class="dashicons dashicons-update" :class="{ 'is-spinning': isRefreshing }"></span>
-                            <span class="odcm-button-text" x-text="autoRefreshEnabled ? '<?php echo esc_js(__('Refresh', 'order-daemon')); ?>' : '<?php echo esc_js(__('Refresh', 'order-daemon')); ?>'"></span>
+                            <span class="odcm-button-text" x-text="autoRefreshEnabled ? '<?php echo esc_js(__('admin.insight_dashboard.actions.refresh', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.actions.refresh', 'order-daemon')); ?>'"></span>
                         </button>
-                        <span x-text="autoRefreshEnabled ? '<?php echo esc_html__('every', 'order-daemon'); ?>' : ''"></span>
+                        <span x-text="autoRefreshEnabled ? '<?php echo esc_html__('admin.insight_dashboard.actions.every', 'order-daemon'); ?>' : ''"></span>
 
                         <template x-if="autoRefreshEnabled">
                             <input type="number" 
@@ -636,13 +636,13 @@ class InsightDashboard
                                     @click.stop>
                         </template>
                         <template x-if="autoRefreshEnabled">
-                            <span>second/s</span>
+                            <span><?php echo esc_html__('admin.insight_dashboard.actions.seconds', 'order-daemon'); ?></span>
                         </template>
 
                         <label class="odcm-toggle-switch">
                             <input type="checkbox" x-model="autoRefreshEnabled">
                             <span class="odcm-toggle-slider"></span>
-                            <span class="odcm-toggle-label"><?php echo esc_html__('Auto-refresh', 'order-daemon'); ?></span>
+                            <span class="odcm-toggle-label"><?php echo esc_html__('admin.insight_dashboard.actions.auto_refresh', 'order-daemon'); ?></span>
                         </label>
                     </div>
                 </div>
@@ -650,12 +650,12 @@ class InsightDashboard
 
             <!-- Detail Header -->
             <div class="odcm-unified-header-section odcm-unified-header-details" x-show="selectedLog">
-                <h3><?php echo esc_html__('Events Timeline', 'order-daemon'); ?></h3>
+                <h3><?php echo esc_html__('admin.insight_dashboard.detail_pane.events_timeline', 'order-daemon'); ?></h3>
                 <div class="odcm-detail-pane-header-actions">
                     <button type="button" 
                             class="odcm-detail-pane-expand-toggle"
                             @click="toggleDetailPaneExpansion()"
-                            :title="detailPaneExpanded ? '<?php echo esc_attr__('Contract details pane', 'order-daemon'); ?>' : '<?php echo esc_attr__('Expand details pane', 'order-daemon'); ?>'">
+                            :title="detailPaneExpanded ? '<?php echo esc_attr__('admin.insight_dashboard.detail_pane.contract_details_pane', 'order-daemon'); ?>' : '<?php echo esc_attr__('admin.insight_dashboard.detail_pane.expand_details_pane', 'order-daemon'); ?>'">
                         <span class="dashicons dashicons-arrow-left-alt icon-expand"></span>
                         <span class="dashicons dashicons-arrow-right-alt icon-collapse"></span>
                     </button>
@@ -699,67 +699,67 @@ class InsightDashboard
         <form class="odcm-filter-form" @submit.prevent="applyFilters()">
                 <!-- Omni Search (Free) -->
                 <div class="odcm-filter-group">
-                    <label for="filter-search"><?php echo esc_html__('Search', 'order-daemon'); ?></label>
+                    <label for="filter-search"><?php echo esc_html__('admin.insight_dashboard.filters.search.label', 'order-daemon'); ?></label>
                     <input type="text" 
                            id="filter-search"
                            x-model="filters.search"
-                           placeholder="<?php echo esc_attr__('Search Order ID or free text...', 'order-daemon'); ?>"
+                           placeholder="<?php echo esc_attr__('admin.insight_dashboard.filters.search.placeholder', 'order-daemon'); ?>"
                            class="regular-text">
                 </div>
 
                 <!-- Premium Filters Group -->
                 <div class="odcm-premium-filter-group" :class="{ 'is-disabled': !canUsePremiumFilters }">
-                    <div class="odcm-premium-badge odcm-premium-badge--absolute"><?php echo esc_html__('PREMIUM', 'order-daemon'); ?></div>
+                    <div class="odcm-premium-badge odcm-premium-badge--absolute"><?php echo esc_html__('admin.insight_dashboard.premium.badge', 'order-daemon'); ?></div>
                     <div class="odcm-premium-overlay" x-show="!canUsePremiumFilters" @click.prevent.stop="if (config?.upgrade?.enabled) { showToast(config.upgrade.message, 'info'); }" :title="config?.upgrade?.enabled ? config.upgrade.message : ''" aria-hidden="true"></div>
                     
                     <!-- Status Filter -->
                     <div class="odcm-filter-group">
-                        <label for="filter-status"><?php echo esc_html__('Status', 'order-daemon'); ?></label>
+                        <label for="filter-status"><?php echo esc_html__('admin.insight_dashboard.filters.status.label', 'order-daemon'); ?></label>
                         <select id="filter-status" 
                                 x-model="filters.status"
                                 :disabled="!canUsePremiumFilters">
-                            <option value=""><?php echo esc_html__('All Statuses', 'order-daemon'); ?></option>
-                            <option value="success"><?php echo esc_html__('Success', 'order-daemon'); ?></option>
-                            <option value="error"><?php echo esc_html__('Error', 'order-daemon'); ?></option>
-                            <option value="warning"><?php echo esc_html__('Warning', 'order-daemon'); ?></option>
-                            <option value="info"><?php echo esc_html__('Info', 'order-daemon'); ?></option>
+                            <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.status.all', 'order-daemon'); ?></option>
+                            <option value="success"><?php echo esc_html__('admin.insight_dashboard.filters.status.success', 'order-daemon'); ?></option>
+                            <option value="error"><?php echo esc_html__('admin.insight_dashboard.filters.status.error', 'order-daemon'); ?></option>
+                            <option value="warning"><?php echo esc_html__('admin.insight_dashboard.filters.status.warning', 'order-daemon'); ?></option>
+                            <option value="info"><?php echo esc_html__('admin.insight_dashboard.filters.status.info', 'order-daemon'); ?></option>
                         </select>
                     </div>
 
                     <!-- Event Type Filter -->
                     <div class="odcm-filter-group">
-                        <label for="filter-event-type"><?php echo esc_html__('Event Type', 'order-daemon'); ?></label>
+                        <label for="filter-event-type"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.label', 'order-daemon'); ?></label>
                         <select id="filter-event-type" 
                                 x-model="filters.event_type"
                                 :disabled="!canUsePremiumFilters">
-                            <option value=""><?php echo esc_html__('All Event Types', 'order-daemon'); ?></option>
-                            <option value="rule_check"><?php echo esc_html__('Rule Check', 'order-daemon'); ?></option>
-                            <option value="order_completion"><?php echo esc_html__('Order Completion', 'order-daemon'); ?></option>
-                            <option value="manual_trigger"><?php echo esc_html__('Manual Trigger', 'order-daemon'); ?></option>
-                            <option value="scheduled_task"><?php echo esc_html__('Scheduled Task', 'order-daemon'); ?></option>
-                            <option value="webhook_received"><?php echo esc_html__('Webhook Received', 'order-daemon'); ?></option>
-                            <option value="error_occurred"><?php echo esc_html__('Error Occurred', 'order-daemon'); ?></option>
+                            <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.event_type.all', 'order-daemon'); ?></option>
+                            <option value="rule_check"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.rule_check', 'order-daemon'); ?></option>
+                            <option value="order_completion"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.order_completion', 'order-daemon'); ?></option>
+                            <option value="manual_trigger"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.manual_trigger', 'order-daemon'); ?></option>
+                            <option value="scheduled_task"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.scheduled_task', 'order-daemon'); ?></option>
+                            <option value="webhook_received"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.webhook_received', 'order-daemon'); ?></option>
+                            <option value="error_occurred"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.error_occurred', 'order-daemon'); ?></option>
                         </select>
                     </div>
 
                     <!-- Source Filter -->
                     <div class="odcm-filter-group">
-                        <label for="filter-source"><?php echo esc_html__('Source', 'order-daemon'); ?></label>
+                        <label for="filter-source"><?php echo esc_html__('admin.insight_dashboard.filters.source.label', 'order-daemon'); ?></label>
                         <select id="filter-source" 
                                 x-model="filters.source"
                                 :disabled="!canUsePremiumFilters">
-                            <option value=""><?php echo esc_html__('All Sources', 'order-daemon'); ?></option>
-                            <option value="manual"><?php echo esc_html__('Manual', 'order-daemon'); ?></option>
-                            <option value="scheduled"><?php echo esc_html__('Scheduled', 'order-daemon'); ?></option>
-                            <option value="webhook"><?php echo esc_html__('Webhook', 'order-daemon'); ?></option>
-                            <option value="api"><?php echo esc_html__('API', 'order-daemon'); ?></option>
-                            <option value="system"><?php echo esc_html__('System', 'order-daemon'); ?></option>
+                            <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.source.all', 'order-daemon'); ?></option>
+                            <option value="manual"><?php echo esc_html__('admin.insight_dashboard.filters.source.manual', 'order-daemon'); ?></option>
+                            <option value="scheduled"><?php echo esc_html__('admin.insight_dashboard.filters.source.scheduled', 'order-daemon'); ?></option>
+                            <option value="webhook"><?php echo esc_html__('admin.insight_dashboard.filters.source.webhook', 'order-daemon'); ?></option>
+                            <option value="api"><?php echo esc_html__('admin.insight_dashboard.filters.source.api', 'order-daemon'); ?></option>
+                            <option value="system"><?php echo esc_html__('admin.insight_dashboard.filters.source.system', 'order-daemon'); ?></option>
                         </select>
                     </div>
 
                     <!-- Date Range Filter -->
                     <div class="odcm-filter-group">
-                        <label><?php echo esc_html__('Date Range', 'order-daemon'); ?></label>
+                        <label><?php echo esc_html__('admin.insight_dashboard.filters.date_range.label', 'order-daemon'); ?></label>
                         <div class="odcm-date-range">
                             <input type="date" 
                                    x-model="filters.date_start"
@@ -781,13 +781,13 @@ class InsightDashboard
                             <input type="checkbox" 
                                    id="filter-include-tests"
                                    x-model="filters.include_tests">
-                            <label for="filter-include-tests"><?php echo esc_html__('Include Test Logs', 'order-daemon'); ?></label>
+                            <label for="filter-include-tests"><?php echo esc_html__('admin.insight_dashboard.filters.include_test_logs', 'order-daemon'); ?></label>
                         </div>
                         <div class="odcm-checkbox-item">
                             <input type="checkbox" 
                                    id="filter-include-debug"
                                    x-model="filters.include_debug">
-                            <label for="filter-include-debug"><?php echo esc_html__('Include Debug Logs', 'order-daemon'); ?></label>
+                            <label for="filter-include-debug"><?php echo esc_html__('admin.insight_dashboard.filters.include_debug_logs', 'order-daemon'); ?></label>
                         </div>
                     </div>
                 </div>
@@ -795,10 +795,10 @@ class InsightDashboard
                 <!-- Filter Actions -->
                 <div class="odcm-filter-actions">
                     <button type="submit" class="button button-primary">
-                        <?php echo esc_html__('Apply Filters', 'order-daemon'); ?>
+                        <?php echo esc_html__('admin.insight_dashboard.filters.apply_filters', 'order-daemon'); ?>
                     </button>
                     <button type="button" class="button" @click="clearFilters()">
-                        <?php echo esc_html__('Clear All', 'order-daemon'); ?>
+                        <?php echo esc_html__('admin.insight_dashboard.filters.clear_all', 'order-daemon'); ?>
                     </button>
                 </div>
             </form>
@@ -827,8 +827,8 @@ class InsightDashboard
                      :aria-expanded="settingsAccordionState.display"
                      aria-controls="display-settings-content">
                     <div class="odcm-settings-accordion-title">
-                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('Display Options', 'order-daemon'); ?></span>
-                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('Configure how the dashboard displays information.', 'order-daemon'); ?></p>
+                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('admin.insight_dashboard.settings.display_options.title', 'order-daemon'); ?></span>
+                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('admin.insight_dashboard.settings.display_options.description', 'order-daemon'); ?></p>
                     </div>
                     <span class="odcm-settings-accordion-icon dashicons dashicons-arrow-down-alt2"></span>
                 </div>
@@ -844,9 +844,9 @@ class InsightDashboard
                     <div class="odcm-settings-section-inner">
                         <!-- Timestamp Format -->
                         <div class="odcm-setting-row">
-                            <label class="odcm-setting-label"><?php echo esc_html__('Timestamp Format', 'order-daemon'); ?></label>
+                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.timestamp_format.label', 'order-daemon'); ?></label>
                             <div class="odcm-setting-row-pair">
-                                <p class="description"><?php echo esc_html__('Choose how timestamps are displayed in log entries.', 'order-daemon'); ?></p>
+                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.timestamp_format.description', 'order-daemon'); ?></p>
                                 <button type="button" 
                                         class="odcm-timestamp-toggle button"
                                         @click="toggleTimestampMode()"
@@ -859,9 +859,9 @@ class InsightDashboard
 
                         <!-- Entries Per Page -->
                         <div class="odcm-setting-row">
-                            <label for="odcm_logs_per_page" class="odcm-setting-label"><?php echo esc_html__('Entries Per Page', 'order-daemon'); ?></label>
+                            <label for="odcm_logs_per_page" class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.entries_per_page.label', 'order-daemon'); ?></label>
                             <div class="odcm-setting-row-pair">
-                                <p class="description"><?php echo esc_html__('Number of log entries to display per page (10-200).', 'order-daemon'); ?></p>
+                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.entries_per_page.description', 'order-daemon'); ?></p>
                                 <input type="number" 
                                     id="odcm_logs_per_page"
                                     x-model="perPage"
@@ -885,8 +885,8 @@ class InsightDashboard
                      :aria-expanded="settingsAccordionState.orderProcessing"
                      aria-controls="order-processing-content">
                     <div class="odcm-settings-accordion-title">
-                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('Order Processing', 'order-daemon'); ?></span>
-                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('Manage and reprocess pending orders in your WooCommerce store.', 'order-daemon'); ?></p>
+                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('admin.insight_dashboard.settings.order_processing.title', 'order-daemon'); ?></span>
+                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('admin.insight_dashboard.settings.order_processing.description', 'order-daemon'); ?></p>
                     </div>
                     <span class="odcm-settings-accordion-icon dashicons dashicons-arrow-down-alt2"></span>
                 </div>
@@ -902,14 +902,14 @@ class InsightDashboard
                     <div class="odcm-settings-section-inner">
                         <!-- Reprocess Pending Orders -->
                         <div class="odcm-setting-row">
-                            <label class="odcm-setting-label"><?php echo esc_html__('Reprocess Pending Orders', 'order-daemon'); ?></label>
-                            <p class="description"><?php echo esc_html__('Find all orders with "processing" or "on-hold" status and reprocess them against your order rules. This operation runs in the background to prevent timeouts.', 'order-daemon'); ?></p>
+                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.reprocess_orders.label', 'order-daemon'); ?></label>
+                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.reprocess_orders.description', 'order-daemon'); ?></p>
                             <button type="button" 
                                     class="odcm-refresh-button button"
                                     @click="reprocessPendingOrders()"
                                     :disabled="isReprocessing">
                                 <span class="dashicons dashicons-update" :class="{ 'is-spinning': isReprocessing }"></span>
-                                <span class="odcm-button-text" x-text="isReprocessing ? '<?php echo esc_js(__('Processing...', 'order-daemon')); ?>' : '<?php echo esc_js(__('Reprocess Pending Orders', 'order-daemon')); ?>'"></span>
+                                <span class="odcm-button-text" x-text="isReprocessing ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.ajax.reprocess_pending_orders', 'order-daemon')); ?>'"></span>
                             </button>
                         </div>
                     </div>
@@ -932,8 +932,8 @@ class InsightDashboard
                      :aria-expanded="settingsAccordionState.education"
                      aria-controls="education-settings-content">
                     <div class="odcm-settings-accordion-title">
-                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('Educational Prompts', 'order-daemon'); ?></span>
-                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('Control how often upgrade and feature education prompts appear.', 'order-daemon'); ?></p>
+                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('admin.insight_dashboard.settings.educational_prompts.title', 'order-daemon'); ?></span>
+                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('admin.insight_dashboard.settings.educational_prompts.description', 'order-daemon'); ?></p>
                     </div>
                     <span class="odcm-settings-accordion-icon dashicons dashicons-arrow-down-alt2"></span>
                 </div>
@@ -948,13 +948,13 @@ class InsightDashboard
                      x-transition:leave-end="odcm-accordion-leave-end">
                     <div class="odcm-settings-section-inner">
                         <div class="odcm-setting-row">
-                            <label class="odcm-setting-label"><?php echo esc_html__('Prompt Frequency', 'order-daemon'); ?></label>
+                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.prompt_frequency.label', 'order-daemon'); ?></label>
                             <div class="odcm-setting-row">
-                                <p class="description"><?php echo esc_html__('These prompts are educational and help you discover features. You can adjust how often they appear.', 'order-daemon'); ?></p>
-                                <fieldset role="radiogroup" aria-label="<?php echo esc_attr__('Prompt Frequency', 'order-daemon'); ?>">
-                                    <label class="odcm-radio-row"><input type="radio" class="odcm-upgrade-frequency" name="odcm-upgrade-frequency" value="normal" <?php checked($freq, 'normal'); ?> > <?php echo esc_html__('Normal', 'order-daemon'); ?></label>
-                                    <label class="odcm-radio-row"><input type="radio" class="odcm-upgrade-frequency" name="odcm-upgrade-frequency" value="reduced" <?php checked($freq, 'reduced'); ?> > <?php echo esc_html__('Reduced', 'order-daemon'); ?></label>
-                                    <label class="odcm-radio-row"><input type="radio" class="odcm-upgrade-frequency" name="odcm-upgrade-frequency" value="off" <?php checked($freq, 'off'); ?> > <?php echo esc_html__('Off', 'order-daemon'); ?></label>
+                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.prompt_frequency.description', 'order-daemon'); ?></p>
+                                <fieldset role="radiogroup" aria-label="<?php echo esc_attr__('admin.insight_dashboard.settings.prompt_frequency.label', 'order-daemon'); ?>">
+                                    <label class="odcm-radio-row"><input type="radio" class="odcm-upgrade-frequency" name="odcm-upgrade-frequency" value="normal" <?php checked($freq, 'normal'); ?> > <?php echo esc_html__('admin.insight_dashboard.settings.prompt_frequency.normal', 'order-daemon'); ?></label>
+                                    <label class="odcm-radio-row"><input type="radio" class="odcm-upgrade-frequency" name="odcm-upgrade-frequency" value="reduced" <?php checked($freq, 'reduced'); ?> > <?php echo esc_html__('admin.insight_dashboard.settings.prompt_frequency.reduced', 'order-daemon'); ?></label>
+                                    <label class="odcm-radio-row"><input type="radio" class="odcm-upgrade-frequency" name="odcm-upgrade-frequency" value="off" <?php checked($freq, 'off'); ?> > <?php echo esc_html__('admin.insight_dashboard.settings.prompt_frequency.off', 'order-daemon'); ?></label>
                                 </fieldset>
                             </div>
                         </div>
@@ -977,8 +977,8 @@ class InsightDashboard
                      :aria-expanded="settingsAccordionState.debug"
                      aria-controls="debug-settings-content">
                     <div class="odcm-settings-accordion-title">
-                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('Debug Settings', 'order-daemon'); ?></span>
-                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('Configure settings to help with debugging and development.', 'order-daemon'); ?></p>
+                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('admin.insight_dashboard.settings.debug_settings.title', 'order-daemon'); ?></span>
+                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('admin.insight_dashboard.settings.debug_settings.description', 'order-daemon'); ?></p>
                     </div>
                     <span class="odcm-settings-accordion-icon dashicons dashicons-arrow-down-alt2"></span>
                 </div>
@@ -1000,10 +1000,10 @@ class InsightDashboard
                                        id="odcm_global_debug" 
                                        <?php checked($global_debug); ?>
                                        @change="saveDebugSetting('odcm_global_debug', $event.target.checked)">
-                                <?php echo esc_html__('Enable Global Debug Mode', 'order-daemon'); ?>
+                                <?php echo esc_html__('admin.insight_dashboard.settings.global_debug_mode.label', 'order-daemon'); ?>
                             </label>
                             <p class="description">
-                                <?php echo esc_html__('Sets the ODCM_DEBUG constant to true. Adds verbose debugging info server-wide. Use with caution.', 'order-daemon'); ?>
+                                <?php echo esc_html__('admin.insight_dashboard.settings.global_debug_mode.description', 'order-daemon'); ?>
                             </p>
                         </div>
 
@@ -1015,10 +1015,10 @@ class InsightDashboard
                                        id="odcm_detailed_notes" 
                                        <?php checked($detailed_notes); ?>
                                        @change="saveDebugSetting('odcm_detailed_notes', $event.target.checked)">
-                                <?php echo esc_html__('Add Debug Info to Order Notes', 'order-daemon'); ?>
+                                <?php echo esc_html__('admin.insight_dashboard.settings.detailed_notes.label', 'order-daemon'); ?>
                             </label>
                             <p class="description">
-                                <?php echo esc_html__('Include detailed product information in order notes when rules do not match. Helps with debugging but may add data bloat.', 'order-daemon'); ?>
+                                <?php echo esc_html__('admin.insight_dashboard.settings.detailed_notes.description', 'order-daemon'); ?>
                             </p>
                         </div>
 
@@ -1036,8 +1036,8 @@ class InsightDashboard
                      :aria-expanded="settingsAccordionState.dataManagement"
                      aria-controls="data-management-content">
                     <div class="odcm-settings-accordion-title">
-                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('Data Management', 'order-daemon'); ?></span>
-                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('Advanced data management and export features.', 'order-daemon'); ?></p>
+                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('admin.insight_dashboard.settings.data_management.title', 'order-daemon'); ?></span>
+                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('admin.insight_dashboard.settings.data_management.description', 'order-daemon'); ?></p>
                     </div>
                     <span class="odcm-settings-accordion-icon dashicons dashicons-arrow-down-alt2"></span>
                 </div>
@@ -1053,18 +1053,18 @@ class InsightDashboard
                     <div class="odcm-settings-section-inner">
                         <!-- Export Logs (Pro Feature) -->
                         <div class="odcm-setting-row odcm-premium-notice-small">
-                            <label class="odcm-setting-label"><?php echo esc_html__('Export Logs', 'order-daemon'); ?></label>
-                            <p><?php echo esc_html__('Exporting audit trail logs is a pro feature.', 'order-daemon'); ?></p>
+                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
+                            <p><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
                             <a href="<?php echo esc_url(ODCM_PREMIUM_URL); ?>" class="button-secondary odcm-button-small" target="_blank">
-                                <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
+                                <?php echo esc_html__('admin.insight_dashboard.settings.upgrade_to_pro', 'order-daemon'); ?>
                             </a>
                         </div>
                         <!-- Log Retention Policy (Fixed in Free) -->
                         <div class="odcm-setting-row odcm-danger-section">
-                            <label class="odcm-setting-label"><?php echo esc_html__('Log Retention Policy', 'order-daemon'); ?></label>
-                            <p class="description"><?php echo esc_html__('In the free version, audit trail logs are kept for 30 days. Retention controls are available in Pro.', 'order-daemon'); ?></p>
+                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
+                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
                             <a href="<?php echo esc_url(ODCM_PREMIUM_URL); ?>" class="button-secondary odcm-button-small" target="_blank">
-                                <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
+                                <?php echo esc_html__('admin.insight_dashboard.settings.upgrade_to_pro', 'order-daemon'); ?>
                             </a>
                         </div>
                     </div>
@@ -1082,12 +1082,12 @@ class InsightDashboard
     {
         // Check user capabilities
         if (!current_user_can('manage_woocommerce')) {
-            wp_send_json_error(['message' => __('Permission denied.', 'order-daemon')]);
+            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.permission_denied', 'order-daemon')]);
         }
 
         // Verify nonce
         if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
-            wp_send_json_error(['message' => __('Security check failed.', 'order-daemon')]);
+            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.security_check_failed', 'order-daemon')]);
         }
 
         // Get and validate input
@@ -1095,7 +1095,7 @@ class InsightDashboard
 
         // Validate range
         if ($per_page < 10 || $per_page > 200) {
-            wp_send_json_error(['message' => __('Entries per page must be between 10 and 200.', 'order-daemon')]);
+            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.invalid_per_page_range', 'order-daemon')]);
         }
 
         // Update user meta
@@ -1104,11 +1104,11 @@ class InsightDashboard
 
         if ($updated !== false) {
             wp_send_json_success([
-                'message' => sprintf(__('Entries per page updated to %d.', 'order-daemon'), $per_page),
+                'message' => sprintf(__('admin.insight_dashboard.ajax.per_page_updated', 'order-daemon'), $per_page),
                 'per_page' => $per_page
             ]);
         } else {
-            wp_send_json_error(['message' => __('Failed to update setting.', 'order-daemon')]);
+            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.failed_to_update_setting', 'order-daemon')]);
         }
     }
 
@@ -1119,12 +1119,12 @@ class InsightDashboard
     {
         // Check user capabilities
         if (!current_user_can('manage_woocommerce')) {
-            wp_send_json_error(['message' => __('Permission denied.', 'order-daemon')]);
+            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.permission_denied', 'order-daemon')]);
         }
 
         // Verify nonce
         if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
-            wp_send_json_error(['message' => __('Security check failed.', 'order-daemon')]);
+            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.security_check_failed', 'order-daemon')]);
         }
 
         // Get and validate input - only process the setting that was sent
@@ -1148,7 +1148,7 @@ class InsightDashboard
         }
 
         wp_send_json_success([
-            'message' => __('Debug settings saved successfully.', 'order-daemon'),
+            'message' => __('admin.insight_dashboard.ajax.debug_settings_saved', 'order-daemon'),
             'updated_settings' => $updated_settings
         ]);
     }
@@ -1268,12 +1268,12 @@ class InsightDashboard
     {
         // Check user capabilities
         if (!current_user_can('manage_woocommerce')) {
-            wp_send_json_error(['message' => __('Permission denied.', 'order-daemon')]);
+            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.permission_denied', 'order-daemon')]);
         }
 
         // Verify nonce
         if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
-            wp_send_json_error(['message' => __('Security check failed.', 'order-daemon')]);
+            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.security_check_failed', 'order-daemon')]);
         }
 
         try {
@@ -1291,8 +1291,8 @@ class InsightDashboard
                 'message' => sprintf(
                     // translators: %d is the number of orders.
                     _n(
-                        '%d order has been scheduled for reprocessing.',
-                        '%d orders have been scheduled for reprocessing.',
+                        'admin.insight_dashboard.ajax.reprocess_success_singular',
+                        'admin.insight_dashboard.ajax.reprocess_success_plural',
                         $count,
                         'order-daemon'
                     ),
@@ -1306,7 +1306,7 @@ class InsightDashboard
             error_log('ODCM: Error in reprocess pending orders AJAX: ' . $e->getMessage());
             
             wp_send_json_error([
-                'message' => __('Failed to reprocess pending orders. Please try again.', 'order-daemon')
+                'message' => __('admin.insight_dashboard.ajax.failed_reprocess_orders', 'order-daemon')
             ]);
         }
     }
@@ -1351,7 +1351,7 @@ class InsightDashboard
                     <span class="dashicons dashicons-warning"></span>
                     <span x-text="error"></span>
                     <button type="button" class="button" @click="fetchLogs()">
-                        <?php echo esc_html__('Retry', 'order-daemon'); ?>
+                        <?php echo esc_html__('admin.insight_dashboard.actions.retry', 'order-daemon'); ?>
                     </button>
                 </div>
             </template>
@@ -1366,30 +1366,30 @@ class InsightDashboard
                                 <span class="dashicons dashicons-chart-line"></span>
                             </div>
                             <div class="odcm-welcome-text">
-                                <h3><?php echo esc_html__('Welcome to Order Daemon Insights!', 'order-daemon'); ?></h3>
-                                <p><?php echo esc_html__('This dashboard will show real-time activity from your order completion rules once they start running.', 'order-daemon'); ?></p>
+                                <h3><?php echo esc_html__('admin.insight_dashboard.welcome.title', 'order-daemon'); ?></h3>
+                                <p><?php echo esc_html__('admin.insight_dashboard.welcome.description', 'order-daemon'); ?></p>
                            </div>
 
                             <div class="odcm-welcome-steps">
-                                <h4><?php echo esc_html__('To get started:', 'order-daemon'); ?></h4>
+                                <h4><?php echo esc_html__('admin.insight_dashboard.welcome.steps.title', 'order-daemon'); ?></h4>
                                 <ol>
-                                    <li><strong><?php echo esc_html__('Create your first completion rule', 'order-daemon'); ?></strong> <?php echo esc_html__('in WooCommerce → All Order Rules', 'order-daemon'); ?></li>
-                                    <li><strong><?php echo esc_html__('Place a test order', 'order-daemon'); ?></strong> <?php echo esc_html__('that matches your rule conditions', 'order-daemon'); ?></li>
-                                    <li><strong><?php echo esc_html__('Return here', 'order-daemon'); ?></strong> <?php echo esc_html__('to see the automation in action', 'order-daemon'); ?></li>
+                                    <li><strong><?php echo esc_html__('admin.insight_dashboard.welcome.steps.create_rule', 'order-daemon'); ?></strong> <?php echo esc_html__('admin.insight_dashboard.welcome.steps.create_rule_location', 'order-daemon'); ?></li>
+                                    <li><strong><?php echo esc_html__('admin.insight_dashboard.welcome.steps.place_order', 'order-daemon'); ?></strong> <?php echo esc_html__('admin.insight_dashboard.welcome.steps.place_order_description', 'order-daemon'); ?></li>
+                                    <li><strong><?php echo esc_html__('admin.insight_dashboard.welcome.steps.return_here', 'order-daemon'); ?></strong> <?php echo esc_html__('admin.insight_dashboard.welcome.steps.return_here_description', 'order-daemon'); ?></li>
                                 </ol>
                             </div>
 
                             <div class="odcm-welcome-actions">
                                 <a href="<?php echo esc_url(admin_url('edit.php?post_type=odcm_order_rule')); ?>" class="button button-primary">
-                                    <?php echo esc_html__('Create Your First Rule', 'order-daemon'); ?>
+                                    <?php echo esc_html__('admin.insight_dashboard.welcome.actions.create_first_rule', 'order-daemon'); ?>
                                 </a>
                                 <a href="https://orderdaemon.com/docs" target="_blank" class="button button-secondary odcm-docs-link">
-                                    <?php echo esc_html__('View Documentation', 'order-daemon'); ?>
+                                    <?php echo esc_html__('admin.insight_dashboard.welcome.actions.view_documentation', 'order-daemon'); ?>
                                 </a>
                             </div>
 
                             <div class="odcm-welcome-note">
-                                <p><em>💡 <?php echo esc_html__('Tip: Activity will appear here automatically once your rules start processing orders. No additional setup required!', 'order-daemon'); ?></em></p>
+                                <p><em>💡 <?php echo esc_html__('admin.insight_dashboard.welcome.tip', 'order-daemon'); ?></em></p>
                             </div>
                         </div>
                     </template>
@@ -1398,14 +1398,14 @@ class InsightDashboard
                     <template x-if="!isWelcomeScenario">
                         <div class="odcm-regular-empty-state">
                             <span class="dashicons dashicons-admin-post"></span>
-                            <h4><?php echo esc_html__('No Recent Activity', 'order-daemon'); ?></h4>
-                            <p><?php echo esc_html__('Your completion rules are set up but haven\'t processed any orders recently.', 'order-daemon'); ?></p>
+                            <h4><?php echo esc_html__('admin.insight_dashboard.empty.no_activity.title', 'order-daemon'); ?></h4>
+                            <p><?php echo esc_html__('admin.insight_dashboard.empty.no_activity.description', 'order-daemon'); ?></p>
                             <div class="odcm-empty-actions">
                                 <button type="button" class="button" @click="fetchLogs()">
-                                    <?php echo esc_html__(Odcm_Strings::REFRESH, 'order-daemon'); ?>
+                                    <?php echo esc_html__('admin.insight_dashboard.actions.refresh', 'order-daemon'); ?>
                                 </button>
                                 <a href="<?php echo esc_url(admin_url('edit.php?post_type=odcm_order_rule')); ?>" class="button button-secondary">
-                                    <?php echo esc_html__('Manage Rules', 'order-daemon'); ?>
+                                    <?php echo esc_html__('admin.insight_dashboard.empty.manage_rules', 'order-daemon'); ?>
                                 </a>
                             </div>
                         </div>
@@ -1427,17 +1427,17 @@ class InsightDashboard
                                    @change="toggleSelectAll()"
                                    class="odcm-select-all-checkbox">
                             <label for="select-all-logs" class="odcm-select-all-label">
-                                <?php echo esc_html__('Select All', 'order-daemon'); ?>
+                                <?php echo esc_html__('admin.insight_dashboard.log_stream.select_all', 'order-daemon'); ?>
                             </label>
                         </div>
                         <div class="odcm-batch-actions" x-show="hasSelection">
-                            <span class="odcm-selection-count" x-text="selectedCount + ' selected'"></span>
+                            <span class="odcm-selection-count" x-text="selectedCount + ' <?php echo esc_js(__('admin.insight_dashboard.log_stream.selected', 'order-daemon')); ?>'"></span>
                             <button type="button" 
                                     class="odcm-delete-selected button button-secondary"
                                     @click="deleteSelectedLogs()"
                                     :disabled="isDeleting">
                                 <span class="dashicons dashicons-trash" :class="{ 'is-spinning': isDeleting }"></span>
-                                <span x-text="isDeleting ? '<?php echo esc_js(__('Deleting...', 'order-daemon')); ?>' : '<?php echo esc_js(__('Delete Selected', 'order-daemon')); ?>'"></span>
+                                <span x-text="isDeleting ? '<?php echo esc_js(__('admin.insight_dashboard.log_stream.deleting', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.log_stream.delete_selected', 'order-daemon')); ?>'"></span>
                             </button>
                         </div>
                     </div>
@@ -1455,7 +1455,7 @@ class InsightDashboard
                                    @click.stop
                                    class="odcm-log-checkbox">
                             <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label">
-                                <span class="screen-reader-text"><?php echo esc_html__('Select log entry', 'order-daemon'); ?></span>
+                                <span class="screen-reader-text"><?php echo esc_html__('admin.insight_dashboard.log_stream.select_log_entry', 'order-daemon'); ?></span>
                             </label>
                         </div>
                         
@@ -1466,11 +1466,11 @@ class InsightDashboard
                                     Order #<span x-text="log.order_id"></span>
                                 </div>
                                 <div class="odcm-log-summary">
-                                    <span x-text="log?.summary || 'No summary available'"></span>
+                                    <span x-text="log?.summary || '<?php echo esc_js(__('admin.insight_dashboard.log_stream.no_summary', 'order-daemon')); ?>'"></span>
                                 </div>
                                 <span class="odcm-status-pill" 
                                       :class="'odcm-status-pill--' + ((log?.status && typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')"
-                                      x-text="log?.status || 'Unknown'"></span>
+                                      x-text="log?.status || '<?php echo esc_js(__('admin.insight_dashboard.log_stream.unknown_status', 'order-daemon')); ?>'"></span>
                             </div>
                         </div>
                     </div>
@@ -1497,7 +1497,7 @@ class InsightDashboard
                                    :min="1"
                                    :max="totalPages"
                                    class="current-page">
-                            <?php echo esc_html__('of', 'order-daemon'); ?>
+                            <?php echo esc_html__('admin.insight_dashboard.pagination.of', 'order-daemon'); ?>
                             <span class="total-pages" x-text="totalPages"></span>
                         </span>
                         <button type="button" 
