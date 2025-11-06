@@ -52,16 +52,8 @@ final class Plugin {
 	 * @deprecated Use bootstrap() directly instead to avoid double hook nesting
 	 */
 	public function init(): void {
-		// Load text domain and bootstrap components
-		$this->load_textdomain();
+		// Bootstrap components
 		$this->bootstrap();
-	}
-
-	/**
-	 * Loads the plugin text domain for translation.
-	 */
-	public function load_textdomain(): void {
-		load_plugin_textdomain('order-daemon', false, dirname(plugin_basename(ODCM_PLUGIN_FILE)) . '/languages');
 	}
 
 	/**
@@ -95,13 +87,11 @@ final class Plugin {
 		 * The following sequence is CRITICAL to prevent the "invalid post type" error
 		 * that occurs when admin_init hooks fire before post type registration:
 		 * 
-		 * Priority 1:  Load textdomain (WordPress best practice)
 		 * Priority 5:  Register post type (MUST be first - needed for all contexts)
 		 * Priority 6:  Load options (after post type exists)
 		 * Priority 10: Initialize Core (after options, registers admin_init with priority 20)
 		 * Priority 15: Initialize Admin (after core, only in admin context)
 		 */
-		add_action('init', [$this, 'load_textdomain'], 1);
 		add_action('init', [$this, 'register_post_type'], 5);
 		add_action('init', [$this, 'load_options'], 6);
 		add_action('init', [$this, 'initialize_core'], 10);
