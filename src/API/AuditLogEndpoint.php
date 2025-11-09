@@ -310,7 +310,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             if (empty($valid_log_ids)) {
                 return new WP_Error(
                     'odcm_no_valid_logs',
-                    __('audit.logs.delete..error.no_valid_log_ids_found_for_deletion', 'order-daemon'),
+                    __('audit.logs.delete.error.no_valid_log_ids_found_for_deletion', 'order-daemon'),
                     ['status' => 404]
                 );
             }

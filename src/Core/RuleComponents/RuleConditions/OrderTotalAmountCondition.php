@@ -21,12 +21,12 @@ class OrderTotalAmountCondition implements ConditionInterface
 
     public function get_label(): string
     {
-        return __('Order Total Amount', 'order-daemon');
+        return __('rule_component.condition.order_total.label', 'order-daemon');
     }
 
     public function get_description(): string
     {
-        return __('Checks if the order total meets the specified criteria.', 'order-daemon');
+        return __('rule_component.condition.order_total.description', 'order-daemon');
     }
 
     public function get_capability(): string
@@ -41,15 +41,15 @@ class OrderTotalAmountCondition implements ConditionInterface
             'properties' => [
                 'operator' => [
                     'type' => 'string',
-                    'title' => __('Operator', 'order-daemon'),
-                    'description' => __('How to compare the order total.', 'order-daemon'),
+                    'title' => __('rule_component.condition.order_total.operator_label', 'order-daemon'),
+                    'description' => __('rule_component.condition.order_total.operator_description', 'order-daemon'),
                     // Radio group with inline number input mapping to 'amount'
                     'enum' => [
-                        'amount_gt' => __('Greater than', 'order-daemon'),
-                        'amount_lt' => __('Less than', 'order-daemon'),
-                        'amount_eq' => __('Equal to', 'order-daemon'),
-                        'amount_gte' => __('Greater than or equal to', 'order-daemon'),
-                        'amount_lte' => __('Less than or equal to', 'order-daemon'),
+                        'amount_gt' => __('rule_component.condition.order_total.operator.greater_than', 'order-daemon'),
+                        'amount_lt' => __('rule_component.condition.order_total.operator.less_than', 'order-daemon'),
+                        'amount_eq' => __('rule_component.condition.order_total.operator.equal_to', 'order-daemon'),
+                        'amount_gte' => __('rule_component.condition.order_total.operator.greater_than_equal', 'order-daemon'),
+                        'amount_lte' => __('rule_component.condition.order_total.operator.less_than_equal', 'order-daemon'),
                     ],
                     'ui:radio_inputs' => [
                         'amount_gt' => 'amount_gt_value',

@@ -77,9 +77,9 @@ final class Notices {
         foreach ($notices as $notice) {
             ?>
             <div id="<?php echo esc_attr($notice['id']); ?>" class="notice notice-<?php echo esc_attr($notice['type']); ?> odcm-site-wide-notice">
-                <p><strong><?php esc_html_e('Order Daemon:', 'order-daemon'); ?></strong> <?php echo wp_kses_post($notice['message']); ?></p>
+                <p><strong><?php esc_html_e('admin.notices.label.order_daemon', 'order-daemon'); ?>:</strong> <?php echo wp_kses_post($notice['message']); ?></p>
                 <button type="button" class="notice-dismiss" data-notice-id="<?php echo esc_attr($notice['id']); ?>" data-nonce="<?php echo esc_attr($nonce); ?>">
-                    <span class="screen-reader-text"><?php _e('Dismiss this notice.', 'order-daemon'); ?></span>
+                    <span class="screen-reader-text"><?php _e('admin.notices.accessibility.dismiss_notice', 'order-daemon'); ?></span>
                 </button>
             </div>
             <?php
@@ -96,11 +96,11 @@ final class Notices {
 
         // Use wp_verify_nonce instead of check_ajax_referer for better compatibility
         if (empty($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'odcm_dismiss_notice_nonce')) {
-            wp_send_json_error(['message' => 'Security check failed']);
+            wp_send_json_error(['message' => __('security.check_failed', 'order-daemon')]);
         }
 
         if (empty($_POST['notice_id'])) {
-            wp_send_json_error(['message' => 'Notice ID required']);
+            wp_send_json_error(['message' => __('admin.notices.error.notice_id_required', 'order-daemon')]);
         }
 
         $notice_id_to_dismiss = sanitize_key($_POST['notice_id']);
@@ -114,9 +114,9 @@ final class Notices {
             } else {
                 set_transient(self::TRANSIENT_KEY, $notices, DAY_IN_SECONDS);
             }
-            wp_send_json_success(['message' => 'Notice dismissed successfully']);
+            wp_send_json_success(['message' => __('admin.notices.success.notice_dismissed', 'order-daemon')]);
         } else {
-            wp_send_json_error(['message' => 'Notice not found']);
+            wp_send_json_error(['message' => __('admin.notices.error.notice_not_found', 'order-daemon')]);
         }
     }
 }

@@ -38,12 +38,14 @@ class CompletionRulesListTable extends \WP_List_Table
     public function get_columns()
     {
         return [
-            'handle'   => __('Drag', 'order-daemon'),
+            /* translators: Column header for drag handle used to reorder rules by dragging and dropping */
+            'handle'   => __('admin.list_table.column.drag', 'order-daemon'),
             'cb'       => '<input type="checkbox" />',
-            'active'   => __('Active', 'order-daemon'),
-            'title'    => __('Title', 'order-daemon'),
-            'priority' => __('Priority', 'order-daemon'),
-            'date'     => __('Date', 'order-daemon'),
+            /* translators: Column header showing whether a rule is currently active/enabled or inactive/disabled */
+            'active'   => __('admin.list_table.column.active', 'order-daemon'),
+            'title'    => __('admin.list_table.column.title', 'order-daemon'),
+            'priority' => __('admin.list_table.column.priority', 'order-daemon'),
+            'date'     => __('admin.list_table.column.date', 'order-daemon'),
         ];
     }
 
@@ -69,9 +71,11 @@ class CompletionRulesListTable extends \WP_List_Table
     public function get_bulk_actions()
     {
         return [
-            'activate'   => __('Activate', 'order-daemon'),
-            'deactivate' => __('Deactivate', 'order-daemon'),
-            'trash'      => __('Move to Trash', 'order-daemon'),
+            /* translators: Bulk action to turn on/enable selected rules */
+            'activate'   => __('admin.list_table.action.activate', 'order-daemon'),
+            /* translators: Bulk action to turn off/disable selected rules */
+            'deactivate' => __('admin.list_table.action.deactivate', 'order-daemon'),
+            'trash'      => __('admin.list_table.action.move_to_trash', 'order-daemon'),
         ];
     }
 
@@ -89,12 +93,12 @@ class CompletionRulesListTable extends \WP_List_Table
 
             // Verify the nonce
             if (!wp_verify_nonce($nonce, 'bulk-' . $this->_args['plural'])) {
-                wp_die(esc_html__('Security check failed.', 'order-daemon'));
+                wp_die(esc_html__('security.check_failed', 'order-daemon'));
             }
 
             // Only allow users with manage_woocommerce capability
             if (!current_user_can('manage_woocommerce')) {
-                wp_die(esc_html__('You do not have permission to perform this action.', 'order-daemon'));
+                wp_die(esc_html__('security.no_action_permission', 'order-daemon'));
             }
 
             // Sanitize rule IDs
@@ -174,8 +178,10 @@ class CompletionRulesListTable extends \WP_List_Table
 
         $output = '<div class="odcm-toggle-container">';
         $output .= '<label class="odcm-toggle-switch" title="' . ($is_active ? 
-            esc_attr__('Active', 'order-daemon') : 
-            esc_attr__('Inactive', 'order-daemon')) . '">';
+            /* translators: Tooltip text for an enabled/turned on rule */
+            esc_attr__('admin.ui.active', 'order-daemon') : 
+            /* translators: Tooltip text for a disabled/turned off rule */
+            esc_attr__('admin.ui.inactive', 'order-daemon')) . '">';
         $output .= '<input type="checkbox" ' . checked($is_active, true, false) . 
             ' data-rule-id="' . esc_attr($item->ID) . 
             '" data-nonce="' . esc_attr(wp_create_nonce('odcm_toggle_rule_' . $item->ID)) . '">';
@@ -201,14 +207,16 @@ class CompletionRulesListTable extends \WP_List_Table
         $title = '<strong><a href="' . esc_url($edit_link) . '">' . esc_html($item->post_title) . '</a>';
 
         if ($item->post_status === 'draft') {
-            $title .= ' - <span class="post-state">' . esc_html__('Draft', 'order-daemon') . '</span>';
+            /* translators: Label showing a rule is saved but not yet published/active */
+            $title .= ' - <span class="post-state">' . esc_html__('admin.ui.draft', 'order-daemon') . '</span>';
         }
 
         $title .= '</strong>';
 
         // Row actions
         $actions = [];
-        $actions['edit'] = '<a href="' . esc_url($edit_link) . '">' . esc_html__('Edit', 'order-daemon') . '</a>';
+        /* translators: Link text to modify/change a rule */
+        $actions['edit'] = '<a href="' . esc_url($edit_link) . '">' . esc_html__('admin.ui.edit', 'order-daemon') . '</a>';
 
         // Custom delete link using admin_post handler
         $delete_url = wp_nonce_url(
@@ -219,8 +227,9 @@ class CompletionRulesListTable extends \WP_List_Table
             'odcm_delete_rule_' . $item->ID
         );
         $actions['delete'] = '<a href="' . esc_url($delete_url) . '" class="submitdelete" onclick="return confirm(\'' . 
-            esc_js(__('Are you sure you want to delete this rule? This action cannot be undone.', 'order-daemon')) . 
-            '\');">' . esc_html__('Delete', 'order-daemon') . '</a>';
+            esc_js(__('admin.list_table.confirm.delete_rule', 'order-daemon')) . 
+            /* translators: Link text to permanently remove a rule */
+            '\');">' . esc_html__('admin.ui.delete', 'order-daemon') . '</a>';
 
         return $title . $this->row_actions($actions);
     }
@@ -249,9 +258,11 @@ class CompletionRulesListTable extends \WP_List_Table
         $output = '';
 
         if ($item->post_status === 'publish') {
-            $output .= esc_html__('Published', 'order-daemon') . '<br>';
+            /* translators: Label showing when a rule was made active/live */
+            $output .= esc_html__('admin.ui.published', 'order-daemon') . '<br>';
         } else {
-            $output .= esc_html__('Last Modified', 'order-daemon') . '<br>';
+            /* translators: Label showing when a rule was last changed */
+            $output .= esc_html__('admin.ui.last_modified', 'order-daemon') . '<br>';
         }
 
         $output .= '<abbr title="' . esc_attr(get_the_time('Y/m/d g:i:s a', $item)) . '">' . 
@@ -265,7 +276,7 @@ class CompletionRulesListTable extends \WP_List_Table
      */
     public function no_items()
     {
-        echo esc_html__('No order rules found. Click "Add New" to create your first rule.', 'order-daemon');
+        echo esc_html__('admin.list_table.empty.no_rules_found', 'order-daemon');
     }
 
     /**

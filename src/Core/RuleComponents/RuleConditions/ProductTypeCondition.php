@@ -24,12 +24,12 @@ class ProductTypeCondition implements ConditionInterface
 
     public function get_label(): string
     {
-        return __('Product Type', 'order-daemon');
+        return __('rule_component.condition.product_type.label', 'order-daemon');
     }
 
     public function get_description(): string
     {
-        return __('Checks if all products in the order are of specific types. Virtual and downloadable products are available in the free version.', 'order-daemon');
+        return __('rule_component.condition.product_type.description', 'order-daemon');
     }
 
     public function get_capability(): string
@@ -54,29 +54,29 @@ class ProductTypeCondition implements ConditionInterface
             'properties' => [
                 'types' => [
                     'type' => 'array',
-                    'title' => __('Product Types', 'order-daemon'),
+                    'title' => __('rule_component.condition.product_type.field_label', 'order-daemon'),
                     'description' => $can_access_premium 
-                        ? __('Select the product types to match. Use the search box to quickly find product types.', 'order-daemon')
-                        : __('Select virtual or downloadable product types. Upgrade to premium for all other product types.', 'order-daemon'),
+                        ? __('rule_component.condition.product_type.field_description', 'order-daemon')
+                        : __('rule_component.condition.product_type.field_description_free', 'order-daemon'),
                     'items' => [
                         'type' => 'string',
                         'enum' => $product_types, // Include ALL product types, even premium ones
                     ],
                     'ui:widget' => 'searchable_checkboxes',
                     'ui:searchable' => true,
-                    'ui:placeholder' => __('Search product types...', 'order-daemon'),
+                    'ui:placeholder' => __('rule_component.condition.product_type.search_placeholder', 'order-daemon'),
                     'ui:premium_options' => $can_access_premium ? [] : $this->get_premium_product_types(), // Mark premium options
                     'ui:show_all_but_disable_premium' => true, // Flag to show all but disable premium options
                     'default' => ['virtual', 'downloadable'], // Default to free options
                 ],
                 'match_mode' => [
                     'type' => 'string',
-                    'title' => __('Match Mode', 'order-daemon'),
-                    'description' => __('How to match product types in the order.', 'order-daemon'),
+                    'title' => __('rule_component.condition.product_type.match_mode_label', 'order-daemon'),
+                    'description' => __('rule_component.condition.product_type.match_mode_description', 'order-daemon'),
                     'enum' => [
-                        'all' => __('All products must match selected types', 'order-daemon'),
-                        'any' => __('At least one product must match selected types', 'order-daemon'),
-                        'none' => __('No products should match selected types', 'order-daemon'),
+                        'all' => __('rule_component.condition.product_type.match_mode.all', 'order-daemon'),
+                        'any' => __('rule_component.condition.product_type.match_mode.any', 'order-daemon'),
+                        'none' => __('rule_component.condition.product_type.match_mode.none', 'order-daemon'),
                     ],
                     'default' => 'all',
                 ],
@@ -152,8 +152,8 @@ class ProductTypeCondition implements ConditionInterface
         $types = [];
 
         // Free tier types (always available)
-        $types['virtual'] = __('Virtual Products', 'order-daemon');
-        $types['downloadable'] = __('Downloadable Products', 'order-daemon');
+        $types['virtual'] = __('rule_component.condition.product_type.option.virtual', 'order-daemon');
+        $types['downloadable'] = __('rule_component.condition.product_type.option.downloadable', 'order-daemon');
 
         // Get WooCommerce product types (premium tier)
         if (function_exists('wc_get_product_types')) {
@@ -169,10 +169,10 @@ class ProductTypeCondition implements ConditionInterface
             }
         } else {
             // Fallback for standard WooCommerce types
-            $types['simple'] = __('Simple Products', 'order-daemon');
-            $types['variable'] = __('Variable Products', 'order-daemon');
-            $types['grouped'] = __('Grouped Products', 'order-daemon');
-            $types['external'] = __('External/Affiliate Products', 'order-daemon');
+            $types['simple'] = __('rule_component.condition.product_type.option.simple', 'order-daemon');
+            $types['variable'] = __('rule_component.condition.product_type.option.variable', 'order-daemon');
+            $types['grouped'] = __('rule_component.condition.product_type.option.grouped', 'order-daemon');
+            $types['external'] = __('rule_component.condition.product_type.option.external', 'order-daemon');
         }
 
         // Check for additional product types from plugins
@@ -229,20 +229,20 @@ class ProductTypeCondition implements ConditionInterface
         // Check for popular plugin product types
         $plugin_checks = [
             // WooCommerce Subscriptions
-            'subscription' => __('Subscription Products', 'order-daemon'),
-            'variable-subscription' => __('Variable Subscription Products', 'order-daemon'),
+            'subscription' => __('rule_component.condition.product_type.option.subscription', 'order-daemon'),
+            'variable-subscription' => __('rule_component.condition.product_type.option.variable_subscription', 'order-daemon'),
             
             // WooCommerce Bookings
-            'booking' => __('Bookable Products', 'order-daemon'),
+            'booking' => __('rule_component.condition.product_type.option.booking', 'order-daemon'),
             
             // WooCommerce Memberships
-            'membership' => __('Membership Products', 'order-daemon'),
+            'membership' => __('rule_component.condition.product_type.option.membership', 'order-daemon'),
             
             // WooCommerce Product Bundles
-            'bundle' => __('Product Bundles', 'order-daemon'),
+            'bundle' => __('rule_component.condition.product_type.option.bundle', 'order-daemon'),
             
             // WooCommerce Composite Products
-            'composite' => __('Composite Products', 'order-daemon'),
+            'composite' => __('rule_component.condition.product_type.option.composite', 'order-daemon'),
         ];
 
         foreach ($plugin_checks as $type_id => $type_label) {

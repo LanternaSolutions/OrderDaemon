@@ -21,12 +21,12 @@ class ProductCategoryCondition implements ConditionInterface
 
     public function get_label(): string
     {
-        return __('Product Category', 'order-daemon');
+        return __('rule_component.condition.product_category.label', 'order-daemon');
     }
 
     public function get_description(): string
     {
-        return __('Checks if the order contains products from specific categories.', 'order-daemon');
+        return __('rule_component.condition.product_category.description', 'order-daemon');
     }
 
     public function get_capability(): string
@@ -54,7 +54,7 @@ class ProductCategoryCondition implements ConditionInterface
         // Add fallback if no categories found
         if (empty($categories)) {
             $categories = [
-                '0' => __('No categories found', 'order-daemon'),
+                '0' => __('rule_component.condition.product_category.no_categories_found', 'order-daemon'),
             ];
         }
 
@@ -63,8 +63,8 @@ class ProductCategoryCondition implements ConditionInterface
             'properties' => [
                 'category' => [
                     'type' => 'string',
-                    'title' => __('Product Category', 'order-daemon'),
-                    'description' => __('Select one product category to match. Pro unlocks multiple categories and advanced logic.', 'order-daemon'),
+                    'title' => __('rule_component.condition.product_category.label', 'order-daemon'),
+                    'description' => __('rule_component.condition.product_category.field_description', 'order-daemon'),
                     'enum' => $categories,
                     'default' => '0',
                     'ui:widget' => 'select',

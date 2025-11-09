@@ -75,7 +75,7 @@ final class Plugin {
 		if (!class_exists('WooCommerce')) {
 			add_action('admin_notices', function() {
 				echo '<div class="error"><p>';
-				echo esc_html__('Order Daemon for WooCommerce requires WooCommerce to be installed and active.', 'order-daemon');
+				echo esc_html__('plugin.dependency.woocommerce_required', 'order-daemon');
 				echo '</p></div>';
 			});
 			return;

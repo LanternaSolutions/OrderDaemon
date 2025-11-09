@@ -207,8 +207,8 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     private function renderEmptyTimeline(TimelineData $timeline): string
     {
         $message = $timeline->isProcessGroup() 
-            ? __('No timeline data available for this process group', 'order-daemon')
-            : __('No timeline data available for this log entry', 'order-daemon');
+            ? __('audit.logs.timeline.process_group_empty', 'order-daemon')
+            : __('audit.logs.timeline.log_entry_empty', 'order-daemon');
             
         return '<div class="odcm-empty-data">' . esc_html($message) . '</div>';
     }

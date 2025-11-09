@@ -530,7 +530,7 @@ class RuleBuilderApiController extends WP_REST_Controller
         if (!empty($inaccessible_options)) {
             return new WP_Error(
                 'premium_options',
-                sprintf(__('The following options require Pro access: %s', 'order-daemon'), implode(', ', $inaccessible_options))
+                sprintf(__('api.rule_builder.entitlement.options_require_pro', 'order-daemon'), implode(', ', $inaccessible_options))
             );
         }
 

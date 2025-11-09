@@ -2,8 +2,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Order Daemon for WooCommerce\n"
-"POT-Creation-Date: 2025-11-05 03:48+0200\n"
-"PO-Revision-Date: 2025-11-05 03:48+0200\n"
+"POT-Creation-Date: 2025-11-06 20:15+0200\n"
+"PO-Revision-Date: 2025-11-06 20:15+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -32,6 +32,7 @@ msgid "audit.logs.delete..error.no_valid_log_ids_found_for_deletion"
 msgstr "No valid log entries found for deletion"
 
 #: src/API/AuditLogEndpoint.php:338
+#. translators: %d: number of log entries deleted
 #, php-format
 msgid "audit.logs.delete.success.single"
 msgid_plural "audit.logs.delete.success.plural"
@@ -171,11 +172,13 @@ msgstr ""
 "license."
 
 #: src/API/RuleBuilderApiController.php:403
+#. translators: %1$d: condition number, %2$s: error message
 #, php-format
 msgid "api.rule_builder.entitlement.condition_error"
 msgstr "Condition %d: %s"
 
 #: src/API/RuleBuilderApiController.php:413
+#. translators: %1$d: action number, %2$s: error message
 #, php-format
 msgid "api.rule_builder.entitlement.action_error"
 msgstr "Action %d: %s"
@@ -191,16 +194,19 @@ msgid "api.rule_builder.component_missing_id"
 msgstr "Component missing ID"
 
 #: src/API/RuleBuilderApiController.php:447
+#. translators: %1$s: component type, %2$s: component name
 #, php-format
 msgid "api.rule_builder.unknown_component"
 msgstr "Unknown %s: %s"
 
 #: src/API/RuleBuilderApiController.php:454
+#. translators: %1$s: component type, %2$s: component name
 #, php-format
 msgid "api.rule_builder.entitlement.component_requires_pro"
 msgstr "%s \"%s\" requires Pro access"
 
 #: src/API/RuleBuilderApiController.php:533
+#. translators: %s: comma-separated list of premium options
 #, php-format
 msgid "api.rule_builder.entitlement.options_require_pro"
 msgstr "The following options require Pro access: %s"

@@ -119,8 +119,8 @@ final class ComponentSummaryBuilder
             // Used by ProductCategoryCondition
             $val = (string) $settings['match_type'];
             $map = [
-                'any' => __('includes', 'order-daemon'),
-                'all' => __('includes all of', 'order-daemon'),
+                'any' => __('component.operator.includes', 'order-daemon'),
+                'all' => __('component.operator.includes_all', 'order-daemon'),
             ];
             return $map[$val] ?? '';
         }
@@ -133,27 +133,27 @@ final class ComponentSummaryBuilder
         }
 
         $mode_map = [
-            'all'           => __('is only', 'order-daemon'),
-            'any'           => __('includes', 'order-daemon'),
-            'none'          => __('is not', 'order-daemon'),
-            'only'          => __('only', 'order-daemon'),
-            'equals'        => __('equals', 'order-daemon'),
-            'not_equals'    => __('is not', 'order-daemon'),
-            'greater_than'  => __('greater than', 'order-daemon'),
-            'less_than'     => __('less than', 'order-daemon'),
-            'gte'           => __('at least', 'order-daemon'),
-            'lte'           => __('at most', 'order-daemon'),
-            'contains'      => __('contains', 'order-daemon'),
-            'amount_gt'     => __('more than', 'order-daemon'),
-            'amount_lt'     => __('less than', 'order-daemon'),
-            'amount_eq'     => __('equals', 'order-daemon'),
-            'amount_gte'    => __('at least', 'order-daemon'),
-            'amount_lte'    => __('at most', 'order-daemon'),
-            'count_gt'      => __('more than', 'order-daemon'),
-            'count_lt'      => __('less than', 'order-daemon'),
-            'count_eq'      => __('equals', 'order-daemon'),
-            'count_gte'     => __('at least', 'order-daemon'),
-            'count_lte'     => __('at most', 'order-daemon'),
+            'all'           => __('component.operator.is_only', 'order-daemon'),
+            'any'           => __('component.operator.includes', 'order-daemon'),
+            'none'          => __('component.operator.is_not', 'order-daemon'),
+            'only'          => __('component.operator.only', 'order-daemon'),
+            'equals'        => __('component.operator.equals', 'order-daemon'),
+            'not_equals'    => __('component.operator.is_not', 'order-daemon'),
+            'greater_than'  => __('component.operator.greater_than', 'order-daemon'),
+            'less_than'     => __('component.operator.less_than', 'order-daemon'),
+            'gte'           => __('component.operator.at_least', 'order-daemon'),
+            'lte'           => __('component.operator.at_most', 'order-daemon'),
+            'contains'      => __('component.operator.contains', 'order-daemon'),
+            'amount_gt'     => __('component.operator.more_than', 'order-daemon'),
+            'amount_lt'     => __('component.operator.less_than', 'order-daemon'),
+            'amount_eq'     => __('component.operator.equals', 'order-daemon'),
+            'amount_gte'    => __('component.operator.at_least', 'order-daemon'),
+            'amount_lte'    => __('component.operator.at_most', 'order-daemon'),
+            'count_gt'      => __('component.operator.more_than', 'order-daemon'),
+            'count_lt'      => __('component.operator.less_than', 'order-daemon'),
+            'count_eq'      => __('component.operator.equals', 'order-daemon'),
+            'count_gte'     => __('component.operator.at_least', 'order-daemon'),
+            'count_lte'     => __('component.operator.at_most', 'order-daemon'),
         ];
 
         return $mode_map[$match_mode] ?? '';
@@ -197,11 +197,11 @@ final class ComponentSummaryBuilder
             // Component-specific boolean phrasing
             if (($property['type'] ?? '') === 'boolean') {
                 if ($component_id === 'product_selection' && $key === 'include_variations' && $value) {
-                    $details[] = __('including product variations', 'order-daemon');
+                    $details[] = __('component.behavior.including_product_variations', 'order-daemon');
                     continue;
                 }
                 if ($component_id === 'customer_role' && $key === 'include_guests' && $value) {
-                    $details[] = __('including guests', 'order-daemon');
+                    $details[] = __('component.behavior.including_guests', 'order-daemon');
                     continue;
                 }
                 // Skip other booleans to avoid awkward wording
@@ -238,7 +238,7 @@ final class ComponentSummaryBuilder
 
         // Booleans
         if (($property['type'] ?? '') === 'boolean') {
-            return $value ? __('enabled', 'order-daemon') : __('disabled', 'order-daemon');
+            return $value ? __('component.state.enabled', 'order-daemon') : __('component.state.disabled', 'order-daemon');
         }
 
         return (string) $value;
@@ -297,7 +297,7 @@ final class ComponentSummaryBuilder
         }
         $summary = trim(implode(' ', $segments));
         if ($summary === '') {
-            $summary = __('Component', 'order-daemon');
+            $summary = __('component.label.component', 'order-daemon');
         }
         return $summary;
     }
@@ -458,7 +458,7 @@ final class ComponentSummaryBuilder
 
             case 'customer_role':
                 // e.g., "Customer Role includes Administrator, Shop Manager (including guests)"
-                $mode_text = __('includes', 'order-daemon');
+                $mode_text = __('component.operator.includes', 'order-daemon');
                 return $this->build_summary_html([
                     'title' => $title,
                     'match_mode' => $mode_text,
@@ -472,8 +472,10 @@ final class ComponentSummaryBuilder
                 // Map count_type to human-readable label
                 $count_type = isset($settings['count_type']) ? (string) $settings['count_type'] : 'unique_products';
                 $count_type_label = $count_type === 'total_quantity'
-                    ? __('Total quantity', 'order-daemon')
-                    : __('Unique products', 'order-daemon');
+                    /* translators: Text describing the total number of items in an order (e.g. if someone buys 3 apples and 2 oranges, this would be: 5) */
+                    ? __('component.label.total_quantity', 'order-daemon')
+                    /* translators: Text describing the number of different products in an order (e.g. if someone buys 3 apples and 2 oranges, this would be: 2) */
+                    : __('component.label.unique_products', 'order-daemon');
                 
                 // Compute the sibling key directly from the selected operator (matches schema ui:radio_inputs)
                 $sibling_key = isset($settings['operator']) ? (string) $settings['operator'] . '_value' : null;
@@ -516,13 +518,18 @@ final class ComponentSummaryBuilder
     private function get_fallback_summary(string $component_type): string
     {
         $fallback_labels = [
-            'trigger' => __('Trigger', 'order-daemon'),
-            'condition' => __('Condition', 'order-daemon'),
-            'action' => __('Action', 'order-daemon'),
-            'primaryAction' => __('Primary Action', 'order-daemon'),
+            /* translators: Default text for order triggers (what event starts the automation, like "when order is paid") */
+            'trigger' => __('component.label.trigger', 'order-daemon'),
+            /* translators: Default text for order conditions (requirements that must be met, like "order total is greater than $50") */
+            'condition' => __('component.label.condition', 'order-daemon'),
+            /* translators: Default text for order actions (what the system does, like "save order note" or "mark as complete") */
+            'action' => __('component.label.action', 'order-daemon'),
+            /* translators: Default text for the main order action (the primary thing that happens when all conditions are met) */
+            'primaryAction' => __('component.label.primary_action', 'order-daemon'),
         ];
 
-        $label = $fallback_labels[$component_type] ?? __('Component', 'order-daemon');
+        /* translators: Generic default text when the system can't identify what type of rule component this is */
+        $label = $fallback_labels[$component_type] ?? __('component.label.component', 'order-daemon');
         
         return $this->sanitize_summary_html(
             sprintf('<span class="odcm-summary-title">%s</span>', esc_html($label))

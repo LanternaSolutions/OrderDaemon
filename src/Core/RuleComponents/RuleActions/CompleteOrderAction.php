@@ -21,12 +21,12 @@ class CompleteOrderAction implements ActionInterface
 
     public function get_label(): string
     {
-        return __('Change Status to \'Completed\'', 'order-daemon');
+        return __('rule_component.action.complete_order.label', 'order-daemon');
     }
 
     public function get_description(): string
     {
-        return __('Marks the order as complete. This is the default action.', 'order-daemon');
+        return __('rule_component.action.complete_order.description', 'order-daemon');
     }
 
     public function get_capability(): string
@@ -42,7 +42,7 @@ class CompleteOrderAction implements ActionInterface
 
     public function execute(WC_Order $order, array $settings): void
     {
-        $order->update_status('completed', __('Order completed automatically by rule.', 'order-daemon'));
+        $order->update_status('completed', __('rule_component.action.complete_order.note_message', 'order-daemon'));
     }
 
     /**

@@ -150,7 +150,7 @@ final class RuleBuilder
     {
         add_meta_box(
             'odcm-rule-builder',
-            __('Rule Builder', 'order-daemon'),
+            __('admin.rule_builder.metabox_title', 'order-daemon'),
             [$this, 'render_rule_builder'],
             'odcm_order_rule',
             'normal',
@@ -284,16 +284,16 @@ final class RuleBuilder
                 'php_version' => PHP_VERSION
             ],
             'i18n' => [
-                'saving'           => __('Saving...', 'order-daemon'),
-                'saved'            => __('Saved', 'order-daemon'),
-                'error'            => __('Error', 'order-daemon'),
-                'loading'          => __('Loading...', 'order-daemon'),
-                'addCondition'     => __('Add Condition', 'order-daemon'),
-                'edit'             => __('Edit', 'order-daemon'),
-                'remove'           => __('Remove', 'order-daemon'),
-                'searchConditions' => __('Search conditions...', 'order-daemon'),
-                'searchActions'    => __('Search actions...', 'order-daemon'),
-                'noSettings'       => __('No settings required.', 'order-daemon'),
+                'saving'           => __('admin.rule_builder.status.saving', 'order-daemon'),
+                'saved'            => __('admin.rule_builder.status.saved', 'order-daemon'),
+                'error'            => __('admin.rule_builder.status.error', 'order-daemon'),
+                'loading'          => __('admin.rule_builder.status.loading', 'order-daemon'),
+                'addCondition'     => __('admin.rule_builder.action.add_condition', 'order-daemon'),
+                'edit'             => __('admin.rule_builder.action.edit', 'order-daemon'),
+                'remove'           => __('admin.rule_builder.action.remove', 'order-daemon'),
+                'searchConditions' => __('admin.rule_builder.search.conditions_placeholder', 'order-daemon'),
+                'searchActions'    => __('admin.rule_builder.search.actions_placeholder', 'order-daemon'),
+                'noSettings'       => __('admin.rule_builder.message.no_settings_required', 'order-daemon'),
             ],
             'upgrade' => [
                 'enabled' => DependencyChecker::should_show_upgrade_prompts(),
@@ -771,7 +771,7 @@ final class RuleBuilder
         <div class="odcm-rule-builder-wrapper" x-data="ruleBuilder()" x-cloak x-init="$watch('rule', value => { document.getElementById('odcm_rule_data_field').value = JSON.stringify(value); })">
             <!-- Rule Builder Header -->
             <div class="odcm-rule-builder-header">
-                <h2><?php esc_html_e('Rule Builder', 'order-daemon'); ?></h2>
+                <h2><?php esc_html_e('admin.rule_builder.header_title', 'order-daemon'); ?></h2>
             </div>
 
             <!-- Rule Builder Content -->
@@ -780,7 +780,7 @@ final class RuleBuilder
                     <!-- Loading State -->
                     <div x-show="loading" class="odcm-loading-state">
                         <div class="odcm-loading-spinner"></div>
-                        <p><?php esc_html_e('Loading Rule Builder...', 'order-daemon'); ?></p>
+                        <p><?php esc_html_e('admin.rule_builder.status.loading_rule_builder', 'order-daemon'); ?></p>
                     </div>
 
                     <!-- Main Application -->
@@ -789,8 +789,8 @@ final class RuleBuilder
                 <!-- WHEN Section (Trigger) -->
                 <div class="odcm-rule-section">
                     <h3 class="odcm-section-title">
-                        <?php esc_html_e('WHEN', 'order-daemon'); ?>
-                        <span class="odcm-section-subtitle"><?php esc_html_e('(Trigger)', 'order-daemon'); ?></span>
+                        <?php esc_html_e('admin.rule_builder.section.when', 'order-daemon'); ?>
+                        <span class="odcm-section-subtitle"><?php esc_html_e('admin.rule_builder.section.when_subtitle', 'order-daemon'); ?></span>
                     </h3>
 
                     <div x-show="!rule.trigger" class="odcm-empty-state">
@@ -798,7 +798,7 @@ final class RuleBuilder
                                 @click="isAddingTrigger = !isAddingTrigger" 
                                 class="odcm-add-component-button odcm-add-trigger-button">
                             <span class="odcm-button-icon">+</span>
-                            <?php esc_html_e('Add Trigger (to control when this rule should run)', 'order-daemon'); ?>
+                            <?php esc_html_e('admin.rule_builder.action.add_trigger_description', 'order-daemon'); ?>
                         </button>
                     </div>
 
@@ -810,7 +810,7 @@ final class RuleBuilder
                             <button type="button" 
                                     @click="removeTrigger()" 
                                     class="odcm-remove-button">
-                                <?php esc_html_e('Remove', 'order-daemon'); ?>
+                                <?php esc_html_e('admin.rule_builder.action.remove', 'order-daemon'); ?>
                             </button>
                         </div>
                     </div>
@@ -1005,7 +1005,7 @@ final class RuleBuilder
                         <div class="odcm-selector-header">
                             <input type="text" 
                                    x-model="triggerSearchTerm" 
-                                   placeholder="<?php esc_attr_e('Search triggers...', 'order-daemon'); ?>"
+                                   placeholder="<?php esc_attr_e('admin.rule_builder.search.triggers_placeholder', 'order-daemon'); ?>"
                                    class="odcm-search-input">
                             <button type="button" 
                                     @click="isAddingTrigger = false" 
@@ -1033,8 +1033,8 @@ final class RuleBuilder
                 <!-- IF Section (Conditions) -->
                 <div class="odcm-rule-section">
                     <h3 class="odcm-section-title">
-                        <?php esc_html_e('IF', 'order-daemon'); ?>
-                        <span class="odcm-section-subtitle"><?php esc_html_e('(Conditions)', 'order-daemon'); ?></span>
+                        <?php esc_html_e('admin.rule_builder.section.if', 'order-daemon'); ?>
+                        <span class="odcm-section-subtitle"><?php esc_html_e('admin.rule_builder.section.if_subtitle', 'order-daemon'); ?></span>
                         <span class="odcm-component-count" x-text="`(${rule.conditions.length})`"></span>
                     </h3>
 
@@ -1059,7 +1059,7 @@ final class RuleBuilder
                                     <button type="button" 
                                             @click="removeCondition(index)" 
                                             class="odcm-remove-button">
-                                        <?php esc_html_e('Remove', 'order-daemon'); ?>
+                                        <?php esc_html_e('admin.rule_builder.action.remove', 'order-daemon'); ?>
                                     </button>
                                 </div>
                             </div>
@@ -1224,7 +1224,7 @@ final class RuleBuilder
                             @click="isAddingCondition = !isAddingCondition" 
                             class="odcm-add-component-button odcm-add-condition-button">
                         <span class="odcm-button-icon">+</span>
-                        <?php esc_html_e('Add Condition (to control when this rule applies)', 'order-daemon'); ?>
+                            <?php esc_html_e('admin.rule_builder.action.add_condition_description', 'order-daemon'); ?>
                     </button>
 
                     <!-- Condition Inline Selector -->
@@ -1232,7 +1232,7 @@ final class RuleBuilder
                         <div class="odcm-selector-header">
                             <input type="text" 
                                    x-model="conditionSearchTerm" 
-                                   placeholder="<?php esc_attr_e('Search conditions...', 'order-daemon'); ?>"
+                                   placeholder="<?php esc_attr_e('admin.rule_builder.search.conditions_placeholder', 'order-daemon'); ?>"
                                    class="odcm-search-input">
                             <button type="button" 
                                     @click="isAddingCondition = false" 
@@ -1260,20 +1260,20 @@ final class RuleBuilder
                 <!-- THEN Section (Actions) -->
                 <div class="odcm-rule-section">
                     <h3 class="odcm-section-title">
-                        <?php esc_html_e('THEN', 'order-daemon'); ?>
-                        <span class="odcm-section-subtitle"><?php esc_html_e('(Actions)', 'order-daemon'); ?></span>
+                        <?php esc_html_e('admin.rule_builder.section.then', 'order-daemon'); ?>
+                        <span class="odcm-section-subtitle"><?php esc_html_e('admin.rule_builder.section.then_subtitle', 'order-daemon'); ?></span>
                     </h3>
 
                     <!-- Primary Action Section -->
                     <div class="odcm-primary-action-section">
-                        <h4 class="odcm-subsection-title"><?php esc_html_e('Primary Action', 'order-daemon'); ?></h4>
+                        <h4 class="odcm-subsection-title"><?php esc_html_e('admin.rule_builder.section.primary_action', 'order-daemon'); ?></h4>
                         
                         <div x-show="!rule.primaryAction" class="odcm-empty-state">
                             <button type="button" 
                                     @click="isAddingPrimaryAction = !isAddingPrimaryAction" 
                                     class="odcm-add-component-button odcm-add-primary-action-button">
                                 <span class="odcm-button-icon">+</span>
-                                <?php esc_html_e('Add Primary Action (the status-changing action for this rule)', 'order-daemon'); ?>
+                                <?php esc_html_e('admin.rule_builder.action.add_primary_action_description', 'order-daemon'); ?>
                             </button>
                         </div>
 
@@ -1284,15 +1284,15 @@ final class RuleBuilder
                             <div class="odcm-drag-handle" aria-hidden="true">⋮⋮</div>
                             <div class="odcm-component-summary" x-html="getComponentSummary(rule.primaryAction, 'primaryAction', 0)"></div>
                             <div class="odcm-component-actions">
-                                <div class="odcm-component-badge odcm-badge-primary">
-                                    <?php esc_html_e('Primary', 'order-daemon'); ?>
-                                </div>
-                                <button type="button" 
-                                        @click="removePrimaryAction()" 
-                                        class="odcm-remove-button"
-                                        x-show="components.primaryActions && components.primaryActions.length > 1">
-                                    <?php esc_html_e('Change', 'order-daemon'); ?>
-                                </button>
+                                    <div class="odcm-component-badge odcm-badge-primary">
+                                        <?php esc_html_e('admin.rule_builder.label.primary', 'order-daemon'); ?>
+                                    </div>
+                                    <button type="button" 
+                                            @click="removePrimaryAction()" 
+                                            class="odcm-remove-button"
+                                            x-show="components.primaryActions && components.primaryActions.length > 1">
+                                        <?php esc_html_e('admin.rule_builder.action.change', 'order-daemon'); ?>
+                                    </button>
                             </div>
                         </div>
 
@@ -1402,7 +1402,7 @@ final class RuleBuilder
                             <div class="odcm-selector-header">
                                 <input type="text" 
                                        x-model="primaryActionSearchTerm" 
-                                       placeholder="<?php esc_attr_e('Search primary actions...', 'order-daemon'); ?>"
+                                       placeholder="<?php esc_attr_e('admin.rule_builder.search.primary_actions_placeholder', 'order-daemon'); ?>"
                                        class="odcm-search-input">
                                 <button type="button" 
                                         @click="isAddingPrimaryAction = false" 
@@ -1429,7 +1429,7 @@ final class RuleBuilder
                     <!-- Secondary Actions Section -->
                     <div class="odcm-secondary-actions-section">
                         <h4 class="odcm-subsection-title">
-                            <?php esc_html_e('Secondary Actions', 'order-daemon'); ?>
+                            <?php esc_html_e('admin.rule_builder.section.secondary_actions', 'order-daemon'); ?>
                             <span class="odcm-component-count" x-text="`(${rule.secondaryActions.length})`"></span>
                         </h4>
 
@@ -1449,7 +1449,7 @@ final class RuleBuilder
                                         <button type="button" 
                                                 @click="removeAction(index)" 
                                                 class="odcm-remove-button">
-                                            <?php esc_html_e('Remove', 'order-daemon'); ?>
+                                            <?php esc_html_e('admin.rule_builder.action.remove', 'order-daemon'); ?>
                                         </button>
                                     </div>
                                 </div>
@@ -1597,7 +1597,7 @@ final class RuleBuilder
                                 @click="isAddingAction = !isAddingAction" 
                                 class="odcm-add-component-button odcm-add-secondary-action-button">
                             <span class="odcm-button-icon">+</span>
-                            <?php esc_html_e('Add Secondary Action (to run after the primary action)', 'order-daemon'); ?>
+                                <?php esc_html_e('admin.rule_builder.action.add_secondary_action_description', 'order-daemon'); ?>
                         </button>
 
                         <!-- Secondary Action Inline Selector -->
@@ -1605,7 +1605,7 @@ final class RuleBuilder
                             <div class="odcm-selector-header">
                                 <input type="text" 
                                        x-model="actionSearchTerm" 
-                                       placeholder="<?php esc_attr_e('Search additional actions...', 'order-daemon'); ?>"
+                                       placeholder="<?php esc_attr_e('admin.rule_builder.search.secondary_actions_placeholder', 'order-daemon'); ?>"
                                        class="odcm-search-input">
                                 <button type="button" 
                                         @click="isAddingAction = false" 

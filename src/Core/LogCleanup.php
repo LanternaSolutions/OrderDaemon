@@ -190,7 +190,7 @@ class LogCleanup
         if (!$count_to_delete || $count_to_delete === 0) {
             return [
                 'success'       => true,
-                'message'       => __('No old log records found to delete.', 'order-daemon'),
+                'message'       => __('core.log_cleanup.no_old_records', 'order-daemon'),
                 'deleted_count' => 0,
                 'deleted_payloads' => 0,
             ];
@@ -207,16 +207,16 @@ class LogCleanup
         $this->cleanup_old_logs();
 
         $message = sprintf(
-            // translators: %1$d: number of deleted records, %2$d: retention period in days
-            __('Successfully deleted %1$d old log records (older than %2$d days).', 'order-daemon'),
+            /* translators: %1$d: number of deleted records, %2$d: retention period in days */
+            __('core.log_cleanup.success_deleted_records', 'order-daemon'),
             $count_to_delete,
             $retention_days
         );
         
         if ($payload_count_to_delete > 0) {
             $message .= ' ' . sprintf(
-                // translators: %d: number of deleted payload records
-                __('Also deleted %d associated payload records.', 'order-daemon'),
+                /* translators: %d: number of deleted payload records */
+                __('core.log_cleanup.deleted_payload_records', 'order-daemon'),
                 $payload_count_to_delete
             );
         }

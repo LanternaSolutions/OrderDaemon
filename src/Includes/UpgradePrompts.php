@@ -95,28 +95,28 @@ final class UpgradePrompts
         // Feature comparison data (non-exhaustive, educational only)
         $comparison = [
             [
-                'feature' => __('Advanced filtering (dashboard)', 'order-daemon'),
-                'core'    => __('Basic search', 'order-daemon'),
-                'pro'     => __('Status, event type, source, date range, and more', 'order-daemon'),
+                'feature' => __('upgrade_prompts.comparison.advanced_filtering', 'order-daemon'),
+                'core'    => __('upgrade_prompts.comparison.basic_search', 'order-daemon'),
+                'pro'     => __('upgrade_prompts.comparison.advanced_search', 'order-daemon'),
             ],
             [
-                'feature' => __('Rule conditions', 'order-daemon'),
-                'core'    => __('Common conditions', 'order-daemon'),
-                'pro'     => __('Extended conditions and combination options', 'order-daemon'),
+                'feature' => __('upgrade_prompts.comparison.rule_conditions', 'order-daemon'),
+                'core'    => __('upgrade_prompts.comparison.common_conditions', 'order-daemon'),
+                'pro'     => __('upgrade_prompts.comparison.extended_conditions', 'order-daemon'),
             ],
             [
-                'feature' => __('Actions', 'order-daemon'),
-                'core'    => __('Primary action', 'order-daemon'),
-                'pro'     => __('Additional secondary actions and workflows', 'order-daemon'),
+                'feature' => __('upgrade_prompts.comparison.actions', 'order-daemon'),
+                'core'    => __('upgrade_prompts.comparison.primary_action', 'order-daemon'),
+                'pro'     => __('upgrade_prompts.comparison.secondary_actions', 'order-daemon'),
             ],
         ];
 
         $examples = [
-            __('This feature is available in the premium version', 'order-daemon'),
-            __('Learn more about advanced filtering options', 'order-daemon'),
-            __('Visit our website for more information', 'order-daemon'),
-            __('Upgrade to unlock additional capabilities', 'order-daemon'),
-            __('See what\'s possible with premium features', 'order-daemon'),
+            __('upgrade_prompts.message.premium_feature', 'order-daemon'),
+            __('upgrade_prompts.message.filtering_options', 'order-daemon'),
+            __('upgrade_prompts.message.visit_website', 'order-daemon'),
+            __('upgrade_prompts.message.upgrade_capabilities', 'order-daemon'),
+            __('upgrade_prompts.message.premium_possibilities', 'order-daemon'),
         ];
 
         wp_localize_script('odcm-upgrade-prompts', 'odcmUpgradePrompts', [
@@ -130,26 +130,26 @@ final class UpgradePrompts
             'comparison'  => $comparison,
             'contexts'    => [
                 'rule_builder'    => [
-                    'title'   => __('Premium Rule Components', 'order-daemon'),
+                    'title'   => __('upgrade_prompts.modal.premium_components_title', 'order-daemon'),
                     'message' => DependencyChecker::get_wordpress_org_compliant_message('rule_builder'),
                     'promptKey' => 'rule_builder_premium',
                 ],
                 'insight_filters' => [
-                    'title'   => __('Advanced Dashboard Filters', 'order-daemon'),
+                    'title'   => __('upgrade_prompts.modal.advanced_filters_title', 'order-daemon'),
                     'message' => DependencyChecker::get_wordpress_org_compliant_message('insight_filters'),
                     'promptKey' => 'insight_filters_premium',
                 ],
             ],
             'i18n'        => [
-                'learnMore'    => __('Learn more', 'order-daemon'),
-                'close'        => __('Close', 'order-daemon'),
-                'dontShow'     => __('Don\'t show again', 'order-daemon'),
-                'preferences'  => __('Preferences', 'order-daemon'),
-                'frequency'    => __('Prompt frequency', 'order-daemon'),
-                'freq_normal'  => __('Normal', 'order-daemon'),
-                'freq_reduced' => __('Reduced', 'order-daemon'),
-                'freq_off'     => __('Off', 'order-daemon'),
-                'saved'        => __('Saved', 'order-daemon'),
+                'learnMore'    => __('upgrade_prompts.modal.learn_more', 'order-daemon'),
+                'close'        => __('upgrade_prompts.modal.close', 'order-daemon'),
+                'dontShow'     => __('upgrade_prompts.modal.dont_show_again', 'order-daemon'),
+                'preferences'  => __('upgrade_prompts.modal.preferences', 'order-daemon'),
+                'frequency'    => __('upgrade_prompts.modal.prompt_frequency', 'order-daemon'),
+                'freq_normal'  => __('upgrade_prompts.modal.freq_normal', 'order-daemon'),
+                'freq_reduced' => __('upgrade_prompts.modal.freq_reduced', 'order-daemon'),
+                'freq_off'     => __('upgrade_prompts.modal.freq_off', 'order-daemon'),
+                'saved'        => __('upgrade_prompts.modal.saved', 'order-daemon'),
             ],
         ]);
     }
@@ -166,7 +166,7 @@ final class UpgradePrompts
         <div id="odcm-upgrade-modal" class="odcm-upgrade-modal" style="display:none" aria-hidden="true">
             <div class="odcm-upgrade-modal__backdrop" tabindex="-1"></div>
             <div class="odcm-upgrade-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="odcm-upgrade-modal-title">
-                <button type="button" class="odcm-upgrade-modal__close" aria-label="<?php echo esc_attr__('Close', 'order-daemon'); ?>">×</button>
+                <button type="button" class="odcm-upgrade-modal__close" aria-label="<?php echo esc_attr__('upgrade_prompts.modal.close', 'order-daemon'); ?>">×</button>
                 <div class="odcm-upgrade-modal__header">
                     <h2 id="odcm-upgrade-modal-title" class="odcm-upgrade-modal__title"></h2>
                 </div>
@@ -180,11 +180,11 @@ final class UpgradePrompts
                 </div>
                 <div class="odcm-upgrade-modal__footer">
                     <label class="odcm-upgrade-modal__dismiss">
-                        <input type="checkbox" class="odcm-upgrade-modal__dont-show"> <?php echo esc_html__("Don't show again", 'order-daemon'); ?>
+                        <input type="checkbox" class="odcm-upgrade-modal__dont-show"> <?php echo esc_html__('upgrade_prompts.modal.dont_show_again', 'order-daemon'); ?>
                     </label>
                     <div class="odcm-upgrade-modal__actions">
-                        <button type="button" class="button odcm-upgrade-modal__close-btn"><?php echo esc_html__('Close', 'order-daemon'); ?></button>
-                        <a class="button button-secondary odcm-upgrade-modal__learn-more" href="#" target="_blank" rel="noopener" style="display:none"><?php echo esc_html__('Learn more', 'order-daemon'); ?></a>
+                        <button type="button" class="button odcm-upgrade-modal__close-btn"><?php echo esc_html__('upgrade_prompts.modal.close', 'order-daemon'); ?></button>
+                        <a class="button button-secondary odcm-upgrade-modal__learn-more" href="#" target="_blank" rel="noopener" style="display:none"><?php echo esc_html__('upgrade_prompts.modal.learn_more', 'order-daemon'); ?></a>
                     </div>
                 </div>
             </div>
@@ -250,11 +250,11 @@ final class UpgradePrompts
     {
         // Capability and nonce checks
         if (!current_user_can('manage_woocommerce') && !current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('Insufficient permissions', 'order-daemon')], 403);
+            wp_send_json_error(['message' => __('upgrade_prompts.ajax.insufficient_permissions', 'order-daemon')], 403);
         }
         $nonce = $_POST['nonce'] ?? '';
         if (!wp_verify_nonce($nonce, 'odcm_upgrade_prompts')) {
-            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')], 400);
+            wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')], 400);
         }
 
         $prefs = [
@@ -263,9 +263,9 @@ final class UpgradePrompts
 
         $updated = $this->update_user_prefs(get_current_user_id(), $prefs);
         if ($updated) {
-            wp_send_json_success(['message' => __('Preferences saved', 'order-daemon')]);
+            wp_send_json_success(['message' => __('upgrade_prompts.ajax.preferences_saved', 'order-daemon')]);
         }
-        wp_send_json_error(['message' => __('No changes', 'order-daemon')]);
+        wp_send_json_error(['message' => __('upgrade_prompts.ajax.no_changes', 'order-daemon')]);
     }
 
     /**
@@ -277,16 +277,16 @@ final class UpgradePrompts
     {
         // Capability and nonce checks
         if (!current_user_can('manage_woocommerce') && !current_user_can('manage_options')) {
-            wp_send_json_error(['message' => __('Insufficient permissions', 'order-daemon')], 403);
+            wp_send_json_error(['message' => __('upgrade_prompts.ajax.insufficient_permissions', 'order-daemon')], 403);
         }
         $nonce = $_POST['nonce'] ?? '';
         if (!wp_verify_nonce($nonce, 'odcm_upgrade_prompts')) {
-            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')], 400);
+            wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')], 400);
         }
 
         $key = isset($_POST['promptKey']) ? sanitize_key((string) $_POST['promptKey']) : '';
         if ($key === '') {
-            wp_send_json_error(['message' => __('Invalid prompt key', 'order-daemon')], 400);
+            wp_send_json_error(['message' => __('upgrade_prompts.ajax.invalid_prompt_key', 'order-daemon')], 400);
         }
 
         $user_id = get_current_user_id();
@@ -295,8 +295,8 @@ final class UpgradePrompts
         $ok = update_user_meta($user_id, self::USER_META_KEY, $prefs);
 
         if ($ok) {
-            wp_send_json_success(['message' => __('Dismissed', 'order-daemon')]);
+            wp_send_json_success(['message' => __('upgrade_prompts.ajax.dismissed', 'order-daemon')]);
         }
-        wp_send_json_error(['message' => __('Failed to update', 'order-daemon')]);
+        wp_send_json_error(['message' => __('upgrade_prompts.ajax.failed_to_update', 'order-daemon')]);
     }
 }

@@ -154,64 +154,64 @@ function odcm_get_log_event_types(): array
         
         'order_completed' => [
             'id'               => 'order_completed',
-            'label'            => __('Order Completed', 'order-daemon'),
-            'summary_template' => __('Order #%d completed successfully', 'order-daemon'),
+            'label'            => __('core.log.event.order_completed', 'order-daemon'),
+            'summary_template' => __('core.log.event.order_completed_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'core',
         ],
         
         'order_processing_started' => [
             'id'               => 'order_processing_started',
-            'label'            => __('Order Processing Started', 'order-daemon'),
-            'summary_template' => __('Started processing order #%d', 'order-daemon'),
+            'label'            => __('core.log.event.order_processing_started', 'order-daemon'),
+            'summary_template' => __('core.log.event.order_processing_started_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
         
         'rule_matched' => [
             'id'               => 'rule_matched',
-            'label'            => __('Rule Matched', 'order-daemon'),
-            'summary_template' => __('Order #%d matched completion rule: %s', 'order-daemon'),
+            'label'            => __('core.log.event.rule_matched', 'order-daemon'),
+            'summary_template' => __('core.log.event.rule_matched_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
         
         'rule_skipped' => [
             'id'               => 'rule_skipped',
-            'label'            => __('Rule Skipped', 'order-daemon'),
-            'summary_template' => __('Order #%d skipped rule "%s": %s', 'order-daemon'),
+            'label'            => __('core.log.event.rule_skipped', 'order-daemon'),
+            'summary_template' => __('core.log.event.rule_skipped_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
         
         'invalid_order' => [
             'id'               => 'invalid_order',
-            'label'            => __('Invalid Order Object', 'order-daemon'),
-            'summary_template' => __('Order #%d could not be loaded or is invalid', 'order-daemon'),
+            'label'            => __('core.log.event.invalid_order', 'order-daemon'),
+            'summary_template' => __('core.log.event.invalid_order_message', 'order-daemon'),
             'default_status'   => 'error',
             'category'         => 'core',
         ],
         
         'no_rules_found' => [
             'id'               => 'no_rules_found',
-            'label'            => __('No Rules Found', 'order-daemon'),
-            'summary_template' => __('No completion rules found for order #%d', 'order-daemon'),
+            'label'            => __('core.log.event.no_rules_found', 'order-daemon'),
+            'summary_template' => __('core.log.event.no_rules_found_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'core',
         ],
         
         'action_execution_failed' => [
             'id'               => 'action_execution_failed',
-            'label'            => __('Action Execution Failed', 'order-daemon'),
-            'summary_template' => __('Failed to execute action "%s" for order #%d: %s', 'order-daemon'),
+            'label'            => __('core.log.event.action_execution_failed', 'order-daemon'),
+            'summary_template' => __('core.log.event.action_execution_failed_message', 'order-daemon'),
             'default_status'   => 'error',
             'category'         => 'core',
         ],
         
         'condition_check_failed' => [
             'id'               => 'condition_check_failed',
-            'label'            => __('Condition Check Failed', 'order-daemon'),
-            'summary_template' => __('Condition "%s" check failed for order #%d: %s', 'order-daemon'),
+            'label'            => __('core.log.event.condition_check_failed', 'order-daemon'),
+            'summary_template' => __('core.log.event.condition_check_failed_message', 'order-daemon'),
             'default_status'   => 'error',
             'category'         => 'core',
         ],
@@ -220,8 +220,8 @@ function odcm_get_log_event_types(): array
         
         'process_order_check_start' => [
             'id'               => 'process_order_check_start',
-            'label'            => __('Process Order Check Started', 'order-daemon'),
-            'summary_template' => __('Starting order check process for order #%d', 'order-daemon'),
+            'label'            => __('core.log.event.process_check_started', 'order-daemon'),
+            'summary_template' => __('core.log.event.process_check_started_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
@@ -230,40 +230,40 @@ function odcm_get_log_event_types(): array
         
         'condition_passed' => [
             'id'               => 'condition_passed',
-            'label'            => __('Condition Passed', 'order-daemon'),
-            'summary_template' => __('Condition "%s" passed for order #%d with value "%s"', 'order-daemon'),
+            'label'            => __('core.log.event.condition_passed', 'order-daemon'),
+            'summary_template' => __('core.log.event.condition_passed_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
         
         'condition_failed' => [
             'id'               => 'condition_failed',
-            'label'            => __('Condition Failed', 'order-daemon'),
-            'summary_template' => __('Condition "%s" failed for order #%d. Expected: "%s", Actual: "%s"', 'order-daemon'),
+            'label'            => __('core.log.event.condition_failed', 'order-daemon'),
+            'summary_template' => __('core.log.event.condition_failed_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'core',
         ],
         
         'process_started' => [
             'id'               => 'process_started',
-            'label'            => __('Process Started', 'order-daemon'),
-            'summary_template' => __('Started processing workflow for order #%d', 'order-daemon'),
+            'label'            => __('core.log.event.process_started', 'order-daemon'),
+            'summary_template' => __('core.log.event.process_started_message', 'order-daemon'),
             'default_status'   => 'debug',
             'category'         => 'debug',
         ],
         
         'slow_execution' => [
             'id'               => 'slow_execution',
-            'label'            => __('Slow Execution Warning', 'order-daemon'),
-            'summary_template' => __('Order #%d processing took %dms, exceeding %dms threshold', 'order-daemon'),
+            'label'            => __('core.log.event.slow_execution', 'order-daemon'),
+            'summary_template' => __('core.log.event.slow_execution_message', 'order-daemon'),
             'default_status'   => 'warning',
             'category'         => 'core',
         ],
         
         'manual_status_change' => [
             'id'               => 'manual_status_change',
-            'label'            => __('Manual Status Change', 'order-daemon'),
-            'summary_template' => __('Order #%d status manually changed from "%s" to "%s" by user ID %d', 'order-daemon'),
+            'label'            => __('core.log.event.manual_status_change', 'order-daemon'),
+            'summary_template' => __('core.log.event.manual_status_change_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'core',
             // Attribution-aware UI hints for renderers
@@ -277,8 +277,8 @@ function odcm_get_log_event_types(): array
         // === Attribution-Aware Events ===
         'webhook_status_change' => [
             'id'               => 'webhook_status_change',
-            'label'            => __('Webhook Status Change', 'order-daemon'),
-            'summary_template' => __('Order #%d status changed from "%s" to "%s" by %s webhook', 'order-daemon'),
+            'label'            => __('core.log.event.webhook_status_change', 'order-daemon'),
+            'summary_template' => __('core.log.event.webhook_status_change_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'core',
             'attribution'      => [
@@ -289,8 +289,8 @@ function odcm_get_log_event_types(): array
         ],
         'plugin_automated_change' => [
             'id'               => 'plugin_automated_change',
-            'label'            => __('Plugin Automated Change', 'order-daemon'),
-            'summary_template' => __('Order #%d automatically updated by %s plugin via %s', 'order-daemon'),
+            'label'            => __('core.log.event.plugin_automated_change', 'order-daemon'),
+            'summary_template' => __('core.log.event.plugin_automated_change_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'core',
             'attribution'      => [
@@ -301,8 +301,8 @@ function odcm_get_log_event_types(): array
         ],
         'api_status_change' => [
             'id'               => 'api_status_change',
-            'label'            => __('API Status Change', 'order-daemon'),
-            'summary_template' => __('Order #%d status changed from "%s" to "%s" via REST API', 'order-daemon'),
+            'label'            => __('core.log.event.api_status_change', 'order-daemon'),
+            'summary_template' => __('core.log.event.api_status_change_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'core',
             'attribution'      => [
@@ -313,8 +313,8 @@ function odcm_get_log_event_types(): array
         ],
         'external_service_action' => [
             'id'               => 'external_service_action',
-            'label'            => __('External Service Action', 'order-daemon'),
-            'summary_template' => __('External service %s performed "%s" for order #%d', 'order-daemon'),
+            'label'            => __('core.log.event.external_service_action', 'order-daemon'),
+            'summary_template' => __('core.log.event.external_service_action_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'core',
             'attribution'      => [
@@ -327,98 +327,98 @@ function odcm_get_log_event_types(): array
         // === Refund & Deletion Events (Core) ===
         'order_partially_refunded' => [
             'id'               => 'order_partially_refunded',
-            'label'            => __('Order Partially Refunded', 'order-daemon'),
-            'summary_template' => __('Order #%d partially refunded: %s (%d%% of total)', 'order-daemon'),
+            'label'            => __('core.log.event.order_partially_refunded', 'order-daemon'),
+            'summary_template' => __('core.log.event.order_partially_refunded_message', 'order-daemon'),
             'default_status'   => 'warning',
             'category'         => 'core',
         ],
         'order_fully_refunded' => [
             'id'               => 'order_fully_refunded',
-            'label'            => __('Order Fully Refunded', 'order-daemon'),
-            'summary_template' => __('Order #%d fully refunded: %s', 'order-daemon'),
+            'label'            => __('core.log.event.order_fully_refunded', 'order-daemon'),
+            'summary_template' => __('core.log.event.order_fully_refunded_message', 'order-daemon'),
             'default_status'   => 'warning',
             'category'         => 'core',
         ],
         'refund_created' => [
             'id'               => 'refund_created',
-            'label'            => __('Refund Created', 'order-daemon'),
-            'summary_template' => __('Refund #%d created for order #%d: %s', 'order-daemon'),
+            'label'            => __('core.log.event.refund_created', 'order-daemon'),
+            'summary_template' => __('core.log.event.refund_created_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'core',
         ],
         'refund_deleted' => [
             'id'               => 'refund_deleted',
-            'label'            => __('Refund Deleted', 'order-daemon'),
-            'summary_template' => __('Refund #%d deleted for order #%d', 'order-daemon'),
+            'label'            => __('core.log.event.refund_deleted', 'order-daemon'),
+            'summary_template' => __('core.log.event.refund_deleted_message', 'order-daemon'),
             'default_status'   => 'warning',
             'category'         => 'core',
         ],
         'order_deleted' => [
             'id'               => 'order_deleted',
-            'label'            => __('Order Deleted', 'order-daemon'),
-            'summary_template' => __('Order #%d deleted by %s', 'order-daemon'),
+            'label'            => __('core.log.event.order_deleted', 'order-daemon'),
+            'summary_template' => __('core.log.event.order_deleted_message', 'order-daemon'),
             'default_status'   => 'error',
             'category'         => 'core',
         ],
         'order_trashed' => [
             'id'               => 'order_trashed',
-            'label'            => __('Order Trashed', 'order-daemon'),
-            'summary_template' => __('Order #%d moved to trash by %s', 'order-daemon'),
+            'label'            => __('core.log.event.order_trashed', 'order-daemon'),
+            'summary_template' => __('core.log.event.order_trashed_message', 'order-daemon'),
             'default_status'   => 'warning',
             'category'         => 'core',
         ],
         'order_restored' => [
             'id'               => 'order_restored',
-            'label'            => __('Order Restored', 'order-daemon'),
-            'summary_template' => __('Order #%d restored from trash by %s', 'order-daemon'),
+            'label'            => __('core.log.event.order_restored', 'order-daemon'),
+            'summary_template' => __('core.log.event.order_restored_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'core',
         ],
         
         'step_timing' => [
             'id'               => 'step_timing',
-            'label'            => __('Step Timing', 'order-daemon'),
-            'summary_template' => __('Step "%s" took %dms to execute', 'order-daemon'),
+            'label'            => __('core.log.event.step_timing', 'order-daemon'),
+            'summary_template' => __('core.log.event.step_timing_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
         
         'no_match_found' => [
             'id'               => 'no_match_found',
-            'label'            => __('No Rules Matched', 'order-daemon'),
-            'summary_template' => __('No completion rules matched for order #%d', 'order-daemon'),
+            'label'            => __('core.log.event.no_rules_matched', 'order-daemon'),
+            'summary_template' => __('core.log.event.no_rules_matched_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
         
         'rule_evaluation_start' => [
             'id'               => 'rule_evaluation_start',
-            'label'            => __('Rule Evaluation Started', 'order-daemon'),
-            'summary_template' => __('Evaluating rule "%s" for order #%d', 'order-daemon'),
+            'label'            => __('core.log.event.rule_evaluation_started', 'order-daemon'),
+            'summary_template' => __('core.log.event.rule_evaluation_started_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
         
         'condition_evaluation' => [
             'id'               => 'condition_evaluation',
-            'label'            => __('Condition Evaluation', 'order-daemon'),
-            'summary_template' => __('Condition "%s" for order #%d: %s', 'order-daemon'),
+            'label'            => __('core.log.event.condition_evaluation', 'order-daemon'),
+            'summary_template' => __('core.log.event.condition_evaluation_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
         
         'action_execution_start' => [
             'id'               => 'action_execution_start',
-            'label'            => __('Action Execution Started', 'order-daemon'),
-            'summary_template' => __('Executing action "%s" for order #%d', 'order-daemon'),
+            'label'            => __('core.log.event.action_execution_started', 'order-daemon'),
+            'summary_template' => __('core.log.event.action_execution_started_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
         
         'database_query_executed' => [
             'id'               => 'database_query_executed',
-            'label'            => __('Database Query Executed', 'order-daemon'),
-            'summary_template' => __('Executed database query: %s', 'order-daemon'),
+            'label'            => __('core.log.event.database_query_executed', 'order-daemon'),
+            'summary_template' => __('core.log.event.database_query_executed_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
@@ -427,32 +427,32 @@ function odcm_get_log_event_types(): array
         
         'advanced_condition_matched' => [
             'id'               => 'advanced_condition_matched',
-            'label'            => __('Advanced Condition Matched', 'order-daemon'),
-            'summary_template' => __('Order #%d matched premium condition: %s', 'order-daemon'),
+            'label'            => __('core.log.event.advanced_condition_matched', 'order-daemon'),
+            'summary_template' => __('core.log.event.advanced_condition_matched_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'premium',
         ],
         
         'custom_email_sent' => [
             'id'               => 'custom_email_sent',
-            'label'            => __('Custom Email Sent', 'order-daemon'),
-            'summary_template' => __('Custom email sent for order #%d to %s', 'order-daemon'),
+            'label'            => __('core.log.event.custom_email_sent', 'order-daemon'),
+            'summary_template' => __('core.log.event.custom_email_sent_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'premium',
         ],
         
         'advanced_action_executed' => [
             'id'               => 'advanced_action_executed',
-            'label'            => __('Advanced Action Executed', 'order-daemon'),
-            'summary_template' => __('Premium action "%s" executed for order #%d', 'order-daemon'),
+            'label'            => __('core.log.event.advanced_action_executed', 'order-daemon'),
+            'summary_template' => __('core.log.event.advanced_action_executed_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'premium',
         ],
         
         'bulk_operation_completed' => [
             'id'               => 'bulk_operation_completed',
-            'label'            => __('Bulk Operation Completed', 'order-daemon'),
-            'summary_template' => __('Bulk operation completed: %d orders processed', 'order-daemon'),
+            'label'            => __('core.log.event.bulk_operation_completed', 'order-daemon'),
+            'summary_template' => __('core.log.event.bulk_operation_completed_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'premium',
         ],
@@ -461,40 +461,40 @@ function odcm_get_log_event_types(): array
         
         'plugin_activated' => [
             'id'               => 'plugin_activated',
-            'label'            => __('Plugin Activated', 'order-daemon'),
-            'summary_template' => __('Order Daemon plugin activated (version %s)', 'order-daemon'),
+            'label'            => __('core.log.event.plugin_activated', 'order-daemon'),
+            'summary_template' => __('core.log.event.plugin_activated_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'core',
         ],
         
         'database_upgraded' => [
             'id'               => 'database_upgraded',
-            'label'            => __('Database Upgraded', 'order-daemon'),
-            'summary_template' => __('Database schema upgraded from version %s to %s', 'order-daemon'),
+            'label'            => __('core.log.event.database_upgraded', 'order-daemon'),
+            'summary_template' => __('core.log.event.database_upgraded_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'core',
         ],
         
         'settings_updated' => [
             'id'               => 'settings_updated',
-            'label'            => __('Settings Updated', 'order-daemon'),
-            'summary_template' => __('Plugin settings updated by user %s', 'order-daemon'),
+            'label'            => __('core.log.event.settings_updated', 'order-daemon'),
+            'summary_template' => __('core.log.event.settings_updated_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'debug',
         ],
         
         'cleanup_task' => [
             'id'               => 'cleanup_task',
-            'label'            => __('Log Cleanup Task', 'order-daemon'),
-            'summary_template' => __('Log cleanup completed: %d entries removed (retention: %d days)', 'order-daemon'),
+            'label'            => __('core.log.event.log_cleanup_task', 'order-daemon'),
+            'summary_template' => __('core.log.event.log_cleanup_task_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'core',
         ],
         
         'admin_reprocess_orders' => [
             'id'               => 'admin_reprocess_orders',
-            'label'            => __('Admin Reprocess Orders', 'order-daemon'),
-            'summary_template' => __('Admin user "%s" initiated reprocessing of %d pending orders', 'order-daemon'),
+            'label'            => __('core.log.event.admin_reprocess_orders', 'order-daemon'),
+            'summary_template' => __('core.log.event.admin_reprocess_orders_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'core',
         ],
@@ -504,24 +504,24 @@ function odcm_get_log_event_types(): array
         // SUCCESS STATUS EVENTS
         'api_call_report' => [
             'id'               => 'api_call_report',
-            'label'            => __('Test: API Call Success', 'order-daemon'),
-            'summary_template' => __('Successful API integration for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.api_call_success', 'order-daemon'),
+            'summary_template' => __('core.log.test.api_call_success_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'test',
         ],
         
         'rule_eval_matched' => [
             'id'               => 'rule_eval_matched',
-            'label'            => __('Test: Rule Match Success', 'order-daemon'),
-            'summary_template' => __('Rule evaluation successful for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.rule_match_success', 'order-daemon'),
+            'summary_template' => __('core.log.test.rule_match_success_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'test',
         ],
         
         'db_query_success' => [
             'id'               => 'db_query_success',
-            'label'            => __('Test: Database Success', 'order-daemon'),
-            'summary_template' => __('Database operation completed successfully', 'order-daemon'),
+            'label'            => __('core.log.test.database_success', 'order-daemon'),
+            'summary_template' => __('core.log.test.database_success_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'test',
         ],
@@ -529,16 +529,16 @@ function odcm_get_log_event_types(): array
         // ERROR STATUS EVENTS
         'error_report_stack_trace' => [
             'id'               => 'error_report_stack_trace',
-            'label'            => __('Test: Critical Error', 'order-daemon'),
-            'summary_template' => __('Critical system error with stack trace for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.critical_error', 'order-daemon'),
+            'summary_template' => __('core.log.test.critical_error_message', 'order-daemon'),
             'default_status'   => 'error',
             'category'         => 'debug',
         ],
         
         'db_query_failed' => [
             'id'               => 'db_query_failed',
-            'label'            => __('Test: Database Error', 'order-daemon'),
-            'summary_template' => __('Database operation failed with error', 'order-daemon'),
+            'label'            => __('core.log.test.database_error', 'order-daemon'),
+            'summary_template' => __('core.log.test.database_error_message', 'order-daemon'),
             'default_status'   => 'error',
             'category'         => 'debug',
         ],
@@ -546,16 +546,16 @@ function odcm_get_log_event_types(): array
         // WARNING STATUS EVENTS
         'error_report_simple_string' => [
             'id'               => 'error_report_simple_string',
-            'label'            => __('Test: Warning Message', 'order-daemon'),
-            'summary_template' => __('Warning condition detected for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.warning_message', 'order-daemon'),
+            'summary_template' => __('core.log.test.warning_message_template', 'order-daemon'),
             'default_status'   => 'warning',
             'category'         => 'test',
         ],
         
         'db_query_slow' => [
             'id'               => 'db_query_slow',
-            'label'            => __('Test: Performance Warning', 'order-daemon'),
-            'summary_template' => __('Slow database query detected (performance warning)', 'order-daemon'),
+            'label'            => __('core.log.test.performance_warning', 'order-daemon'),
+            'summary_template' => __('core.log.test.performance_warning_message', 'order-daemon'),
             'default_status'   => 'warning',
             'category'         => 'test',
         ],
@@ -563,16 +563,16 @@ function odcm_get_log_event_types(): array
         // INFO STATUS EVENTS
         'performance_report' => [
             'id'               => 'performance_report',
-            'label'            => __('Test: Performance Info', 'order-daemon'),
-            'summary_template' => __('Performance monitoring report for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.performance_info', 'order-daemon'),
+            'summary_template' => __('core.log.test.performance_info_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
         
         'woocommerce_report' => [
             'id'               => 'woocommerce_report',
-            'label'            => __('Test: WooCommerce Info', 'order-daemon'),
-            'summary_template' => __('WooCommerce integration data for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.woocommerce_info', 'order-daemon'),
+            'summary_template' => __('core.log.test.woocommerce_info_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -580,16 +580,16 @@ function odcm_get_log_event_types(): array
         // NOTICE STATUS EVENTS
         'system_info_report' => [
             'id'               => 'system_info_report',
-            'label'            => __('Test: System Notice', 'order-daemon'),
-            'summary_template' => __('System information notice and monitoring data', 'order-daemon'),
+            'label'            => __('core.log.test.system_notice', 'order-daemon'),
+            'summary_template' => __('core.log.test.system_notice_message', 'order-daemon'),
             'default_status'   => 'notice',
             'category'         => 'test',
         ],
         
         'rule_eval_no_match' => [
             'id'               => 'rule_eval_no_match',
-            'label'            => __('Test: Rule No Match', 'order-daemon'),
-            'summary_template' => __('Rule evaluation notice: no match for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.rule_no_match', 'order-daemon'),
+            'summary_template' => __('core.log.test.rule_no_match_message', 'order-daemon'),
             'default_status'   => 'notice',
             'category'         => 'test',
         ],
@@ -597,8 +597,8 @@ function odcm_get_log_event_types(): array
         // CRITICAL STATUS EVENTS
         'error_report_wp_error' => [
             'id'               => 'error_report_wp_error',
-            'label'            => __('Test: Critical WP Error', 'order-daemon'),
-            'summary_template' => __('Critical WordPress error requiring immediate attention', 'order-daemon'),
+            'label'            => __('core.log.test.critical_wp_error', 'order-daemon'),
+            'summary_template' => __('core.log.test.critical_wp_error_message', 'order-daemon'),
             'default_status'   => 'critical',
             'category'         => 'debug',
         ],
@@ -606,8 +606,8 @@ function odcm_get_log_event_types(): array
         // COMPLETED STATUS EVENTS
         'fallback_data' => [
             'id'               => 'fallback_data',
-            'label'            => __('Test: Operation Completed', 'order-daemon'),
-            'summary_template' => __('Fallback operation completed for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.operation_completed', 'order-daemon'),
+            'summary_template' => __('core.log.test.operation_completed_message', 'order-daemon'),
             'default_status'   => 'completed',
             'category'         => 'test',
         ],
@@ -615,8 +615,8 @@ function odcm_get_log_event_types(): array
         // DEBUG STATUS EVENTS
         'debug_trace_report' => [
             'id'               => 'debug_trace_report',
-            'label'            => __('Test: Debug Trace', 'order-daemon'),
-            'summary_template' => __('Debug trace information for development', 'order-daemon'),
+            'label'            => __('core.log.test.debug_trace', 'order-daemon'),
+            'summary_template' => __('core.log.test.debug_trace_message', 'order-daemon'),
             'default_status'   => 'debug',
             'category'         => 'test',
         ],
@@ -624,8 +624,8 @@ function odcm_get_log_event_types(): array
         // PENDING STATUS EVENTS
         'async_operation_pending' => [
             'id'               => 'async_operation_pending',
-            'label'            => __('Test: Pending Operation', 'order-daemon'),
-            'summary_template' => __('Asynchronous operation pending for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.pending_operation', 'order-daemon'),
+            'summary_template' => __('core.log.test.pending_operation_message', 'order-daemon'),
             'default_status'   => 'pending',
             'category'         => 'test',
         ],
@@ -633,8 +633,8 @@ function odcm_get_log_event_types(): array
         // SKIPPED STATUS EVENTS
         'operation_skipped' => [
             'id'               => 'operation_skipped',
-            'label'            => __('Test: Operation Skipped', 'order-daemon'),
-            'summary_template' => __('Operation skipped due to conditions for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.operation_skipped', 'order-daemon'),
+            'summary_template' => __('core.log.test.operation_skipped_message', 'order-daemon'),
             'default_status'   => 'skipped',
             'category'         => 'test',
         ],
@@ -642,8 +642,8 @@ function odcm_get_log_event_types(): array
         // Pure API Events - Only API detection keys
         'pure_api_event' => [
             'id'               => 'pure_api_event',
-            'label'            => __('Test: Pure API Event', 'order-daemon'),
-            'summary_template' => __('Pure API operation for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.pure_api_event', 'order-daemon'),
+            'summary_template' => __('core.log.test.pure_api_event_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -651,8 +651,8 @@ function odcm_get_log_event_types(): array
         // Pure Database Events - Only database detection keys
         'pure_database_event' => [
             'id'               => 'pure_database_event',
-            'label'            => __('Test: Pure Database Event', 'order-daemon'),
-            'summary_template' => __('Pure database operation for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.pure_database_event', 'order-daemon'),
+            'summary_template' => __('core.log.test.pure_database_event_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -660,8 +660,8 @@ function odcm_get_log_event_types(): array
         // Complex Multi-API Events - Multiple API calls in single payload
         'complex_multi_api_event' => [
             'id'               => 'complex_multi_api_event',
-            'label'            => __('Test: Complex Multi-API Event', 'order-daemon'),
-            'summary_template' => __('Complex multi-API operation for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.complex_multi_api_event', 'order-daemon'),
+            'summary_template' => __('core.log.test.complex_multi_api_event_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -669,8 +669,8 @@ function odcm_get_log_event_types(): array
         // Webhook Processing Events - API + WooCommerce + Performance
         'webhook_processing_event' => [
             'id'               => 'webhook_processing_event',
-            'label'            => __('Test: Webhook Processing Event', 'order-daemon'),
-            'summary_template' => __('Webhook processing for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.webhook_processing_event', 'order-daemon'),
+            'summary_template' => __('core.log.test.webhook_processing_event_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -678,8 +678,8 @@ function odcm_get_log_event_types(): array
         // Background Task Events - System + Performance + Database
         'background_task_event' => [
             'id'               => 'background_task_event',
-            'label'            => __('Test: Background Task Event', 'order-daemon'),
-            'summary_template' => __('Background task processing for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.background_task_event', 'order-daemon'),
+            'summary_template' => __('core.log.test.background_task_event_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -687,8 +687,8 @@ function odcm_get_log_event_types(): array
         // Integration Events - Third-party plugin interactions
         'integration_event' => [
             'id'               => 'integration_event',
-            'label'            => __('Test: Integration Event', 'order-daemon'),
-            'summary_template' => __('Third-party integration for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.integration_event', 'order-daemon'),
+            'summary_template' => __('core.log.test.integration_event_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -696,8 +696,8 @@ function odcm_get_log_event_types(): array
         // Import/Export Events - Database + Performance + System + API
         'import_export_event' => [
             'id'               => 'import_export_event',
-            'label'            => __('Test: Import/Export Event', 'order-daemon'),
-            'summary_template' => __('Import/export operation for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.import_export_event', 'order-daemon'),
+            'summary_template' => __('core.log.test.import_export_event_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -707,8 +707,8 @@ function odcm_get_log_event_types(): array
         // Large Payload Tests - Very large JSON objects (>100KB)
         'large_payload_stress_test' => [
             'id'               => 'large_payload_stress_test',
-            'label'            => __('Test: Large Payload Stress', 'order-daemon'),
-            'summary_template' => __('Large payload stress test for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.large_payload_stress', 'order-daemon'),
+            'summary_template' => __('core.log.test.large_payload_stress_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -716,8 +716,8 @@ function odcm_get_log_event_types(): array
         // Deep Nesting Tests - Deeply nested data structures (10+ levels)
         'deep_nesting_stress_test' => [
             'id'               => 'deep_nesting_stress_test',
-            'label'            => __('Test: Deep Nesting Stress', 'order-daemon'),
-            'summary_template' => __('Deep nesting stress test for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.deep_nesting_stress', 'order-daemon'),
+            'summary_template' => __('core.log.test.deep_nesting_stress_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -725,8 +725,8 @@ function odcm_get_log_event_types(): array
         // Long Text Tests - Very long error messages, stack traces (>10,000 chars)
         'long_text_stress_test' => [
             'id'               => 'long_text_stress_test',
-            'label'            => __('Test: Long Text Stress', 'order-daemon'),
-            'summary_template' => __('Long text stress test for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.long_text_stress', 'order-daemon'),
+            'summary_template' => __('core.log.test.long_text_stress_message', 'order-daemon'),
             'default_status'   => 'error',
             'category'         => 'test',
         ],
@@ -734,8 +734,8 @@ function odcm_get_log_event_types(): array
         // Unicode Tests - Special characters, emojis, international text
         'unicode_stress_test' => [
             'id'               => 'unicode_stress_test',
-            'label'            => __('Test: Unicode Stress', 'order-daemon'),
-            'summary_template' => __('Unicode stress test for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.unicode_stress', 'order-daemon'),
+            'summary_template' => __('core.log.test.unicode_stress_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -743,8 +743,8 @@ function odcm_get_log_event_types(): array
         // Special Character Tests - HTML entities, SQL injection attempts, XSS
         'special_char_stress_test' => [
             'id'               => 'special_char_stress_test',
-            'label'            => __('Test: Special Character Stress', 'order-daemon'),
-            'summary_template' => __('Special character stress test for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.special_char_stress', 'order-daemon'),
+            'summary_template' => __('core.log.test.special_char_stress_message', 'order-daemon'),
             'default_status'   => 'warning',
             'category'         => 'test',
         ],
@@ -752,8 +752,8 @@ function odcm_get_log_event_types(): array
         // Memory Stress Tests - Large arrays, binary data representations
         'memory_stress_test' => [
             'id'               => 'memory_stress_test',
-            'label'            => __('Test: Memory Stress', 'order-daemon'),
-            'summary_template' => __('Memory stress test for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.memory_stress', 'order-daemon'),
+            'summary_template' => __('core.log.test.memory_stress_message', 'order-daemon'),
             'default_status'   => 'warning',
             'category'         => 'test',
         ],
@@ -761,8 +761,8 @@ function odcm_get_log_event_types(): array
         // Performance Edge Cases - Very slow queries (>10s), memory exhaustion
         'performance_edge_stress_test' => [
             'id'               => 'performance_edge_stress_test',
-            'label'            => __('Test: Performance Edge Stress', 'order-daemon'),
-            'summary_template' => __('Performance edge case stress test for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.performance_edge_stress', 'order-daemon'),
+            'summary_template' => __('core.log.test.performance_edge_stress_message', 'order-daemon'),
             'default_status'   => 'critical',
             'category'         => 'test',
         ],
@@ -772,8 +772,8 @@ function odcm_get_log_event_types(): array
         // Multi-Component Events - Single events triggering 4+ renderers
         'multi_component_integration' => [
             'id'               => 'multi_component_integration',
-            'label'            => __('Test: Multi-Component Integration', 'order-daemon'),
-            'summary_template' => __('Multi-component integration test for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.multi_component_integration', 'order-daemon'),
+            'summary_template' => __('core.log.test.multi_component_integration_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -781,24 +781,24 @@ function odcm_get_log_event_types(): array
         // Workflow Progression - Related events showing order processing flow
         'workflow_progression_start' => [
             'id'               => 'workflow_progression_start',
-            'label'            => __('Test: Workflow Start', 'order-daemon'),
-            'summary_template' => __('Workflow progression started for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.workflow_start', 'order-daemon'),
+            'summary_template' => __('core.log.test.workflow_start_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
         
         'workflow_progression_middle' => [
             'id'               => 'workflow_progression_middle',
-            'label'            => __('Test: Workflow Progress', 'order-daemon'),
-            'summary_template' => __('Workflow progression continuing for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.workflow_progress', 'order-daemon'),
+            'summary_template' => __('core.log.test.workflow_progress_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
         
         'workflow_progression_end' => [
             'id'               => 'workflow_progression_end',
-            'label'            => __('Test: Workflow Complete', 'order-daemon'),
-            'summary_template' => __('Workflow progression completed for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.workflow_complete', 'order-daemon'),
+            'summary_template' => __('core.log.test.workflow_complete_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'test',
         ],
@@ -806,8 +806,8 @@ function odcm_get_log_event_types(): array
         // Cross-Reference Samples - Events referencing other log entries
         'cross_reference_event' => [
             'id'               => 'cross_reference_event',
-            'label'            => __('Test: Cross-Reference Event', 'order-daemon'),
-            'summary_template' => __('Cross-reference event for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.cross_reference_event', 'order-daemon'),
+            'summary_template' => __('core.log.test.cross_reference_event_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -815,8 +815,8 @@ function odcm_get_log_event_types(): array
         // Time-Series Samples - Events showing progression over time
         'time_series_event' => [
             'id'               => 'time_series_event',
-            'label'            => __('Test: Time-Series Event', 'order-daemon'),
-            'summary_template' => __('Time-series progression for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.time_series_event', 'order-daemon'),
+            'summary_template' => __('core.log.test.time_series_event_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -824,24 +824,24 @@ function odcm_get_log_event_types(): array
         // Error Recovery Samples - Error → Retry → Success sequences
         'error_recovery_failure' => [
             'id'               => 'error_recovery_failure',
-            'label'            => __('Test: Recovery Failure', 'order-daemon'),
-            'summary_template' => __('Error recovery failure for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.recovery_failure', 'order-daemon'),
+            'summary_template' => __('core.log.test.recovery_failure_message', 'order-daemon'),
             'default_status'   => 'error',
             'category'         => 'test',
         ],
         
         'error_recovery_retry' => [
             'id'               => 'error_recovery_retry',
-            'label'            => __('Test: Recovery Retry', 'order-daemon'),
-            'summary_template' => __('Error recovery retry for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.recovery_retry', 'order-daemon'),
+            'summary_template' => __('core.log.test.recovery_retry_message', 'order-daemon'),
             'default_status'   => 'warning',
             'category'         => 'test',
         ],
         
         'error_recovery_success' => [
             'id'               => 'error_recovery_success',
-            'label'            => __('Test: Recovery Success', 'order-daemon'),
-            'summary_template' => __('Error recovery success for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.recovery_success', 'order-daemon'),
+            'summary_template' => __('core.log.test.recovery_success_message', 'order-daemon'),
             'default_status'   => 'success',
             'category'         => 'test',
         ],
@@ -849,8 +849,8 @@ function odcm_get_log_event_types(): array
         // Real-World Scenarios - Complete order processing workflows
         'real_world_order_workflow' => [
             'id'               => 'real_world_order_workflow',
-            'label'            => __('Test: Real-World Order Workflow', 'order-daemon'),
-            'summary_template' => __('Real-world order workflow for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.real_world_workflow', 'order-daemon'),
+            'summary_template' => __('core.log.test.real_world_workflow_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
@@ -858,68 +858,12 @@ function odcm_get_log_event_types(): array
         // Plugin Interaction Samples - Events from multiple plugins
         'plugin_interaction_event' => [
             'id'               => 'plugin_interaction_event',
-            'label'            => __('Test: Plugin Interaction', 'order-daemon'),
-            'summary_template' => __('Plugin interaction event for order #%d', 'order-daemon'),
+            'label'            => __('core.log.test.plugin_interaction', 'order-daemon'),
+            'summary_template' => __('core.log.test.plugin_interaction_message', 'order-daemon'),
             'default_status'   => 'info',
             'category'         => 'test',
         ],
 
-        // === REFUND & DELETION TRACKING EVENTS ===
-        'order_partially_refunded' => [
-            'id'               => 'order_partially_refunded',
-            'label'            => __('Order Partially Refunded', 'order-daemon'),
-            'summary_template' => __('Order #%d partially refunded', 'order-daemon'),
-            'default_status'   => 'info',
-            'category'         => 'core',
-        ],
-
-        'order_fully_refunded' => [
-            'id'               => 'order_fully_refunded',
-            'label'            => __('Order Fully Refunded', 'order-daemon'),
-            'summary_template' => __('Order #%d fully refunded', 'order-daemon'),
-            'default_status'   => 'info',
-            'category'         => 'core',
-        ],
-
-        'refund_created' => [
-            'id'               => 'refund_created',
-            'label'            => __('Refund Created', 'order-daemon'),
-            'summary_template' => __('Refund created for order #%d', 'order-daemon'),
-            'default_status'   => 'info',
-            'category'         => 'core',
-        ],
-
-        'refund_deleted' => [
-            'id'               => 'refund_deleted',
-            'label'            => __('Refund Deleted', 'order-daemon'),
-            'summary_template' => __('Refund deleted for order #%d', 'order-daemon'),
-            'default_status'   => 'warning',
-            'category'         => 'core',
-        ],
-
-        'order_deleted' => [
-            'id'               => 'order_deleted',
-            'label'            => __('Order Deleted', 'order-daemon'),
-            'summary_template' => __('Order #%d deleted', 'order-daemon'),
-            'default_status'   => 'warning',
-            'category'         => 'core',
-        ],
-
-        'order_trashed' => [
-            'id'               => 'order_trashed',
-            'label'            => __('Order Trashed', 'order-daemon'),
-            'summary_template' => __('Order #%d moved to trash', 'order-daemon'),
-            'default_status'   => 'warning',
-            'category'         => 'core',
-        ],
-
-        'order_restored' => [
-            'id'               => 'order_restored',
-            'label'            => __('Order Restored', 'order-daemon'),
-            'summary_template' => __('Order #%d restored from trash', 'order-daemon'),
-            'default_status'   => 'info',
-            'category'         => 'core',
-        ],
     ];
 }
 
@@ -1006,61 +950,61 @@ function odcm_get_log_statuses(): array
 {
     return [
         'success' => [
-            'label'     => __('Success', 'order-daemon'),
+            'label'     => __('core.log.status.success', 'order-daemon'),
             'css_class' => 'odcm-status-pill--success',
             'code'      => 1,
         ],
         
         'error' => [
-            'label'     => __('Error', 'order-daemon'),
+            'label'     => __('core.log.status.error', 'order-daemon'),
             'css_class' => 'odcm-status-pill--error',
             'code'      => 2,
         ],
         
         'warning' => [
-            'label'     => __('Warning', 'order-daemon'),
+            'label'     => __('core.log.status.warning', 'order-daemon'),
             'css_class' => 'odcm-status-pill--warning',
             'code'      => 3,
         ],
         
         'info' => [
-            'label'     => __('Info', 'order-daemon'),
+            'label'     => __('core.log.status.info', 'order-daemon'),
             'css_class' => 'odcm-status-pill--info',
             'code'      => 4,
         ],
         
         'notice' => [
-            'label'     => __('Notice', 'order-daemon'),
+            'label'     => __('core.log.status.notice', 'order-daemon'),
             'css_class' => 'odcm-status-pill--notice',
             'code'      => 5,
         ],
         
         'debug' => [
-            'label'     => __('Debug', 'order-daemon'),
+            'label'     => __('core.log.status.debug', 'order-daemon'),
             'css_class' => 'odcm-status-pill--debug',
             'code'      => 6,
         ],
         
         'critical' => [
-            'label'     => __('Critical', 'order-daemon'),
+            'label'     => __('core.log.status.critical', 'order-daemon'),
             'css_class' => 'odcm-status-pill--critical',
             'code'      => 7,
         ],
         
         'pending' => [
-            'label'     => __('Pending', 'order-daemon'),
+            'label'     => __('core.log.status.pending', 'order-daemon'),
             'css_class' => 'odcm-status-pill--notice',
             'code'      => 8,
         ],
         
         'skipped' => [
-            'label'     => __('Skipped', 'order-daemon'),
+            'label'     => __('core.log.status.skipped', 'order-daemon'),
             'css_class' => 'odcm-status-pill--notice',
             'code'      => 9,
         ],
         
         'completed' => [
-            'label'     => __('Completed', 'order-daemon'),
+            'label'     => __('core.log.status.completed', 'order-daemon'),
             'css_class' => 'odcm-status-pill--success',
             'code'      => 10,
         ],
@@ -1077,31 +1021,31 @@ function odcm_get_log_sources(): array
 {
     return [
         'system' => [
-            'label' => __('System', 'order-daemon'),
+            'label' => __('core.log.source.system', 'order-daemon'),
             'code'  => 1,
         ],
         'manual' => [
-            'label' => __('Manual', 'order-daemon'), 
+            'label' => __('core.log.source.manual', 'order-daemon'), 
             'code'  => 2,
         ],
         'webhook' => [
-            'label' => __('Webhook', 'order-daemon'),
+            'label' => __('core.log.source.webhook', 'order-daemon'),
             'code'  => 3,
         ],
         'api' => [
-            'label' => __('API', 'order-daemon'),
+            'label' => __('core.log.source.api', 'order-daemon'),
             'code'  => 4,
         ],
         'scheduled' => [
-            'label' => __('Scheduled', 'order-daemon'),
+            'label' => __('core.log.source.scheduled', 'order-daemon'),
             'code'  => 5,
         ],
         'processor' => [
-            'label' => __('Event Processor', 'order-daemon'),
+            'label' => __('core.log.source.event_processor', 'order-daemon'),
             'code'  => 6,
         ],
         'logger' => [
-            'label' => __('Logger', 'order-daemon'),
+            'label' => __('core.log.source.logger', 'order-daemon'),
             'code'  => 7,
         ],
     ];
