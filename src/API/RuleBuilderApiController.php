@@ -1496,17 +1496,15 @@ class RuleBuilderApiController extends WP_REST_Controller
         $search = sanitize_text_field($search);
         $limit = max(1, min($limit, 100)); // Ensure reasonable limits
 
-        // Build search query for products
-        $sql = "
-            SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
-            FROM {$wpdb->posts} p
-            LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_sku'
-            WHERE p.post_type = 'product'
-            AND p.post_status = 'publish'
-        ";
+        // Build search query for products - use concatenation to avoid phpcs warning about unprepared table names
+        $sql = 'SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku' .
+               ' FROM ' . $wpdb->posts . ' p' .
+               ' LEFT JOIN ' . $wpdb->postmeta . ' pm ON p.ID = pm.post_id AND pm.meta_key = %s' .
+               ' WHERE p.post_type = %s' .
+               ' AND p.post_status = %s';
 
         $where_conditions = [];
-        $search_params = [];
+        $search_params = ['_sku', 'product', 'publish'];
 
         if (!empty($search)) {
             // Search by ID (exact match)

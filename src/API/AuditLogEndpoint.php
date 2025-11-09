@@ -965,9 +965,9 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Build queries with proper NULL/empty handling and ordering.
             // Note: Table name cannot be parameterized in $wpdb->prepare.
-            $sql_statuses = "SELECT DISTINCT status FROM {$table_name} WHERE status IS NOT NULL AND status != %s ORDER BY status ASC";
-            $sql_event_types = "SELECT DISTINCT event_type FROM {$table_name} WHERE event_type IS NOT NULL AND event_type != %s ORDER BY event_type ASC";
-            $sql_sources = "SELECT DISTINCT source FROM {$table_name} WHERE source IS NOT NULL AND source != %s ORDER BY source ASC";
+            $sql_statuses = "SELECT DISTINCT status FROM " . $table_name . " WHERE status IS NOT NULL AND status != %s ORDER BY status ASC";
+            $sql_event_types = "SELECT DISTINCT event_type FROM " . $table_name . " WHERE event_type IS NOT NULL AND event_type != %s ORDER BY event_type ASC";
+            $sql_sources = "SELECT DISTINCT source FROM " . $table_name . " WHERE source IS NOT NULL AND source != %s ORDER BY source ASC";
 
             // Execute queries. We use prepared statements for any values (here: empty string filter),
             // even though there is no user input, to adhere to security guidelines.
@@ -1335,14 +1335,14 @@ class AuditLogEndpoint extends WP_REST_Controller
             $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
                            l.event_type, l.source, l.payload_id, l.is_test,
                            COALESCE(p.payload, l.details, '') as payload 
-                    FROM {$log_table} l 
-                    LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id
+                    FROM " . $log_table . " l 
+                    LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id
                     WHERE l.log_id = %d";
         } else {
             $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
                            l.event_type, l.source, l.payload_id, l.is_test,
                            l.details as payload 
-                    FROM {$log_table} l
+                    FROM " . $log_table . " l
                     WHERE l.log_id = %d";
         }
 
@@ -1370,15 +1370,15 @@ class AuditLogEndpoint extends WP_REST_Controller
             $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id,
                            l.event_type, l.source, l.payload_id, l.is_test,
                            COALESCE(p.payload, l.details, '') as payload
-                    FROM {$log_table} l
-                    LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id
-                    WHERE l.log_id IN ({$placeholders})";
+                    FROM " . $log_table . " l
+                    LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id
+                    WHERE l.log_id IN (" . $placeholders . ")";
         } else {
             $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id,
                            l.event_type, l.source, l.payload_id, l.is_test,
                            l.details as payload
-                    FROM {$log_table} l
-                    WHERE l.log_id IN ({$placeholders})";
+                    FROM " . $log_table . " l
+                    WHERE l.log_id IN (" . $placeholders . ")";
         }
 
         // Prepare with dynamic placeholders
@@ -1495,7 +1495,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         if (isset($envelope['ts'])) {
             // Handle Unix timestamp display
             $timestamp_display = is_numeric($envelope['ts']) 
-                ? date('Y-m-d H:i:s', (int)$envelope['ts']) 
+                ? gmdate('Y-m-d H:i:s', (int)$envelope['ts']) 
                 : (string)$envelope['ts'];
             $content .= '<p><strong>Started At:</strong> ' . esc_html($timestamp_display) . '</p>';
         }
@@ -1561,15 +1561,15 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id,
                                l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
                                COALESCE(p.payload, l.details, '') as payload
-                        FROM {$log_table} l
-                        LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id
+                        FROM " . $log_table . " l
+                        LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id
                         WHERE l.process_id = %s
                         ORDER BY l.timestamp ASC";
             } else {
                 $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id,
                                l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
                                l.details as payload
-                        FROM {$log_table} l
+                        FROM " . $log_table . " l
                         WHERE l.process_id = %s
                         ORDER BY l.timestamp ASC";
             }
@@ -1666,13 +1666,13 @@ class AuditLogEndpoint extends WP_REST_Controller
             $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
                            l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
                            COALESCE(p.payload, l.details, '') as payload 
-                    FROM {$log_table} l 
-                    LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id";
+                    FROM " . $log_table . " l 
+                    LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id";
         } else {
             $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
                            l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
                            l.details as payload 
-                    FROM {$log_table} l";
+                    FROM " . $log_table . " l";
         }
 
         // Build WHERE clause
@@ -1730,13 +1730,13 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
                                l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
                                COALESCE(p.payload, l.details, '') as payload 
-                        FROM {$log_table} l 
-                        LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id";
+                        FROM " . $log_table . " l 
+                        LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id";
             } else {
                 $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
                                l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
                                l.details as payload 
-                        FROM {$log_table} l";
+                        FROM " . $log_table . " l";
             }
 
             // Build WHERE clause
@@ -1781,7 +1781,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         $log_table = $wpdb->prefix . 'odcm_audit_log';
 
         // Build count query
-        $sql = "SELECT COUNT(*) FROM {$log_table} l";
+        $sql = "SELECT COUNT(*) FROM " . $log_table . " l";
 
         // Build WHERE clause
         $where_conditions = [];
@@ -1940,7 +1940,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         $placeholders = implode(',', array_fill(0, count($sanitized_ids), '%d'));
 
         // Check which log IDs actually exist
-        $sql = "SELECT log_id FROM {$log_table} WHERE log_id IN ({$placeholders})";
+        $sql = "SELECT log_id FROM " . $log_table . " WHERE log_id IN ({$placeholders})";
         $existing_ids = $wpdb->get_col($wpdb->prepare($sql, $sanitized_ids));
 
         return array_map('intval', $existing_ids);
@@ -1972,18 +1972,18 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Delete associated payload data first (if payload table exists)
             if ($payload_table_exists) {
                 // Get payload IDs to delete
-                $payload_sql = "SELECT DISTINCT payload_id FROM {$log_table} WHERE log_id IN ({$placeholders}) AND payload_id IS NOT NULL";
+                $payload_sql = "SELECT DISTINCT payload_id FROM " . $log_table . " WHERE log_id IN ({$placeholders}) AND payload_id IS NOT NULL";
                 $payload_ids = $wpdb->get_col($wpdb->prepare($payload_sql, $log_ids));
 
                 if (!empty($payload_ids)) {
                     $payload_placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
-                    $delete_payload_sql = "DELETE FROM {$payload_table} WHERE payload_id IN ({$payload_placeholders})";
+                    $delete_payload_sql = "DELETE FROM " . $payload_table . " WHERE payload_id IN ({$payload_placeholders})";
                     $wpdb->query($wpdb->prepare($delete_payload_sql, $payload_ids));
                 }
             }
 
             // Delete log entries
-            $delete_logs_sql = "DELETE FROM {$log_table} WHERE log_id IN ({$placeholders})";
+            $delete_logs_sql = "DELETE FROM " . $log_table . " WHERE log_id IN ({$placeholders})";
             $deleted_count = $wpdb->query($wpdb->prepare($delete_logs_sql, $log_ids));
 
             // Commit transaction
@@ -3178,11 +3178,11 @@ class AuditLogEndpoint extends WP_REST_Controller
         $full_table_name = $wpdb->prefix . $table_name;
 
         try {
-            $exists = $wpdb->get_var("SHOW TABLES LIKE '{$full_table_name}'");
+            $exists = $wpdb->get_var("SHOW TABLES LIKE '" . $full_table_name . "'");
             $row_count = 0;
 
             if ($exists) {
-                $row_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$full_table_name}");
+                $row_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM " . $full_table_name);
             }
 
             return [

@@ -293,7 +293,7 @@ class RuleRenderer extends BaseRenderer
         $details['Event Channel'] = ucfirst($trigger_context['event_channel'] ?? 'system');
         
         if (!empty($trigger_context['event_timestamp'])) {
-            $details['Event Time'] = date('Y-m-d H:i:s', strtotime($trigger_context['event_timestamp']));
+            $details['Event Time'] = gmdate('Y-m-d H:i:s', strtotime($trigger_context['event_timestamp']));
         }
         
         if (!empty($trigger_context['idempotency_key'])) {

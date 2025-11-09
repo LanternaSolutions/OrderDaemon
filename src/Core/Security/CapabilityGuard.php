@@ -72,10 +72,10 @@ class CapabilityGuard implements Guard {
 
         if (!$has_capability) {
             throw new SecurityException('Insufficient permissions', [
-                'required_capability' => $this->capability,
-                'context' => $this->context,
-                'object_id' => $this->object_id,
-                'user_id' => get_current_user_id()
+                'required_capability' => esc_html($this->capability),
+                'context' => esc_html($this->context),
+                'object_id' => esc_html($this->object_id),
+                'user_id' => esc_html(get_current_user_id())
             ]);
         }
     }

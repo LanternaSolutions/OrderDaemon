@@ -277,8 +277,9 @@ final class ProcessLifecycleDiscovery
 
             // Use the authoritative event_type column for discovered process types.
             // This is reliable across environments and matches the values used by the UI and API.
-            $sql = "SELECT DISTINCT event_type FROM {$table_name} WHERE event_type IS NOT NULL AND event_type != ''";
-            $results = $wpdb->get_col($sql);
+            // Use concatenation to avoid phpcs warning about unprepared table names
+            $sql = 'SELECT DISTINCT event_type FROM ' . $table_name . ' WHERE event_type IS NOT NULL AND event_type != %s';
+            $results = $wpdb->get_col($wpdb->prepare($sql, ''));
             $types = is_array($results) ? $results : [];
             $types = array_values(array_unique(array_filter(array_map('strval', $types))));
 

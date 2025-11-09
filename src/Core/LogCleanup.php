@@ -51,11 +51,8 @@ class LogCleanup
         $cutoff_date = gmdate('Y-m-d H:i:s', strtotime("-{$retention_days} days"));
 
         // First, count how many records would be deleted (for logging purposes)
-        $count_query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$log_table} WHERE timestamp < %s",
-            $cutoff_date
-        );
-        $total_to_delete = $wpdb->get_var($count_query);
+        $count_query = 'SELECT COUNT(*) FROM ' . $log_table . ' WHERE timestamp < %s';
+        $total_to_delete = $wpdb->get_var($wpdb->prepare($count_query, $cutoff_date));
 
         if (!$total_to_delete || $total_to_delete === 0) {
             // No records to delete
@@ -69,13 +66,8 @@ class LogCleanup
 
         while ($deleted_total < $total_to_delete && $iteration < $max_iterations) {
             // First, get a batch of log IDs to delete
-            $log_ids_query = $wpdb->prepare(
-                "SELECT log_id, payload_id FROM {$log_table} WHERE timestamp < %s LIMIT %d",
-                $cutoff_date,
-                self::BATCH_SIZE
-            );
-            
-            $logs_to_delete = $wpdb->get_results($log_ids_query);
+            $log_ids_query = 'SELECT log_id, payload_id FROM ' . $log_table . ' WHERE timestamp < %s LIMIT %d';
+            $logs_to_delete = $wpdb->get_results($wpdb->prepare($log_ids_query, $cutoff_date, self::BATCH_SIZE));
             
             if (empty($logs_to_delete)) {
                 // No more logs to delete
@@ -97,9 +89,9 @@ class LogCleanup
             
             // Delete the log entries
             if (!empty($log_ids)) {
-                $log_ids_string = implode(',', array_map('intval', $log_ids));
-                $delete_logs_query = "DELETE FROM {$log_table} WHERE log_id IN ({$log_ids_string})";
-                $deleted_rows = $wpdb->query($delete_logs_query);
+                $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
+                $delete_logs_query = 'DELETE FROM ' . $log_table . ' WHERE log_id IN (' . $placeholders . ')';
+                $deleted_rows = $wpdb->query($wpdb->prepare($delete_logs_query, ...$log_ids));
                 
                 if ($deleted_rows === false) {
                     // Error occurred
@@ -111,9 +103,9 @@ class LogCleanup
             
             // Delete the corresponding payload entries
             if (!empty($payload_ids)) {
-                $payload_ids_string = implode(',', array_map('intval', $payload_ids));
-                $delete_payloads_query = "DELETE FROM {$payloads_table} WHERE payload_id IN ({$payload_ids_string})";
-                $wpdb->query($delete_payloads_query);
+                $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
+                $delete_payloads_query = 'DELETE FROM ' . $payloads_table . ' WHERE payload_id IN (' . $placeholders . ')';
+                $wpdb->query($wpdb->prepare($delete_payloads_query, ...$payload_ids));
             }
             
             $iteration++;
@@ -181,11 +173,8 @@ class LogCleanup
         $cutoff_date = gmdate('Y-m-d H:i:s', strtotime("-{$retention_days} days"));
 
         // Count records that would be deleted
-        $count_query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$log_table} WHERE timestamp < %s",
-            $cutoff_date
-        );
-        $count_to_delete = $wpdb->get_var($count_query);
+        $count_query = 'SELECT COUNT(*) FROM ' . $log_table . ' WHERE timestamp < %s';
+        $count_to_delete = $wpdb->get_var($wpdb->prepare($count_query, $cutoff_date));
 
         if (!$count_to_delete || $count_to_delete === 0) {
             return [
@@ -197,11 +186,8 @@ class LogCleanup
         }
 
         // Count payload records that would be deleted
-        $payload_count_query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$log_table} WHERE timestamp < %s AND payload_id IS NOT NULL",
-            $cutoff_date
-        );
-        $payload_count_to_delete = $wpdb->get_var($payload_count_query);
+        $payload_count_query = 'SELECT COUNT(*) FROM ' . $log_table . ' WHERE timestamp < %s AND payload_id IS NOT NULL';
+        $payload_count_to_delete = $wpdb->get_var($wpdb->prepare($payload_count_query, $cutoff_date));
 
         // Perform the cleanup
         $this->cleanup_old_logs();

@@ -67,7 +67,7 @@ class NonceGuard implements Guard {
     public function verify(): void {
         if (empty($this->nonce)) {
             throw new SecurityException('Nonce not provided', [
-                'action' => $this->action,
+                'action' => esc_html($this->action),
                 'context' => $this->ajax_context ? 'ajax' : 'form'
             ]);
         }
@@ -78,9 +78,9 @@ class NonceGuard implements Guard {
         $is_verified = wp_verify_nonce($sanitized_nonce, $this->action);
         if (!$is_verified) {
             throw new SecurityException('Invalid nonce', [
-                'action' => $this->action,
+                'action' => esc_html($this->action),
                 'context' => $this->ajax_context ? 'ajax' : 'form',
-                'nonce_length' => strlen($sanitized_nonce)
+                'nonce_length' => esc_html(strlen($sanitized_nonce))
             ]);
         }
     }

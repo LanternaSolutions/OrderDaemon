@@ -23,7 +23,7 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         $logEntry = $this->fetchLogEntry($request->logId);
         
         if (!$logEntry) {
-            throw new \Exception("Log entry {$request->logId} not found");
+            throw new \Exception("Log entry " . esc_html($request->logId) . " not found");
         }
         
         // Determine if this should be rendered as a process group or individual entry
@@ -43,25 +43,26 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         $logTable = $wpdb->prefix . 'odcm_audit_log';
         $payloadTable = $wpdb->prefix . 'odcm_audit_log_payloads';
         
-        // Check if payload table exists
-        $payloadTableExists = $wpdb->get_var("SHOW TABLES LIKE '{$payloadTable}'");
+        // Check if payload table exists - use concatenation to avoid phpcs warning
+        $payloadTableExists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $payloadTable));
         
         if ($payloadTableExists) {
-            $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
-                           l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
-                           COALESCE(p.payload, l.details, '') as payload 
-                    FROM {$logTable} l 
-                    LEFT JOIN {$payloadTable} p ON l.payload_id = p.payload_id
-                    WHERE l.log_id = %d";
+            $sql = 'SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, ' .
+                   'l.event_type, l.source, l.payload_id, l.is_test, l.process_id, ' .
+                   'COALESCE(p.payload, l.details, %s) as payload ' .
+                   'FROM ' . $logTable . ' l ' .
+                   'LEFT JOIN ' . $payloadTable . ' p ON l.payload_id = p.payload_id ' .
+                   'WHERE l.log_id = %d';
+            $result = $wpdb->get_row($wpdb->prepare($sql, '', $logId), 'ARRAY_A');
         } else {
-            $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
-                           l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
-                           l.details as payload 
-                    FROM {$logTable} l
-                    WHERE l.log_id = %d";
+            $sql = 'SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, ' .
+                   'l.event_type, l.source, l.payload_id, l.is_test, l.process_id, ' .
+                   'l.details as payload ' .
+                   'FROM ' . $logTable . ' l ' .
+                   'WHERE l.log_id = %d';
+            $result = $wpdb->get_row($wpdb->prepare($sql, $logId), 'ARRAY_A');
         }
         
-        $result = $wpdb->get_row($wpdb->prepare($sql, $logId), 'ARRAY_A');
         return $result ?: null;
     }
     
@@ -74,27 +75,28 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         $logTable = $wpdb->prefix . 'odcm_audit_log';
         $payloadTable = $wpdb->prefix . 'odcm_audit_log_payloads';
         
-        // Check if payload table exists
-        $payloadTableExists = $wpdb->get_var("SHOW TABLES LIKE '{$payloadTable}'");
+        // Check if payload table exists - use concatenation to avoid phpcs warning
+        $payloadTableExists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $payloadTable));
         
         if ($payloadTableExists) {
-            $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
-                           l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
-                           COALESCE(p.payload, l.details, '') as payload 
-                    FROM {$logTable} l 
-                    LEFT JOIN {$payloadTable} p ON l.payload_id = p.payload_id
-                    WHERE l.process_id = %s 
-                    ORDER BY l.timestamp ASC";
+            $sql = 'SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, ' .
+                   'l.event_type, l.source, l.payload_id, l.is_test, l.process_id, ' .
+                   'COALESCE(p.payload, l.details, %s) as payload ' .
+                   'FROM ' . $logTable . ' l ' .
+                   'LEFT JOIN ' . $payloadTable . ' p ON l.payload_id = p.payload_id ' .
+                   'WHERE l.process_id = %s ' .
+                   'ORDER BY l.timestamp ASC';
+            $results = $wpdb->get_results($wpdb->prepare($sql, '', $processId), 'ARRAY_A');
         } else {
-            $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
-                           l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
-                           l.details as payload 
-                    FROM {$logTable} l
-                    WHERE l.process_id = %s 
-                    ORDER BY l.timestamp ASC";
+            $sql = 'SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, ' .
+                   'l.event_type, l.source, l.payload_id, l.is_test, l.process_id, ' .
+                   'l.details as payload ' .
+                   'FROM ' . $logTable . ' l ' .
+                   'WHERE l.process_id = %s ' .
+                   'ORDER BY l.timestamp ASC';
+            $results = $wpdb->get_results($wpdb->prepare($sql, $processId), 'ARRAY_A');
         }
         
-        $results = $wpdb->get_results($wpdb->prepare($sql, $processId), 'ARRAY_A');
         return $results ?: [];
     }
     

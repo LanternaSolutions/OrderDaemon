@@ -385,7 +385,7 @@ final class UniversalEvent
     {
         $channel = sanitize_key($channel);
         if (!in_array($channel, self::VALID_CHANNELS, true)) {
-            throw new \InvalidArgumentException("Invalid channel: {$channel}. Must be one of: " . implode(', ', self::VALID_CHANNELS));
+            throw new \InvalidArgumentException("Invalid channel: " . esc_html($channel) . ". Must be one of: " . esc_html(implode(', ', self::VALID_CHANNELS)));
         }
         return $channel;
     }
@@ -401,7 +401,7 @@ final class UniversalEvent
     {
         $objectType = sanitize_key($objectType);
         if (!in_array($objectType, self::VALID_OBJECT_TYPES, true)) {
-            throw new \InvalidArgumentException("Invalid object type: {$objectType}. Must be one of: " . implode(', ', self::VALID_OBJECT_TYPES));
+            throw new \InvalidArgumentException("Invalid object type: " . esc_html($objectType) . ". Must be one of: " . esc_html(implode(', ', self::VALID_OBJECT_TYPES)));
         }
         return $objectType;
     }
@@ -510,10 +510,10 @@ final class UniversalEvent
         
         // Try to convert from Unix timestamp
         if (is_numeric($timestamp)) {
-            return date('c', (int) $timestamp);
+            return gmdate('c', (int) $timestamp);
         }
         
-        throw new \InvalidArgumentException("Invalid timestamp format: {$timestamp}");
+        throw new \InvalidArgumentException("Invalid timestamp format: " . esc_html($timestamp));
     }
 
     /**

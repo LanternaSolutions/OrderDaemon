@@ -560,7 +560,7 @@ final class OptionRegistry
         foreach ($required_keys as $key) {
             if (!isset($args[$key])) {
                 throw new \InvalidArgumentException(
-                    sprintf('Missing required key "%s" when registering %s option.', $key, $type)
+                    sprintf('Missing required key "%s" when registering %s option.', esc_html($key), esc_html($type))
                 );
             }
         }
@@ -568,35 +568,35 @@ final class OptionRegistry
         // Validate that id is a non-empty string
         if (!is_string($args['id']) || empty(trim($args['id']))) {
             throw new \InvalidArgumentException(
-                sprintf('The "id" key must be a non-empty string when registering %s option.', $type)
+                sprintf('The "id" key must be a non-empty string when registering %s option.', esc_html($type))
             );
         }
 
         // Validate that label is a non-empty string
         if (!is_string($args['label']) || empty(trim($args['label']))) {
             throw new \InvalidArgumentException(
-                sprintf('The "label" key must be a non-empty string when registering %s option.', $type)
+                sprintf('The "label" key must be a non-empty string when registering %s option.', esc_html($type))
             );
         }
 
         // Validate that description is a string
         if (!is_string($args['description'])) {
             throw new \InvalidArgumentException(
-                sprintf('The "description" key must be a string when registering %s option.', $type)
+                sprintf('The "description" key must be a string when registering %s option.', esc_html($type))
             );
         }
 
         // Validate that capability is a non-empty string
         if (!is_string($args['capability']) || empty(trim($args['capability']))) {
             throw new \InvalidArgumentException(
-                sprintf('The "capability" key must be a non-empty string when registering %s option.', $type)
+                sprintf('The "capability" key must be a non-empty string when registering %s option.', esc_html($type))
             );
         }
 
         // Validate that render_callback is callable
         if (!is_callable($args['render_callback'])) {
             throw new \InvalidArgumentException(
-                sprintf('The "render_callback" key must be callable when registering %s option.', $type)
+                sprintf('The "render_callback" key must be callable when registering %s option.', esc_html($type))
             );
         }
 
@@ -605,7 +605,7 @@ final class OptionRegistry
             $valid_sections = ['primary', 'addon'];
             if (!is_string($args['section']) || !in_array($args['section'], $valid_sections, true)) {
                 throw new \InvalidArgumentException(
-                    sprintf('The "section" key must be either "primary" or "addon" when registering %s option.', $type)
+                    sprintf('The "section" key must be either "primary" or "addon" when registering %s option.', esc_html($type))
                 );
             }
         }

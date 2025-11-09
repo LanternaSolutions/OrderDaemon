@@ -376,7 +376,7 @@ final class FilterRegistry
         foreach ($required_keys as $key) {
             if (!isset($args[$key])) {
                 throw new \InvalidArgumentException(
-                    sprintf('Missing required key "%s" when registering filter.', $key)
+                    sprintf('Missing required key "%s" when registering filter.', esc_html($key))
                 );
             }
         }

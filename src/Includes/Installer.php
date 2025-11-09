@@ -130,7 +130,7 @@ class Installer
         
         // Verify table creation
         if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
-            throw new Exception("Failed to create complete audit log table: $table_name");
+            throw new Exception("Failed to create complete audit log table: " . esc_html($table_name));
         }
     }
 
@@ -157,7 +157,7 @@ class Installer
         
         // Verify table creation
         if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
-            throw new Exception("Failed to create complete audit payloads table: $table_name");
+            throw new Exception("Failed to create complete audit payloads table: " . esc_html($table_name));
         }
     }
 
@@ -189,7 +189,7 @@ class Installer
         
         // Verify table creation
         if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
-            throw new \Exception("Failed to create audit log queue table: $table_name");
+            throw new \Exception("Failed to create audit log queue table: " . esc_html($table_name));
         }
     }
 

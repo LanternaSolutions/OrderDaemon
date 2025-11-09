@@ -500,7 +500,7 @@ class SystemRenderer extends BaseRenderer
         $action_data = [
             'Hook' => $data['hook'] ?? '',
             'Schedule' => $data['schedule'] ?? '',
-            'Next Run' => isset($data['next_run']) ? date('Y-m-d H:i:s', $data['next_run']) : '',
+            'Next Run' => isset($data['next_run']) ? gmdate('Y-m-d H:i:s', $data['next_run']) : '',
         ];
 
         $content = $toolkit->render_key_value_list($action_data, 'Scheduled Action');

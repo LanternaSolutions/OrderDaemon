@@ -713,8 +713,8 @@ class PayloadComponentUIToolkit
         if (function_exists('wp_date')) {
             $formatted_time = wp_date($format, $unix_timestamp);
         } else {
-            // Fallback to PHP date() if wp_date() is not available
-            $formatted_time = date($format, $unix_timestamp);
+            // Fallback to PHP gmdate() if wp_date() is not available
+            $formatted_time = gmdate($format, $unix_timestamp);
         }
         
         // Append milliseconds if available and requested

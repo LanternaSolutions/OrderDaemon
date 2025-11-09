@@ -13,7 +13,7 @@ require_once __DIR__ . '/src/Includes/Installer.php';
 use OrderDaemon\CompletionManager\Includes\Installer;
 
 echo wp_kses("=== Order Daemon Database Upgrade Script ===\n", 'post');
-echo wp_kses("Current time: " . date('Y-m-d H:i:s') . "\n\n", 'post');
+echo wp_kses("Current time: " . gmdate('Y-m-d H:i:s') . "\n\n", 'post');
 
 // Check current database version
 $current_version = get_option(Installer::DB_VERSION_OPTION_KEY);

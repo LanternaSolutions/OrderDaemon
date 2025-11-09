@@ -2112,7 +2112,7 @@ class Core
         );
         
         if ($result === false) {
-            throw new \Exception('Failed to queue traditional checkout data: ' . $wpdb->last_error);
+            throw new \Exception('Failed to queue traditional checkout data: ' . esc_html($wpdb->last_error));
         }
         
         // Set marker to indicate this order has queued data

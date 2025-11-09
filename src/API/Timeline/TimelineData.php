@@ -21,7 +21,7 @@ final class TimelineData
         public readonly array $metadata = []
     ) {
         if (!in_array($type, [self::TYPE_INDIVIDUAL, self::TYPE_PROCESS_GROUP], true)) {
-            throw new \InvalidArgumentException("Invalid timeline type: {$type}");
+            throw new \InvalidArgumentException("Invalid timeline type: " . esc_html($type));
         }
         
         if ($logId <= 0) {
@@ -31,15 +31,15 @@ final class TimelineData
         // Validate components structure
         foreach ($components as $index => $component) {
             if (!is_array($component)) {
-                throw new \InvalidArgumentException("Component at index {$index} must be an array");
+                throw new \InvalidArgumentException("Component at index " . esc_html($index) . " must be an array");
             }
             
             if (!isset($component['event_type'])) {
-                throw new \InvalidArgumentException("Component at index {$index} missing required 'event_type' field");
+                throw new \InvalidArgumentException("Component at index " . esc_html($index) . " missing required 'event_type' field");
             }
             
             if (!isset($component['data']) || !is_array($component['data'])) {
-                throw new \InvalidArgumentException("Component at index {$index} missing required 'data' array");
+                throw new \InvalidArgumentException("Component at index " . esc_html($index) . " missing required 'data' array");
             }
         }
     }

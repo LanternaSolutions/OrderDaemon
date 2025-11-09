@@ -284,9 +284,9 @@ class QueryDiagnostic extends AbstractDiagnostic
         try {
             // Execute the same queries that the filter-options endpoint runs
             $queries = [
-                'statuses' => "SELECT DISTINCT status FROM {$table_name} WHERE status IS NOT NULL AND status != '' ORDER BY status ASC",
-                'event_types' => "SELECT DISTINCT event_type FROM {$table_name} WHERE event_type IS NOT NULL AND event_type != '' ORDER BY event_type ASC",
-                'sources' => "SELECT DISTINCT source FROM {$table_name} WHERE source IS NOT NULL AND source != '' ORDER BY source ASC"
+                'statuses' => "SELECT DISTINCT status FROM " . $table_name . " WHERE status IS NOT NULL AND status != '' ORDER BY status ASC",
+                'event_types' => "SELECT DISTINCT event_type FROM " . $table_name . " WHERE event_type IS NOT NULL AND event_type != '' ORDER BY event_type ASC",
+                'sources' => "SELECT DISTINCT source FROM " . $table_name . " WHERE source IS NOT NULL AND source != '' ORDER BY source ASC"
             ];
 
             foreach ($queries as $type => $query) {
@@ -337,15 +337,15 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         // Test scenarios that match the insight dashboard usage
         $test_scenarios = [
-            'basic_select' => "SELECT COUNT(*) FROM {$table_name}",
-            'recent_logs' => "SELECT * FROM {$table_name} ORDER BY timestamp DESC LIMIT 20",
-            'with_filters' => "SELECT * FROM {$table_name} WHERE status = 'success' ORDER BY timestamp DESC LIMIT 20",
-            'date_range' => "SELECT * FROM {$table_name} WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY timestamp DESC LIMIT 20"
+            'basic_select' => "SELECT COUNT(*) FROM " . $table_name,
+            'recent_logs' => "SELECT * FROM " . $table_name . " ORDER BY timestamp DESC LIMIT 20",
+            'with_filters' => "SELECT * FROM " . $table_name . " WHERE status = 'success' ORDER BY timestamp DESC LIMIT 20",
+            'date_range' => "SELECT * FROM " . $table_name . " WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY timestamp DESC LIMIT 20"
         ];
 
         // Add payload join test if payload table exists
         if ($payload_exists) {
-            $test_scenarios['with_payload'] = "SELECT l.*, COALESCE(p.payload, l.details, '') as payload FROM {$table_name} l LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id ORDER BY l.timestamp DESC LIMIT 20";
+            $test_scenarios['with_payload'] = "SELECT l.*, COALESCE(p.payload, l.details, '') as payload FROM " . $table_name . " l LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id ORDER BY l.timestamp DESC LIMIT 20";
         }
 
         foreach ($test_scenarios as $test_name => $query) {
@@ -401,7 +401,7 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         try {
             // Get existing indexes
-            $indexes = $wpdb->get_results("SHOW INDEX FROM {$table_name}", ARRAY_A);
+            $indexes = $wpdb->get_results("SHOW INDEX FROM " . $table_name, ARRAY_A);
             
             foreach ($indexes as $index) {
                 $key_name = $index['Key_name'];
@@ -526,7 +526,7 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
-        $test_query = "SELECT COUNT(*) FROM {$table_name} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)";
+        $test_query = "SELECT COUNT(*) FROM " . $table_name . " WHERE timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)";
 
         try {
             // First execution

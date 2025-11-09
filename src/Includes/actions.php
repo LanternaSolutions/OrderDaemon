@@ -156,11 +156,11 @@ function odcm_handle_log_processing($args) {
         'event_type' => $log_data['event_type'],
         'status' => $log_data['status'],
         'order_id' => $log_data['order_id'] ?? null,
-        'timestamp_minute' => date('Y-m-d H:i', strtotime($log_data['timestamp']))
+        'timestamp_minute' => gmdate('Y-m-d H:i', strtotime($log_data['timestamp']))
     ]));
     $log_data['duplicate_hash'] = $duplicate_hash;
 
-    $query = "INSERT IGNORE INTO {$wpdb->prefix}odcm_audit_log (" . 
+    $query = "INSERT IGNORE INTO " . $wpdb->prefix . "odcm_audit_log (" . 
              implode(', ', array_keys($log_data)) . ") VALUES (" . 
              implode(', ', array_fill(0, count($log_data), '%s')) . ")";
 

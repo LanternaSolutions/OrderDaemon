@@ -79,7 +79,7 @@ final class Notices {
             <div id="<?php echo esc_attr($notice['id']); ?>" class="notice notice-<?php echo esc_attr($notice['type']); ?> odcm-site-wide-notice">
                 <p><strong><?php esc_html_e('admin.notices.label.order_daemon', 'order-daemon'); ?>:</strong> <?php echo wp_kses_post($notice['message']); ?></p>
                 <button type="button" class="notice-dismiss" data-notice-id="<?php echo esc_attr($notice['id']); ?>" data-nonce="<?php echo esc_attr($nonce); ?>">
-                    <span class="screen-reader-text"><?php _e('admin.notices.accessibility.dismiss_notice', 'order-daemon'); ?></span>
+                    <span class="screen-reader-text"><?php esc_html_e('admin.notices.accessibility.dismiss_notice', 'order-daemon'); ?></span>
                 </button>
             </div>
             <?php

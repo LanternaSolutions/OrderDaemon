@@ -512,7 +512,7 @@ class UniversalEventProcessor
     {
         global $wpdb;
 
-        $since = date('Y-m-d H:i:s', strtotime("-{$hours} hours"));
+        $since = gmdate('Y-m-d H:i:s', strtotime("-{$hours} hours"));
 
         // Get total events processed
         $total_events = $wpdb->get_var($wpdb->prepare(
