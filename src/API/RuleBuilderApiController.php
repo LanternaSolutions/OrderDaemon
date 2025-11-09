@@ -1435,7 +1435,7 @@ class RuleBuilderApiController extends WP_REST_Controller
 
             return new WP_Error(
                 'search_error',
-                __('Failed to search content', 'order-daemon'),
+                __('api.rule_builder.search.content_search_failure', 'order-daemon'),
                 ['status' => 500]
             );
         }

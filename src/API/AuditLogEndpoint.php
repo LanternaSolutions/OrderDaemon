@@ -2151,7 +2151,7 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function render_process_timeline_by_process_id(string $process_id, bool $include_debug = false): string
     {
         if (empty($process_id)) {
-            return '<div class="odcm-empty-data">' . esc_html__('Invalid process ID', 'order-daemon') . '</div>';
+            return '<div class="odcm-empty-data">' . esc_html__('audit.logs.process.invalid_id', 'order-daemon') . '</div>';
         }
 
         try {

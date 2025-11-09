@@ -1406,7 +1406,8 @@ final class RefundDeletionDiagnostics
 
         // Determine actor display for summary templates
         $actor_id = get_current_user_id();
-        $actor_display = $actor_id ? ('#' . $actor_id) : __('system', 'order-daemon');
+        /* translators: Label for system-generated actions when no specific user is responsible */
+        $actor_display = $actor_id ? ('#' . $actor_id) : __('core.refund_diagnostics.system_source', 'order-daemon');
         if ($actor_id) {
             $u = function_exists('get_userdata') ? get_userdata($actor_id) : null;
             if ($u && isset($u->display_name) && is_string($u->display_name) && $u->display_name !== '') {

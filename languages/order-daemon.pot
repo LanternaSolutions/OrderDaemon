@@ -1166,1229 +1166,1230 @@ msgid "core.dashboard.component.pagination"
 msgstr "Pagination"
 
 #: src/Core/LogCleanup.php:193
-msgid "No old log records found to delete."
-msgstr ""
+msgid "core.log_cleanup.no_old_records"
+msgstr "No old log records found to delete."
 
 #. translators: %1$d: number of deleted records, %2$d: retention period in days
 #: src/Core/LogCleanup.php:211
 #, php-format
-msgid "Successfully deleted %1$d old log records (older than %2$d days)."
-msgstr ""
+msgid "core.log_cleanup.success_deleted_records"
+msgstr "Successfully deleted %1$d old log records (older than %2$d days)."
 
 #. translators: %d: number of deleted payload records
 #: src/Core/LogCleanup.php:219
 #, php-format
-msgid "Also deleted %d associated payload records."
-msgstr ""
+msgid "core.log_cleanup.deleted_payload_records"
+msgstr "Also deleted %d associated payload records."
 
 #: src/Core/LogRegistries.php:157
-msgid "Order Completed"
-msgstr ""
+msgid "core.log.event.order_completed"
+msgstr "Order Completed"
 
 #: src/Core/LogRegistries.php:158
 #, php-format
-msgid "Order #%d completed successfully"
-msgstr ""
+msgid "core.log.event.order_completed_message"
+msgstr "Order #%d completed successfully"
 
 #: src/Core/LogRegistries.php:165
-msgid "Order Processing Started"
-msgstr ""
+msgid "core.log.event.order_processing_started"
+msgstr "Order Processing Started"
 
 #: src/Core/LogRegistries.php:166
 #, php-format
-msgid "Started processing order #%d"
-msgstr ""
+msgid "core.log.event.order_processing_started_message"
+msgstr "Started processing order #%d"
 
 #: src/Core/LogRegistries.php:173
-msgid "Rule Matched"
-msgstr ""
+msgid "core.log.event.rule_matched"
+msgstr "Rule Matched"
 
 #: src/Core/LogRegistries.php:174
 #, php-format
-msgid "Order #%d matched completion rule: %s"
-msgstr ""
+msgid "core.log.event.rule_matched_message"
+msgstr "Order #%d matched completion rule: %s"
 
 #: src/Core/LogRegistries.php:181
-msgid "Rule Skipped"
-msgstr ""
+msgid "core.log.event.rule_skipped"
+msgstr "Rule Skipped"
 
 #: src/Core/LogRegistries.php:182
 #, php-format
-msgid "Order #%d skipped rule \"%s\": %s"
-msgstr ""
+msgid "core.log.event.rule_skipped_message"
+msgstr "Order #%d skipped rule \"%s\": %s"
 
 #: src/Core/LogRegistries.php:189
-msgid "Invalid Order Object"
-msgstr ""
+msgid "core.log.event.invalid_order"
+msgstr "Invalid Order Object"
 
 #: src/Core/LogRegistries.php:190
 #, php-format
-msgid "Order #%d could not be loaded or is invalid"
-msgstr ""
+msgid "core.log.event.invalid_order_message"
+msgstr "Order #%d could not be loaded or is invalid"
 
 #: src/Core/LogRegistries.php:197
-msgid "No Rules Found"
-msgstr ""
+msgid "core.log.event.no_rules_found"
+msgstr "No Rules Found"
 
 #: src/Core/LogRegistries.php:198
 #, php-format
-msgid "No completion rules found for order #%d"
-msgstr ""
+msgid "core.log.event.no_rules_found_message"
+msgstr "No completion rules found for order #%d"
 
 #: src/Core/LogRegistries.php:205
-msgid "Action Execution Failed"
-msgstr ""
+msgid "core.log.event.action_execution_failed"
+msgstr "Action Execution Failed"
 
 #: src/Core/LogRegistries.php:206
 #, php-format
-msgid "Failed to execute action \"%s\" for order #%d: %s"
-msgstr ""
+msgid "core.log.event.action_execution_failed_message"
+msgstr "Failed to execute action \"%s\" for order #%d: %s"
 
 #: src/Core/LogRegistries.php:213
-msgid "Condition Check Failed"
-msgstr ""
+msgid "core.log.event.condition_check_failed"
+msgstr "Condition Check Failed"
 
 #: src/Core/LogRegistries.php:214
 #, php-format
-msgid "Condition \"%s\" check failed for order #%d: %s"
-msgstr ""
+msgid "core.log.event.condition_check_failed_message"
+msgstr "Condition \"%s\" check failed for order #%d: %s"
 
 #: src/Core/LogRegistries.php:223
-msgid "Process Order Check Started"
-msgstr ""
+msgid "core.log.event.process_check_started"
+msgstr "Process Order Check Started"
 
 #: src/Core/LogRegistries.php:224
 #, php-format
-msgid "Starting order check process for order #%d"
-msgstr ""
+msgid "core.log.event.process_check_started_message"
+msgstr "Starting order check process for order #%d"
 
 #: src/Core/LogRegistries.php:233
-msgid "Condition Passed"
-msgstr ""
+msgid "core.log.event.condition_passed"
+msgstr "Condition Passed"
 
 #: src/Core/LogRegistries.php:234
 #, php-format
-msgid "Condition \"%s\" passed for order #%d with value \"%s\""
-msgstr ""
+msgid "core.log.event.condition_passed_message"
+msgstr "Condition \"%s\" passed for order #%d with value \"%s\""
 
 #: src/Core/LogRegistries.php:241
-msgid "Condition Failed"
-msgstr ""
+msgid "core.log.event.condition_failed"
+msgstr "Condition Failed"
 
 #: src/Core/LogRegistries.php:242
 #, php-format
-msgid "Condition \"%s\" failed for order #%d. Expected: \"%s\", Actual: \"%s\""
-msgstr ""
+msgid "core.log.event.condition_failed_message"
+msgstr "Condition \"%s\" failed for order #%d. Expected: \"%s\", Actual: \"%s\""
 
 #: src/Core/LogRegistries.php:249
-msgid "Process Started"
-msgstr ""
+msgid "core.log.event.process_started"
+msgstr "Process Started"
 
 #: src/Core/LogRegistries.php:250
 #, php-format
-msgid "Started processing workflow for order #%d"
-msgstr ""
+msgid "core.log.event.process_started_message"
+msgstr "Started processing workflow for order #%d"
 
 #: src/Core/LogRegistries.php:257
-msgid "Slow Execution Warning"
-msgstr ""
+msgid "core.log.event.slow_execution"
+msgstr "Slow Execution Warning"
 
 #: src/Core/LogRegistries.php:258
 #, php-format
-msgid "Order #%d processing took %dms, exceeding %dms threshold"
-msgstr ""
+msgid "core.log.event.slow_execution_message"
+msgstr "Order #%d processing took %dms, exceeding %dms threshold"
 
 #: src/Core/LogRegistries.php:265
-msgid "Manual Status Change"
-msgstr ""
+msgid "core.log.event.manual_status_change"
+msgstr "Manual Status Change"
 
 #: src/Core/LogRegistries.php:266
 #, php-format
-msgid "Order #%d status manually changed from \"%s\" to \"%s\" by user ID %d"
-msgstr ""
+msgid "core.log.event.manual_status_change_message"
+msgstr "Order #%d status manually changed from \"%s\" to \"%s\" by user ID %d"
 
 #: src/Core/LogRegistries.php:280
-msgid "Webhook Status Change"
-msgstr ""
+msgid "core.log.event.webhook_status_change"
+msgstr "Webhook Status Change"
 
 #: src/Core/LogRegistries.php:281
 #, php-format
-msgid "Order #%d status changed from \"%s\" to \"%s\" by %s webhook"
-msgstr ""
+msgid "core.log.event.webhook_status_change_message"
+msgstr "Order #%d status changed from \"%s\" to \"%s\" by %s webhook"
 
 #: src/Core/LogRegistries.php:292
-msgid "Plugin Automated Change"
-msgstr ""
+msgid "core.log.event.plugin_automated_change"
+msgstr "Plugin Automated Change"
 
 #: src/Core/LogRegistries.php:293
 #, php-format
-msgid "Order #%d automatically updated by %s plugin via %s"
-msgstr ""
+msgid "core.log.event.plugin_automated_change_message"
+msgstr "Order #%d automatically updated by %s plugin via %s"
 
 #: src/Core/LogRegistries.php:304
-msgid "API Status Change"
-msgstr ""
+msgid "core.log.event.api_status_change"
+msgstr "API Status Change"
 
 #: src/Core/LogRegistries.php:305
 #, php-format
-msgid "Order #%d status changed from \"%s\" to \"%s\" via REST API"
-msgstr ""
+msgid "core.log.event.api_status_change_message"
+msgstr "Order #%d status changed from \"%s\" to \"%s\" via REST API"
 
 #: src/Core/LogRegistries.php:316
-msgid "External Service Action"
-msgstr ""
+msgid "core.log.event.external_service_action"
+msgstr "External Service Action"
 
 #: src/Core/LogRegistries.php:317
 #, php-format
-msgid "External service %s performed \"%s\" for order #%d"
-msgstr ""
+msgid "core.log.event.external_service_action_message"
+msgstr "External service %s performed \"%s\" for order #%d"
 
 #: src/Core/LogRegistries.php:330 src/Core/LogRegistries.php:870
-msgid "Order Partially Refunded"
-msgstr ""
+msgid "core.log.event.order_partially_refunded"
+msgstr "Order Partially Refunded"
 
 #: src/Core/LogRegistries.php:331
 #, php-format
-msgid "Order #%d partially refunded: %s (%d%% of total)"
-msgstr ""
+msgid "core.log.event.order_partially_refunded_message"
+msgstr "Order #%d partially refunded: %s (%d%% of total)"
 
 #: src/Core/LogRegistries.php:337 src/Core/LogRegistries.php:878
-msgid "Order Fully Refunded"
-msgstr ""
+msgid "core.log.event.order_fully_refunded"
+msgstr "Order Fully Refunded"
 
 #: src/Core/LogRegistries.php:338
 #, php-format
-msgid "Order #%d fully refunded: %s"
-msgstr ""
+msgid "core.log.event.order_fully_refunded_message"
+msgstr "Order #%d fully refunded: %s"
 
 #: src/Core/LogRegistries.php:344 src/Core/LogRegistries.php:886
-msgid "Refund Created"
-msgstr ""
+msgid "core.log.event.refund_created"
+msgstr "Refund Created"
 
 #: src/Core/LogRegistries.php:345
 #, php-format
-msgid "Refund #%d created for order #%d: %s"
-msgstr ""
+msgid "core.log.event.refund_created_message"
+msgstr "Refund #%d created for order #%d: %s"
 
 #: src/Core/LogRegistries.php:351 src/Core/LogRegistries.php:894
-msgid "Refund Deleted"
-msgstr ""
+msgid "core.log.event.refund_deleted"
+msgstr "Refund Deleted"
 
 #: src/Core/LogRegistries.php:352
 #, php-format
-msgid "Refund #%d deleted for order #%d"
-msgstr ""
+msgid "core.log.event.refund_deleted_message"
+msgstr "Refund #%d deleted for order #%d"
 
 #: src/Core/LogRegistries.php:358 src/Core/LogRegistries.php:902
-msgid "Order Deleted"
-msgstr ""
+msgid "core.log.event.order_deleted"
+msgstr "Order Deleted"
 
 #: src/Core/LogRegistries.php:359
 #, php-format
-msgid "Order #%d deleted by %s"
-msgstr ""
+msgid "core.log.event.order_deleted_message"
+msgstr "Order #%d deleted by %s"
 
 #: src/Core/LogRegistries.php:365 src/Core/LogRegistries.php:910
-msgid "Order Trashed"
-msgstr ""
+msgid "core.log.event.order_trashed"
+msgstr "Order Trashed"
 
 #: src/Core/LogRegistries.php:366
 #, php-format
-msgid "Order #%d moved to trash by %s"
-msgstr ""
+msgid "core.log.event.order_trashed_message"
+msgstr "Order #%d moved to trash by %s"
 
 #: src/Core/LogRegistries.php:372 src/Core/LogRegistries.php:918
-msgid "Order Restored"
-msgstr ""
+msgid "core.log.event.order_restored"
+msgstr "Order Restored"
 
 #: src/Core/LogRegistries.php:373
 #, php-format
-msgid "Order #%d restored from trash by %s"
-msgstr ""
+msgid "core.log.event.order_restored_message"
+msgstr "Order #%d restored from trash by %s"
 
 #: src/Core/LogRegistries.php:380
-msgid "Step Timing"
-msgstr ""
+msgid "core.log.event.step_timing"
+msgstr "Step Timing"
 
 #: src/Core/LogRegistries.php:381
 #, php-format
-msgid "Step \"%s\" took %dms to execute"
-msgstr ""
+msgid "core.log.event.step_timing_message"
+msgstr "Step \"%s\" took %dms to execute"
 
 #: src/Core/LogRegistries.php:388
-msgid "No Rules Matched"
-msgstr ""
+msgid "core.log.event.no_rules_matched"
+msgstr "No Rules Matched"
 
 #: src/Core/LogRegistries.php:389
 #, php-format
-msgid "No completion rules matched for order #%d"
-msgstr ""
+msgid "core.log.event.no_rules_matched_message"
+msgstr "No completion rules matched for order #%d"
 
 #: src/Core/LogRegistries.php:396
-msgid "Rule Evaluation Started"
-msgstr ""
+msgid "core.log.event.rule_evaluation_started"
+msgstr "Rule Evaluation Started"
 
 #: src/Core/LogRegistries.php:397
 #, php-format
-msgid "Evaluating rule \"%s\" for order #%d"
-msgstr ""
+msgid "core.log.event.rule_evaluation_started_message"
+msgstr "Evaluating rule \"%s\" for order #%d"
 
 #: src/Core/LogRegistries.php:404
-msgid "Condition Evaluation"
-msgstr ""
+msgid "core.log.event.condition_evaluation"
+msgstr "Condition Evaluation"
 
 #: src/Core/LogRegistries.php:405
 #, php-format
-msgid "Condition \"%s\" for order #%d: %s"
-msgstr ""
+msgid "core.log.event.condition_evaluation_message"
+msgstr "Condition \"%s\" for order #%d: %s"
 
 #: src/Core/LogRegistries.php:412
-msgid "Action Execution Started"
-msgstr ""
+msgid "core.log.event.action_execution_started"
+msgstr "Action Execution Started"
 
 #: src/Core/LogRegistries.php:413
 #, php-format
-msgid "Executing action \"%s\" for order #%d"
-msgstr ""
+msgid "core.log.event.action_execution_started_message"
+msgstr "Executing action \"%s\" for order #%d"
 
 #: src/Core/LogRegistries.php:420
-msgid "Database Query Executed"
-msgstr ""
+msgid "core.log.event.database_query_executed"
+msgstr "Database Query Executed"
 
 #: src/Core/LogRegistries.php:421
 #, php-format
-msgid "Executed database query: %s"
-msgstr ""
+msgid "core.log.event.database_query_executed_message"
+msgstr "Executed database query: %s"
 
 #: src/Core/LogRegistries.php:430
-msgid "Advanced Condition Matched"
-msgstr ""
+msgid "core.log.event.advanced_condition_matched"
+msgstr "Advanced Condition Matched"
 
 #: src/Core/LogRegistries.php:431
 #, php-format
-msgid "Order #%d matched premium condition: %s"
-msgstr ""
+msgid "core.log.event.advanced_condition_matched_message"
+msgstr "Order #%d matched premium condition: %s"
 
 #: src/Core/LogRegistries.php:438
-msgid "Custom Email Sent"
-msgstr ""
+msgid "core.log.event.custom_email_sent"
+msgstr "Custom Email Sent"
 
 #: src/Core/LogRegistries.php:439
 #, php-format
-msgid "Custom email sent for order #%d to %s"
-msgstr ""
+msgid "core.log.event.custom_email_sent_message"
+msgstr "Custom email sent for order #%d to %s"
 
 #: src/Core/LogRegistries.php:446
-msgid "Advanced Action Executed"
-msgstr ""
+msgid "core.log.event.advanced_action_executed"
+msgstr "Advanced Action Executed"
 
 #: src/Core/LogRegistries.php:447
 #, php-format
-msgid "Premium action \"%s\" executed for order #%d"
-msgstr ""
+msgid "core.log.event.advanced_action_executed_message"
+msgstr "Premium action \"%s\" executed for order #%d"
 
 #: src/Core/LogRegistries.php:454
-msgid "Bulk Operation Completed"
-msgstr ""
+msgid "core.log.event.bulk_operation_completed"
+msgstr "Bulk Operation Completed"
 
 #: src/Core/LogRegistries.php:455
 #, php-format
-msgid "Bulk operation completed: %d orders processed"
-msgstr ""
+msgid "core.log.event.bulk_operation_completed_message"
+msgstr "Bulk operation completed: %d orders processed"
 
 #: src/Core/LogRegistries.php:464
-msgid "Plugin Activated"
-msgstr ""
+msgid "core.log.event.plugin_activated"
+msgstr "Plugin Activated"
 
 #: src/Core/LogRegistries.php:465
 #, php-format
-msgid "Order Daemon plugin activated (version %s)"
-msgstr ""
+msgid "core.log.event.plugin_activated_message"
+msgstr "Order Daemon plugin activated (version %s)"
 
 #: src/Core/LogRegistries.php:472
-msgid "Database Upgraded"
-msgstr ""
+msgid "core.log.event.database_upgraded"
+msgstr "Database Upgraded"
 
 #: src/Core/LogRegistries.php:473
 #, php-format
-msgid "Database schema upgraded from version %s to %s"
-msgstr ""
+msgid "core.log.event.database_upgraded_message"
+msgstr "Database schema upgraded from version %s to %s"
 
 #: src/Core/LogRegistries.php:480
-msgid "Settings Updated"
-msgstr ""
+msgid "core.log.event.settings_updated"
+msgstr "Settings Updated"
 
 #: src/Core/LogRegistries.php:481
 #, php-format
-msgid "Plugin settings updated by user %s"
-msgstr ""
+msgid "core.log.event.settings_updated_message"
+msgstr "Plugin settings updated by user %s"
 
 #: src/Core/LogRegistries.php:488
-msgid "Log Cleanup Task"
-msgstr ""
+msgid "core.log.event.log_cleanup_task"
+msgstr "Log Cleanup Task"
 
 #: src/Core/LogRegistries.php:489
 #, php-format
-msgid "Log cleanup completed: %d entries removed (retention: %d days)"
-msgstr ""
+msgid "core.log.event.log_cleanup_task_message"
+msgstr "Log cleanup completed: %d entries removed (retention: %d days)"
 
 #: src/Core/LogRegistries.php:496
-msgid "Admin Reprocess Orders"
-msgstr ""
+msgid "core.log.event.admin_reprocess_orders"
+msgstr "Admin Reprocess Orders"
 
 #: src/Core/LogRegistries.php:497
 #, php-format
-msgid "Admin user \"%s\" initiated reprocessing of %d pending orders"
-msgstr ""
+msgid "core.log.event.admin_reprocess_orders_message"
+msgstr "Admin user \"%s\" initiated reprocessing of %d pending orders"
 
 #: src/Core/LogRegistries.php:507
-msgid "Test: API Call Success"
-msgstr ""
+msgid "core.log.test.api_call_success"
+msgstr "Test: API Call Success"
 
 #: src/Core/LogRegistries.php:508
 #, php-format
-msgid "Successful API integration for order #%d"
-msgstr ""
+msgid "core.log.test.api_call_success_message"
+msgstr "Successful API integration for order #%d"
 
 #: src/Core/LogRegistries.php:515
-msgid "Test: Rule Match Success"
-msgstr ""
+msgid "core.log.test.rule_match_success"
+msgstr "Test: Rule Match Success"
 
 #: src/Core/LogRegistries.php:516
 #, php-format
-msgid "Rule evaluation successful for order #%d"
-msgstr ""
+msgid "core.log.test.rule_match_success_message"
+msgstr "Rule evaluation successful for order #%d"
 
 #: src/Core/LogRegistries.php:523
-msgid "Test: Database Success"
-msgstr ""
+msgid "core.log.test.database_success"
+msgstr "Test: Database Success"
 
 #: src/Core/LogRegistries.php:524
-msgid "Database operation completed successfully"
-msgstr ""
+msgid "core.log.test.database_success_message"
+msgstr "Database operation completed successfully"
 
 #: src/Core/LogRegistries.php:532
-msgid "Test: Critical Error"
-msgstr ""
+msgid "core.log.test.critical_error"
+msgstr "Test: Critical Error"
 
 #: src/Core/LogRegistries.php:533
 #, php-format
-msgid "Critical system error with stack trace for order #%d"
-msgstr ""
+msgid "core.log.test.critical_error_message"
+msgstr "Critical system error with stack trace for order #%d"
 
 #: src/Core/LogRegistries.php:540
-msgid "Test: Database Error"
-msgstr ""
+msgid "core.log.test.database_error"
+msgstr "Test: Database Error"
 
 #: src/Core/LogRegistries.php:541
-msgid "Database operation failed with error"
-msgstr ""
+msgid "core.log.test.database_error_message"
+msgstr "Database operation failed with error"
 
 #: src/Core/LogRegistries.php:549
-msgid "Test: Warning Message"
-msgstr ""
+msgid "core.log.test.warning_message"
+msgstr "Test: Warning Message"
 
 #: src/Core/LogRegistries.php:550
 #, php-format
-msgid "Warning condition detected for order #%d"
-msgstr ""
+msgid "core.log.test.warning_message_template"
+msgstr "Warning condition detected for order #%d"
 
 #: src/Core/LogRegistries.php:557
-msgid "Test: Performance Warning"
-msgstr ""
+msgid "core.log.test.performance_warning"
+msgstr "Test: Performance Warning"
 
 #: src/Core/LogRegistries.php:558
-msgid "Slow database query detected (performance warning)"
-msgstr ""
+msgid "core.log.test.performance_warning_message"
+msgstr "Slow database query detected (performance warning)"
 
 #: src/Core/LogRegistries.php:566
-msgid "Test: Performance Info"
-msgstr ""
+msgid "core.log.test.performance_info"
+msgstr "Test: Performance Info"
 
 #: src/Core/LogRegistries.php:567
 #, php-format
-msgid "Performance monitoring report for order #%d"
-msgstr ""
+msgid "core.log.test.performance_info_message"
+msgstr "Performance monitoring report for order #%d"
 
 #: src/Core/LogRegistries.php:574
-msgid "Test: WooCommerce Info"
-msgstr ""
+msgid "core.log.test.woocommerce_info"
+msgstr "Test: WooCommerce Info"
 
 #: src/Core/LogRegistries.php:575
 #, php-format
-msgid "WooCommerce integration data for order #%d"
-msgstr ""
+msgid "core.log.test.woocommerce_info_message"
+msgstr "WooCommerce integration data for order #%d"
 
 #: src/Core/LogRegistries.php:583
-msgid "Test: System Notice"
-msgstr ""
+msgid "core.log.test.system_notice"
+msgstr "Test: System Notice"
 
 #: src/Core/LogRegistries.php:584
-msgid "System information notice and monitoring data"
-msgstr ""
+msgid "core.log.test.system_notice_message"
+msgstr "System information notice and monitoring data"
 
 #: src/Core/LogRegistries.php:591
-msgid "Test: Rule No Match"
-msgstr ""
+msgid "core.log.test.rule_no_match"
+msgstr "Test: Rule No Match"
 
 #: src/Core/LogRegistries.php:592
 #, php-format
-msgid "Rule evaluation notice: no match for order #%d"
-msgstr ""
+msgid "core.log.test.rule_no_match_message"
+msgstr "Rule evaluation notice: no match for order #%d"
 
 #: src/Core/LogRegistries.php:600
-msgid "Test: Critical WP Error"
-msgstr ""
+msgid "core.log.test.critical_wp_error"
+msgstr "Test: Critical WP Error"
 
 #: src/Core/LogRegistries.php:601
-msgid "Critical WordPress error requiring immediate attention"
-msgstr ""
+msgid "core.log.test.critical_wp_error_message"
+msgstr "Critical WordPress error requiring immediate attention"
 
 #: src/Core/LogRegistries.php:609
-msgid "Test: Operation Completed"
-msgstr ""
+msgid "core.log.test.operation_completed"
+msgstr "Test: Operation Completed"
 
 #: src/Core/LogRegistries.php:610
 #, php-format
-msgid "Fallback operation completed for order #%d"
-msgstr ""
+msgid "core.log.test.operation_completed_message"
+msgstr "Fallback operation completed for order #%d"
 
 #: src/Core/LogRegistries.php:618
-msgid "Test: Debug Trace"
-msgstr ""
+msgid "core.log.test.debug_trace"
+msgstr "Test: Debug Trace"
 
 #: src/Core/LogRegistries.php:619
-msgid "Debug trace information for development"
-msgstr ""
+msgid "core.log.test.debug_trace_message"
+msgstr "Debug trace information for development"
 
 #: src/Core/LogRegistries.php:627
-msgid "Test: Pending Operation"
-msgstr ""
+msgid "core.log.test.pending_operation"
+msgstr "Test: Pending Operation"
 
 #: src/Core/LogRegistries.php:628
 #, php-format
-msgid "Asynchronous operation pending for order #%d"
-msgstr ""
+msgid "core.log.test.pending_operation_message"
+msgstr "Asynchronous operation pending for order #%d"
 
 #: src/Core/LogRegistries.php:636
-msgid "Test: Operation Skipped"
-msgstr ""
+msgid "core.log.test.operation_skipped"
+msgstr "Test: Operation Skipped"
 
 #: src/Core/LogRegistries.php:637
 #, php-format
-msgid "Operation skipped due to conditions for order #%d"
-msgstr ""
+msgid "core.log.test.operation_skipped_message"
+msgstr "Operation skipped due to conditions for order #%d"
 
 #: src/Core/LogRegistries.php:645
-msgid "Test: Pure API Event"
-msgstr ""
+msgid "core.log.test.pure_api_event"
+msgstr "Test: Pure API Event"
 
 #: src/Core/LogRegistries.php:646
 #, php-format
-msgid "Pure API operation for order #%d"
-msgstr ""
+msgid "core.log.test.pure_api_event_message"
+msgstr "Pure API operation for order #%d"
 
 #: src/Core/LogRegistries.php:654
-msgid "Test: Pure Database Event"
-msgstr ""
+msgid "core.log.test.pure_database_event"
+msgstr "Test: Pure Database Event"
 
 #: src/Core/LogRegistries.php:655
 #, php-format
-msgid "Pure database operation for order #%d"
-msgstr ""
+msgid "core.log.test.pure_database_event_message"
+msgstr "Pure database operation for order #%d"
 
 #: src/Core/LogRegistries.php:663
-msgid "Test: Complex Multi-API Event"
-msgstr ""
+msgid "core.log.test.complex_multi_api_event"
+msgstr "Test: Complex Multi-API Event"
 
 #: src/Core/LogRegistries.php:664
 #, php-format
-msgid "Complex multi-API operation for order #%d"
-msgstr ""
+msgid "core.log.test.complex_multi_api_event_message"
+msgstr "Complex multi-API operation for order #%d"
 
 #: src/Core/LogRegistries.php:672
-msgid "Test: Webhook Processing Event"
-msgstr ""
+msgid "core.log.test.webhook_processing_event"
+msgstr "Test: Webhook Processing Event"
 
 #: src/Core/LogRegistries.php:673
 #, php-format
-msgid "Webhook processing for order #%d"
-msgstr ""
+msgid "core.log.test.webhook_processing_event_message"
+msgstr "Webhook processing for order #%d"
 
 #: src/Core/LogRegistries.php:681
-msgid "Test: Background Task Event"
-msgstr ""
+msgid "core.log.test.background_task_event"
+msgstr "Test: Background Task Event"
 
 #: src/Core/LogRegistries.php:682
 #, php-format
-msgid "Background task processing for order #%d"
-msgstr ""
+msgid "core.log.test.background_task_event_message"
+msgstr "Background task processing for order #%d"
 
 #: src/Core/LogRegistries.php:690
-msgid "Test: Integration Event"
-msgstr ""
+msgid "core.log.test.integration_event"
+msgstr "Test: Integration Event"
 
 #: src/Core/LogRegistries.php:691
 #, php-format
-msgid "Third-party integration for order #%d"
-msgstr ""
+msgid "core.log.test.integration_event_message"
+msgstr "Third-party integration for order #%d"
 
 #: src/Core/LogRegistries.php:699
-msgid "Test: Import/Export Event"
-msgstr ""
+msgid "core.log.test.import_export_event"
+msgstr "Test: Import/Export Event"
 
 #: src/Core/LogRegistries.php:700
 #, php-format
-msgid "Import/export operation for order #%d"
-msgstr ""
+msgid "core.log.test.import_export_event_message"
+msgstr "Import/export operation for order #%d"
 
 #: src/Core/LogRegistries.php:710
-msgid "Test: Large Payload Stress"
-msgstr ""
+msgid "core.log.test.large_payload_stress"
+msgstr "Test: Large Payload Stress"
 
 #: src/Core/LogRegistries.php:711
 #, php-format
-msgid "Large payload stress test for order #%d"
-msgstr ""
+msgid "core.log.test.large_payload_stress_message"
+msgstr "Large payload stress test for order #%d"
 
 #: src/Core/LogRegistries.php:719
-msgid "Test: Deep Nesting Stress"
-msgstr ""
+msgid "core.log.test.deep_nesting_stress"
+msgstr "Test: Deep Nesting Stress"
 
 #: src/Core/LogRegistries.php:720
 #, php-format
-msgid "Deep nesting stress test for order #%d"
-msgstr ""
+msgid "core.log.test.deep_nesting_stress_message"
+msgstr "Deep nesting stress test for order #%d"
 
 #: src/Core/LogRegistries.php:728
-msgid "Test: Long Text Stress"
-msgstr ""
+msgid "core.log.test.long_text_stress"
+msgstr "Test: Long Text Stress"
 
 #: src/Core/LogRegistries.php:729
 #, php-format
-msgid "Long text stress test for order #%d"
-msgstr ""
+msgid "core.log.test.long_text_stress_message"
+msgstr "Long text stress test for order #%d"
 
 #: src/Core/LogRegistries.php:737
-msgid "Test: Unicode Stress"
-msgstr ""
+msgid "core.log.test.unicode_stress"
+msgstr "Test: Unicode Stress"
 
 #: src/Core/LogRegistries.php:738
 #, php-format
-msgid "Unicode stress test for order #%d"
-msgstr ""
+msgid "core.log.test.unicode_stress_message"
+msgstr "Unicode stress test for order #%d"
 
 #: src/Core/LogRegistries.php:746
-msgid "Test: Special Character Stress"
-msgstr ""
+msgid "core.log.test.special_character_stress"
+msgstr "Test: Special Character Stress"
 
 #: src/Core/LogRegistries.php:747
 #, php-format
-msgid "Special character stress test for order #%d"
-msgstr ""
+msgid "core.log.test.special_character_stress_message"
+msgstr "Special character stress test for order #%d"
 
 #: src/Core/LogRegistries.php:755
-msgid "Test: Memory Stress"
-msgstr ""
+msgid "core.log.test.memory_stress"
+msgstr "Test: Memory Stress"
 
 #: src/Core/LogRegistries.php:756
 #, php-format
-msgid "Memory stress test for order #%d"
-msgstr ""
+msgid "core.log.test.memory_stress_message"
+msgstr "Memory stress test for order #%d"
 
 #: src/Core/LogRegistries.php:764
-msgid "Test: Performance Edge Stress"
-msgstr ""
+msgid "core.log.test.performance_edge_stress"
+msgstr "Test: Performance Edge Stress"
 
 #: src/Core/LogRegistries.php:765
 #, php-format
-msgid "Performance edge case stress test for order #%d"
-msgstr ""
+msgid "core.log.test.performance_edge_stress_message"
+msgstr "Performance edge case stress test for order #%d"
 
 #: src/Core/LogRegistries.php:775
-msgid "Test: Multi-Component Integration"
-msgstr ""
+msgid "core.log.test.multi_component_integration"
+msgstr "Test: Multi-Component Integration"
 
 #: src/Core/LogRegistries.php:776
 #, php-format
-msgid "Multi-component integration test for order #%d"
-msgstr ""
+msgid "core.log.test.multi_component_integration_message"
+msgstr "Multi-component integration test for order #%d"
 
 #: src/Core/LogRegistries.php:784
-msgid "Test: Workflow Start"
-msgstr ""
+msgid "core.log.test.workflow_start"
+msgstr "Test: Workflow Start"
 
 #: src/Core/LogRegistries.php:785
 #, php-format
-msgid "Workflow progression started for order #%d"
-msgstr ""
+msgid "core.log.test.workflow_start_message"
+msgstr "Workflow progression started for order #%d"
 
 #: src/Core/LogRegistries.php:792
-msgid "Test: Workflow Progress"
-msgstr ""
+msgid "core.log.test.workflow_progress"
+msgstr "Test: Workflow Progress"
 
 #: src/Core/LogRegistries.php:793
 #, php-format
-msgid "Workflow progression continuing for order #%d"
-msgstr ""
+msgid "core.log.test.workflow_progress_message"
+msgstr "Workflow progression continuing for order #%d"
 
 #: src/Core/LogRegistries.php:800
-msgid "Test: Workflow Complete"
-msgstr ""
+msgid "core.log.test.workflow_complete"
+msgstr "Test: Workflow Complete"
 
 #: src/Core/LogRegistries.php:801
 #, php-format
-msgid "Workflow progression completed for order #%d"
-msgstr ""
+msgid "core.log.test.workflow_complete_message"
+msgstr "Workflow progression completed for order #%d"
 
 #: src/Core/LogRegistries.php:809
-msgid "Test: Cross-Reference Event"
-msgstr ""
+msgid "core.log.test.cross_reference_event"
+msgstr "Test: Cross-Reference Event"
 
 #: src/Core/LogRegistries.php:810
 #, php-format
-msgid "Cross-reference event for order #%d"
-msgstr ""
+msgid "core.log.test.cross_reference_event_message"
+msgstr "Cross-reference event for order #%d"
 
 #: src/Core/LogRegistries.php:818
-msgid "Test: Time-Series Event"
-msgstr ""
+msgid "core.log.test.time_series_event"
+msgstr "Test: Time-Series Event"
 
 #: src/Core/LogRegistries.php:819
 #, php-format
-msgid "Time-series progression for order #%d"
-msgstr ""
+msgid "core.log.test.time_series_event_message"
+msgstr "Time-series progression for order #%d"
 
 #: src/Core/LogRegistries.php:827
-msgid "Test: Recovery Failure"
-msgstr ""
+msgid "core.log.test.recovery_failure"
+msgstr "Test: Recovery Failure"
 
 #: src/Core/LogRegistries.php:828
 #, php-format
-msgid "Error recovery failure for order #%d"
-msgstr ""
+msgid "core.log.test.recovery_failure_message"
+msgstr "Error recovery failure for order #%d"
 
 #: src/Core/LogRegistries.php:835
-msgid "Test: Recovery Retry"
-msgstr ""
+msgid "core.log.test.recovery_retry"
+msgstr "Test: Recovery Retry"
 
 #: src/Core/LogRegistries.php:836
 #, php-format
-msgid "Error recovery retry for order #%d"
-msgstr ""
+msgid "core.log.test.recovery_retry_message"
+msgstr "Error recovery retry for order #%d"
 
 #: src/Core/LogRegistries.php:843
-msgid "Test: Recovery Success"
-msgstr ""
+msgid "core.log.test.recovery_success"
+msgstr "Test: Recovery Success"
 
 #: src/Core/LogRegistries.php:844
 #, php-format
-msgid "Error recovery success for order #%d"
-msgstr ""
+msgid "core.log.test.recovery_success_message"
+msgstr "Error recovery success for order #%d"
 
 #: src/Core/LogRegistries.php:852
-msgid "Test: Real-World Order Workflow"
-msgstr ""
+msgid "core.log.test.real_world_order_workflow"
+msgstr "Test: Real-World Order Workflow"
 
 #: src/Core/LogRegistries.php:853
 #, php-format
-msgid "Real-world order workflow for order #%d"
-msgstr ""
+msgid "core.log.test.real_world_order_workflow_message"
+msgstr "Real-world order workflow for order #%d"
 
 #: src/Core/LogRegistries.php:861
-msgid "Test: Plugin Interaction"
-msgstr ""
+msgid "core.log.test.plugin_interaction"
+msgstr "Test: Plugin Interaction"
 
 #: src/Core/LogRegistries.php:862
 #, php-format
-msgid "Plugin interaction event for order #%d"
-msgstr ""
+msgid "core.log.test.plugin_interaction_message"
+msgstr "Plugin interaction event for order #%d"
 
 #: src/Core/LogRegistries.php:871
 #, php-format
-msgid "Order #%d partially refunded"
-msgstr ""
+msgid "core.log.event.order_partially_refunded_simple"
+msgstr "Order #%d partially refunded"
 
 #: src/Core/LogRegistries.php:879
 #, php-format
-msgid "Order #%d fully refunded"
-msgstr ""
+msgid "core.log.event.order_fully_refunded_simple"
+msgstr "Order #%d fully refunded"
 
 #: src/Core/LogRegistries.php:887
 #, php-format
-msgid "Refund created for order #%d"
-msgstr ""
+msgid "core.log.event.refund_created_simple"
+msgstr "Refund created for order #%d"
 
 #: src/Core/LogRegistries.php:895
 #, php-format
-msgid "Refund deleted for order #%d"
-msgstr ""
+msgid "core.log.event.refund_deleted_simple"
+msgstr "Refund deleted for order #%d"
 
 #: src/Core/LogRegistries.php:903
 #, php-format
-msgid "Order #%d deleted"
-msgstr ""
+msgid "core.log.event.order_deleted_simple"
+msgstr "Order #%d deleted"
 
 #: src/Core/LogRegistries.php:911
 #, php-format
-msgid "Order #%d moved to trash"
-msgstr ""
+msgid "core.log.event.order_trashed_simple"
+msgstr "Order #%d moved to trash"
 
 #: src/Core/LogRegistries.php:919
 #, php-format
-msgid "Order #%d restored from trash"
-msgstr ""
-
-#: src/Core/LogRegistries.php:1033
-msgid "Notice"
-msgstr ""
-
-#: src/Core/LogRegistries.php:1039
-msgid "Debug"
-msgstr ""
-
-#: src/Core/LogRegistries.php:1045
-msgid "Critical"
-msgstr ""
-
-#: src/Core/LogRegistries.php:1051
-msgid "Pending"
-msgstr ""
-
-#: src/Core/LogRegistries.php:1057
-msgid "Skipped"
-msgstr ""
-
-#: src/Core/LogRegistries.php:1063
-msgid "Completed"
-msgstr ""
-
-#: src/Core/LogRegistries.php:1100
-msgid "Event Processor"
-msgstr ""
-
-#: src/Core/LogRegistries.php:1104
-msgid "Logger"
-msgstr ""
-
-#: src/Core/Logging/ProcessLogger.php:90
-msgid "Process started"
-msgstr ""
-
-#: src/Core/PremiumComponentFallback.php:137
-#, php-format
-msgid ""
-"Warning: %d completion rule uses premium components that require the pro "
-"plugin."
-msgid_plural ""
-"Warning: %d completion rules use premium components that require the pro "
-"plugin."
-msgstr[0] ""
-msgstr[1] ""
-
-#: src/Core/PremiumComponentFallback.php:147
-msgid ""
-"These rules will not function until the pro plugin is activated or the rules "
-"are updated to use free components."
-msgstr ""
+msgid "core.log.event.order_restored_simple"
+msgstr "Order #%d restored from trash"
 
 #: src/Core/PremiumComponentFallback.php:166
 #, php-format
-msgid "This component has been moved to the pro plugin as of version %s."
-msgstr ""
+msgid "core.premium.component_moved_to_pro"
+msgstr "This component has been moved to the pro plugin as of version %s."
 
 #: src/Core/ProcessLifecycleDiscovery.php:125
-msgid "Payment Gateway Events"
-msgstr ""
+msgid "core.process.lifecycle.payment_gateway_events"
+msgstr "Payment Gateway Events"
 
 #: src/Core/ProcessLifecycleDiscovery.php:133
-msgid "Subscription Lifecycle"
-msgstr ""
-
-#: src/Core/RefundDeletionDiagnostics.php:1409
-msgid "system"
-msgstr ""
+msgid "core.process.lifecycle.subscription_lifecycle"
+msgstr "Subscription Lifecycle"
 
 #: src/Core/RuleComponents/RuleActions/CompleteOrderAction.php:24
 #: src/Core/options.php:331
-msgid "Change Status to 'Completed'"
-msgstr ""
+msgid "rule_component.action.complete_order.label"
+msgstr "Change Status to 'Completed'"
 
 #: src/Core/RuleComponents/RuleActions/CompleteOrderAction.php:29
-msgid "Marks the order as complete. This is the default action."
-msgstr ""
+msgid "rule_component.action.complete_order.description"
+msgstr "Marks the order as complete. This is the default action."
 
 #: src/Core/RuleComponents/RuleActions/CompleteOrderAction.php:45
-msgid "Order completed automatically by rule."
-msgstr ""
+msgid "rule_component.action.complete_order.note_message"
+msgstr "Order completed automatically by rule."
 
 #: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:24
-msgid "Order Total Amount"
-msgstr ""
+msgid "rule_component.condition.order_total.label"
+msgstr "Order Total Amount"
 
 #: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:29
-msgid "Checks if the order total meets the specified criteria."
-msgstr ""
+msgid "rule_component.condition.order_total.description"
+msgstr "Checks if the order total meets the specified criteria."
 
 #: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:44
-msgid "Operator"
-msgstr ""
+msgid "rule_component.condition.order_total.operator_label"
+msgstr "Operator"
 
 #: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:45
-msgid "How to compare the order total."
-msgstr ""
+msgid "rule_component.condition.order_total.operator_description"
+msgstr "How to compare the order total."
 
 #: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:48
-msgid "Greater than"
-msgstr ""
+msgid "rule_component.condition.order_total.operator.greater_than"
+msgstr "Greater than"
 
 #: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:49
-msgid "Less than"
-msgstr ""
+msgid "rule_component.condition.order_total.operator.less_than"
+msgstr "Less than"
 
 #: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:50
-msgid "Equal to"
-msgstr ""
+msgid "rule_component.condition.order_total.operator.equal_to"
+msgstr "Equal to"
 
 #: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:51
-msgid "Greater than or equal to"
-msgstr ""
+msgid "rule_component.condition.order_total.operator.greater_than_equal"
+msgstr "Greater than or equal to"
 
 #: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:52
-msgid "Less than or equal to"
-msgstr ""
+msgid "rule_component.condition.order_total.operator.less_than_equal"
+msgstr "Less than or equal to"
+
+#: src/Core/ProcessLifecycleDiscovery.php:133
+msgid "core.process.lifecycle.subscription_lifecycle"
+msgstr "Subscription Lifecycle"
+
+#: src/Core/RefundDeletionDiagnostics.php:1409
+msgid "core.refund_diagnostics.system_source"
+msgstr "system"
+
+#: src/Core/RuleComponents/RuleActions/CompleteOrderAction.php:24
+#: src/Core/options.php:331
+msgid "core.options.action.complete_order.label"
+msgstr "Change Status to 'Completed'"
+
+#: src/Core/RuleComponents/RuleActions/CompleteOrderAction.php:29
+msgid "rule_component.action.complete_order.description"
+msgstr "Marks the order as complete. This is the default action."
+
+#: src/Core/RuleComponents/RuleActions/CompleteOrderAction.php:45
+msgid "rule_component.action.complete_order.note_message"
+msgstr "Order completed automatically by rule."
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:24
+msgid "rule_component.condition.order_total.label"
+msgstr "Order Total Amount"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:29
+msgid "rule_component.condition.order_total.description"
+msgstr "Checks if the order total meets the specified criteria."
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:44
+msgid "rule_component.condition.order_total.operator_label"
+msgstr "Operator"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:45
+msgid "rule_component.condition.order_total.operator_description"
+msgstr "How to compare the order total."
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:48
+msgid "rule_component.condition.order_total.operator.greater_than"
+msgstr "Greater than"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:49
+msgid "rule_component.condition.order_total.operator.less_than"
+msgstr "Less than"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:50
+msgid "rule_component.condition.order_total.operator.equal_to"
+msgstr "Equal to"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:51
+msgid "rule_component.condition.order_total.operator.greater_than_equal"
+msgstr "Greater than or equal to"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:52
+msgid "rule_component.condition.order_total.operator.less_than_equal"
+msgstr "Less than or equal to"
 
 #: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:24
 #: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:66
 #: src/Core/options.php:245
-msgid "Product Category"
-msgstr ""
+msgid "rule_component.condition.product_category.label"
+msgstr "Product Category"
 
 #: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:29
-msgid "Checks if the order contains products from specific categories."
-msgstr ""
+msgid "rule_component.condition.product_category.description"
+msgstr "Checks if the order contains products from specific categories."
 
 #: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:57
-msgid "No categories found"
-msgstr ""
+msgid "rule_component.condition.product_category.no_categories_found"
+msgstr "No categories found"
 
 #: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:67
-msgid ""
+msgid "rule_component.condition.product_category.field_description"
+msgstr ""
 "Select one product category to match. Pro unlocks multiple categories and "
 "advanced logic."
-msgstr ""
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:27
 #: src/Core/options.php:224
-msgid "Product Type"
-msgstr ""
+msgid "rule_component.condition.product_type.label"
+msgstr "Product Type"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:32
-msgid ""
+msgid "rule_component.condition.product_type.description"
+msgstr ""
 "Checks if all products in the order are of specific types. Virtual and "
 "downloadable products are available in the free version."
-msgstr ""
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:57
-msgid "Product Types"
-msgstr ""
+msgid "rule_component.condition.product_type.field_label"
+msgstr "Product Types"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:59
-msgid ""
+msgid "rule_component.condition.product_type.field_description"
+msgstr ""
 "Select the product types to match. Use the search box to quickly find "
 "product types."
-msgstr ""
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:60
-msgid ""
+msgid "rule_component.condition.product_type.field_description_free"
+msgstr ""
 "Select virtual or downloadable product types. Upgrade to premium for all "
 "other product types."
-msgstr ""
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:67
-msgid "Search product types..."
-msgstr ""
+msgid "rule_component.condition.product_type.search_placeholder"
+msgstr "Search product types..."
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:74
-msgid "Match Mode"
-msgstr ""
+msgid "rule_component.condition.product_type.match_mode_label"
+msgstr "Match Mode"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:75
-msgid "How to match product types in the order."
-msgstr ""
+msgid "rule_component.condition.product_type.match_mode_description"
+msgstr "How to match product types in the order."
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:77
-msgid "All products must match selected types"
-msgstr ""
+msgid "rule_component.condition.product_type.match_mode.all"
+msgstr "All products must match selected types"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:78
-msgid "At least one product must match selected types"
-msgstr ""
+msgid "rule_component.condition.product_type.match_mode.any"
+msgstr "At least one product must match selected types"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:79
-msgid "No products should match selected types"
-msgstr ""
+msgid "rule_component.condition.product_type.match_mode.none"
+msgstr "No products should match selected types"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:155
-msgid "Virtual Products"
-msgstr ""
+msgid "rule_component.condition.product_type.option.virtual"
+msgstr "Virtual Products"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:156
-msgid "Downloadable Products"
-msgstr ""
+msgid "rule_component.condition.product_type.option.downloadable"
+msgstr "Downloadable Products"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:172
-msgid "Simple Products"
-msgstr ""
+msgid "rule_component.condition.product_type.option.simple"
+msgstr "Simple Products"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:173
-msgid "Variable Products"
-msgstr ""
+msgid "rule_component.condition.product_type.option.variable"
+msgstr "Variable Products"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:174
-msgid "Grouped Products"
-msgstr ""
+msgid "rule_component.condition.product_type.option.grouped"
+msgstr "Grouped Products"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:175
-msgid "External/Affiliate Products"
-msgstr ""
+msgid "rule_component.condition.product_type.option.external"
+msgstr "External/Affiliate Products"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:232
-msgid "Subscription Products"
-msgstr ""
+msgid "rule_component.condition.product_type.option.subscription"
+msgstr "Subscription Products"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:233
-msgid "Variable Subscription Products"
-msgstr ""
+msgid "rule_component.condition.product_type.option.variable_subscription"
+msgstr "Variable Subscription Products"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:236
-msgid "Bookable Products"
-msgstr ""
+msgid "rule_component.condition.product_type.option.booking"
+msgstr "Bookable Products"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:239
-msgid "Membership Products"
-msgstr ""
+msgid "rule_component.condition.product_type.option.membership"
+msgstr "Membership Products"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:242
-msgid "Product Bundles"
-msgstr ""
+msgid "rule_component.condition.product_type.option.bundle"
+msgstr "Product Bundles"
 
 #: src/Core/RuleComponents/RuleConditions/ProductTypeCondition.php:245
-msgid "Composite Products"
-msgstr ""
+msgid "rule_component.condition.product_type.option.composite"
+msgstr "Composite Products"
 
 #: src/Core/RuleComponents/RuleTriggers/OrderProcessingTrigger.php:39
 #: src/Core/options.php:161
-msgid ""
-"Runs when an order status changes to \"Processing\". Ideal for most standard "
-"automations."
-msgstr ""
+msgid "rule_component.trigger.order_processing.description"
+msgstr "Runs when an order status changes to \"Processing\". Ideal for most standard automations."
 
 #: src/Core/audit-filters.php:207
-msgid "to"
-msgstr ""
+msgid "core.audit_filters.date_range.to"
+msgstr "to"
 
 #: src/Core/options.php:225
-msgid "Check if the order contains only specific types of products."
-msgstr ""
+msgid "core.options.condition.product_type.description"
+msgstr "Check if the order contains only specific types of products."
 
 #: src/Core/options.php:246
-msgid "Check if the order contains products from specific categories."
-msgstr ""
+msgid "core.options.condition.product_category.description"
+msgstr "Check if the order contains products from specific categories."
 
 #: src/Core/options.php:265
-msgid "Order Total"
-msgstr ""
+msgid "core.options.condition.order_total.label"
+msgstr "Order Total"
 
 #: src/Core/options.php:266
-msgid ""
-"Check if the order total is above, below, or equal to a specific amount."
-msgstr ""
+msgid "core.options.condition.order_total.description"
+msgstr "Check if the order total is above, below, or equal to a specific amount."
 
 #: src/Core/options.php:332
-msgid "Mark the order as complete."
-msgstr ""
+msgid "core.options.action.complete_order.description"
+msgstr "Mark the order as complete."
 
 #: src/Includes/DependencyChecker.php:121
 #: src/Includes/DependencyChecker.php:127
 #: src/Includes/DependencyChecker.php:133
-msgid "This feature is available in the premium version."
-msgstr ""
+msgid "admin.dependency_checker.premium_feature_notice"
+msgstr "This feature is available in the premium version."
 
 #: src/Includes/DependencyChecker.php:122
-msgid "Learn more about advanced filtering options in the documentation."
-msgstr ""
+msgid "admin.dependency_checker.learn_more.advanced_filtering"
+msgstr "Learn more about advanced filtering options in the documentation."
 
 #: src/Includes/DependencyChecker.php:123
 #: src/Includes/DependencyChecker.php:129
 #: src/Includes/DependencyChecker.php:135
-msgid "Visit our website for more information."
-msgstr ""
+msgid "admin.dependency_checker.website_link_text"
+msgstr "Visit our website for more information."
 
 #: src/Includes/DependencyChecker.php:124
 #: src/Includes/DependencyChecker.php:130
 #: src/Includes/DependencyChecker.php:136
-msgid "Upgrade to unlock additional capabilities."
-msgstr ""
+msgid "admin.dependency_checker.upgrade_notice"
+msgstr "Upgrade to unlock additional capabilities."
 
 #: src/Includes/DependencyChecker.php:128
-msgid "Learn more about advanced rule components in the documentation."
-msgstr ""
+msgid "admin.dependency_checker.learn_more.rule_components"
+msgstr "Learn more about advanced rule components in the documentation."
 
 #: src/Includes/DependencyChecker.php:134
-msgid "Learn more about available options in the documentation."
-msgstr ""
+msgid "admin.upgrade_prompts.learn_more.available_options"
+msgstr "Learn more about available options in the documentation."
 
 #: src/Includes/UpgradePrompts.php:98
-msgid "Advanced filtering (dashboard)"
-msgstr ""
+msgid "admin.upgrade_prompts.feature.advanced_filtering"
+msgstr "Advanced filtering (dashboard)"
 
 #: src/Includes/UpgradePrompts.php:99
-msgid "Basic search"
-msgstr ""
+msgid "admin.upgrade_prompts.feature.basic_search"
+msgstr "Basic search"
 
 #: src/Includes/UpgradePrompts.php:100
-msgid "Status, event type, source, date range, and more"
-msgstr ""
+msgid "admin.upgrade_prompts.description.advanced_filtering_options"
+msgstr "Status, event type, source, date range, and more"
 
 #: src/Includes/UpgradePrompts.php:103
-msgid "Rule conditions"
-msgstr ""
+msgid "admin.upgrade_prompts.category.rule_conditions"
+msgstr "Rule conditions"
 
 #: src/Includes/UpgradePrompts.php:104
-msgid "Common conditions"
-msgstr ""
+msgid "admin.upgrade_prompts.description.common_conditions"
+msgstr "Common conditions"
 
 #: src/Includes/UpgradePrompts.php:105
-msgid "Extended conditions and combination options"
-msgstr ""
+msgid "admin.upgrade_prompts.description.extended_conditions"
+msgstr "Extended conditions and combination options"
 
 #: src/Includes/UpgradePrompts.php:108
-msgid "Actions"
-msgstr ""
+msgid "admin.upgrade_prompts.category.actions"
+msgstr "Actions"
 
 #: src/Includes/UpgradePrompts.php:109
-msgid "Primary action"
-msgstr ""
+msgid "admin.upgrade_prompts.description.primary_action"
+msgstr "Primary action"
 
 #: src/Includes/UpgradePrompts.php:110
-msgid "Additional secondary actions and workflows"
-msgstr ""
+msgid "admin.upgrade_prompts.description.secondary_actions"
+msgstr "Additional secondary actions and workflows"
 
 #: src/Includes/UpgradePrompts.php:115
-msgid "This feature is available in the premium version"
-msgstr ""
+msgid "admin.upgrade_prompts.notice.premium_version_available"
+msgstr "This feature is available in the premium version"
 
 #: src/Includes/UpgradePrompts.php:116
-msgid "Learn more about advanced filtering options"
-msgstr ""
+msgid "admin.upgrade_prompts.learn_more.filtering_options"
+msgstr "Learn more about advanced filtering options"
 
 #: src/Includes/UpgradePrompts.php:117
-msgid "Visit our website for more information"
-msgstr ""
+msgid "admin.upgrade_prompts.action.visit_website"
+msgstr "Visit our website for more information"
 
 #: src/Includes/UpgradePrompts.php:118
-msgid "Upgrade to unlock additional capabilities"
-msgstr ""
+msgid "admin.upgrade_prompts.action.upgrade_capabilities"
+msgstr "Upgrade to unlock additional capabilities"
 
 #: src/Includes/UpgradePrompts.php:119
-msgid "See what's possible with premium features"
-msgstr ""
+msgid "admin.upgrade_prompts.description.premium_possibilities"
+msgstr "See what's possible with premium features"
 
 #: src/Includes/UpgradePrompts.php:133
-msgid "Premium Rule Components"
-msgstr ""
+msgid "admin.upgrade_prompts.title.premium_rule_components"
+msgstr "Premium Rule Components"
 
 #: src/Includes/UpgradePrompts.php:138
-msgid "Advanced Dashboard Filters"
-msgstr ""
+msgid "admin.upgrade_prompts.title.advanced_dashboard_filters"
+msgstr "Advanced Dashboard Filters"
 
 #: src/Includes/UpgradePrompts.php:144 src/Includes/UpgradePrompts.php:187
-msgid "Learn more"
-msgstr ""
+msgid "admin.upgrade_prompts.action.learn_more"
+msgstr "Learn more"
 
 #: src/Includes/UpgradePrompts.php:146 src/Includes/UpgradePrompts.php:183
-msgid "Don't show again"
-msgstr ""
+msgid "admin.upgrade_prompts.action.dont_show_again"
+msgstr "Don't show again"
 
 #: src/Includes/UpgradePrompts.php:147
-msgid "Preferences"
-msgstr ""
+msgid "admin.upgrade_prompts.settings.preferences"
+msgstr "Preferences"
 
 #: src/Includes/UpgradePrompts.php:148
-msgid "Prompt frequency"
-msgstr ""
+msgid "admin.upgrade_prompts.settings.prompt_frequency"
+msgstr "Prompt frequency"
 
 #: src/Includes/UpgradePrompts.php:253 src/Includes/UpgradePrompts.php:280
-msgid "Insufficient permissions"
-msgstr ""
+msgid "admin.upgrade_prompts.ajax.insufficient_permissions"
+msgstr "Insufficient permissions"
 
 #: src/Includes/UpgradePrompts.php:257 src/Includes/UpgradePrompts.php:284
-msgid "Security check failed"
-msgstr ""
+msgid "admin.upgrade_prompts.ajax.security_check_failed"
+msgstr "Security check failed"
 
 #: src/Includes/UpgradePrompts.php:266
-msgid "Preferences saved"
-msgstr ""
+msgid "admin.upgrade_prompts.ajax.preferences_saved"
+msgstr "Preferences saved"
 
 #: src/Includes/UpgradePrompts.php:268
-msgid "No changes"
-msgstr ""
+msgid "admin.upgrade_prompts.ajax.no_changes"
+msgstr "No changes"
 
 #: src/Includes/UpgradePrompts.php:289
-msgid "Invalid prompt key"
-msgstr ""
+msgid "admin.upgrade_prompts.ajax.invalid_prompt_key"
+msgstr "Invalid prompt key"
 
 #: src/Includes/UpgradePrompts.php:298
-msgid "Dismissed"
-msgstr ""
+msgid "admin.upgrade_prompts.ajax.dismissed"
+msgstr "Dismissed"
 
 #: src/Includes/UpgradePrompts.php:300
-msgid "Failed to update"
-msgstr ""
+msgid "admin.upgrade_prompts.ajax.failed_to_update"
+msgstr "Failed to update"
 
 #: src/Includes/actions.php:1033
-msgid "Invalid data provided."
-msgstr ""
+msgid "admin.actions.validation.invalid_data_provided"
+msgstr "Invalid data provided."
 
 #: src/Includes/actions.php:1042
-msgid "No valid rule IDs provided."
-msgstr ""
+msgid "admin.actions.validation.no_valid_rule_ids_provided"
+msgstr "No valid rule IDs provided."
 
 #: src/Plugin.php:86
-msgid ""
-"Order Daemon for WooCommerce requires WooCommerce to be installed and active."
-msgstr ""
+msgid "core.plugin.dependency.woocommerce_required"
+msgstr "Order Daemon for WooCommerce requires WooCommerce to be installed and active."
 
 #: src/View/PayloadRenderer/PayloadComponentUIToolkit.php:490
 #, php-format
-msgid " | Started: %s"
-msgstr ""
+msgid "core.ui.process_info.started_time"
+msgstr " | Started: %s"
 
 #: src/View/PayloadRenderer/PayloadComponentUIToolkit.php:492
 #, php-format
-msgid "(Trigger: %s)"
-msgstr ""
+msgid "core.ui.process_info.trigger_label"
+msgstr "(Trigger: %s)"
 
 #: src/View/PayloadRenderer/PayloadComponentUIToolkit.php:498
-msgid "Toggle component expansion"
-msgstr ""
+#. translators: Tooltip text for component expansion toggle button
+msgid "view.component.toggle_expansion"
+msgstr "Toggle component expansion"
 
 #. Plugin Name of the plugin/theme
-msgid "Order Daemon for WooCommerce"
-msgstr ""
+#. translators: Official plugin name displayed in WordPress admin
+msgid "plugin.metadata.name"
+msgstr "Order Daemon for WooCommerce"
 
 #. Plugin URI of the plugin/theme
-msgid "https://orderdaemon.com/docs"
-msgstr ""
+#. translators: Plugin documentation URL displayed in WordPress admin
+msgid "plugin.metadata.uri"
+msgstr "https://orderdaemon.com/docs"
 
 #. Description of the plugin/theme
-msgid ""
+#. translators: Plugin description displayed in WordPress admin and plugin directory
+msgid "plugin.metadata.description"
+msgstr ""
 "Automate WooCommerce order completion with intelligent rule-based "
 "processing. The free version includes basic triggers, conditions, and "
 "actions."
-msgstr ""
 
 #. Author URI of the plugin/theme
-msgid "https://www.orderdaemon.com"
-msgstr ""
+#. translators: Plugin author website URL displayed in WordPress admin  
+msgid "plugin.metadata.author_uri"
+msgstr "https://www.orderdaemon.com"

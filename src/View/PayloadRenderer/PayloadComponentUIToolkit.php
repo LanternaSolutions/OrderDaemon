@@ -487,15 +487,17 @@ class PayloadComponentUIToolkit
                 'include_milliseconds' => false,
                 'fallback_format' => 'M j, Y g:i:s A'
             ]);
-            $meta_text = sprintf(__(' | Started: %s', 'order-daemon'), $started_fmt);
+            /* translators: %s: The formatted timestamp when the process started. */
+            $meta_text = sprintf(__('view.payload.timeline.started_suffix', 'order-daemon'), $started_fmt);
             if (!empty($options['trigger'])) {
-                $meta_text .= ' ' . sprintf(__('(Trigger: %s)', 'order-daemon'), (string)$options['trigger']);
+                /* translators: %s: The name of the trigger that initiated the process. */
+                $meta_text .= ' ' . sprintf(__('view.payload.timeline.trigger_prefix', 'order-daemon'), (string)$options['trigger']);
             }
             $output .= '<span class="odcm-component__ts">' . esc_html($meta_text) . '</span>';
         }
         $output .= '</div>';
         
-        $output .= '<button class="odcm-component-expand-toggle" type="button" aria-label="' . esc_attr__('Toggle component expansion', 'order-daemon') . '">';
+        $output .= '<button class="odcm-component-expand-toggle" type="button" aria-label="' . esc_attr__('view.payload.timeline.toggle_expansion', 'order-daemon') . '">';
         $output .= '<span class="icon-expand dashicons dashicons-editor-expand"></span>';
         $output .= '<span class="icon-collapse dashicons dashicons-editor-contract"></span>';
         $output .= '</button>';
