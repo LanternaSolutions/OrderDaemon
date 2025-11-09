@@ -1104,6 +1104,7 @@ class InsightDashboard
 
         if ($updated !== false) {
             wp_send_json_success([
+                /* translators: %d: The number of log entries to show per page. */
                 'message' => sprintf(__('admin.insight_dashboard.ajax.per_page_updated', 'order-daemon'), $per_page),
                 'per_page' => $per_page
             ]);

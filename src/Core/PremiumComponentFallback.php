@@ -133,6 +133,7 @@ class PremiumComponentFallback
 
         $count = count($orphaned_rules);
         $message = sprintf(
+            /* translators: %d: The number of completion rules that use premium components. */
             _n(
                 'Warning: %d completion rule uses premium components that require the pro plugin.',
                 'Warning: %d completion rules use premium components that require the pro plugin.',
@@ -163,6 +164,7 @@ class PremiumComponentFallback
         if (self::is_migrated_component($component_type, $component_id)) {
             $component_status['is_migrated'] = true;
             $component_status['migration_notice'] = sprintf(
+                /* translators: %s: The version number when the component was moved to the pro plugin. */
                 __('This component has been moved to the pro plugin as of version %s.', 'order-daemon'),
                 self::get_migrated_component_info($component_type, $component_id)['migration_version']
             );

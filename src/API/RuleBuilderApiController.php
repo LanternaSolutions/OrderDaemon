@@ -400,6 +400,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             foreach ($rule_data['conditions'] as $index => $condition) {
                 $condition_error = $this->validate_component_entitlement($condition, 'condition');
                 if (is_wp_error($condition_error)) {
+                    /* translators: 1: The condition number, 2: The error message */
                     $errors[] = sprintf(__('api.rule_builder.entitlement.condition_error', 'order-daemon'), $index + 1, $condition_error->get_error_message());
                 }
             }
@@ -410,6 +411,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             foreach ($rule_data['secondaryActions'] as $index => $action) {
                 $action_error = $this->validate_component_entitlement($action, 'action');
                 if (is_wp_error($action_error)) {
+                    /* translators: 1: The action number, 2: The error message */
                     $errors[] = sprintf(__('api.rule_builder.entitlement.action_error', 'order-daemon'), $index + 1, $action_error->get_error_message());
                 }
             }
@@ -444,6 +446,7 @@ class RuleBuilderApiController extends WP_REST_Controller
         // Get the component instance to check its capability
         $component = $this->get_component_by_id($component_id, $component_type);
         if (!$component) {
+            /* translators: 1: The component type (trigger, condition, action), 2: The component ID */
             return new WP_Error('unknown_component', sprintf(__('api.rule_builder.unknown_component', 'order-daemon'), $component_type, $component_id));
         }
 
@@ -451,6 +454,7 @@ class RuleBuilderApiController extends WP_REST_Controller
         if (!function_exists('odcm_can_use') || !odcm_can_use($component->get_capability())) {
             return new WP_Error(
                 'premium_component',
+                /* translators: 1: The component type (Trigger, Condition, Action), 2: The component label/name */
                 sprintf(__('api.rule_builder.entitlement.component_requires_pro', 'order-daemon'), ucfirst($component_type), $component->get_label())
             );
         }
@@ -530,6 +534,7 @@ class RuleBuilderApiController extends WP_REST_Controller
         if (!empty($inaccessible_options)) {
             return new WP_Error(
                 'premium_options',
+                /* translators: %s: Comma-separated list of premium options that require pro version */
                 sprintf(__('api.rule_builder.entitlement.options_require_pro', 'order-daemon'), implode(', ', $inaccessible_options))
             );
         }
@@ -1897,7 +1902,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 null,
                 'error',
                 'api_error',
-                true
+                    true
             );
         }
     }

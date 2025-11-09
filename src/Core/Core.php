@@ -384,6 +384,7 @@ class Core
                 'k' => odcm_component_key(),
                 'event_type' => 'admin_action',
                 'ts' => time(),
+                /* translators: %d: Number of orders reprocessed by admin */
                 'label' => sprintf(__('Admin reprocessed %d orders', 'order-daemon'), $count),
                 'level' => 'info',
                 'data' => $action_data
