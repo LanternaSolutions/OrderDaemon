@@ -1844,6 +1844,8 @@ class AuditLogEndpoint extends WP_REST_Controller
     {
         global $wpdb;
 
+        $odcm_can_use_audit_log_filter_advanced = function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced');
+
         // Search filter
         $search = $request->get_param('s');
         if (!empty($search)) {
@@ -1854,28 +1856,28 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         // Status filter (premium)
         $status = $request->get_param('status');
-        if (!empty($status) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
+        if (!empty($status) && $odcm_can_use_audit_log_filter_advanced) {
             $where_conditions[] = "l.status = %s";
             $where_values[] = $status;
         }
 
         // Event type filter (premium)
         $event_type = $request->get_param('event_type');
-        if (!empty($event_type) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
+        if (!empty($event_type) && $odcm_can_use_audit_log_filter_advanced) {
             $where_conditions[] = "l.event_type = %s";
             $where_values[] = $event_type;
         }
 
         // Source filter (premium)
         $source = $request->get_param('source');
-        if (!empty($source) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
+        if (!empty($source) && $odcm_can_use_audit_log_filter_advanced) {
             $where_conditions[] = "l.source = %s";
             $where_values[] = $source;
         }
 
         // Order ID filter (premium)
         $order_id = $request->get_param('order_id');
-        if (!empty($order_id) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
+        if (!empty($order_id) && $odcm_can_use_audit_log_filter_advanced) {
             $where_conditions[] = "l.order_id = %d";
             $where_values[] = (int) $order_id;
         }
@@ -1883,11 +1885,11 @@ class AuditLogEndpoint extends WP_REST_Controller
         // Date range filters (premium)
         $date_start = $request->get_param('date_start');
         $date_end = $request->get_param('date_end');
-        if (!empty($date_start) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
+        if (!empty($date_start) && $odcm_can_use_audit_log_filter_advanced) {
             $where_conditions[] = "l.timestamp >= %s";
             $where_values[] = $date_start . ' 00:00:00';
         }
-        if (!empty($date_end) && function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced')) {
+        if (!empty($date_end) && $odcm_can_use_audit_log_filter_advanced) {
             $where_conditions[] = "l.timestamp <= %s";
             $where_values[] = $date_end . ' 23:59:59';
         }
