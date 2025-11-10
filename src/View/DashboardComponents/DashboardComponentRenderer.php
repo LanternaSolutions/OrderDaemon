@@ -74,7 +74,7 @@ abstract class DashboardComponentRenderer
             $rendered_html = $this->renderErrorComponent($e, $data);
         }
 
-        _e($rendered_html);
+        _e($rendered_html, 'order-daemon');;
     }
 
     /**
