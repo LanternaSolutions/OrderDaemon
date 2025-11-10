@@ -137,6 +137,7 @@ final class Odcm_Strings
      */
     public static function __( string $text ): string
     {
+        // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText -- This is a simple wrapper function that ensures consistent usage of the correct text domain
         return __( $text, 'order-daemon' );
     }
 
@@ -148,6 +149,7 @@ final class Odcm_Strings
      */
     public static function esc_html__( string $text ): string
     {
+        // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText -- This is a simple wrapper function that ensures consistent usage of the correct text domain
         return esc_html__( $text, 'order-daemon' );
     }
 
@@ -159,6 +161,7 @@ final class Odcm_Strings
      */
     public static function esc_attr__( string $text ): string
     {
+        // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText -- This is a simple wrapper function that ensures consistent usage of the correct text domain
         return esc_attr__( $text, 'order-daemon' );
     }
 
@@ -172,6 +175,7 @@ final class Odcm_Strings
      */
     public static function _n( string $singular, string $plural, int $number ): string
     {
+        // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralSingle, WordPress.WP.I18n.NonSingularStringLiteralPlural -- This is a simple wrapper function that ensures consistent usage of the correct text domain
         return _n( $singular, $plural, $number, 'order-daemon' );
     }
 
@@ -183,6 +187,7 @@ final class Odcm_Strings
      */
     public static function esc_js__( string $text ): string
     {
+        // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText -- This is a simple wrapper function that ensures consistent usage of the correct text domain
         return esc_js( __( $text, 'order-daemon' ) );
     }
 }

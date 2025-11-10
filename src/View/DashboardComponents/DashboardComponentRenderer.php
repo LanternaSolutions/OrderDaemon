@@ -74,6 +74,7 @@ abstract class DashboardComponentRenderer
             $rendered_html = $this->renderErrorComponent($e, $data);
         }
 
+        // phpcs:ignore WordPress.Security.EscapeOutput.UnsafePrintingFunction, WordPress.WP.I18n.NonSingularStringLiteralText, WordPress.Security.EscapeOutput.OutputNotEscaped -- $rendered_html is already escaped by the render functions in the subclasses
         _e($rendered_html, 'order-daemon');;
     }
 
