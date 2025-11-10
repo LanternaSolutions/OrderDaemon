@@ -964,16 +964,39 @@ class AuditLogEndpoint extends WP_REST_Controller
             $table_name = $wpdb->prefix . 'odcm_audit_log';
 
             // Build queries with proper NULL/empty handling and ordering.
-            // Note: Table name cannot be parameterized in $wpdb->prepare.
-            $sql_statuses = "SELECT DISTINCT status FROM " . $table_name . " WHERE status IS NOT NULL AND status != %s ORDER BY status ASC";
-            $sql_event_types = "SELECT DISTINCT event_type FROM " . $table_name . " WHERE event_type IS NOT NULL AND event_type != %s ORDER BY event_type ASC";
-            $sql_sources = "SELECT DISTINCT source FROM " . $table_name . " WHERE source IS NOT NULL AND source != %s ORDER BY source ASC";
 
             // Execute queries. We use prepared statements for any values (here: empty string filter),
             // even though there is no user input, to adhere to security guidelines.
-            $statuses_raw = $wpdb->get_col($wpdb->prepare($sql_statuses, '')) ?: [];
-            $event_types_raw = $wpdb->get_col($wpdb->prepare($sql_event_types, '')) ?: [];
-            $sources_raw = $wpdb->get_col($wpdb->prepare($sql_sources, '')) ?: [];
+            $statuses_raw = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT DISTINCT status
+                    FROM $table_name
+                    WHERE status IS NOT NULL
+                        AND status != %s
+                    ORDER BY status ASC",
+                    ''
+                )
+            ) ?: [];
+            $event_types_raw = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT DISTINCT event_type
+                    FROM $table_name
+                    WHERE event_type IS NOT NULL
+                        AND event_type != %s
+                    ORDER BY event_type ASC",
+                    ''
+                )
+            ) ?: [];
+            $sources_raw = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT DISTINCT source
+                    FROM $table_name
+                    WHERE source IS NOT NULL
+                        AND source != %s
+                    ORDER BY source ASC",
+                    ''
+                )
+            ) ?: [];
 
             // Normalize to strings and unique trim (defensive)
             $statuses_raw = array_values(array_unique(array_filter(array_map(function($v){ return is_string($v) ? trim($v) : ''; }, $statuses_raw))));
@@ -1328,14 +1351,25 @@ class AuditLogEndpoint extends WP_REST_Controller
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
-        $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
-                       l.event_type, l.source, l.payload_id, l.is_test,
-                       COALESCE(p.payload, l.details, '') as payload 
-                FROM " . $log_table . " l 
-                LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id
-                WHERE l.log_id = %d";
-
-        $result = $wpdb->get_row($wpdb->prepare($sql, $log_id), 'ARRAY_A');
+        $result = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT l.log_id as id,
+                    l.timestamp,
+                    l.status,
+                    l.summary,
+                    l.order_id,
+                    l.event_type,
+                    l.source,
+                    l.payload_id,
+                    l.is_test,
+                    COALESCE(p.payload, l.details, '') as payload
+                FROM $log_table l
+                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
+                WHERE l.log_id = %d",
+                $log_id
+            ),
+            'ARRAY_A'
+        );
         return $result ?: null;
     }
 
@@ -1354,16 +1388,26 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         // Build placeholders for IN clause
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
-        $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id,
-                       l.event_type, l.source, l.payload_id, l.is_test,
-                       COALESCE(p.payload, l.details, '') as payload
-                FROM " . $log_table . " l
-                LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id
-                WHERE l.log_id IN (" . $placeholders . ")";
-
         // Prepare with dynamic placeholders
-        $prepared = $wpdb->prepare($sql, $ids);
-        $rows = $wpdb->get_results($prepared, 'ARRAY_A');
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT l.log_id as id,
+                    l.timestamp,
+                    l.status,
+                    l.summary,
+                    l.order_id,
+                    l.event_type,
+                    l.source,
+                    l.payload_id,
+                    l.is_test,
+                    COALESCE(p.payload, l.details, '') as payload
+                FROM $log_table l
+                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
+                WHERE l.log_id IN ($placeholders)",
+                $ids
+            ),
+            'ARRAY_A'
+        );
         if (!is_array($rows) || empty($rows)) { return []; }
         $map = [];
         foreach ($rows as $r) {
@@ -1536,15 +1580,27 @@ class AuditLogEndpoint extends WP_REST_Controller
             $log_table = $wpdb->prefix . 'odcm_audit_log';
             $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
-            $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id,
-                           l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
-                           COALESCE(p.payload, l.details, '') as payload
-                    FROM " . $log_table . " l
-                    LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id
+            $rows = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT l.log_id as id,
+                        l.timestamp,
+                        l.status,
+                        l.summary,
+                        l.order_id,
+                        l.event_type,
+                        l.source,
+                        l.payload_id,
+                        l.is_test,
+                        l.process_id,
+                        COALESCE(p.payload, l.details, '') as payload
+                    FROM $log_table l
+                        LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
                     WHERE l.process_id = %s
-                    ORDER BY l.timestamp ASC";
-
-            $rows = $wpdb->get_results($wpdb->prepare($sql, $process_id), 'ARRAY_A');
+                    ORDER BY l.timestamp ASC",
+                    $process_id
+                ),
+                'ARRAY_A'
+            );
             if (!$rows) {
                 return new WP_REST_Response([
                     'process_id' => $process_id,
@@ -1629,11 +1685,20 @@ class AuditLogEndpoint extends WP_REST_Controller
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
         // Build base query
-        $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
-                       l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
-                       COALESCE(p.payload, l.details, '') as payload 
-                FROM " . $log_table . " l 
-                LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id";
+        $sql =
+            "SELECT l.log_id as id,
+                l.timestamp,
+                l.status,
+                l.summary,
+                l.order_id,
+                l.event_type,
+                l.source,
+                l.payload_id,
+                l.is_test,
+                l.process_id,
+                COALESCE(p.payload, l.details, '') as payload
+            FROM $log_table l
+                LEFT JOIN $payload_table p ON l.payload_id = p.payload_id";
 
         // Build WHERE clause
         $where_conditions = [];
@@ -1660,8 +1725,10 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         // Execute query
         if (!empty($where_values)) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
             $results = $wpdb->get_results($wpdb->prepare($sql, $where_values), 'ARRAY_A');
         } else {
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
             $results = $wpdb->get_results($sql, 'ARRAY_A');
         }
 
@@ -1683,11 +1750,20 @@ class AuditLogEndpoint extends WP_REST_Controller
             $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
             // Build base query
-            $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
-                           l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
-                           COALESCE(p.payload, l.details, '') as payload 
-                    FROM " . $log_table . " l 
-                    LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id";
+            $sql =
+                "SELECT l.log_id as id,
+                    l.timestamp,
+                    l.status,
+                    l.summary,
+                    l.order_id,
+                    l.event_type,
+                    l.source,
+                    l.payload_id,
+                    l.is_test,
+                    l.process_id,
+                    COALESCE(p.payload, l.details, '') as payload
+                FROM $log_table l
+                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id";
 
             // Build WHERE clause
             $where_conditions = [];
@@ -1708,8 +1784,10 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Execute query
             if (!empty($where_values)) {
+                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
                 $results = $wpdb->get_results($wpdb->prepare($sql, $where_values), 'ARRAY_A');
             } else {
+                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
                 $results = $wpdb->get_results($sql, 'ARRAY_A');
             }
 
@@ -1731,7 +1809,9 @@ class AuditLogEndpoint extends WP_REST_Controller
         $log_table = $wpdb->prefix . 'odcm_audit_log';
 
         // Build count query
-        $sql = "SELECT COUNT(*) FROM " . $log_table . " l";
+        $sql =
+            "SELECT COUNT(*)
+            FROM $log_table l";
 
         // Build WHERE clause
         $where_conditions = [];
@@ -1747,8 +1827,10 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         // Execute query
         if (!empty($where_values)) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
             $count = $wpdb->get_var($wpdb->prepare($sql, $where_values));
         } else {
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
             $count = $wpdb->get_var($sql);
         }
 
@@ -1890,8 +1972,14 @@ class AuditLogEndpoint extends WP_REST_Controller
         $placeholders = implode(',', array_fill(0, count($sanitized_ids), '%d'));
 
         // Check which log IDs actually exist
-        $sql = "SELECT log_id FROM " . $log_table . " WHERE log_id IN ({$placeholders})";
-        $existing_ids = $wpdb->get_col($wpdb->prepare($sql, $sanitized_ids));
+        $existing_ids = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT log_id
+                FROM $log_table
+                WHERE log_id IN ({$placeholders})",
+                $sanitized_ids
+            )
+        );
 
         return array_map('intval', $existing_ids);
     }
@@ -1917,19 +2005,36 @@ class AuditLogEndpoint extends WP_REST_Controller
             $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
 
             // Get payload IDs to delete
-            $payload_sql = "SELECT DISTINCT payload_id FROM " . $log_table . " WHERE log_id IN ({$placeholders}) AND payload_id IS NOT NULL";
-            $payload_ids = $wpdb->get_col($wpdb->prepare($payload_sql, $log_ids));
+            $payload_ids = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT DISTINCT payload_id
+                    FROM $log_table
+                    WHERE log_id IN ({$placeholders})
+                        AND payload_id IS NOT NULL",
+                    $log_ids
+                )
+            );
 
             // Delete associated payload data first
             if (!empty($payload_ids)) {
                 $payload_placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
-                $delete_payload_sql = "DELETE FROM " . $payload_table . " WHERE payload_id IN ({$payload_placeholders})";
-                $wpdb->query($wpdb->prepare($delete_payload_sql, $payload_ids));
+                $wpdb->query(
+                    $wpdb->prepare(
+                        "DELETE FROM $payload_table
+                        WHERE payload_id IN ({$payload_placeholders})",
+                        $payload_ids
+                    )
+                );
             }
 
             // Delete log entries
-            $delete_logs_sql = "DELETE FROM " . $log_table . " WHERE log_id IN ({$placeholders})";
-            $deleted_count = $wpdb->query($wpdb->prepare($delete_logs_sql, $log_ids));
+            $deleted_count = $wpdb->query(
+                $wpdb->prepare(
+                    "DELETE FROM $log_table
+                    WHERE log_id IN ({$placeholders})",
+                    $log_ids
+                )
+            );
 
             // Commit transaction
             $wpdb->query('COMMIT');
@@ -2105,15 +2210,27 @@ class AuditLogEndpoint extends WP_REST_Controller
             $log_table = $wpdb->prefix . 'odcm_audit_log';
             $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
-            $sql = "SELECT l.log_id as id, l.timestamp, l.status, l.summary, l.order_id, 
-                           l.event_type, l.source, l.payload_id, l.is_test, l.process_id,
-                           COALESCE(p.payload, l.details, '') as payload 
+            $process_events = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT l.log_id as id,
+                        l.timestamp,
+                        l.status,
+                        l.summary,
+                        l.order_id,
+                        l.event_type,
+                        l.source,
+                        l.payload_id,
+                        l.is_test,
+                        l.process_id,
+                        COALESCE(p.payload, l.details, '') as payload
                     FROM {$log_table} l 
-                    LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id
+                        LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id
                     WHERE l.process_id = %s 
-                    ORDER BY l.timestamp ASC";
-
-            $process_events = $wpdb->get_results($wpdb->prepare($sql, $process_id), 'ARRAY_A');
+                    ORDER BY l.timestamp ASC",
+                    $process_id
+                ),
+                'ARRAY_A'
+            );
 
             if (empty($process_events)) {
                 return '<div class="odcm-empty-data">' . esc_html__('audit.logs.process.no_events', 'order-daemon') . '</div>';
@@ -3113,11 +3230,14 @@ class AuditLogEndpoint extends WP_REST_Controller
         $full_table_name = $wpdb->prefix . $table_name;
 
         try {
-            $exists = $wpdb->get_var("SHOW TABLES LIKE '" . $full_table_name . "'");
+            $exists = $wpdb->get_var("SHOW TABLES LIKE '$full_table_name'");
             $row_count = 0;
 
             if ($exists) {
-                $row_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM " . $full_table_name);
+                $row_count = (int)$wpdb->get_var(
+                    "SELECT COUNT(*)
+                    FROM $full_table_name"
+                );
             }
 
             return [

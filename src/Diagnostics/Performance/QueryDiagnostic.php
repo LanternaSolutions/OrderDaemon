@@ -230,15 +230,15 @@ class QueryDiagnostic extends AbstractDiagnostic
             $row_count = $this->get_table_row_count($table);
             
             // Get table size information
-            $size_query = $wpdb->prepare(
-                "SELECT ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb'
-                 FROM information_schema.TABLES 
-                 WHERE table_schema = %s AND table_name = %s",
-                DB_NAME,
-                $full_table_name
-            );
-            
-            $size_mb = $wpdb->get_var($size_query) ?? 0;
+            $size_mb = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb'
+                    FROM information_schema.TABLES 
+                    WHERE table_schema = %s AND table_name = %s",
+                    DB_NAME,
+                    $full_table_name
+                )
+            ) ?? 0;
 
             $table_info = [
                 'row_count' => $row_count,
@@ -284,13 +284,14 @@ class QueryDiagnostic extends AbstractDiagnostic
         try {
             // Execute the same queries that the filter-options endpoint runs
             $queries = [
-                'statuses' => "SELECT DISTINCT status FROM " . $table_name . " WHERE status IS NOT NULL AND status != '' ORDER BY status ASC",
-                'event_types' => "SELECT DISTINCT event_type FROM " . $table_name . " WHERE event_type IS NOT NULL AND event_type != '' ORDER BY event_type ASC",
-                'sources' => "SELECT DISTINCT source FROM " . $table_name . " WHERE source IS NOT NULL AND source != '' ORDER BY source ASC"
+                'statuses' => "SELECT DISTINCT status FROM $table_name WHERE status IS NOT NULL AND status != '' ORDER BY status ASC",
+                'event_types' => "SELECT DISTINCT event_type FROM $table_name WHERE event_type IS NOT NULL AND event_type != '' ORDER BY event_type ASC",
+                'sources' => "SELECT DISTINCT source FROM $table_name WHERE source IS NOT NULL AND source != '' ORDER BY source ASC"
             ];
 
             foreach ($queries as $type => $query) {
                 $query_start = microtime(true);
+                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- This loop runs multiple queries, none of which use any user input.
                 $results = $wpdb->get_col($query);
                 $query_time = (microtime(true) - $query_start) * 1000;
 
@@ -337,21 +338,28 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         // Test scenarios that match the insight dashboard usage
         $test_scenarios = [
-            'basic_select' => "SELECT COUNT(*) FROM " . $table_name,
-            'recent_logs' => "SELECT * FROM " . $table_name . " ORDER BY timestamp DESC LIMIT 20",
-            'with_filters' => "SELECT * FROM " . $table_name . " WHERE status = 'success' ORDER BY timestamp DESC LIMIT 20",
-            'date_range' => "SELECT * FROM " . $table_name . " WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY timestamp DESC LIMIT 20"
+            'basic_select' => "SELECT COUNT(*) FROM $table_name",
+            'recent_logs' => "SELECT * FROM $table_name ORDER BY timestamp DESC LIMIT 20",
+            'with_filters' => "SELECT * FROM $table_name WHERE status = 'success' ORDER BY timestamp DESC LIMIT 20",
+            'date_range' => "SELECT * FROM $table_name WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY timestamp DESC LIMIT 20"
         ];
 
         // Add payload join test if payload table exists
         if ($payload_exists) {
-            $test_scenarios['with_payload'] = "SELECT l.*, COALESCE(p.payload, l.details, '') as payload FROM " . $table_name . " l LEFT JOIN " . $payload_table . " p ON l.payload_id = p.payload_id ORDER BY l.timestamp DESC LIMIT 20";
+            $test_scenarios['with_payload'] =
+                "SELECT l.*,
+                    COALESCE(p.payload, l.details, '') as payload
+                FROM $table_name l
+                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
+                ORDER BY l.timestamp DESC
+                LIMIT 20";
         }
 
         foreach ($test_scenarios as $test_name => $query) {
             $start_time = microtime(true);
             
             try {
+                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- This loop runs multiple queries, none of which use any user input.
                 $results = $wpdb->get_results($query, ARRAY_A);
                 $execution_time = (microtime(true) - $start_time) * 1000;
                 
@@ -401,7 +409,7 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         try {
             // Get existing indexes
-            $indexes = $wpdb->get_results("SHOW INDEX FROM " . $table_name, ARRAY_A);
+            $indexes = $wpdb->get_results("SHOW INDEX FROM $table_name", ARRAY_A);
             
             foreach ($indexes as $index) {
                 $key_name = $index['Key_name'];
@@ -526,16 +534,21 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
-        $test_query = "SELECT COUNT(*) FROM " . $table_name . " WHERE timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)";
+        $test_query =
+            "SELECT COUNT(*)
+            FROM $table_name
+            WHERE timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)";
 
         try {
             // First execution
             $start_time = microtime(true);
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The same query is run twice and does not use any user input.
             $wpdb->get_var($test_query);
             $result['first_execution_ms'] = round((microtime(true) - $start_time) * 1000, 2);
 
             // Second execution (should hit cache)
             $start_time = microtime(true);
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The same query is run twice and does not use any user input.
             $wpdb->get_var($test_query);
             $result['second_execution_ms'] = round((microtime(true) - $start_time) * 1000, 2);
 

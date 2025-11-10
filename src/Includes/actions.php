@@ -160,11 +160,17 @@ function odcm_handle_log_processing($args) {
     ]));
     $log_data['duplicate_hash'] = $duplicate_hash;
 
-    $query = "INSERT IGNORE INTO " . $wpdb->prefix . "odcm_audit_log (" . 
-             implode(', ', array_keys($log_data)) . ") VALUES (" . 
-             implode(', ', array_fill(0, count($log_data), '%s')) . ")";
+    $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
+    $log_column_names = implode(', ', array_keys($log_data));
+    $log_row_values = implode(', ', array_fill(0, count($log_data), '%s'));
 
-    $wpdb->query($wpdb->prepare($query, array_values($log_data)));
+    $wpdb->query(
+        $wpdb->prepare(
+            "INSERT IGNORE INTO $audit_log_table ($log_column_names)
+            VALUES ($log_row_values)",
+            array_values($log_data)
+        )
+    );
 }
 
 // Hook the handler to the action scheduled by the Feeder

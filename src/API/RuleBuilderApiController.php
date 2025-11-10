@@ -1497,11 +1497,14 @@ class RuleBuilderApiController extends WP_REST_Controller
         $limit = max(1, min($limit, 100)); // Ensure reasonable limits
 
         // Build search query for products - use concatenation to avoid phpcs warning about unprepared table names
-        $sql = 'SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku' .
-               ' FROM ' . $wpdb->posts . ' p' .
-               ' LEFT JOIN ' . $wpdb->postmeta . ' pm ON p.ID = pm.post_id AND pm.meta_key = %s' .
-               ' WHERE p.post_type = %s' .
-               ' AND p.post_status = %s';
+        $sql =
+            "SELECT DISTINCT p.ID,
+                p.post_title,
+                pm.meta_value as sku
+            FROM $wpdb->posts p
+                LEFT JOIN $wpdb->postmeta pm ON p.ID = pm.post_id AND pm.meta_key = %s
+            WHERE p.post_type = %s
+                AND p.post_status = %s";
 
         $where_conditions = [];
         $search_params = ['_sku', 'product', 'publish'];
@@ -1529,6 +1532,7 @@ class RuleBuilderApiController extends WP_REST_Controller
         $sql .= " ORDER BY p.post_title ASC LIMIT %d";
         $search_params[] = $limit;
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs.
         $results = $wpdb->get_results($wpdb->prepare($sql, $search_params));
 
         $formatted_results = [];
