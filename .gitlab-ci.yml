@@ -33,6 +33,7 @@ package_artifacts:
         --include='vendor/***' \
         --include='languages/*.po' \
         --include='languages/*.mo' \
+        --include='languages/*.php' \
         --exclude='*' \
         ./ "$STAGING_DIR/$PACKAGE_NAME/"
     - |
