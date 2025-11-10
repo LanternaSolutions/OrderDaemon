@@ -31,7 +31,8 @@ package_artifacts:
         --include='**/*.js' \
         --include='**/*.css' \
         --include='vendor/***' \
-        --include='languages/***' \
+        --include='languages/*.po' \
+        --include='languages/*.mo' \
         --exclude='*' \
         ./ "$STAGING_DIR/$PACKAGE_NAME/"
     - |
