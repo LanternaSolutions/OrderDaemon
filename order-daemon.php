@@ -82,6 +82,20 @@ register_activation_hook(__FILE__, ['OrderDaemon\CompletionManager\Includes\Inst
 
 // Initialize the plugin on the plugins_loaded hook
 add_action('plugins_loaded', function() {
+    // Translations: Load translations FIRST (before any UI rendering)
+    load_plugin_textdomain(
+        'order-daemon',
+        false,
+        dirname(plugin_basename(__FILE__)) . '/languages'
+    );
+    
+    // Enable JSON translations for JavaScript
+    if (function_exists('wp_set_script_translations')) {
+        wp_set_script_translations('order-daemon-admin-js', 'order-daemon');
+        wp_set_script_translations('order-daemon-rule-builder', 'order-daemon'); 
+        wp_set_script_translations('order-daemon-insight-dashboard', 'order-daemon');
+    }
+    
     // Bootstrap the plugin components
     Plugin::instance()->bootstrap();
     

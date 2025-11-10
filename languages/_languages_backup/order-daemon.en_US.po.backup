@@ -1939,34 +1939,16 @@ msgstr "Order #%d moved to trash"
 msgid "core.log.event.order_restored_simple"
 msgstr "Order #%d restored from trash"
 
-#: src/Core/PremiumComponentFallback.php:190
-#, php-format
-msgid "core.premium.warning.single"
-msgid_plural "core.premium.warning.plural"
-msgstr[0] "Warning: %d completion rule uses premium components that are disabled without a Pro license. These rules will not function until the pro plugin is activated."
-msgstr[1] "Warning: %d completion rules use premium components that are disabled without a Pro license. These rules will not function until the pro plugin is activated."
-
-#: src/Core/PremiumComponentFallback.php:195
-msgid "core.premium.rules_disabled_message"
-msgstr "These rules will not function until the pro plugin is activated or the premium components are removed."
-
 #: src/Core/PremiumComponentFallback.php:166
 #, php-format
 msgid "core.premium.component_moved_to_pro"
 msgstr "This component has been moved to the pro plugin as of version %s."
 
-#: src/Core/ProcessLifecycleDiscovery.php:118
-#. translators: Process group label for order processing workflows and lifecycle
-msgid "core.process.lifecycle.order_processing"
-msgstr "Order Processing"
-
 #: src/Core/ProcessLifecycleDiscovery.php:125
-#. translators: Process group label for payment gateway event workflows and integration
 msgid "core.process.lifecycle.payment_gateway_events"
 msgstr "Payment Gateway Events"
 
 #: src/Core/ProcessLifecycleDiscovery.php:133
-#. translators: Process group label for subscription lifecycle management workflows
 msgid "core.process.lifecycle.subscription_lifecycle"
 msgstr "Subscription Lifecycle"
 
@@ -2019,6 +2001,10 @@ msgstr "Greater than or equal to"
 msgid "rule_component.condition.order_total.operator.less_than_equal"
 msgstr "Less than or equal to"
 
+#: src/Core/ProcessLifecycleDiscovery.php:133
+msgid "core.process.lifecycle.subscription_lifecycle"
+msgstr "Subscription Lifecycle"
+
 #: src/Core/RefundDeletionDiagnostics.php:1409
 msgid "core.refund_diagnostics.system_source"
 msgstr "system"
@@ -2027,6 +2013,50 @@ msgstr "system"
 #: src/Core/options.php:331
 msgid "core.options.action.complete_order.label"
 msgstr "Change Status to 'Completed'"
+
+#: src/Core/RuleComponents/RuleActions/CompleteOrderAction.php:29
+msgid "rule_component.action.complete_order.description"
+msgstr "Marks the order as complete. This is the default action."
+
+#: src/Core/RuleComponents/RuleActions/CompleteOrderAction.php:45
+msgid "rule_component.action.complete_order.note_message"
+msgstr "Order completed automatically by rule."
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:24
+msgid "rule_component.condition.order_total.label"
+msgstr "Order Total Amount"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:29
+msgid "rule_component.condition.order_total.description"
+msgstr "Checks if the order total meets the specified criteria."
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:44
+msgid "rule_component.condition.order_total.operator_label"
+msgstr "Operator"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:45
+msgid "rule_component.condition.order_total.operator_description"
+msgstr "How to compare the order total."
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:48
+msgid "rule_component.condition.order_total.operator.greater_than"
+msgstr "Greater than"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:49
+msgid "rule_component.condition.order_total.operator.less_than"
+msgstr "Less than"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:50
+msgid "rule_component.condition.order_total.operator.equal_to"
+msgstr "Equal to"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:51
+msgid "rule_component.condition.order_total.operator.greater_than_equal"
+msgstr "Greater than or equal to"
+
+#: src/Core/RuleComponents/RuleConditions/OrderTotalAmountCondition.php:52
+msgid "rule_component.condition.order_total.operator.less_than_equal"
+msgstr "Less than or equal to"
 
 #: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:24
 #: src/Core/RuleComponents/RuleConditions/ProductCategoryCondition.php:66

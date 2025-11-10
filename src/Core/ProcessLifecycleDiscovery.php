@@ -115,14 +115,16 @@ final class ProcessLifecycleDiscovery
         return [
             'order_lifecycle' => [
                 'id' => 'order_lifecycle',
-                'label' => __('Order Processing', 'order-daemon'),
+                /* translators: Process group label for order processing workflows and lifecycle */
+                'label' => __('core.process.lifecycle.order_processing', 'order-daemon'),
                 'process_types' => array_values(array_unique($order_lifecycle_types)),
                 'consolidate_ui' => true,
                 'time_window_minutes' => 30,
             ],
             'payment_gateway_lifecycle' => [
                 'id' => 'payment_gateway_lifecycle',
-                'label' => __('Payment Gateway Events', 'order-daemon'),
+                /* translators: Process group label for payment gateway events and transactions */
+                'label' => __('core.process.lifecycle.payment_gateway_events', 'order-daemon'),
                 'process_types' => array_values(array_unique($payment_gateway_types)),
                 'consolidate_ui' => true,
                 'cross_entity' => true,
@@ -130,7 +132,8 @@ final class ProcessLifecycleDiscovery
             ],
             'subscription_lifecycle' => [
                 'id' => 'subscription_lifecycle',
-                'label' => __('Subscription Lifecycle', 'order-daemon'),
+                /* translators: Process group label for subscription lifecycle events */
+                'label' => __('core.process.lifecycle.subscription_lifecycle', 'order-daemon'),
                 'process_types' => array_values(array_unique($subscription_lifecycle_types)),
                 'consolidate_ui' => true,
                 'time_window_minutes' => 60,

@@ -135,8 +135,8 @@ class PremiumComponentFallback
         $message = sprintf(
             /* translators: %d: The number of completion rules that use premium components. */
             _n(
-                'Warning: %d completion rule uses premium components that require the pro plugin.',
-                'Warning: %d completion rules use premium components that require the pro plugin.',
+                'core.premium.warning.single',
+                'core.premium.warning.plural',
                 $count,
                 'order-daemon'
             ),
@@ -145,7 +145,7 @@ class PremiumComponentFallback
 
         echo '<div class="notice notice-warning is-dismissible">';
         echo '<p><strong>' . esc_html($message) . '</strong></p>';
-        echo '<p>' . esc_html__('These rules will not function until the pro plugin is activated or the rules are updated to use free components.', 'order-daemon') . '</p>';
+        echo '<p>' . esc_html__('core.premium.rules_disabled_message', 'order-daemon') . '</p>';
         echo '</div>';
     }
 
@@ -165,7 +165,7 @@ class PremiumComponentFallback
             $component_status['is_migrated'] = true;
             $component_status['migration_notice'] = sprintf(
                 /* translators: %s: The version number when the component was moved to the pro plugin. */
-                __('This component has been moved to the pro plugin as of version %s.', 'order-daemon'),
+                __('core.premium.component_moved_to_pro', 'order-daemon'),
                 self::get_migrated_component_info($component_type, $component_id)['migration_version']
             );
         }
