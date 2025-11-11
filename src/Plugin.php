@@ -59,7 +59,7 @@ final class Plugin {
 	/**
 	 * Bootstraps the plugin by initializing core components.
 	 *
-	 * This method is called on 'plugins_loaded' to ensure all plugins are loaded
+	 * This method is called on 'init' to ensure all plugins are loaded
 	 * before we initialize our components.
 	 * 
 	 * CRITICAL: This method implements a specific initialization sequence to prevent
@@ -81,6 +81,8 @@ final class Plugin {
 			return;
 		}
 
+        $this->ensure_i18n();
+
 		/**
 		 * RACE CONDITION FIX: Proper initialization sequence with specific hook priorities
 		 * 
@@ -98,8 +100,82 @@ final class Plugin {
 		add_action('init', [$this, 'initialize_admin_components'], 15);
 		add_action('rest_api_init', [$this, 'initialize_api_endpoints'], 10);
 	}
+    
+    /**
+     * Ensure the text domain is loaded at the earliest valid moment.
+     * - If we're already in or past 'init', load now.
+     * - Otherwise, hook it to 'init' at priority 0.
+     */
+    private function ensure_i18n(): void {
+        if (is_textdomain_loaded('order-daemon')) {
+            return;
+        }
+        
+        if (did_action('init')) {
+            $this->load_text_domain();
+        } else {
+            add_action('init', [$this, 'load_text_domain'], 0);
+        }
+    }
+    
+    /**
+     * Load translations FIRST (before any UI rendering)
+     *
+     * @since next
+     */
+    public function load_text_domain(): void {
+        error_log('load_text_domain on init');;
 
-	/**
+        $rel_path = dirname(plugin_basename(ODCM_PLUGIN_FILE)) . '/languages';
+        error_log('init - rel_path = ' . $rel_path);
+
+        $load_plugin_textdomain_success = load_plugin_textdomain('order-daemon', false, $rel_path);
+        error_log('init - load_plugin_text_domain loaded = ' . $load_plugin_textdomain_success);;
+
+        error_log('init - __FILE__ = ' . __FILE__ );
+        error_log('init - ODCM_PLUGIN_FILE = ' . ODCM_PLUGIN_FILE);
+        error_log('init - WP_PLUGIN_DIR = ' . WP_PLUGIN_DIR);
+        error_log('init - plugin_basename = ' . plugin_basename(ODCM_PLUGIN_FILE));
+        error_log('init - dirname = ' . dirname(plugin_basename(ODCM_PLUGIN_FILE)));
+        error_log('init - languages = ' . dirname(plugin_basename(ODCM_PLUGIN_FILE)) . '/languages');
+        
+        $textdomain_loaded = is_textdomain_loaded('order-daemon');
+
+        error_log('locale=' . get_locale());
+        error_log('user locale=' . (function_exists('get_user_locale') ? get_user_locale() : 'n/a'));
+        error_log('odcm loaded=' . ($textdomain_loaded ? 'yes' : 'no'));
+        
+        // Fallback: load directly by absolute path if needed (helps diagnose path issues)
+        if (!$textdomain_loaded) {
+            error_log('loading directly by absolute path');
+            $locale = function_exists('determine_locale') ? determine_locale() : get_locale();
+            $mofile = ODCM_PLUGIN_DIR . 'languages/order-daemon-' . $locale . '.mo';
+            $is_readable = is_readable($mofile);
+            error_log('mofile=' . $mofile);;
+            error_log('is_readable=' . ($is_readable ? 'yes' : 'no'));
+            if ($is_readable) {
+                $load_textdomain_success = load_textdomain('order-daemon', $mofile);
+                error_log('odcm loaded take two=' . ($load_textdomain_success ? 'yes' : 'no'));
+            }
+        }
+        
+        $textdomain_loaded = is_textdomain_loaded('order-daemon');
+        
+        // Optional diagnostics while you verify
+        error_log('i18n rel_path=' . $rel_path);
+        error_log('load_plugin_textdomain_success=' . ($load_plugin_textdomain_success ? '1' : '0'));
+        error_log('load_textdomain_success=' . ($load_textdomain_success ? '1' : '0'));
+        error_log('is_textdomain_loaded=' . ($textdomain_loaded ? 'yes' : 'no'));
+        
+        // Enable JSON translations for JavaScript
+        if (function_exists('wp_set_script_translations')) {
+            wp_set_script_translations('order-daemon-admin-js', 'order-daemon');
+            wp_set_script_translations('order-daemon-rule-builder', 'order-daemon');
+            wp_set_script_translations('order-daemon-insight-dashboard', 'order-daemon');
+        }
+    }
+    
+    /**
 	 * Register the custom post type globally.
 	 * 
 	 * CRITICAL: This method is called on 'init' hook priority 5 to ensure the
