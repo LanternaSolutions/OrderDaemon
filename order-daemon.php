@@ -34,6 +34,7 @@ require_once __DIR__ . '/src/Includes/class-odcm-config.php';
 require_once __DIR__ . '/src/Includes/class-odcm-strings.php';
 
 // Import classes
+use OrderDaemon\CompletionManager\Core\ManualStatusTracker;
 use OrderDaemon\CompletionManager\Plugin;
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
 
@@ -87,5 +88,5 @@ add_action('plugins_loaded', function() {
     Plugin::instance()->bootstrap();
     
     // Initialize manual status tracking for chain of custody logging
-    \OrderDaemon\CompletionManager\Core\ManualStatusTracker::init();
+    ManualStatusTracker::init();
 });

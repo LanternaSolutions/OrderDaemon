@@ -11,6 +11,7 @@ use OrderDaemon\CompletionManager\API\RuleBuilderApiController;
 use OrderDaemon\CompletionManager\API\WebhookController;
 use OrderDaemon\CompletionManager\Core\Core;
 use OrderDaemon\CompletionManager\Core\ManualStatusTracker;
+use OrderDaemon\CompletionManager\Includes\Installer;
 
 /**
  * Main plugin class.
@@ -69,7 +70,7 @@ final class Plugin {
 	 */
 	public function bootstrap(): void {
 		// Run installer/upgrade routines on every load (idempotent; version-guarded)
-		\OrderDaemon\CompletionManager\Includes\Installer::install();
+		Installer::install();
 
 		// Check if WooCommerce is active
 		if (!class_exists('WooCommerce')) {
