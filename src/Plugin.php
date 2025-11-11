@@ -64,7 +64,7 @@ final class Plugin {
 	 * 
 	 * CRITICAL: This method implements a specific initialization sequence to prevent
 	 * race conditions between post type registration and admin form handlers.
-  * The sequence ensures that the 'odcm_order_rule' post type is available
+     * The sequence ensures that the 'odcm_order_rule' post type is available
 	 * in ALL execution contexts (admin, CLI, frontend, background processing).
 	 */
 	public function bootstrap(): void {
