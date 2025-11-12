@@ -33,8 +33,8 @@ msgstr "Invalid log IDs provided"
 msgid "audit.logs.delete..error.no_valid_log_ids_found_for_deletion"
 msgstr "No valid log entries found for deletion"
 
-#. translators: %d: number of log entries deleted
 #: src/API/AuditLogEndpoint.php:338
+#. translators: %d: number of log entries deleted
 #, php-format
 msgid "audit.logs.delete.success.single"
 msgid_plural "audit.logs.delete.success.plural"
@@ -173,14 +173,14 @@ msgstr ""
 "Trigger \"Any Status Change\" is a Pro feature and cannot be saved without a "
 "license."
 
-#. translators: %1$d: condition number, %2$s: error message
 #: src/API/RuleBuilderApiController.php:403
+#. translators: %1$d: condition number, %2$s: error message
 #, php-format
 msgid "api.rule_builder.entitlement.condition_error"
 msgstr "Condition %d: %s"
 
-#. translators: %1$d: action number, %2$s: error message
 #: src/API/RuleBuilderApiController.php:413
+#. translators: %1$d: action number, %2$s: error message
 #, php-format
 msgid "api.rule_builder.entitlement.action_error"
 msgstr "Action %d: %s"
@@ -195,20 +195,20 @@ msgstr ""
 msgid "api.rule_builder.component_missing_id"
 msgstr "Component missing ID"
 
-#. translators: %1$s: component type, %2$s: component name
 #: src/API/RuleBuilderApiController.php:447
+#. translators: %1$s: component type, %2$s: component name
 #, php-format
 msgid "api.rule_builder.unknown_component"
 msgstr "Unknown %s: %s"
 
-#. translators: %1$s: component type, %2$s: component name
 #: src/API/RuleBuilderApiController.php:454
+#. translators: %1$s: component type, %2$s: component name
 #, php-format
 msgid "api.rule_builder.entitlement.component_requires_pro"
 msgstr "%s \"%s\" requires Pro access"
 
-#. translators: %s: comma-separated list of premium options
 #: src/API/RuleBuilderApiController.php:533
+#. translators: %s: comma-separated list of premium options
 #, php-format
 msgid "api.rule_builder.entitlement.options_require_pro"
 msgstr "The following options require Pro access: %s"
@@ -247,9 +247,7 @@ msgstr "No timeline data available for this log entry"
 
 #: src/Admin/Admin.php:114
 msgid "admin.ui.drag_drop_tip"
-msgstr ""
-"Tip: Drag rules using the handle to change their priority. Lower number = "
-"higher priority. Higher priority rules run first."
+msgstr "Tip: Drag rules using the handle to change their priority. Lower number = higher priority. Higher priority rules run first."
 
 #: src/Admin/Admin.php:188 src/Admin/Admin.php:487
 #: src/Admin/CompletionRulesListTable.php:92
@@ -429,8 +427,7 @@ msgstr "Edit"
 
 #: src/Admin/CompletionRulesListTable.php:222
 msgid "admin.confirmation.delete_rule_warning"
-msgstr ""
-"Are you sure you want to delete this rule? This action cannot be undone."
+msgstr "Are you sure you want to delete this rule? This action cannot be undone."
 
 #: src/Admin/CompletionRulesListTable.php:223
 msgid "admin.actions.delete"
@@ -994,8 +991,7 @@ msgstr "No Recent Activity"
 
 #: src/Admin/InsightDashboard.php:1354
 msgid "admin.insight_dashboard.empty.no_activity.description"
-msgstr ""
-"Your completion rules are set up but haven't processed any orders recently."
+msgstr "Your completion rules are set up but haven't processed any orders recently."
 
 #: src/Admin/InsightDashboard.php:1360
 msgid "admin.insight_dashboard.empty.manage_rules"
@@ -1284,8 +1280,7 @@ msgstr "Condition Failed"
 #: src/Core/LogRegistries.php:242
 #, php-format
 msgid "core.log.event.condition_failed_message"
-msgstr ""
-"Condition \"%s\" failed for order #%d. Expected: \"%s\", Actual: \"%s\""
+msgstr "Condition \"%s\" failed for order #%d. Expected: \"%s\", Actual: \"%s\""
 
 #: src/Core/LogRegistries.php:249
 msgid "core.log.event.process_started"
@@ -1970,18 +1965,18 @@ msgstr ""
 msgid "core.premium.component_moved_to_pro"
 msgstr "This component has been moved to the pro plugin as of version %s."
 
-#. translators: Process group label for order processing workflows and lifecycle
 #: src/Core/ProcessLifecycleDiscovery.php:118
+#. translators: Process group label for order processing workflows and lifecycle
 msgid "core.process.lifecycle.order_processing"
 msgstr "Order Processing"
 
-#. translators: Process group label for payment gateway event workflows and integration
 #: src/Core/ProcessLifecycleDiscovery.php:125
+#. translators: Process group label for payment gateway event workflows and integration
 msgid "core.process.lifecycle.payment_gateway_events"
 msgstr "Payment Gateway Events"
 
-#. translators: Process group label for subscription lifecycle management workflows
 #: src/Core/ProcessLifecycleDiscovery.php:133
+#. translators: Process group label for subscription lifecycle management workflows
 msgid "core.process.lifecycle.subscription_lifecycle"
 msgstr "Subscription Lifecycle"
 
@@ -2165,9 +2160,7 @@ msgstr "Composite Products"
 #: src/Core/RuleComponents/RuleTriggers/OrderProcessingTrigger.php:39
 #: src/Core/options.php:161
 msgid "rule_component.trigger.order_processing.description"
-msgstr ""
-"Runs when an order status changes to \"Processing\". Ideal for most standard "
-"automations."
+msgstr "Runs when an order status changes to \"Processing\". Ideal for most standard automations."
 
 #: src/Core/audit-filters.php:207
 msgid "core.audit_filters.date_range.to"
@@ -2187,8 +2180,7 @@ msgstr "Order Total"
 
 #: src/Core/options.php:266
 msgid "core.options.condition.order_total.description"
-msgstr ""
-"Check if the order total is above, below, or equal to a specific amount."
+msgstr "Check if the order total is above, below, or equal to a specific amount."
 
 #: src/Core/options.php:332
 msgid "core.options.action.complete_order.description"
@@ -2342,8 +2334,7 @@ msgstr "No valid rule IDs provided."
 
 #: src/Plugin.php:86
 msgid "core.plugin.dependency.woocommerce_required"
-msgstr ""
-"Order Daemon for WooCommerce requires WooCommerce to be installed and active."
+msgstr "Order Daemon for WooCommerce requires WooCommerce to be installed and active."
 
 #: src/View/PayloadRenderer/PayloadComponentUIToolkit.php:490
 #, php-format
@@ -2355,8 +2346,8 @@ msgstr " | Started: %s"
 msgid "core.ui.process_info.trigger_label"
 msgstr "(Trigger: %s)"
 
-#. translators: Tooltip text for component expansion toggle button
 #: src/View/PayloadRenderer/PayloadComponentUIToolkit.php:498
+#. translators: Tooltip text for component expansion toggle button
 msgid "view.component.toggle_expansion"
 msgstr "Toggle component expansion"
 
