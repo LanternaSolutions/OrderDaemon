@@ -125,22 +125,24 @@ final class Plugin {
      * @since next
      */
     public function load_text_domain(): void {
-        error_log('load_text_domain on init');;
+        error_log('load_text_domain on init');
 
         $rel_path = dirname(plugin_basename(ODCM_PLUGIN_FILE)) . '/languages';
         error_log('init - rel_path = ' . $rel_path);
 
         $load_plugin_textdomain_success = load_plugin_textdomain('order-daemon', false, $rel_path);
-        error_log('init - load_plugin_text_domain loaded = ' . $load_plugin_textdomain_success);;
+        error_log('init - load_plugin_text_domain loaded = ' . $load_plugin_textdomain_success);
 
         error_log('init - __FILE__ = ' . __FILE__ );
         error_log('init - ODCM_PLUGIN_FILE = ' . ODCM_PLUGIN_FILE);
-        error_log('init - WP_PLUGIN_DIR = ' . WP_PLUGIN_DIR);
+        $wp_plugin_dir = defined('WP_PLUGIN_DIR') ? constant('WP_PLUGIN_DIR') : 'undefined';
+        error_log('init - WP_PLUGIN_DIR = ' . $wp_plugin_dir);
         error_log('init - plugin_basename = ' . plugin_basename(ODCM_PLUGIN_FILE));
         error_log('init - dirname = ' . dirname(plugin_basename(ODCM_PLUGIN_FILE)));
         error_log('init - languages = ' . dirname(plugin_basename(ODCM_PLUGIN_FILE)) . '/languages');
         
         $textdomain_loaded = is_textdomain_loaded('order-daemon');
+        $load_textdomain_success = false;
 
         error_log('locale=' . get_locale());
         error_log('user locale=' . (function_exists('get_user_locale') ? get_user_locale() : 'n/a'));
@@ -152,7 +154,7 @@ final class Plugin {
             $locale = function_exists('determine_locale') ? determine_locale() : get_locale();
             $mofile = ODCM_PLUGIN_DIR . 'languages/order-daemon-' . $locale . '.mo';
             $is_readable = is_readable($mofile);
-            error_log('mofile=' . $mofile);;
+            error_log('mofile=' . $mofile);
             error_log('is_readable=' . ($is_readable ? 'yes' : 'no'));
             if ($is_readable) {
                 $load_textdomain_success = load_textdomain('order-daemon', $mofile);
