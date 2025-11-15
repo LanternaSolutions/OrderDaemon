@@ -86,4 +86,4 @@ Optional next steps:
 - Rules & Automation (concepts): /docs/rules-automation/
 - Using the Rule Builder (step‑by‑step): /docs/using-the-rule-builder/
 - Audit Log (reading timelines): /docs/audit-log/
-- Pro overview: /docs/pro/overview/
+- Pro overview: /docs/pro-overview/

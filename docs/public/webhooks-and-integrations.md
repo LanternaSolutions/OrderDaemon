@@ -99,7 +99,7 @@ Behind the scenes (non‑technical summary):
 ## Pro notes
 
 - Some advanced integration options, outbound webhooks, or specialized actions/conditions may require the Pro add‑on. In the free plugin, you may see certain options with a “Premium” badge; they remain disabled until Pro is active (and licensed, if applicable).
-- For a high‑level summary of what Pro adds, see: /docs/pro/overview/
+- For a high‑level summary of what Pro adds, see: /docs/pro-overview/
 
 ---
 

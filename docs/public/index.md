@@ -46,8 +46,8 @@ Quick start
 
 Where to go next
 - Getting Started: /docs/getting-started/
-- Rules & Automation: /docs/rules-and-automation/
-- Pro Overview: /docs/pro/overview/
+- Rules & Automation: /docs/rules-automation/
+- Pro Overview: /docs/pro-overview/
 
 Troubleshooting
 - If rules don’t seem to run, check that WooCommerce is active and your rule is enabled.

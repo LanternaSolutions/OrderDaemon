@@ -537,47 +537,59 @@ TODOs (future Pro pages):
 
 ### B9. Security, Privacy & Compliance (User-Level)
 
+Status: Drafted in docs/public/security-and-privacy.md (2025-11-15)
+
 **URL:**
 
 - `/docs/security-and-privacy/`
 
-**Content:**
+**Content covered:**
 
 - What data the plugin stores
-  - Logs, configuration, API keys/webhook URLs, etc.
+  - Rules configuration, audit/timeline entries, and high-level diagnostics outcomes (admin-only)
 - Where data is stored
-  - Database tables, options
+  - WordPress CPT + post meta for rules; audit entries in the site database; options/user preferences for settings
 - GDPR & privacy considerations
-  - Whether personal data is logged
-  - Guidance on responsible configuration (e.g., avoid sensitive data in custom payloads)
+  - Focus on operational data; avoid unnecessary personal data; exports/erasure rely on standard WP/WC tools; retention guidance and batch delete tools
 - Access control
-  - Which WP user roles are recommended to manage rules and view logs
-- Any notable differences for Pro (e.g., more logs, external integration endpoints)
+  - Recommended roles (Shop Manager/Administrator); REST/API considerations; webhook endpoints security notes (use secrets/signatures, keep URLs private)
+- Differences in Pro
+  - Additional filters/options follow the same privacy principles; licensing checks do not send order data externally
+- Good practices and troubleshooting
+  - Keep software updated, limit admin access, treat webhook URLs as secrets, translations note; housekeeping (deleting old logs)
 
 ### B10. Troubleshooting & FAQ
+
+Status: Drafted in docs/public/troubleshooting.md (2025-11-15)
 
 **URL:**
 
 - `/docs/troubleshooting/`
 
-**Content:**
+**Content covered:**
 
+- Quick checks: WooCommerce active, correct user role, rule enabled, test with a new order
 - Common installation issues
   - WooCommerce missing or outdated
-  - Pro active, core missing
+  - Pro active, Core missing
+  - Menus not visible due to permissions
 - Rule not firing
-  - Checklist (trigger conditions, order type, logs)
-  - How to use the audit log to investigate
+  - Checklist (trigger happened, conditions match, rule enabled, new test order)
+  - How to use the Audit Log to investigate with examples
 - Orders not completing as expected
-  - Interaction with other payment gateways or plugins
+  - Interaction with gateways, other plugins, and conflicting rules
 - Translation and language issues
-  - Strings not translated, how to switch language
+  - Site Language settings, staying updated, JSON script translations
 - Performance & scaling
-  - Large number of rules
-  - Impact on checkout/cron
-- Where to get support and how to provide logs/diagnostics
-  - Link to diagnostics dashboard
-  - What information to send (log files, screenshots, versions)
+  - Large number of rules, checkout impact, cron/background processing
+- Diagnostics Dashboard
+  - When to use, where to find, link to guide
+- Pro features disabled in Core
+  - Expected behavior, how Pro unlocks features, link to Pro overview
+- FAQ section
+  - Multiple rules, past orders, checkout speed, where logs live
+- Getting support
+  - What to include (diagnostics summary, order numbers/times, versions, relevant log entries) and helpful links
 
 ---
 
@@ -605,27 +617,34 @@ Developer docs live under `docs/public/developers/` and on the site under `/docs
 
 ### B11.2. Creating Custom Rule Components
 
+Status: Drafted in docs/public/developers/extending-rules.md (2025-11-15)
+
 **URL:**
 
 - `/docs/developers/extending-rules/`
 
-**Content:**
+**Content covered:**
 
-- Custom triggers
-  - Expected interface methods (ID, label, description, settings schema, trigger evaluation)
-  - Registering a new trigger with the plugin
-- Custom conditions
-  - Expected interface (ID, label, description, capability, settings schema, evaluate)
-  - Best practices for performance (minimize DB calls, caching)
-  - Using WooCommerce order/product objects safely
+- Discovery model
+  - Components are discovered by RuleComponentRegistry scanning classes that implement the proper interfaces; ensure autoloading is set up.
+- Shared contract (ComponentInterface)
+  - get_id, get_label, get_description, get_capability, get_settings_schema (i18n guidance and stable IDs)
+- Custom triggers (TriggerInterface)
+  - should_trigger(context, settings) contract; keep fast; example skeleton included
+- Custom conditions (ConditionInterface)
+  - evaluate(WC_Order, settings) contract; schema example; performance tips (minimize DB calls)
 - Custom actions
-  - Execute semantics (how they receive `WC_Order` or context)
-  - Error handling and logging
-  - Idempotency and re-entrancy (e.g., if rules fire more than once)
-- Pro considerations
-  - How to design components that degrade gracefully when Pro isn’t installed
+  - Execute semantics with evaluation context; idempotency guidance; WooCommerce API usage (update_status, add_order_note)
+- Settings schema and UI hints
+  - JSON-like schema fields and optional ui:* hints for the Rule Builder
+- Entitlements and Pro awareness
+  - Choosing capability keys; odcm_can_use gating; graceful degradation when Pro is inactive
+- Testing and troubleshooting
+  - Autoload/interface checks; using Insight (Audit Log); REST 403 odcm_premium_blocked meaning
 
 ### B11.3. Working with Settings Schemas & Rule Builder UI
+
+Status: Drafted in docs/public/developers/settings-schema-and-ui.md (2025-11-15)
 
 **URL:**
 
@@ -646,82 +665,121 @@ Developer docs live under `docs/public/developers/` and on the site under `/docs
 
 ### B11.4. Entitlement & Premium Awareness (for Integrators)
 
+Status: Drafted in docs/public/developers/entitlements-and-premium.md (2025-11-15)
+
 **URL:**
 
 - `/docs/developers/entitlements-and-premium/`
 
-**Content:**
+**Content covered:**
 
-- How to mark components as free vs premium-aware
-  - Setting capability keys appropriately
-  - How the plugin decides whether an option is enabled/visible
+- Declaring capabilities in components
+  - Implement `ComponentInterface::get_capability()`; stable, snake_case keys
+  - Use clear tiering (e.g., trigger_basic, trigger_premium, condition_order_total)
+- UI entitlement hints in schemas
+  - `ui:capability` to gate fields/groups; `ui:premium_options` for enum values
+  - Core shows premium items visible-but-disabled; Pro unlocks the same controls
+- Server-side enforcement (REST)
+  - `RuleBuilderApiController` validates rules and filters schemas by entitlement
+  - Defensive block on known premium trigger (e.g., universal any-status change) unless `trigger_premium` is allowed
+  - Error shape: HTTP 403 with code `odcm_premium_blocked` (i18n message)
+- Using `odcm_can_use()` and separation from Guard
+  - Licensing/entitlement via `odcm_can_use()`; permissions via Guard/WordPress caps — both must pass
+- Premium Component Fallback
+  - Core initializes fallback to avoid fatals when Pro is removed; design components to no-op safely
 - Best practices
-  - Designing components that degrade gracefully when Pro is not installed
-  - Avoiding hard dependencies on Pro code when building add-ons
+  - Graceful degradation, no hard Pro dependencies, idempotent actions, helpful audit logs
+- Testing & troubleshooting
+  - UI state checks (Core vs Pro), REST 403 verification, fallback behavior after removing Pro, i18n checks
 
 ### B11.5. Audit Log Extensions
+
+Status: Drafted in docs/public/developers/audit-log-extensions.md (2025-11-15)
 
 **URL:**
 
 - `/docs/developers/audit-log-extensions/`
 
-**Content:**
+**Content covered:**
 
 - Registering custom audit filters
-  - Filter registration structure (id, label, tier, capability, render callback)
-  - How to integrate with the audit log’s query layer
+  - Filter registration structure (id, label, tier, capability, render_callback) ✓
+  - Entitlement-aware rendering and UI disabled state guidance ✓
+  - Security note: sanitize incoming parameters when wiring server-side queries ✓
 - Adding custom event types
-  - Defining event type IDs and labels
-  - Logging custom events tied to rules or external systems
-- Interaction with Pro features (advanced filters, export)
+  - Recommended mapping fields (id, label, summary_template, default_status, category) ✓
+  - Guidance to reuse existing types and keep third-party types under 'custom' ✓
+- Emitting events via helper
+  - Using odcm_log_event(message, details, object_id, level, event_type, extra) with examples ✓
+- Process timelines and correlation (Process Logger surface)
+  - Why and how to include process_id and related correlation fields in `$extra` so entries consolidate into one timeline ✓
+  - Webhook and order status change examples ✓
+  - How to query by process via REST: GET /wp-json/odcm/v1/audit/by-process/{process_id} ✓
+- Interaction with Pro features
+  - Filters use odcm_can_use() for capability gating; premium filters remain visible-but-disabled in Core and unlock with Pro ✓
 
 ### B11.6. REST API & Webhooks for Integrations
+
+Status: Drafted in docs/public/developers/rest-api-and-webhooks.md (2025-11-15)
 
 **URL:**
 
 - `/docs/developers/rest-api-and-webhooks/`
 
-**Content:**
+**Content covered:**
 
 - REST endpoints documentation
-  - URL structure, authentication, and example requests/responses
+  - Base URL structure, authentication (cookie + nonce, application passwords), permissions callbacks
+  - Rule Builder API: components discovery, get/save rule, search helpers; 403 `odcm_premium_blocked` for premium without entitlement; example request/response
+  - Audit/Insight API: list/filter, render, batch delete, by-process; pagination and i18n notes
   - Rate limits and recommended usage patterns
 - Webhooks for integrators
-  - Payload structures and signing/auth if applicable
-  - How integrators can listen for webhook events to sync with other systems
-- Pro-only vs core endpoints (if applicable)
+  - Inbound endpoints: POST /webhooks/{gateway}, health check, admin test tools, gateway discovery
+  - Security: HTTPS required, shared secret/HMAC in headers, replay protection, edge rate limiting
+  - Behavior: content types, always-200 response strategy, idempotency header tips; verify via Audit Log
+- Core vs Pro endpoints/features
+  - Pro unlocks additional filters/options but route shapes are the same; Core enforces entitlements on Rule Builder POSTs
 
 ### B11.7. CLI & Automation (Pro)
+
+Status: Drafted in docs/public/developers/cli-and-automation.md (2025-11-15)
 
 **URL:**
 
 - `/docs/developers/cli-and-automation/`
 
-**Content:**
+**Content covered:**
 
-- Available WP-CLI commands and arguments
-  - Example invocations
-  - Usage in cron/automation scripts
-- Creating new CLI commands integrated with Order Daemon (if supported)
-  - Recommended patterns for logging and error handling
+- Scope and prerequisites
+  - No CLI in Core; Pro may register commands under the `odcm` namespace ✓
+  - WP-CLI setup notes and environment expectations ✓
+- Commands (illustrative; Pro decides exact names)
+  - List/get/update rules; order reprocess (single/batch); diagnostics; log cleanup ✓
+  - Usage patterns and --format=json for scripts; non-zero exit codes on failure ✓
+- Automation
+  - Cron examples and idempotent batch guidance; prefer queues for long jobs ✓
+- Logging & observability
+  - Emit odcm_log_event() with correlation fields; respect ODCM_DEBUG ✓
+- Security & entitlements
+  - Safe operation under WP-CLI, capability intent, secrets handling ✓
+  - Gate premium behaviors via odcm_can_use(); friendly errors when locked ✓
+- Pro maintainer notes (implementation TODOs)
+  - WP_CLI::add_command usage, dependency guards, thin handlers, tests ✓
 
 ### B11.8. Hooks & Filters Reference
+
+Status: Drafted in docs/public/developers/hooks-and-filters-reference.md (2025-11-15)
 
 **URL:**
 
 - `/docs/developers/hooks-and-filters-reference/`
 
-**Content:**
+**Content covered:**
 
-- WordPress hooks exposed by Order Daemon
-  - Actions/filters for:
-    - Modifying rule evaluation
-    - Adding/altering rule components
-    - Adjusting audit log behavior
-    - Tweaking UI configuration for the Rule Builder
-- For each hook:
-  - Name, context, arguments, example usage
-- Example snippets
-  - Register a custom component
-  - Change default settings for an existing condition
-  - Adjust audit log retention or filtering defaults
+- Component registration actions: `odcm_register_triggers`, `odcm_register_conditions`, `odcm_register_actions` ✓
+- Rule Builder lifecycle filters/actions: `odcm_rule_builder_config`, `odcm_before_rule_validation`, `odcm_before_rule_save`, `odcm_after_rule_save` ✓
+- Webhook adapter + test helpers: `odcm_register_gateway_adapters`, `odcm_webhook_test_event_types`, `odcm_webhook_test_payload` ✓
+- Insight/Audit dashboard hooks: `odcm_insight_dashboard_accordion_state`, `odcm_insight_dashboard_settings_sections`, `odcm_debug_source_labels` ✓
+- Evaluation/attribution filters: `odcm_enable_context_cache`, `odcm_attribution_context`, `odcm_enable_deep_attribution`, `odcm_attribution_backtrace_limit`, `odcm_attribution_time_budget_ms`, `odcm_process_lifecycle_families`; plus dynamic checkout context filter naming note ✓
+- Entitlements override filter: `odcm_is_premium_user` (for Pro/licensing override only) ✓
+- For each hook entry: name, purpose, when it fires, arguments, return (if filter), example snippet ✓

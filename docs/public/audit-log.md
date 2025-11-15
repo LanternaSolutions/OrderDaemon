@@ -96,4 +96,4 @@ Tips
 - Using the Rule Builder: /docs/using-the-rule-builder/
 - Rules & Automation (concepts): /docs/rules-automation/
 - Installation & Setup: /docs/getting-started/
-- Pro Overview (advanced filters/webhooks): /docs/pro/overview/
+- Pro Overview (advanced filters/webhooks): /docs/pro-overview/
