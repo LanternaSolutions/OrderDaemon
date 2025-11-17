@@ -2363,3 +2363,149 @@ msgstr ""
 #. translators: Plugin author website URL displayed in WordPress admin  
 msgid "plugin.metadata.author_uri"
 msgstr "https://www.orderdaemon.com"
+
+#. Admin menu label for All Order Rules page
+#. translators: Link to All Order Rules page displayed in WordPress admin menu
+msgid "admin.insight_dashboard.submenu.all_order_rules"
+msgstr "All Order Rules"
+
+#. Rule Builder page title
+#. translators: Title of the Rule Builder page displayed in WordPress admin
+msgid "admin.rule_builder.header_title"
+msgstr "Rule Builder"
+
+#. Rule Builder WHEN section subtitle
+#. translators: Subtitle of the WHEN section displayed in the Rule Builder page
+msgid: "admin.rule_builder.section.when_subtitle"
+msgstr: ""
+
+#. Rule Builder THEN section subtitle
+#. translators: Subtitle of the THEN section displayed in the Rule Builder page
+msgid: "admin.rule_builder.section.if_subtitle"
+msgstr: ""
+
+#. Rule Builder THEN section subtitle
+#. translators: Subtitle of the THEN section displayed in the Rule Builder page
+msgid: "admin.rule_builder.section.then_subtitle"
+msgstr: ""
+
+#. translators: Label of button to remove a component from the Rule Builder
+msgid: "admin.rule_builder.action.remove"
+msgstr: "Remove"
+
+msgid: "rule_component.trigger.order_processing.label"
+msgstr: "Order Processing"
+
+#. translators: Label of button to add a condition to the Rule Builder
+msgid: "admin.rule_builder.action.add_condition_description"
+msgstr: "Add a condition to this rule"
+
+#. translators: Section title of the Primary action that runs first, before the secondary actions
+msgid: "admin.rule_builder.section.primary_action"
+msgstr: "Primary Action"
+
+#. translators: The single-word label fo the selected Primary action
+msgid: "admin.rule_builder.label.primary"
+msgstr: "Primary"
+
+#. translators: Helper text in teh search field for selecting a secondary action
+msgid: "admin.rule_builder.search.secondary_actions_placeholder"
+msgstr: "Search for a secondary action"
+
+#. translators: Label of button to add a secondary action to the Rule Builder
+msgid: "admin.rule_builder.action.add_secondary_action_description"
+msgstr: "Add a secondary action to this rule"
+
+#. translators: Column title for the Active rules toggles column in the Order Rules list table
+msgid: "admin.columns.active"
+msgstr: "Active"
+
+#. translators: Button label for button that reloads the Insight Dashboard log stream
+msgid: "admin.insight_dashboard.actions.refresh"
+msgstr: "Refresh"
+
+#. translators: Label of button that performs a full reprocessing of all pending orders for matching order rules
+msgid: "admin.insight_dashboard.ajax.reprocess_pending_orders"
+msgstr: "Reprocess Pending Orders"
+
+msgid: "admin.insight_dashboard.ajax.reprocessing_pending_orders"
+msgstr: "Processing..."
+
+#. translators: The label of the section where the user defines the amount of time that the audit log data is retained in the database before automatic deletion
+msgid: "admin.insight_dashboard.settings.retention_days.label"
+msgstr: "Retention Period"
+
+msgid: "admin.insight_dashboard.settings.retention_days.unit"
+msgstr: "days"
+
+#. translators: Label of the button that triggers the saving of the retention period setting
+msgid: "admin.insight_dashboard.settings.update_policy"
+msgstr: "Update Policy"
+
+#. translators: Label of the button that triggers deletion of audit logs that are older than the retention period setting
+msgid: "admin.insight_dashboard.settings.cleanup_now"
+msgstr: "Cleanup Now"
+
+msgid: "admin.insight_dashboard.settings.cleanup_description"
+msgstr: "This will remove all event logs older than the retention period."
+
+#. translators:
+msgid: "admin.diagnostics.page_title"
+msgstr: "Diagnostics"
+
+#. translators:
+msgid: "admin.diagnostics.system_health_status"
+msgstr: "System Health Status:"
+
+#. translators:
+msgid: "admin.diagnostics.issues_summary"
+msgstr: "Issues Summary:"
+
+#. translators:
+msgid: "admin.diagnostics.last_check"
+msgstr: "Last Check:"
+
+#. translators:
+msgid: "admin.diagnostics.action.run_all_diagnostics"
+msgstr: "Run All Diagnostics"
+
+#. translators:
+msgid: "admin.diagnostics.action.run_critical_tests_only"
+msgstr: "Run Critical Tests Only"
+
+#. translators:
+msgid: "admin.diagnostics.results.title"
+msgstr: "Test Results"
+
+#. translators:
+msgid: "admin.diagnostics.results.instructions"
+msgstr: "Click on a test result to view details."
+
+#. translators:
+msgid: "admin.diagnostics.results.summary_title"
+msgstr: "Test Summary"
+
+#. translators:
+msgid: "admin.diagnostics.results.test_summary"
+msgstr: "Test Summary:"
+
+#. translators:
+msgid: "admin.diagnostics.results.detailed_results_title"
+msgstr: "Detailed Results"
+
+#. translators:
+msgid: "admin.diagnostics.results.category_status"
+msgstr: "Status:"
+
+#. translators:
+msgid: "admin.diagnostics.results.recommendations_title"
+msgstr: "Recommendations"
+
+#. translators:
+msgid: "admin.diagnostics.results.technical_details_title"
+msgstr: "Technical Details"
+
+#. translators:
+msgid: "admin.diagnostics.results.all_recommendations_title"
+msgstr: "All Recommendations"
+

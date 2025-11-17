@@ -64,7 +64,14 @@ final class RuleComponentRegistry
     public function get_triggers(): array
     {
         $this->load_components();
-        return $this->triggers;
+        
+        // Apply filter to allow extension plugins to add triggers
+        $triggers = apply_filters('odcm_rule_builder_triggers', $this->triggers);
+        
+        // Ensure we only have valid trigger interfaces
+        return array_filter($triggers, function($trigger) {
+            return $trigger instanceof TriggerInterface;
+        });
     }
 
     /**
@@ -75,7 +82,14 @@ final class RuleComponentRegistry
     public function get_conditions(): array
     {
         $this->load_components();
-        return $this->conditions;
+        
+        // Apply filter to allow extension plugins to add conditions
+        $conditions = apply_filters('odcm_rule_builder_conditions', $this->conditions);
+        
+        // Ensure we only have valid condition interfaces
+        return array_filter($conditions, function($condition) {
+            return $condition instanceof ConditionInterface;
+        });
     }
 
     /**
@@ -86,7 +100,14 @@ final class RuleComponentRegistry
     public function get_actions(): array
     {
         $this->load_components();
-        return $this->actions;
+        
+        // Apply filter to allow extension plugins to add actions
+        $actions = apply_filters('odcm_rule_builder_actions', $this->actions);
+        
+        // Ensure we only have valid action interfaces
+        return array_filter($actions, function($action) {
+            return $action instanceof ActionInterface;
+        });
     }
 
     /**

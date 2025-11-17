@@ -969,7 +969,32 @@ final class RuleBuilder
                                                 </div>
                                             </template>
                                             
-                                            <!-- Other field types can be added here as templates -->
+                                            <!-- Button-style radio group -->
+                                            <template x-if="field.widget === 'button_radio_group'">
+                                                <div class="odcm-button-radio-group" role="radiogroup" :aria-labelledby="field.id + '_label'">
+                                                    <template x-for="(label, val) in field.enumOptions" :key="val">
+                                                        <button type="button"
+                                                                class="odcm-radio-button"
+                                                                :class="{ 'is-active': (rule.trigger?.settings[field.key] ?? field.value) === val }"
+                                                                :aria-pressed="String((rule.trigger?.settings[field.key] ?? field.value) === val)"
+                                                                @click="updateSetting(field.key, val, 'trigger', 0)"
+                                                                x-text="label">
+                                                        </button>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            
+                                            <!-- Textarea field -->
+                                            <template x-if="field.widget === 'textarea'">
+                                                <textarea :id="field.id"
+                                                          class="odcm-form-textarea"
+                                                          rows="6"
+                                                          :placeholder="field.description || ''"
+                                                          :value="field.value"
+                                                          @input="updateSetting(field.key, $event.target.value, 'trigger', 0)"></textarea>
+                                            </template>
+                                            
+                                            <!-- Other field types -->
                                             <template x-if="field.widget === 'text'">
                                                 <input type="text" 
                                                        :id="field.id"
@@ -1191,6 +1216,31 @@ final class RuleBuilder
                                                         </label>
                                                     </template>
                                                 </div>
+                                            </template>
+                                            
+                                            <!-- Button-style radio group -->
+                                            <template x-if="field.widget === 'button_radio_group'">
+                                                <div class="odcm-button-radio-group" role="radiogroup" :aria-labelledby="field.id + '_label'">
+                                                    <template x-for="(label, val) in field.enumOptions" :key="val">
+                                                        <button type="button"
+                                                                class="odcm-radio-button"
+                                                                :class="{ 'is-active': (rule.conditions[index]?.settings[field.key] ?? field.value) === val }"
+                                                                :aria-pressed="String((rule.conditions[index]?.settings[field.key] ?? field.value) === val)"
+                                                                @click="updateSetting(field.key, val, 'condition', index)"
+                                                                x-text="label">
+                                                        </button>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            
+                                            <!-- Textarea field -->
+                                            <template x-if="field.widget === 'textarea'">
+                                                <textarea :id="field.id"
+                                                          class="odcm-form-textarea"
+                                                          rows="6"
+                                                          :placeholder="field.description || ''"
+                                                          :value="field.value"
+                                                          @input="updateSetting(field.key, $event.target.value, 'condition', index)"></textarea>
                                             </template>
 
                                             <!-- Other field types -->
@@ -1554,6 +1604,22 @@ final class RuleBuilder
                                                         </template>
                                                     </div>
                                                 </template>
+
+                                                <!-- Button-style radio group -->
+                                                <template x-if="field.widget === 'button_radio_group'">
+                                                    <div class="odcm-button-radio-group" role="radiogroup" :aria-labelledby="field.id + '_label'">
+                                                        <template x-for="(label, val) in field.enumOptions" :key="val">
+                                                            <button type="button"
+                                                                    class="odcm-radio-button"
+                                                                    :class="{ 'is-active': (rule.secondaryActions[index]?.settings[field.key] ?? field.value) === val }"
+                                                                    :aria-pressed="String((rule.secondaryActions[index]?.settings[field.key] ?? field.value) === val)"
+                                                                    @click="updateSetting(field.key, val, 'action', index)"
+                                                                    x-text="label">
+                                                            </button>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                
 
                                                 <!-- Other field types -->
                                                 <template x-if="field.widget === 'text'">

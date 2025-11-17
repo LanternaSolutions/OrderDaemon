@@ -533,8 +533,8 @@ function insightDashboard() {
                     throw new Error('Invalid response format from server');
                 }
 
-                // Capability: In core (free) plugin, premium filters are always disabled for educational display
-                this.canUsePremiumFilters = false;
+                // Check premium access from PHP config (set by pro plugin if licensed)
+                this.canUsePremiumFilters = !!(this.config && this.config.premium_access);
 
                 // Dynamic filter options
                 const fo = data.filter_options || { sources: [], event_types: [], statuses: [] };

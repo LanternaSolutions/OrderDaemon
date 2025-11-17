@@ -243,7 +243,7 @@
 
 /* Primary Action Section */
 .odcm-primary-action-section {
-    border-bottom: 2px solid var(--odcm-theme-green-300);
+    border-bottom: 2px solid var(--odcm-theme-grey-200);
 }
 
 .odcm-primary-action {
@@ -399,8 +399,6 @@
 }
 
 .odcm-rule-builder-wrapper .odcm-rule-section .odcm-rule-row .odcm-component-summary strong {
-    color: var(--odcm-component-text-color-header);
-    font-weight: var(--odcm-theme-font-weight-str);
     color: var(--odcm-component-text-color-header);
     font-weight: var(--odcm-theme-font-weight-str);
     font-size: var(--odcm-theme-font-size-md);
@@ -681,6 +679,53 @@
     line-height: 1.2;
 }
 
+/* Button-style Radio Groups */
+.odcm-button-radio-group {
+    display: flex;
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    overflow: hidden;
+    background-color: var(--odcm-theme-white);
+}
+
+.odcm-radio-button {
+    flex: 1;
+    padding: var(--odcm-theme-spacing-sm) var(--odcm-theme-spacing-md);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: var(--odcm-theme-font-size-md);
+    color: var(--odcm-component-text-color-body);
+    transition: var(--odcm-component-transition);
+    position: relative;
+    text-align: center;
+}
+
+.odcm-radio-button:last-child {
+    border-right: none;
+}
+
+.odcm-radio-button:hover {
+    background-color: var(--odcm-theme-grey-100);
+}
+
+.odcm-radio-button:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--odcm-theme-blue-700);
+    z-index: 1;
+}
+
+.odcm-radio-button.is-active {
+    background-color: var(--odcm-theme-blue-700);
+    color: var(--odcm-theme-white);
+    font-weight: var(--odcm-theme-font-weight-str);
+}
+
+.odcm-radio-button.is-active:hover {
+    background-color: var(--odcm-theme-blue-700);
+}
+
+
 /* Compact Radio Groups within Settings Panels */
 .odcm-settings-panel .odcm-radio-label {
     padding: var(--odcm-theme-spacing-xxs) var(--odcm-compact-spacing-micro);
@@ -865,7 +910,7 @@
 }
 
 .odcm-show-all-button:hover {
-    background-color: var(--odcm-theme-blue-800);
+    background-color: var(--odcm-theme-blue-700);
 }
 
 .odcm-searchable-list {
@@ -907,7 +952,7 @@
 
 .odcm-searchable-list .odcm-checkbox-label:hover {
     background-color: var(--odcm-theme-blue-200);
-    border-color: var(--odcm-theme-blue-300);
+    border-color: var(--odcm-theme-blue-700);
 }
 
 .odcm-searchable-list .odcm-checkbox-label:has(input:checked) {
@@ -933,7 +978,6 @@
 .odcm-searchable-list .odcm-checkbox-label.odcm-disabled-premium-option {
     opacity: 0.85;
     background-color: var(--odcm-theme-grey-200);
-    border-left: 3px solid var(--odcm-color-premium);
 }
 
 .odcm-searchable-list .odcm-checkbox-label.odcm-disabled-premium-option .odcm-checkbox-text {
@@ -963,7 +1007,7 @@
 
 .odcm-searchable-list .odcm-checkbox-label.odcm-premium-option-accessible:hover {
     background-color: var(--odcm-theme-blue-200);
-    border-color: var(--odcm-theme-blue-300);
+    border-color: var(--odcm-theme-blue-700);
 }
 
 .odcm-searchable-list .odcm-checkbox-label.odcm-premium-option-accessible input {
@@ -1444,7 +1488,7 @@
 }
 
 /* High contrast mode support */
-@media (prefers-contrast: high) {
+@media (prefers-contrast: more) {
     .odcm-rule-section {
         border-width: calc(var(--odcm-component-border-width) * 2);
     }

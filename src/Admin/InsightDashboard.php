@@ -122,12 +122,12 @@ class InsightDashboard
         
         // 3. Then add remaining submenu items
         add_submenu_page(
-            self::PAGE_SLUG,
-            __('admin.insight_dashboard.submenu.all_order_rules', 'order-daemon'),
-            __('admin.insight_dashboard.submenu.all_order_rules', 'order-daemon'),
-            'manage_woocommerce', 
-            'edit.php?post_type=odcm_order_rule',
-            null
+                self::PAGE_SLUG,
+                __('admin.insight_dashboard.submenu.all_order_rules', 'order-daemon'),
+                __('admin.insight_dashboard.submenu.all_order_rules', 'order-daemon'),
+                'manage_woocommerce',
+                'edit.php?post_type=odcm_order_rule',
+                null
         );
 
         // Add "Diagnostics" as third submenu item
@@ -271,7 +271,7 @@ class InsightDashboard
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('wp_rest'),
             'restNonce' => wp_create_nonce('wp_rest'),
-            'premium_access' => false,
+            'premium_access' => (bool) apply_filters('odcm_is_premium_user', false),
             'perPage' => $this->get_user_per_page_setting(),
             'autoRefreshInterval' => 5000, // 5 seconds
             'debug' => self::is_global_debug_active(),
@@ -1051,22 +1051,114 @@ class InsightDashboard
                      x-transition:leave-start="odcm-accordion-leave-start"
                      x-transition:leave-end="odcm-accordion-leave-end">
                     <div class="odcm-settings-section-inner">
-                        <!-- Export Logs (Pro Feature) -->
-                        <div class="odcm-setting-row odcm-premium-notice-small">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
-                            <p><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
-                            <a href="<?php echo esc_url(ODCM_PREMIUM_URL); ?>" class="button-secondary odcm-button-small" target="_blank">
-                                <?php echo esc_html__('admin.insight_dashboard.settings.upgrade_to_pro', 'order-daemon'); ?>
-                            </a>
-                        </div>
-                        <!-- Log Retention Policy (Fixed in Free) -->
-                        <div class="odcm-setting-row odcm-danger-section">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
-                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
-                            <a href="<?php echo esc_url(ODCM_PREMIUM_URL); ?>" class="button-secondary odcm-button-small" target="_blank">
-                                <?php echo esc_html__('admin.insight_dashboard.settings.upgrade_to_pro', 'order-daemon'); ?>
-                            </a>
-                        </div>
+                        <?php
+                        $is_premium = (bool) apply_filters('odcm_is_premium_user', false);
+                        $pro_plugin_active = defined('ODCM_PRO_VERSION');
+                        $pro_plugin_installed = file_exists(WP_PLUGIN_DIR . '/order-daemon-pro/order-daemon-pro.php');
+                        ?>
+                        
+                        <!-- Export Logs Feature -->
+                        <?php if (!$is_premium): ?>
+                            <div class="odcm-setting-row odcm-premium-notice-small">
+                                <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
+                                <p><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
+                                <?php if (!$pro_plugin_active): ?>
+                                    <?php if ($pro_plugin_installed): ?>
+                                        <a href="<?php echo esc_url(admin_url('plugins.php')); ?>" class="button-secondary odcm-button-small">
+                                            <?php echo esc_html__('admin.insight_dashboard.settings.activate_pro', 'order-daemon'); ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="<?php echo esc_url(ODCM_PREMIUM_URL); ?>" class="button-secondary odcm-button-small" target="_blank">
+                                            <?php echo esc_html__('admin.insight_dashboard.settings.upgrade_to_pro', 'order-daemon'); ?>
+                                        </a>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <a href="<?php echo esc_url(admin_url('admin.php?page=odcm-license')); ?>" class="button-secondary odcm-button-small">
+                                        <?php echo esc_html__('admin.insight_dashboard.settings.activate_license', 'order-daemon'); ?>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        <?php else: ?>
+                            <!-- Premium Export Logs Feature - Active -->
+                            <div class="odcm-setting-row">
+                                <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
+                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
+                                <div class="odcm-export-controls">
+                                    <button type="button" 
+                                            class="button"
+                                            @click="exportLogs('csv')"
+                                            :disabled="isExporting && exportFormat === 'csv'">
+                                        <span class="dashicons dashicons-download"></span>
+                                        <span x-text="isExporting && exportFormat === 'csv' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.exporting', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.settings.export_csv', 'order-daemon')); ?>'"></span>
+                                    </button>
+                                    <button type="button" 
+                                            class="button"
+                                            @click="exportLogs('json')"
+                                            :disabled="isExporting && exportFormat === 'json'">
+                                        <span class="dashicons dashicons-download"></span>
+                                        <span x-text="isExporting && exportFormat === 'json' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.exporting', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.settings.export_json', 'order-daemon')); ?>'"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <!-- Log Retention Policy Feature -->
+                        <?php if (!$is_premium): ?>
+                            <div class="odcm-setting-row odcm-danger-section">
+                                <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
+                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
+                                <?php if (!$pro_plugin_active): ?>
+                                    <?php if ($pro_plugin_installed): ?>
+                                        <a href="<?php echo esc_url(admin_url('plugins.php')); ?>" class="button-secondary odcm-button-small">
+                                            <?php echo esc_html__('admin.insight_dashboard.settings.activate_pro', 'order-daemon'); ?>
+                                        </a>
+                                    <?php else: ?>
+                                        <a href="<?php echo esc_url(ODCM_PREMIUM_URL); ?>" class="button-secondary odcm-button-small" target="_blank">
+                                            <?php echo esc_html__('admin.insight_dashboard.settings.upgrade_to_pro', 'order-daemon'); ?>
+                                        </a>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <a href="<?php echo esc_url(admin_url('admin.php?page=odcm-license')); ?>" class="button-secondary odcm-button-small">
+                                        <?php echo esc_html__('admin.insight_dashboard.settings.activate_license', 'order-daemon'); ?>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        <?php else: ?>
+                            <!-- Premium Log Retention Policy Feature - Active -->
+                            <div class="odcm-setting-row odcm-danger-section">
+                                <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
+                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
+                                <div class="odcm-retention-controls">
+                                    <div class="odcm-retention-setting">
+                                        <label for="retention-days"><?php echo esc_html__('admin.insight_dashboard.settings.retention_days.label', 'order-daemon'); ?></label>
+                                        <input type="number" 
+                                               id="retention-days"
+                                               x-model="retentionDays"
+                                               min="1" 
+                                               max="365" 
+                                               class="small-text"
+                                               @click.stop>
+                                        <span><?php echo esc_html__('admin.insight_dashboard.settings.retention_days.unit', 'order-daemon'); ?></span>
+                                        <button type="button" 
+                                                class="button button-small"
+                                                @click="updateRetentionPolicy()"
+                                                :disabled="isUpdatingRetention">
+                                            <span x-text="isUpdatingRetention ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.updating', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.settings.update_policy', 'order-daemon')); ?>'"></span>
+                                        </button>
+                                    </div>
+                                    <div class="odcm-cleanup-section">
+                                        <button type="button" 
+                                                class="button button-secondary odcm-danger-button"
+                                                @click="cleanupOldLogs()"
+                                                :disabled="isCleaningUp">
+                                            <span class="dashicons dashicons-trash"></span>
+                                            <span x-text="isCleaningUp ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.cleaning', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.settings.cleanup_now', 'order-daemon')); ?>'"></span>
+                                        </button>
+                                        <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.cleanup_description', 'order-daemon'); ?></p>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
