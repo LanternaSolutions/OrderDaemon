@@ -41,17 +41,21 @@ final class RuleBuilder
 
         // Optional backfill job registration (admin-only context)
         add_action('odcm_rebuild_rule_indexes_job', [\OrderDaemon\CompletionManager\Core\RuleComponents\RuleIndexBuilder::class, 'backfill_all']);
-        add_action('admin_init', static function() {
-            if (!get_option('odcm_indexes_built')) {
-                if (function_exists('as_schedule_single_action')) {
-                    // Schedule once, allow Action Scheduler to de-duplicate
-                    \as_schedule_single_action(time() + 10, 'odcm_rebuild_rule_indexes_job', [], 'odcm');
-                } else {
-                    // Fallback: run immediately if Action Scheduler is unavailable (dev env)
-                    \OrderDaemon\CompletionManager\Core\RuleComponents\RuleIndexBuilder::backfill_all();
+        
+        // Only schedule Action Scheduler jobs in web contexts (not CLI)
+        if (!(defined('WP_CLI') && WP_CLI) && !(defined('DOING_CRON') && DOING_CRON)) {
+            add_action('admin_init', static function() {
+                if (!get_option('odcm_indexes_built')) {
+                    if (function_exists('as_schedule_single_action')) {
+                        // Schedule once, allow Action Scheduler to de-duplicate
+                        \as_schedule_single_action(time() + 10, 'odcm_rebuild_rule_indexes_job', [], 'odcm');
+                    } else {
+                        // Fallback: run immediately if Action Scheduler is unavailable (dev env)
+                        \OrderDaemon\CompletionManager\Core\RuleComponents\RuleIndexBuilder::backfill_all();
+                    }
                 }
-            }
-        });
+            });
+        }
     }
     
     /**

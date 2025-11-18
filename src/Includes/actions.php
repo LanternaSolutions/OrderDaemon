@@ -1005,7 +1005,12 @@ function odcm_schedule_queue_cleanup(): void
         );
     }
 }
-add_action('init', 'odcm_schedule_queue_cleanup');
+
+// Only register the hook if NOT in CLI context to prevent Action Scheduler initialization issues
+if (!(defined('WP_CLI') && WP_CLI) && !(defined('DOING_CRON') && DOING_CRON)) {
+    // Use later hook priority to ensure Action Scheduler is fully initialized
+    add_action('init', 'odcm_schedule_queue_cleanup', 20);
+}
 
 /**
  * AJAX handler for updating the order of rules.

@@ -211,6 +211,45 @@ if (!defined('WPINC')) {
  */
 function odcm_can_use(string $feature_key): bool
 {
+    // CLI Development Bypass - Enable premium features for CLI testing
+    // This allows developers to test CLI features without licensing constraints
+    if ((defined('ODCM_CLI_DEV_BYPASS') && ODCM_CLI_DEV_BYPASS) && 
+        (defined('WP_CLI') && WP_CLI)) {
+        // Allow all premium features when in CLI dev bypass mode
+        if (in_array($feature_key, [
+            'config_management',
+            'unlimited_rules',
+            'trigger_on_hold',
+            'trigger_payment_complete',
+            'trigger_pending',
+            'trigger_failed',
+            'trigger_cancelled',
+            'trigger_refunded',
+            'trigger_completed',
+            'trigger_premium',
+            'action_custom_redirect',
+            'action_add_order_note',
+            'action_send_email',
+            'action_change_status_to_processing',
+            'action_change_status_to_on_hold',
+            'log_management_settings',
+            'audit_log_filter_advanced',
+            'audit_log_export',
+            'audit_log_retention_control',
+            'premium_features',
+            'condition_multi_category',
+            'condition_user_role',
+            'condition_payment_gateway',
+            'condition_shipping_method',
+            'condition_coupon_used',
+            'condition_product_type_advanced',
+            'condition_specific_products',
+            'condition_order_item_count'
+        ])) {
+            return true;
+        }
+    }
+    
     // Premium access is controlled entirely through the 'odcm_is_premium_user' filter.
     // The DevToolbar and real licensing systems hook into this filter to enable premium features.
     // Default: FREE mode (false) when no filter is applied.
