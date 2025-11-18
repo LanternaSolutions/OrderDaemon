@@ -26,47 +26,47 @@ class DashboardComponentRegistry
         // Note: Keep minimal to avoid unnecessary complexity. This can be extended later.
         return [
             'unified_header' => [
-                'label' => __('Unified Header', 'order-daemon'),
+                'label' => __('admin.insight_dashboard.unified_header', 'order-daemon'),
                 'css_class' => 'odcm-unified-header',
                 'priority' => 5,
             ],
             'filter_pane' => [
-                'label' => __('Filter Pane', 'order-daemon'),
+                'label' => __('admin.insight_dashboard.filter_pane', 'order-daemon'),
                 'css_class' => 'odcm-filter-pane',
                 'priority' => 10,
             ],
             'log_stream' => [
-                'label' => __('Log Stream', 'order-daemon'),
+                'label' => __('admin.insight_dashboard.stream.title', 'order-daemon'),
                 'css_class' => 'odcm-log-stream',
                 'priority' => 20,
             ],
             'detail_pane' => [
-                'label' => __('Detail Pane', 'order-daemon'),
+                'label' => __('admin.insight_dashboard.detail_pane', 'order-daemon'),
                 'css_class' => 'odcm-detail-pane',
                 'priority' => 30,
             ],
             'filters_tab' => [
-                'label' => __('Filters Tab', 'order-daemon'),
+                'label' => __('admin.insight_dashboard.filters_tab', 'order-daemon'),
                 'css_class' => 'odcm-filters-tab',
                 'priority' => 12,
             ],
             'settings_tab' => [
-                'label' => __('Settings Tab', 'order-daemon'),
+                'label' => __('admin.insight_dashboard.settings_tab', 'order-daemon'),
                 'css_class' => 'odcm-settings-tab',
                 'priority' => 13,
             ],
             'welcome_state' => [
-                'label' => __('Welcome State', 'order-daemon'),
+                'label' => __('admin.insight_dashboard.welcome_state', 'order-daemon'),
                 'css_class' => 'odcm-welcome-state',
                 'priority' => 1,
             ],
             'empty_state' => [
-                'label' => __('Empty State', 'order-daemon'),
+                'label' => __('admin.insight_dashboard.empty_state', 'order-daemon'),
                 'css_class' => 'odcm-empty-state',
                 'priority' => 1,
             ],
             'pagination' => [
-                'label' => __('Pagination', 'order-daemon'),
+                'label' => __('admin.insight_dashboard.pagination', 'order-daemon'),
                 'css_class' => 'odcm-pagination',
                 'priority' => 100,
             ],

@@ -304,7 +304,7 @@ function odcm_check_user_capability(string $capability='manage_woocommerce', str
 
     // Set default message if none provided
     if (empty($message)) {
-        $message = __('Permission denied.', 'order-daemon');
+        $message = __('security.permission_denied', 'order-daemon');
     }
 
     // Handle response based on context

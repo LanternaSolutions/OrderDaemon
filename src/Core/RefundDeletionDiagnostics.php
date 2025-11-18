@@ -703,7 +703,7 @@ final class RefundDeletionDiagnostics
                 $formatted_amount = $amount_val !== null ? (function_exists('wc_price') ? wc_price($amount_val, $currency !== '' ? ['currency' => $currency] : []) : number_format_i18n($amount_val, 2)) : '';
                 $percent = isset($context['impact']['refund_percentage']) && is_numeric($context['impact']['refund_percentage']) ? (int) round((float)$context['impact']['refund_percentage']) : 0;
                 odcm_log_event(
-                    sprintf('Order #%d partially refunded (%s - %d%%)', $order_id, $formatted_amount, $percent),
+                    sprintf('core.log.event.order_partially_refunded_message', $order_id, $formatted_amount, $percent),
                     $envelope,
                     $order_id,
                     $status,
@@ -813,7 +813,7 @@ final class RefundDeletionDiagnostics
                 $currency = ($order instanceof WC_Order) ? (string)$order->get_currency() : '';
                 $formatted_amount = $amount_val !== null ? (function_exists('wc_price') ? wc_price($amount_val, $currency !== '' ? ['currency' => $currency] : []) : number_format_i18n($amount_val, 2)) : '';
                 odcm_log_event(
-                    sprintf('Order #%d fully refunded (%s)', $order_id, $formatted_amount),
+                    sprintf('core.log.event.order_fully_refunded_message', $order_id, $formatted_amount),
                     $envelope,
                     $order_id,
                     $status,
@@ -1458,21 +1458,21 @@ final class RefundDeletionDiagnostics
     {
         switch ($event_type) {
             case 'order_partially_refunded':
-                return sprintf('Order #%d partially refunded (Refund #%d)', $order_id, $refund_id);
+                return sprintf('core.log.event.order_partially_refunded_simple', $order_id, $refund_id);
             case 'order_fully_refunded':
-                return sprintf('Order #%d fully refunded (Refund #%d)', $order_id, $refund_id);
+                return sprintf('core.log.event.order_fully_refunded_message', $order_id, $refund_id);
             case 'refund_created':
-                return sprintf('Refund #%d created for order #%d', $refund_id, $order_id);
+                return sprintf('core.log.event.refund_created_simple', $refund_id, $order_id);
             case 'refund_deleted':
-                return sprintf('Refund #%d deleted for order #%d', $refund_id, $order_id);
+                return sprintf('core.log.event.refund_deleted_message', $refund_id, $order_id);
             case 'order_deleted':
-                return sprintf('Order #%d deleted', $order_id);
+                return sprintf('core.log.event.order_deleted_simple', $order_id);
             case 'order_trashed':
-                return sprintf('Order #%d moved to trash', $order_id);
+                return sprintf('core.log.event.order_trashed_simple', $order_id);
             case 'order_restored':
-                return sprintf('Order #%d restored from trash', $order_id);
+                return sprintf('core.log.event.order_restored_simple', $order_id);
             default:
-                return sprintf('Order #%d refunded (Refund #%d)', $order_id, $refund_id);
+                return sprintf('core.log.event.order_refunded', $order_id, $refund_id);
         }
     }
 

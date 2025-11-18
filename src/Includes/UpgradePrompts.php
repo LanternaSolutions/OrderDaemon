@@ -145,10 +145,10 @@ final class UpgradePrompts
                 'close'        => __('upgrade_prompts.modal.close', 'order-daemon'),
                 'dontShow'     => __('upgrade_prompts.modal.dont_show_again', 'order-daemon'),
                 'preferences'  => __('upgrade_prompts.modal.preferences', 'order-daemon'),
-                'frequency'    => __('upgrade_prompts.modal.prompt_frequency', 'order-daemon'),
-                'freq_normal'  => __('upgrade_prompts.modal.freq_normal', 'order-daemon'),
-                'freq_reduced' => __('upgrade_prompts.modal.freq_reduced', 'order-daemon'),
-                'freq_off'     => __('upgrade_prompts.modal.freq_off', 'order-daemon'),
+                'frequency'    => __('admin.insight_dashboard.settings.prompt_frequency.label', 'order-daemon'),
+                'freq_normal'  => __('admin.insight_dashboard.settings.prompt_frequency.normal', 'order-daemon'),
+                'freq_reduced' => __('admin.insight_dashboard.settings.prompt_frequency.reduced', 'order-daemon'),
+                'freq_off'     => __('admin.insight_dashboard.settings.prompt_frequency.off', 'order-daemon'),
                 'saved'        => __('upgrade_prompts.modal.saved', 'order-daemon'),
             ],
         ]);
@@ -295,8 +295,8 @@ final class UpgradePrompts
         $ok = update_user_meta($user_id, self::USER_META_KEY, $prefs);
 
         if ($ok) {
-            wp_send_json_success(['message' => __('upgrade_prompts.ajax.dismissed', 'order-daemon')]);
+            wp_send_json_success(['message' => __('', 'order-daemon')]);
         }
-        wp_send_json_error(['message' => __('upgrade_prompts.ajax.failed_to_update', 'order-daemon')]);
+        wp_send_json_error(['message' => __('upgrade_prompts.ajax.ate', 'order-daemon')]);
     }
 }

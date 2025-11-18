@@ -157,8 +157,8 @@ if (!function_exists('odcm_render_action_settings')) {
  */
 $registry->register_trigger([
     'id'              => 'order_processing',
-    'label'           => __('core.options.trigger.order_processing.label', 'order-daemon'),
-    'description'     => __('core.options.trigger.order_processing.description', 'order-daemon'),
+    'label'           => __('rule_component.trigger.order_processing.label', 'order-daemon'),
+    'description'     => __('rule_component.trigger.order_processing.description', 'order-daemon'),
     'capability'      => 'trigger_basic', // FREE: Core functionality
     'tier'            => 'free',
     'section'         => 'primary', // Primary trigger section
@@ -221,8 +221,8 @@ $registry->register_trigger([
  */
 $registry->register_condition([
     'id'              => 'product_type',
-    'label'           => __('core.options.condition.product_type.label', 'order-daemon'),
-    'description'     => __('core.options.condition.product_type.description', 'order-daemon'),
+    'label'           => __('rule_component.condition.product_type.label', 'order-daemon'),
+    'description'     => __('rule_component.condition.product_type.description', 'order-daemon'),
     'capability'      => 'condition_product_type', // FREE: Essential for digital products
     'tier'            => 'free',
     'section'         => 'primary', // Primary condition section
@@ -242,8 +242,8 @@ $registry->register_condition([
  */
 $registry->register_condition([
     'id'              => 'product_category',
-    'label'           => __('core.options.condition.product_category.label', 'order-daemon'),
-    'description'     => __('core.options.condition.product_category.description', 'order-daemon'),
+    'label'           => __('rule_component.condition.product_category.label', 'order-daemon'),
+    'description'     => __('rule_component.condition.product_category.description', 'order-daemon'),
     'capability'      => 'condition_single_category', // FREEMIUM: Single category free, multi premium
     'tier'            => 'free',
     'section'         => 'primary', // Primary condition section
@@ -262,8 +262,8 @@ $registry->register_condition([
  */
 $registry->register_condition([
     'id'              => 'order_total',
-    'label'           => __('core.options.condition.order_total.label', 'order-daemon'),
-    'description'     => __('core.options.condition.order_total.description', 'order-daemon'),
+    'label'           => __('rule_component.condition.order_total.label', 'order-daemon'),
+    'description'     => __('rule_component.condition.order_total.description', 'order-daemon'),
     'capability'      => 'condition_order_total', // FREE: Basic value-based automation
     'tier'            => 'free',
     'section'         => 'addon', // Add-on condition section (moved from primary as requested)
@@ -328,8 +328,8 @@ $registry->register_condition([
  */
 $registry->register_action([
     'id'              => 'change_status_to_completed',
-    'label'           => __('core.options.action.complete_order.label', 'order-daemon'),
-    'description'     => __('core.options.action.complete_order.description', 'order-daemon'),
+    'label'           => __('rule_component.action.complete_order.label', 'order-daemon'),
+    'description'     => __('rule_component.action.complete_order.description', 'order-daemon'),
     'capability'      => 'action_basic', // FREE: Core plugin functionality
     'tier'            => 'free',
     'section'         => 'primary', // Primary action section

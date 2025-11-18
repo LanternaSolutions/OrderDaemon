@@ -293,7 +293,7 @@ class InsightDashboard
             'close' => __('admin.insight_dashboard.close', 'order-daemon'),
             'refresh' => __('admin.insight_dashboard.refresh', 'order-daemon'),
             'newLogsAvailable' => __('admin.insight_dashboard.new_logs_available', 'order-daemon'),
-            'includeDebug' => __('admin.insight_dashboard.include_debug_logs', 'order-daemon'),
+            'includeDebug' => __('admin.insight_dashboard.filters.include_debug_logs', 'order-daemon'),
             'timeOnly' => __('admin.insight_dashboard.timestamp.time_only', 'order-daemon'),
             'dateAndTime' => __('admin.insight_dashboard.timestamp.date_and_time', 'order-daemon'),
             'relativeTime' => __('admin.insight_dashboard.timestamp.relative_time', 'order-daemon'),
@@ -378,12 +378,12 @@ class InsightDashboard
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
-            wp_die(esc_html__('admin.insight_dashboard.ajax.security_check_failed', 'order-daemon'));
+            wp_die(esc_html__('upgrade_prompts.ajax.security_check_failed', 'order-daemon'));
         }
 
         // Check user capabilities
         if (!current_user_can('manage_woocommerce')) {
-            wp_send_json_error(__('admin.insight_dashboard.ajax.insufficient_permissions', 'order-daemon'));
+            wp_send_json_error(__('admin.insight_dashboard.permission.insufficient_permissions', 'order-daemon'));
         }
 
         // Check if user has access to insight dashboard (defensive check)
@@ -587,7 +587,7 @@ class InsightDashboard
                                 class="odcm-pane-icon-button"
                                 @click="showFiltersPane()"
                                 :aria-pressed="activeFilterTab === 'filters' && filterPaneVisible"
-                                title="<?php echo esc_attr__('admin.insight_dashboard.filters.title', 'order-daemon'); ?>">
+                                title="<?php echo esc_attr__('admin.insight_dashboard.filters', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-search"></span>
                         </button>
                         
@@ -719,10 +719,10 @@ class InsightDashboard
                                 x-model="filters.status"
                                 :disabled="!canUsePremiumFilters">
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.status.all', 'order-daemon'); ?></option>
-                            <option value="success"><?php echo esc_html__('admin.insight_dashboard.filters.status.success', 'order-daemon'); ?></option>
-                            <option value="error"><?php echo esc_html__('admin.insight_dashboard.filters.status.error', 'order-daemon'); ?></option>
-                            <option value="warning"><?php echo esc_html__('admin.insight_dashboard.filters.status.warning', 'order-daemon'); ?></option>
-                            <option value="info"><?php echo esc_html__('admin.insight_dashboard.filters.status.info', 'order-daemon'); ?></option>
+                            <option value="success"><?php echo esc_html__('status.success', 'order-daemon'); ?></option>
+                            <option value="error"><?php echo esc_html__('status.error', 'order-daemon'); ?></option>
+                            <option value="warning"><?php echo esc_html__('status.warning', 'order-daemon'); ?></option>
+                            <option value="info"><?php echo esc_html__('status.info', 'order-daemon'); ?></option>
                         </select>
                     </div>
 
@@ -733,7 +733,7 @@ class InsightDashboard
                                 x-model="filters.event_type"
                                 :disabled="!canUsePremiumFilters">
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.event_type.all', 'order-daemon'); ?></option>
-                            <option value="rule_check"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.rule_check', 'order-daemon'); ?></option>
+                            <option value="rule_check"><?php echo esc_html__('', 'order-daemon'); ?></option>
                             <option value="order_completion"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.order_completion', 'order-daemon'); ?></option>
                             <option value="manual_trigger"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.manual_trigger', 'order-daemon'); ?></option>
                             <option value="scheduled_task"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.scheduled_task', 'order-daemon'); ?></option>
@@ -909,7 +909,7 @@ class InsightDashboard
                                     @click="reprocessPendingOrders()"
                                     :disabled="isReprocessing">
                                 <span class="dashicons dashicons-update" :class="{ 'is-spinning': isReprocessing }"></span>
-                                <span class="odcm-button-text" x-text="isReprocessing ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.ajax.reprocess_pending_orders', 'order-daemon')); ?>'"></span>
+                                <span class="odcm-button-text" x-text="isReprocessing ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.settings.reprocess_orders.label', 'order-daemon')); ?>'"></span>
                             </button>
                         </div>
                     </div>
@@ -1179,7 +1179,7 @@ class InsightDashboard
 
         // Verify nonce
         if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
-            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.security_check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
         }
 
         // Get and validate input
@@ -1217,7 +1217,7 @@ class InsightDashboard
 
         // Verify nonce
         if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
-            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.security_check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
         }
 
         // Get and validate input - only process the setting that was sent
@@ -1366,7 +1366,7 @@ class InsightDashboard
 
         // Verify nonce
         if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
-            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.security_check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
         }
 
         try {
@@ -1477,7 +1477,7 @@ class InsightDashboard
                                     <?php echo esc_html__('admin.insight_dashboard.welcome.actions.create_first_rule', 'order-daemon'); ?>
                                 </a>
                                 <a href="https://orderdaemon.com/docs" target="_blank" class="button button-secondary odcm-docs-link">
-                                    <?php echo esc_html__('admin.insight_dashboard.welcome.actions.view_documentation', 'order-daemon'); ?>
+                                    <?php echo esc_html__('admin.insight_dashboard.docs.view_documentation', 'order-daemon'); ?>
                                 </a>
                             </div>
 

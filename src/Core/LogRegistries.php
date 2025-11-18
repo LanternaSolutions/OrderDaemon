@@ -1024,61 +1024,61 @@ function odcm_get_log_statuses(): array
 {
     return [
         'success' => [
-            'label'     => __('core.log.status.success', 'order-daemon'),
+            'label'     => __('status.success', 'order-daemon'),
             'css_class' => 'odcm-status-pill--success',
             'code'      => 1,
         ],
         
         'error' => [
-            'label'     => __('core.log.status.error', 'order-daemon'),
+            'label'     => __('status.error', 'order-daemon'),
             'css_class' => 'odcm-status-pill--error',
             'code'      => 2,
         ],
         
         'warning' => [
-            'label'     => __('core.log.status.warning', 'order-daemon'),
+            'label'     => __('status.warning', 'order-daemon'),
             'css_class' => 'odcm-status-pill--warning',
             'code'      => 3,
         ],
         
         'info' => [
-            'label'     => __('core.log.status.info', 'order-daemon'),
+            'label'     => __('status.info', 'order-daemon'),
             'css_class' => 'odcm-status-pill--info',
             'code'      => 4,
         ],
         
         'notice' => [
-            'label'     => __('core.log.status.notice', 'order-daemon'),
+            'label'     => __('status.notice', 'order-daemon'),
             'css_class' => 'odcm-status-pill--notice',
             'code'      => 5,
         ],
         
         'debug' => [
-            'label'     => __('core.log.status.debug', 'order-daemon'),
+            'label'     => __('status.debug', 'order-daemon'),
             'css_class' => 'odcm-status-pill--debug',
             'code'      => 6,
         ],
         
         'critical' => [
-            'label'     => __('core.log.status.critical', 'order-daemon'),
+            'label'     => __('status.critical', 'order-daemon'),
             'css_class' => 'odcm-status-pill--critical',
             'code'      => 7,
         ],
         
         'pending' => [
-            'label'     => __('core.log.status.pending', 'order-daemon'),
+            'label'     => __('status.pending', 'order-daemon'),
             'css_class' => 'odcm-status-pill--notice',
             'code'      => 8,
         ],
         
         'skipped' => [
-            'label'     => __('core.log.status.skipped', 'order-daemon'),
+            'label'     => __('status.skipped', 'order-daemon'),
             'css_class' => 'odcm-status-pill--notice',
             'code'      => 9,
         ],
         
         'completed' => [
-            'label'     => __('core.log.status.completed', 'order-daemon'),
+            'label'     => __('status.completed', 'order-daemon'),
             'css_class' => 'odcm-status-pill--success',
             'code'      => 10,
         ],
@@ -1095,31 +1095,31 @@ function odcm_get_log_sources(): array
 {
     return [
         'system' => [
-            'label' => __('core.log.source.system', 'order-daemon'),
+            'label' => __('admin.insight_dashboard.filters.source.system', 'order-daemon'),
             'code'  => 1,
         ],
         'manual' => [
-            'label' => __('core.log.source.manual', 'order-daemon'), 
+            'label' => __('admin.insight_dashboard.filters.source.manual', 'order-daemon'),
             'code'  => 2,
         ],
         'webhook' => [
-            'label' => __('core.log.source.webhook', 'order-daemon'),
+            'label' => __('admin.insight_dashboard.filters.source.webhook', 'order-daemon'),
             'code'  => 3,
         ],
         'api' => [
-            'label' => __('core.log.source.api', 'order-daemon'),
+            'label' => __('admin.insight_dashboard.filters.source.api', 'order-daemon'),
             'code'  => 4,
         ],
         'scheduled' => [
-            'label' => __('core.log.source.scheduled', 'order-daemon'),
+            'label' => __('admin.insight_dashboard.filters.source.scheduled', 'order-daemon'),
             'code'  => 5,
         ],
         'processor' => [
-            'label' => __('core.log.source.event_processor', 'order-daemon'),
+            'label' => __('admin.insight_dashboard.filters.source.event_processor', 'order-daemon'),
             'code'  => 6,
         ],
         'logger' => [
-            'label' => __('core.log.source.logger', 'order-daemon'),
+            'label' => __('admin.insight_dashboard.filters.source.logger', 'order-daemon'),
             'code'  => 7,
         ],
     ];

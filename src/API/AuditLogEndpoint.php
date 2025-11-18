@@ -296,7 +296,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             if (empty($log_ids) || !is_array($log_ids)) {
                 return new WP_Error(
                     'odcm_invalid_log_ids',
-                    __('audit.logs.delete.error.invalid_log_ids_provided', 'order-daemon'),
+                    __('audit.logs.render.error.invalid_log_ids_provided', 'order-daemon'),
                     ['status' => 400]
                 );
             }
@@ -842,7 +842,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         try {
             $log_ids = $request->get_param('log_ids');
             if (!is_array($log_ids) || empty($log_ids)) {
-                return new WP_Error('odcm_invalid_log_ids', __('audit.logs.render.error.invalid_log_ids_provided', 'order-daemon'), ['status' => 400]);
+                return new WP_Error('odcm_invalid_log_ids', __('', 'order-daemon'), ['status' => 400]);
             }
             
             // Normalize IDs (absint, unique, cap to 50)

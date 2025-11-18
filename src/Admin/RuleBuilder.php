@@ -150,7 +150,7 @@ final class RuleBuilder
     {
         add_meta_box(
             'odcm-rule-builder',
-            __('admin.rule_builder.metabox_title', 'order-daemon'),
+            __('admin.rule_builder.header_title', 'order-daemon'),
             [$this, 'render_rule_builder'],
             'odcm_order_rule',
             'normal',

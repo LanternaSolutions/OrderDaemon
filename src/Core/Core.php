@@ -153,7 +153,7 @@ class Core
             // Add admin notice for debugging
             add_action('admin_notices', function() {
                 echo '<div class="error"><p>';
-                echo esc_html__('Error: Order rules post type not available. Please contact support.', 'order-daemon');
+                echo esc_html__('core.errors.post_type_not_available', 'order-daemon');
                 echo '</p></div>';
             });
             return;
@@ -339,8 +339,8 @@ class Core
         $message = sprintf(
         // translators: %d is the number of orders.
             _n(
-                '%d order has been scheduled for reprocessing.',
-                '%d orders have been scheduled for reprocessing.',
+                'admin.insight_dashboard.ajax.reprocess_success_singular',
+                'admin.insight_dashboard.ajax.reprocess_success_plural',
                 $count,
                 'order-daemon'
             ),

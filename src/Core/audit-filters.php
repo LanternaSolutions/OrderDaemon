@@ -72,7 +72,7 @@ function odcm_register_audit_filters(): void
      */
     $registry->register_filter([
         'id'              => 'basic_search',
-        'label'           => __('core.audit_filters.search.label', 'order-daemon'),
+        'label'           => __('admin.insight_dashboard.filters.search.label', 'order-daemon'),
         'tier'            => 'free',
         'capability'      => 'audit_log_basic_search',
         'render_callback' => 'odcm_render_basic_search_filter',
@@ -90,7 +90,7 @@ function odcm_register_audit_filters(): void
      */
     $registry->register_filter([
         'id'              => 'date_range',
-        'label'           => __('core.audit_filters.date_range.label', 'order-daemon'),
+        'label'           => __('admin.insight_dashboard.filters.date_range.label', 'order-daemon'),
         'tier'            => 'premium',
         'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_date_range_filter',
@@ -104,7 +104,7 @@ function odcm_register_audit_filters(): void
      */
     $registry->register_filter([
         'id'              => 'status',
-        'label'           => __('core.audit_filters.status.label', 'order-daemon'),
+        'label'           => __('admin.insight_dashboard.filters.status.label', 'order-daemon'),
         'tier'            => 'premium',
         'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_status_filter',
@@ -118,7 +118,7 @@ function odcm_register_audit_filters(): void
      */
     $registry->register_filter([
         'id'              => 'event_type',
-        'label'           => __('core.audit_filters.event_type.label', 'order-daemon'),
+        'label'           => __('admin.insight_dashboard.filters.event_type.label', 'order-daemon'),
         'tier'            => 'premium',
         'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_event_type_filter',
@@ -133,7 +133,7 @@ function odcm_register_audit_filters(): void
      */
     $registry->register_filter([
         'id'              => 'source',
-        'label'           => __('core.audit_filters.source.label', 'order-daemon'),
+        'label'           => __('admin.insight_dashboard.filters.source.label', 'order-daemon'),
         'tier'            => 'premium',
         'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_source_filter',
@@ -162,7 +162,7 @@ function odcm_render_basic_search_filter(array $filter, bool $has_permission, st
     echo 'name="s" ';
     echo 'id="odcm-search-input" ';
     echo 'value="' . esc_attr($current_value) . '" ';
-    echo 'placeholder="' . esc_attr__('core.audit_filters.search.placeholder', 'order-daemon') . '" ';
+    echo 'placeholder="' . esc_attr__('admin.insight_dashboard.filters.search.placeholder', 'order-daemon') . '" ';
     echo 'class="regular-text" ';
     
     if (!$has_permission) {
@@ -204,7 +204,7 @@ function odcm_render_date_range_filter(array $filter, bool $has_permission, stri
     
     echo '/>';
     
-    echo '<span class="odcm-date-separator">' . esc_html__('core.audit_filters.date_range.to', 'order-daemon') . '</span>';
+    echo '<span class="odcm-date-separator">' . esc_html__('admin.insight_dashboard.filters.date_range.to', 'order-daemon') . '</span>';
     
     // To date
     echo '<input type="date" ';
@@ -236,11 +236,11 @@ function odcm_render_date_range_filter(array $filter, bool $has_permission, stri
 function odcm_render_status_filter(array $filter, bool $has_permission, string $current_value): void
 {
     $statuses = [
-        ''        => __('core.audit_filters.status.all', 'order-daemon'),
-        'success' => __('core.audit_filters.status.success', 'order-daemon'),
-        'error'   => __('core.audit_filters.status.error', 'order-daemon'),
-        'warning' => __('core.audit_filters.status.warning', 'order-daemon'),
-        'info'    => __('core.audit_filters.status.info', 'order-daemon'),
+        ''        => __('admin.insight_dashboard.filters.status.all', 'order-daemon'),
+        'success' => __('status.success', 'order-daemon'),
+        'error'   => __('status.error', 'order-daemon'),
+        'warning' => __('status.warning', 'order-daemon'),
+        'info'    => __('status.info', 'order-daemon'),
     ];
     
     echo '<select name="status" id="odcm-status-filter" class="regular-text"';
@@ -274,13 +274,13 @@ function odcm_render_status_filter(array $filter, bool $has_permission, string $
 function odcm_render_event_type_filter(array $filter, bool $has_permission, string $current_value): void
 {
     $event_types = [
-        ''                    => __('core.audit_filters.event_type.all', 'order-daemon'),
-        'rule_check'          => __('core.audit_filters.event_type.rule_check', 'order-daemon'),
-        'order_completion'    => __('core.audit_filters.event_type.order_completion', 'order-daemon'),
-        'manual_trigger'      => __('core.audit_filters.event_type.manual_trigger', 'order-daemon'),
-        'scheduled_task'      => __('core.audit_filters.event_type.scheduled_task', 'order-daemon'),
-        'webhook_received'    => __('core.audit_filters.event_type.webhook_received', 'order-daemon'),
-        'error_occurred'      => __('core.audit_filters.event_type.error_occurred', 'order-daemon'),
+        ''                    => __('admin.insight_dashboard.filters.event_type.all', 'order-daemon'),
+        'rule_check'          => __('admin.insight_dashboard.filters.event_type.rule_check', 'order-daemon'),
+        'order_completion'    => __('admin.insight_dashboard.filters.event_type.order_completion', 'order-daemon'),
+        'manual_trigger'      => __('admin.insight_dashboard.filters.event_type.manual_trigger', 'order-daemon'),
+        'scheduled_task'      => __('admin.insight_dashboard.filters.event_type.scheduled_task', 'order-daemon'),
+        'webhook_received'    => __('admin.insight_dashboard.filters.event_type.webhook_received', 'order-daemon'),
+        'error_occurred'      => __('admin.insight_dashboard.filters.event_type.error_occurred', 'order-daemon'),
     ];
     
     echo '<select name="event_type" id="odcm-event-type-filter" class="regular-text"';
@@ -315,12 +315,12 @@ function odcm_render_event_type_filter(array $filter, bool $has_permission, stri
 function odcm_render_source_filter(array $filter, bool $has_permission, string $current_value): void
 {
     $sources = [
-        ''          => __('core.audit_filters.source.all', 'order-daemon'),
-        'manual'    => __('core.audit_filters.source.manual', 'order-daemon'),
-        'scheduled' => __('core.audit_filters.source.scheduled', 'order-daemon'),
-        'webhook'   => __('core.audit_filters.source.webhook', 'order-daemon'),
-        'api'       => __('core.audit_filters.source.api', 'order-daemon'),
-        'system'    => __('core.audit_filters.source.system', 'order-daemon'),
+        ''          => __('admin.insight_dashboard.filters.status.all', 'order-daemon'),
+        'manual'    => __('admin.insight_dashboard.filters.source.manual', 'order-daemon'),
+        'scheduled' => __('admin.insight_dashboard.filters.source.scheduled', 'order-daemon'),
+        'webhook'   => __('admin.insight_dashboard.filters.source.webhook', 'order-daemon'),
+        'api'       => __('admin.insight_dashboard.filters.source.api', 'order-daemon'),
+        'system'    => __('admin.insight_dashboard.filters.source.system', 'order-daemon'),
     ];
     
     echo '<select name="source" id="odcm-source-filter" class="regular-text"';

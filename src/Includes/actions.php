@@ -1020,7 +1020,7 @@ function odcm_update_rule_order_handler() {
     // Verify nonce for security
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'odcm_update_rule_order')) {
         wp_send_json_error([
-            'message' => __('actions.ajax.security_check_failed', 'order-daemon')
+            'message' => __('admin.ajax.security_check_failed', 'order-daemon')
         ]);
         return;
     }
@@ -1028,7 +1028,7 @@ function odcm_update_rule_order_handler() {
     // Check user permissions
     if (!current_user_can('manage_woocommerce')) {
         wp_send_json_error([
-            'message' => __('actions.ajax.no_action_permission', 'order-daemon')
+            'message' => __('security.no_action_permission', 'order-daemon')
         ]);
         return;
     }
@@ -1070,7 +1070,7 @@ function odcm_update_rule_order_handler() {
 
     // Send success response with updated priorities
     wp_send_json_success([
-        'message' => __('actions.ajax.rule_order_update_success', 'order-daemon'),
+        'message' => __('admin.ajax.rule_order_update_success', 'order-daemon'),
         'priority_map' => $priority_map
     ]);
 }

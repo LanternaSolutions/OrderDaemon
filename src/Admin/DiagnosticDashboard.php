@@ -113,7 +113,7 @@ class DiagnosticDashboard
                 <div class="odcm-health-status odcm-status-<?php echo esc_attr($health_status['overall']); ?>">
                     <h2><?php
                     /* translators: %s: The system health status (e.g., "healthy", "warning", "critical") */
-                    printf(esc_html__('admin.diagnostics.system_health_status', 'order-daemon'), esc_html(ucfirst($health_status['overall'])));
+                    printf(esc_html__('admin.diagnostics.system_health_status', 'order-daemon'), esc_html__("admin.diagnostics.status.{$health_status['overall']}", 'order-daemon'));
                     ?></h2>
                     <p>
                         <?php
@@ -151,16 +151,13 @@ class DiagnosticDashboard
                         if (empty($category_diagnostics)) continue;
                     ?>
                     <div class="odcm-category-section">
-                        <h3><?php
-                        /* translators: %s: The diagnostic category name (e.g., "Core", "API", "Performance") */
-                        printf(esc_html__('admin.diagnostics.category.section_title', 'order-daemon'), esc_html(ucfirst($category)));
-                        ?></h3>
+                        <h3><?php echo esc_html__("admin.diagnostics.category.{$category}", 'order-daemon'); ?></h3>
                         
                         <div class="odcm-category-actions">
                             <button type="button" class="button run-category" data-category="<?php echo esc_attr($category); ?>">
                                 <?php
                                 /* translators: %s: The diagnostic category name (e.g., "Core", "API", "Performance") */
-                                printf(esc_html__('admin.diagnostics.action.run_category_tests', 'order-daemon'), esc_html(ucfirst($category)));
+                                printf(esc_html__('admin.diagnostics.action.run_category_tests', 'order-daemon'), esc_html__("admin.diagnostics.category.{$category}", 'order-daemon'));
                                 ?>
                             </button>
                         </div>
@@ -275,7 +272,7 @@ class DiagnosticDashboard
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'odcm_diagnostics')) {
-            wp_send_json_error(['message' => __('security.check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
         }
 
         // Check user capability
@@ -319,7 +316,7 @@ class DiagnosticDashboard
     {
         // Verify nonce
         if (!wp_verify_nonce($_POST['nonce'] ?? '', 'odcm_diagnostics')) {
-            wp_send_json_error(['message' => __('security.check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
         }
 
         // Check user capability
@@ -399,7 +396,7 @@ class DiagnosticDashboard
                     <h5><?php
                     /* translators: 1: Category name, 2: Number passed, 3: Total number */
                     printf(esc_html__('admin.diagnostics.results.category_status', 'order-daemon'),
-                           esc_html(ucfirst($category_name)),
+                           esc_html__("admin.diagnostics.category.{$category_name}", 'order-daemon'),
                            esc_html($category_data['passed']),
                            esc_html($category_data['total']));
                     ?></h5>
@@ -409,7 +406,7 @@ class DiagnosticDashboard
                         <div class="odcm-test-header">
                             <span class="odcm-test-name"><?php echo esc_html($test_result['name']); ?></span>
                             <span class="odcm-test-status-badge odcm-badge-<?php echo esc_attr($test_result['status']); ?>">
-                                <?php echo esc_html(ucfirst($test_result['status'])); ?>
+                                <?php echo esc_html__("admin.diagnostics.result.{$test_result['status']}", 'order-daemon'); ?>
                             </span>
                         </div>
                         
@@ -447,7 +444,7 @@ class DiagnosticDashboard
                 <ul>
                     <?php foreach ($report['recommendations'] as $rec): ?>
                     <li>
-                        <strong><?php echo esc_html(ucfirst($rec['category'])); ?>:</strong> 
+                        <strong><?php echo esc_html__("admin.diagnostics.category.{$rec['category']}", 'order-daemon'); ?>:</strong> 
                         <?php echo esc_html($rec['recommendation']); ?>
                     </li>
                     <?php endforeach; ?>

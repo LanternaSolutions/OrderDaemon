@@ -118,22 +118,22 @@ final class DependencyChecker
 
         $messages = [
             'insight_filters' => [
-                /* 1 */ __('This feature is available in the premium version.', 'order-daemon'),
-                /* 2 */ __('Learn more about advanced filtering options in the documentation.', 'order-daemon'),
-                /* 3 */ __('Visit our website for more information.', 'order-daemon'),
-                /* 4 */ __('Upgrade to unlock additional capabilities.', 'order-daemon'),
+                /* 1 */ __('admin.dependency_checker.premium_feature_notice', 'order-daemon'),
+                /* 2 */ __('admin.dependency_checker.learn_more.advanced_filtering', 'order-daemon'),
+                /* 3 */ __('admin.dependency_checker.website_link_text', 'order-daemon'),
+                /* 4 */ __('admin.dependency_checker.upgrade_notice', 'order-daemon'),
             ],
             'rule_builder' => [
-                __('This feature is available in the premium version.', 'order-daemon'),
-                __('Learn more about advanced rule components in the documentation.', 'order-daemon'),
-                __('Visit our website for more information.', 'order-daemon'),
-                __('Upgrade to unlock additional capabilities.', 'order-daemon'),
+                __('admin.dependency_checker.premium_feature_notice', 'order-daemon'),
+                __('admin.dependency_checker.learn_more.rule_components', 'order-daemon'),
+                __('admin.dependency_checker.website_link_text', 'order-daemon'),
+                __('admin.dependency_checker.upgrade_notice', 'order-daemon'),
             ],
             'default' => [
-                __('This feature is available in the premium version.', 'order-daemon'),
-                __('Learn more about available options in the documentation.', 'order-daemon'),
-                __('Visit our website for more information.', 'order-daemon'),
-                __('Upgrade to unlock additional capabilities.', 'order-daemon'),
+                __('admin.dependency_checker.premium_feature_notice', 'order-daemon'),
+                __('admin.dependency_checker.learn_more.available_options', 'order-daemon'),
+                __('admin.dependency_checker.website_link_text', 'order-daemon'),
+                __('admin.dependency_checker.upgrade_notice', 'order-daemon'),
             ],
         ];
 

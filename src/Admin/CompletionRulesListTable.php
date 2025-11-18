@@ -93,7 +93,7 @@ class CompletionRulesListTable extends \WP_List_Table
 
             // Verify the nonce
             if (!wp_verify_nonce($nonce, 'bulk-' . $this->_args['plural'])) {
-                wp_die(esc_html__('security.check_failed', 'order-daemon'));
+                wp_die(esc_html__('admin.ajax.security_check_failed', 'order-daemon'));
             }
 
             // Only allow users with manage_woocommerce capability

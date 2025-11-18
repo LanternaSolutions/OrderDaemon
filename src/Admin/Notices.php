@@ -100,7 +100,7 @@ final class Notices {
 
         // Use wp_verify_nonce instead of check_ajax_referer for better compatibility
         if (empty($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'odcm_dismiss_notice_nonce')) {
-            wp_send_json_error(['message' => __('security.check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
         }
 
         if (empty($_POST['notice_id'])) {
