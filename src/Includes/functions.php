@@ -218,6 +218,7 @@ function odcm_can_use(string $feature_key): bool
         // Allow all premium features when in CLI dev bypass mode
         if (in_array($feature_key, [
             'config_management',
+            'health_monitoring',
             'unlimited_rules',
             'trigger_on_hold',
             'trigger_payment_complete',
@@ -259,6 +260,7 @@ function odcm_can_use(string $feature_key): bool
     switch ($feature_key) {
         // --- PREMIUM TIER 1: Features requiring any premium license ---
         case 'unlimited_rules':
+        case 'health_monitoring':           // Health monitoring and optimization
         case 'trigger_on_hold':
         case 'trigger_payment_complete':
         case 'trigger_pending':
