@@ -92,6 +92,8 @@ class Admin
         // Handle AJAX request for updating rule order
         add_action('wp_ajax_odcm_update_rule_order', [$this, 'ajax_update_rule_order'], 10);
 
+
+
     }//end init()
 
     /**
@@ -388,7 +390,6 @@ class Admin
             'menu_position'      => null,
             'supports'           => [
                 'title',
-                'page-attributes',
             ],
             'show_in_rest'       => false,
         ];
@@ -503,27 +504,36 @@ class Admin
         // Check if user can use unlimited rules
         $can_use_unlimited_rules = odcm_can_use('unlimited_rules');
 
-        // For freemium users, set all other rules to draft when activating a rule
-        if (!$can_use_unlimited_rules && $post->post_status !== 'publish') {
-            // Get all published rules
-            $published_rules = get_posts(
-                [
+        // For freemium users, enforce priority 0 constraint for active rules
+        if (!$can_use_unlimited_rules) {
+            if ($post->post_status !== 'publish') {
+                // Activating a rule - ensure it gets priority 0 and deactivate others
+                
+                // First, set this rule to priority 0 (highest priority)
+                wp_update_post([
+                    'ID' => $post_id,
+                    'menu_order' => 0,
+                ]);
+
+                // Get all other published rules
+                $published_rules = get_posts([
                     'post_type'      => 'odcm_order_rule',
                     'post_status'    => 'publish',
                     'posts_per_page' => -1,
                     'fields'         => 'ids',
                     'exclude'        => [$post_id],
-                ]
-            );
+                ]);
 
-            // Set all other published rules to draft
-            foreach ($published_rules as $rule_id) {
-                wp_update_post(
-                    [
+                // Set all other published rules to draft
+                foreach ($published_rules as $rule_id) {
+                    wp_update_post([
                         'ID'          => $rule_id,
                         'post_status' => 'draft',
-                    ]
-                );
+                    ]);
+                }
+            } else {
+                // Deactivating the current rule - no additional action needed
+                // Free version users can deactivate their single rule
             }
         }//end if
 
@@ -606,6 +616,8 @@ class Admin
             'href'   => admin_url('post-new.php?post_type=odcm_order_rule'),
         ));
     }
+
+
 
 
 }//end class

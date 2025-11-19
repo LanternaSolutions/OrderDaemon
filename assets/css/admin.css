@@ -1419,3 +1419,26 @@ tr.odcm-log-details-row:hover > td {
     /* Let Prism.css handle token styling - we just ensure it's not overridden */
     background: inherit;
 }
+
+/* ========================================
+ * QUICK EDIT CUSTOMIZATIONS
+ * Hide unnecessary fields from quick edit interface for order rules
+ * ======================================== */
+
+/* Hide password/private fields in quick edit for order rules */
+.post-type-odcm_order_rule .inline-edit-group:has(.inline-edit-password-input),
+.post-type-odcm_order_rule .inline-edit-password-input,
+.post-type-odcm_order_rule .inline-edit-private {
+    display: none !important;
+}
+
+/* Alternative selector if :has() is not supported */
+.post-type-odcm_order_rule fieldset.inline-edit-col-left .inline-edit-group {
+    display: none !important;
+}
+
+/* Re-show the title field which might be hidden by above rule */
+.post-type-odcm_order_rule fieldset.inline-edit-col-left .inline-edit-group:not(:has(.inline-edit-password-input)):not(:has(.inline-edit-private)),
+.post-type-odcm_order_rule fieldset.inline-edit-col-left label:has(.ptitle) {
+    display: block !important;
+}

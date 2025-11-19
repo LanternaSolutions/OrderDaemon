@@ -1420,11 +1420,10 @@ class Core
     }
 
     /**
-     * Handle checkout order processed events - QUEUE-BASED IMPLEMENTATION
+     * Handle checkout order processed events - UNIFIED CHECKOUT PROCESSING
      *
      * CRITICAL: This method implements the "Never Break Revenue" philosophy.
-     * Collects rich checkout data and queues for async Universal Event creation.
-     * No immediate event creation to prevent duplicates.
+     * Uses the unified checkout handler to prevent duplicate Action Scheduler jobs.
      *
      * @param int $order_id The ID of the processed order
      * @param array $posted_data Posted checkout data
@@ -1440,28 +1439,8 @@ class Core
         }
 
         try {
-            // Check if block checkout already queued data for this order
-            $block_checkout_queued = get_post_meta($order_id, '_odcm_checkout_data_queued', true);
-            
-            if ($block_checkout_queued) {
-                // Block checkout already queued rich data - skip to avoid duplicates
-                $this->log_checkout_event_minimal($order_id, 'skipped_block_handled');
-                odcm_log_message("Skipping traditional checkout processing for order #{$order_id} - block checkout already queued data", 'info');
-                return;
-            }
-            
-            // Queue rich checkout data for traditional checkout (same as block checkout)
-            $this->queue_traditional_checkout_data($order, $posted_data);
-            
-            // Schedule for background processing - async flow will create the Universal Event
-            as_enqueue_async_action('odcm_process_checkout_completion', [
-                'order_id' => $order_id,
-                'checkout_type' => 'standard',
-                'scheduled_at' => current_time('c')
-            ], 'odcm-checkout-processing');
-            
-            // Minimal sync logging only - no heavy operations during checkout
-            $this->log_checkout_event_minimal($order_id, 'queued');
+            // UNIFIED: Use the centralized checkout processor to eliminate duplicates
+            $this->unified_checkout_processor($order_id, $order, 'traditional_checkout', $posted_data);
             
             // Record success for circuit breaker
             $this->record_checkout_success();
@@ -2033,6 +2012,221 @@ class Core
         } catch (\Throwable $e) {
             return false; // Default to allowing processing
         }
+    }
+
+    // ========================================================================
+    // UNIFIED CHECKOUT PROCESSING - ELIMINATES DUPLICATE JOBS
+    // ========================================================================
+
+    /**
+     * Unified checkout processor - CONSOLIDATES ALL CHECKOUT TYPES
+     *
+     * This method centralizes checkout processing from both block and traditional 
+     * checkout handlers to eliminate duplicate Action Scheduler jobs while preserving
+     * the rich data capture and exact payload schemas.
+     *
+     * @param int $order_id Order ID
+     * @param \WC_Order $order Order object
+     * @param string $source_context Source context (e.g., 'block_checkout', 'traditional_checkout')
+     * @param array $additional_data Additional context data (posted_data for traditional)
+     * @return void
+     */
+    private function unified_checkout_processor(int $order_id, \WC_Order $order, string $source_context, array $additional_data = []): void
+    {
+        // Check if we've already scheduled processing for this order
+        if (!$this->should_process_checkout_unified($order_id)) {
+            $this->log_checkout_event_minimal($order_id, 'skipped_already_scheduled');
+            odcm_log_message("Unified checkout processor skipped for order #{$order_id} - already scheduled", 'info');
+            return;
+        }
+        
+        try {
+            // Check for existing rich data from block checkout
+            $has_rich_data = get_post_meta($order_id, '_odcm_checkout_data_queued', true);
+            
+            if ($has_rich_data) {
+                // Block checkout already queued rich data - use it
+                odcm_log_message("Order #{$order_id} using existing rich block checkout data", 'info');
+            } else {
+                // Queue checkout data based on source context
+                if ($source_context === 'traditional_checkout') {
+                    $this->queue_traditional_checkout_data($order, $additional_data);
+                } else {
+                    // Fallback: ensure some basic data is queued
+                    $this->queue_basic_checkout_data($order);
+                }
+            }
+            
+            // SINGLE POINT OF ACTION SCHEDULER SCHEDULING
+            $this->schedule_unified_checkout_completion($order_id);
+            
+            // Minimal sync logging only - no heavy operations during checkout
+            $this->log_checkout_event_minimal($order_id, 'unified_scheduled');
+            
+        } catch (\Throwable $e) {
+            // Log error but continue - should not break checkout
+            $this->log_safe_error('unified_checkout_processor_failed', $e, [
+                'order_id' => $order_id,
+                'source_context' => $source_context
+            ]);
+        }
+    }
+
+    /**
+     * Check if unified checkout processing should proceed for this order
+     *
+     * Uses direct database queries for reliable Action Scheduler job detection
+     * The original as_get_scheduled_actions() search was unreliable and caused
+     * the complete order tracking failure.
+     *
+     * @param int $order_id Order ID
+     * @return bool True if processing should proceed, false if already scheduled
+     */
+    private function should_process_checkout_unified(int $order_id): bool
+    {
+        // Check for recent unified scheduling to prevent duplicates
+        $unified_key = "odcm_unified_checkout_scheduled_{$order_id}";
+        if (get_transient($unified_key)) {
+            odcm_log_message("Unified processor skipping order #{$order_id} - recent transient flag found", 'info');
+            return false;
+        }
+        
+        // Use direct database query for reliable job detection
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'actionscheduler_actions';
+        
+        // Use prepared statement for security
+        $sql = $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table_name} 
+             WHERE hook = %s 
+             AND status IN ('pending', 'in-progress')
+             AND hook_arguments LIKE %s",
+            'odcm_process_checkout_completion',
+            '%"order_id":' . intval($order_id) . '%'
+        );
+        
+        $existing_count = (int) $wpdb->get_var($sql);
+        
+        if ($existing_count > 0) {
+            odcm_log_message("Unified processor skipping order #{$order_id} - found {$existing_count} existing jobs via database query", 'info');
+            // Set transient for consistency but shorter time
+            set_transient($unified_key, 1, 60); // 1 minute
+            return false;
+        }
+        
+        // Additional verification: Get job details for logging
+        $details_sql = $wpdb->prepare(
+            "SELECT action_id, hook_arguments, status FROM {$table_name} 
+             WHERE hook = %s 
+             AND hook_arguments LIKE %s 
+             LIMIT 5",
+            'odcm_process_checkout_completion',
+            '%"order_id":' . intval($order_id) . '%'
+        );
+        
+        $job_details = $wpdb->get_results($details_sql);
+        
+        if (!empty($job_details)) {
+            odcm_log_message("Unified processor found " . count($job_details) . " jobs for order #{$order_id} via detailed query", 'info');
+            foreach ($job_details as $job) {
+                odcm_log_message("- Job ID {$job->action_id}: status={$job->status}, args=" . substr($job->hook_arguments, 0, 100) . "...", 'info');
+            }
+            set_transient($unified_key, 1, 60);
+            return false;
+        }
+        
+        // Set flag to prevent duplicate processing
+        set_transient($unified_key, 1, 300); // 5 minutes
+        odcm_log_message("Unified processor allowing order #{$order_id} - no existing jobs found via database query", 'info');
+        return true;
+    }
+
+    /**
+     * Schedule unified checkout completion processing
+     *
+     * @param int $order_id Order ID
+     * @return void
+     */
+    private function schedule_unified_checkout_completion(int $order_id): void
+    {
+        // Schedule for background processing with consistent arguments
+        as_enqueue_async_action('odcm_process_checkout_completion', [
+            'order_id' => $order_id,
+            'unified_processor' => true,
+            'scheduled_at' => current_time('c')
+        ], 'odcm-checkout-processing');
+        
+        odcm_log_message("Unified checkout completion scheduled for order #{$order_id}", 'info');
+    }
+
+    /**
+     * Queue basic checkout data when no rich data is available
+     *
+     * @param \WC_Order $order WooCommerce order object
+     * @return void
+     */
+    private function queue_basic_checkout_data(\WC_Order $order): void
+    {
+        global $wpdb;
+        
+        $order_id = $order->get_id();
+        $checkout_timestamp = (float) $order->get_date_created()->getTimestamp();
+        
+        // Create minimal checkout context
+        $basic_context = [
+            'cart_analysis' => ['total_items' => count($order->get_items())],
+            'payment_context' => [
+                'payment_method' => $order->get_payment_method(),
+                'payment_method_title' => $order->get_payment_method_title(),
+                'total_amount' => (float) $order->get_total(),
+                'currency' => $order->get_currency(),
+            ]
+        ];
+        
+        // Prepare queue data with basic context
+        $queue_data = [
+            'order_id' => $order_id,
+            'checkout_type' => 'basic', // Indicates minimal data
+            'checkout_timestamp' => $checkout_timestamp,
+            'checkout_context' => $basic_context,
+            'order_data' => [
+                'status' => $order->get_status(),
+                'total' => (float) $order->get_total(),
+                'currency' => $order->get_currency(),
+                'payment_method' => $order->get_payment_method(),
+                'payment_method_title' => $order->get_payment_method_title(),
+                'transaction_id' => $order->get_transaction_id(),
+                'customer_id' => $order->get_customer_id(),
+            ],
+            'source' => $this->determine_change_source(),
+            'queued_at' => current_time('c'),
+        ];
+        
+        // Generate unique queue ID
+        $queue_id = 'basic_checkout_' . $order_id . '_' . time() . '_' . wp_rand(1000, 9999);
+        
+        // Insert into queue table
+        $result = $wpdb->insert(
+            $wpdb->prefix . 'odcm_audit_log_queue',
+            [
+                'queue_id' => $queue_id,
+                'event_data' => wp_json_encode($queue_data),
+                'status' => 'pending',
+                'created_at' => current_time('mysql'),
+                'retry_count' => 0
+            ]
+        );
+        
+        if ($result === false) {
+            throw new \Exception('Failed to queue basic checkout data: ' . esc_html($wpdb->last_error));
+        }
+        
+        // Set marker to indicate this order has queued data
+        update_post_meta($order_id, '_odcm_checkout_queue_id', $queue_id);
+        update_post_meta($order_id, '_odcm_checkout_data_queued', '1');
+        
+        odcm_log_message("Basic checkout data queued with ID: {$queue_id} for order #{$order_id}", 'info');
     }
 
     // ========================================================================

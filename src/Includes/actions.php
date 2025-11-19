@@ -1058,8 +1058,8 @@ function odcm_update_rule_order_handler() {
     // Update the priority (menu_order) for each rule
     $priority_map = [];
     foreach ($rule_ids as $position => $rule_id) {
-        // Position is zero-based, but we want priority to start at 1
-        $priority = $position + 1;
+        // Use position directly for 0-based priorities (0, 1, 2, etc.)
+        $priority = $position;
         
         wp_update_post([
             'ID' => $rule_id,

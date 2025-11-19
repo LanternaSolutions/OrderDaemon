@@ -318,6 +318,7 @@
                 // Find the priority column and update its text
                 const $priorityCell = $(this).find('.column-priority');
                 if ($priorityCell.length) {
+                    // Use index directly for 0-based priorities (0, 1, 2, etc.)
                     $priorityCell.text(index);
                 }
             });
@@ -348,5 +349,7 @@
                 });
             }, 5000);
         }
+
+        // No quick edit functionality - using drag & drop only for priority management
     });
 })(jQuery);
