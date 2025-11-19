@@ -136,10 +136,9 @@ Yes! Order Daemon includes numerous hooks and filters for developers to extend f
 == Screenshots ==
 
 1. **Rule Builder Interface** - Create automation rules with an intuitive drag-and-drop interface
-2. **Insights Dashboard** - Monitor automation activity and performance in real-time
-3. **Audit Log Viewer** - Track every action with comprehensive logging and filtering
-4. **Rule Management** - Organize and manage multiple automation rules from a central location
-5. **Settings Panel** - Configure plugin options and performance settings
+2. **Insights Dashboard** - Monitor audit log automation activity and performance in real-time
+3. **Rule Management** - Organize and manage multiple automation rules from a central location
+4. **Settings Panel** - Configure plugin options and performance settings
 
 == Changelog ==
 
@@ -186,7 +185,6 @@ This plugin proudly uses the following open-source projects:
 
 *   **Prism.js** for syntax highlighting. See [https://prismjs.com/](https://prismjs.com/). Licensed under the MIT License.
 *   **Alpine.js** for interactive UI elements. See [https://alpinejs.dev/](https://alpinejs.dev/). Licensed under the MIT License.
-*   **Remix Icon** for a clean, beautiful icon set for our website. See [https://remixicon.com/](https://remixicon.com/). Licensed under the Apache License 2.0.
 
 == Support ==
 
