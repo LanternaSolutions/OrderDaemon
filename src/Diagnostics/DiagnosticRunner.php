@@ -25,6 +25,10 @@ class DiagnosticRunner
      */
     private const DIAGNOSTIC_CATEGORIES = [
         'Core' => [
+            'WpCliDiagnostic',
+            'WooCommerceIntegrationDiagnostic',
+            'EnvironmentDiagnostic',
+            'PluginStateDiagnostic',
             'CheckoutFlowDiagnostic'
         ],
         'API' => [
@@ -198,8 +202,8 @@ class DiagnosticRunner
     private function get_diagnostic_category(string $key): string
     {
         foreach (array_keys(self::DIAGNOSTIC_CATEGORIES) as $category) {
-            if (strpos($key, $category . '_') === 0) {
-                return $category;
+            if (strpos($key, strtolower($category) . '_') === 0) {
+                return strtolower($category);
             }
         }
         return 'unknown';
@@ -247,7 +251,7 @@ class DiagnosticRunner
             $report['categories'][$category]['total']++;
             $report['categories'][$category]['tests'][$key] = [
                 'name' => $result->getName(),
-                'status' => $result->isSuccessful() ? 'passed' : 'failed',
+                'status' => $result->isSuccessful() ? 'success' : 'error',
                 'message' => $result->getMessage(),
                 'details' => $result->getDetails(),
                 'recommendations' => $result->getRecommendations()
@@ -300,7 +304,7 @@ class DiagnosticRunner
             'woocommerce_active' => class_exists('WooCommerce'),
             'order_daemon_active' => class_exists('OrderDaemon\\CompletionManager\\Plugin'),
             'current_user_can_manage_woocommerce' => current_user_can('manage_woocommerce'),
-            'rest_api_enabled' => !(defined('XMLRPC_REQUEST') && XMLRPC_REQUEST)
+            'rest_api_enabled' => !defined('XMLRPC_REQUEST')
         ];
     }
 
@@ -321,7 +325,7 @@ class DiagnosticRunner
      */
     public function get_health_status(): array
     {
-        $critical_tests = ['core_environment', 'core_pluginstate', 'api_restapi', 'api_endpoint'];
+        $critical_tests = ['core_wpcli', 'core_woocommerceintegration', 'core_pluginstate', 'api_restapi'];
         $status = [
             'overall' => 'healthy',
             'issues' => 0,
@@ -345,5 +349,276 @@ class DiagnosticRunner
         }
 
         return $status;
+    }
+
+    /**
+     * Generate dual-audience diagnostic report for copy-paste sharing
+     *
+     * Creates a formatted report suitable for both store owners and support teams
+     * with anonymized sensitive data and clear action items.
+     *
+     * @return string Formatted diagnostic report
+     */
+    public function generate_dual_audience_report(): string
+    {
+        $results = $this->run_all_diagnostics();
+        
+        if (empty($results)) {
+            return __('admin.diagnostics.report.no_results', 'order-daemon');
+        }
+
+        $report = "=== " . __('admin.diagnostics.report.title', 'order-daemon') . " ===\n\n";
+        
+        // Header with timestamp and version
+        $report .= sprintf(
+            /* translators: %s: Current date and time */
+            __('admin.diagnostics.report.generated_timestamp', 'order-daemon'),
+            current_time('Y-m-d H:i T')
+        ) . "\n";
+        
+        $report .= sprintf(
+            /* translators: %s: Plugin version number */
+            __('admin.diagnostics.report.plugin_version', 'order-daemon'),
+            defined('ODCM_VERSION') ? ODCM_VERSION : 'unknown'
+        ) . "\n\n";
+
+        // System status overview with visual indicators
+        $critical_count = $this->count_critical_issues($results);
+        $warning_count = $this->count_warnings($results);
+        
+        if ($critical_count > 0) {
+            $report .= sprintf(
+                /* translators: %d: Number of critical issues found */
+                __('admin.diagnostics.report.system_status.critical', 'order-daemon'),
+                $critical_count
+            ) . "\n\n";
+        } elseif ($warning_count > 0) {
+            $report .= sprintf(
+                /* translators: %d: Number of warnings found */
+                __('admin.diagnostics.report.system_status.warning', 'order-daemon'),
+                $warning_count
+            ) . "\n\n";
+        } else {
+            $report .= __('admin.diagnostics.report.system_status.healthy', 'order-daemon') . "\n\n";
+        }
+
+        // Critical issues section (user-friendly explanations)
+        if ($critical_count > 0) {
+            $report .= __('admin.diagnostics.report.critical_issues.header', 'order-daemon') . "\n";
+            foreach ($this->get_critical_issues($results) as $issue) {
+                $report .= "❌ " . $issue['title'] . "\n";
+                $report .= "   " . sprintf(
+                    /* translators: %s: Impact description */
+                    __('admin.diagnostics.report.impact_label', 'order-daemon') . ": %s",
+                    $issue['explanation']
+                ) . "\n";
+                if (!empty($issue['recommendations'])) {
+                    $report .= "   " . sprintf(
+                        /* translators: %s: Recommended solution */
+                        __('admin.diagnostics.report.solution_label', 'order-daemon') . ": %s",
+                        implode(', ', $issue['recommendations'])
+                    ) . "\n";
+                }
+                $report .= "\n";
+            }
+        }
+
+        // System overview
+        $report .= __('admin.diagnostics.report.system_overview.header', 'order-daemon') . "\n";
+        $system_info = $this->get_system_info();
+        
+        $report .= sprintf(
+            /* translators: %s: WordPress version */
+            __('admin.diagnostics.report.system_info.wordpress', 'order-daemon'),
+            $system_info['wordpress_version']
+        ) . "\n";
+        
+        if ($system_info['woocommerce_active']) {
+            $wc_version = defined('WC_VERSION') ? constant('WC_VERSION') : 'unknown';
+            $report .= sprintf(
+                /* translators: %s: WooCommerce version */
+                __('admin.diagnostics.report.system_info.woocommerce', 'order-daemon'),
+                $wc_version
+            ) . "\n";
+        }
+        
+        $report .= sprintf(
+            /* translators: %s: PHP version */
+            __('admin.diagnostics.report.system_info.php_version', 'order-daemon'),
+            $system_info['php_version']
+        ) . "\n";
+        
+        $report .= sprintf(
+            /* translators: %s: Memory limit */
+            __('admin.diagnostics.report.system_info.memory_limit', 'order-daemon'),
+            ini_get('memory_limit')
+        ) . "\n";
+        
+        // WP-CLI status for Pro features
+        $wp_cli_status = $this->get_wp_cli_status($results);
+        $report .= sprintf(
+            /* translators: %s: WP-CLI status */
+            __('admin.diagnostics.report.system_info.wp_cli', 'order-daemon'),
+            $wp_cli_status
+        ) . "\n";
+        
+        $report .= sprintf(
+            /* translators: %s: Debug mode status */
+            __('admin.diagnostics.report.system_info.debug_mode', 'order-daemon'),
+            $system_info['debug_mode'] ? 
+                __('admin.diagnostics.status.enabled', 'order-daemon') : 
+                __('admin.diagnostics.status.disabled', 'order-daemon')
+        ) . "\n\n";
+
+        // Recommendations section
+        $recommendations = $this->get_all_recommendations($results);
+        if (!empty($recommendations)) {
+            $report .= __('admin.diagnostics.report.recommendations.header', 'order-daemon') . "\n";
+            foreach ($recommendations as $recommendation) {
+                $report .= "• " . $recommendation . "\n";
+            }
+            $report .= "\n";
+        }
+
+        // Technical details section (for support)
+        $report .= __('admin.diagnostics.report.technical_details.header', 'order-daemon') . "\n";
+        
+        foreach ($results as $key => $result) {
+            $status_icon = $result->isSuccessful() ? '✅' : '❌';
+            $report .= sprintf("%s %s: %s\n", $status_icon, $result->getName(), 
+                $result->isSuccessful() ? 
+                    __('admin.diagnostics.result.passed', 'order-daemon') : 
+                    __('admin.diagnostics.result.failed', 'order-daemon')
+            );
+            
+            if (!$result->isSuccessful()) {
+                $details = $result->getDetails();
+                if (!empty($details) && is_array($details)) {
+                    foreach ($details as $detail_key => $detail_value) {
+                        if (is_string($detail_value) || is_numeric($detail_value)) {
+                            $sanitized_value = $this->anonymize_sensitive_data($detail_value);
+                            $report .= "   {$detail_key}: {$sanitized_value}\n";
+                        }
+                    }
+                }
+            }
+        }
+
+        return $this->anonymize_sensitive_data($report);
+    }
+
+    /**
+     * Count critical issues in diagnostic results
+     *
+     * @param array $results Diagnostic results
+     * @return int Number of critical issues
+     */
+    private function count_critical_issues(array $results): int
+    {
+        $count = 0;
+        foreach ($results as $result) {
+            if (!$result->isSuccessful()) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
+     * Count warnings in diagnostic results
+     *
+     * @param array $results Diagnostic results
+     * @return int Number of warnings
+     */
+    private function count_warnings(array $results): int
+    {
+        $count = 0;
+        foreach ($results as $result) {
+            if ($result->isSuccessful() && !empty($result->getRecommendations())) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+
+    /**
+     * Get critical issues from diagnostic results
+     *
+     * @param array $results Diagnostic results
+     * @return array Critical issues
+     */
+    private function get_critical_issues(array $results): array
+    {
+        $issues = [];
+        foreach ($results as $result) {
+            if (!$result->isSuccessful()) {
+                $issues[] = [
+                    'title' => $result->getName(),
+                    'explanation' => $result->getMessage(),
+                    'recommendations' => $result->getRecommendations()
+                ];
+            }
+        }
+        return $issues;
+    }
+
+    /**
+     * Get all recommendations from diagnostic results
+     *
+     * @param array $results Diagnostic results
+     * @return array All recommendations
+     */
+    private function get_all_recommendations(array $results): array
+    {
+        $recommendations = [];
+        foreach ($results as $result) {
+            $recommendations = array_merge($recommendations, $result->getRecommendations());
+        }
+        return array_unique($recommendations);
+    }
+
+    /**
+     * Get WP-CLI status from diagnostic results
+     *
+     * @param array $results Diagnostic results
+     * @return string WP-CLI status description
+     */
+    private function get_wp_cli_status(array $results): string
+    {
+        if (isset($results['core_wpcli'])) {
+            $result = $results['core_wpcli'];
+            if ($result->isSuccessful()) {
+                $details = $result->getDetails();
+                return $details['wp_cli_version'] ?? __('admin.diagnostics.status.available', 'order-daemon');
+            } else {
+                return __('admin.diagnostics.status.not_available', 'order-daemon') . ' (' . 
+                       __('admin.diagnostics.status.required_for_pro', 'order-daemon') . ')';
+            }
+        }
+        return __('admin.diagnostics.status.not_available', 'order-daemon');
+    }
+
+    /**
+     * Anonymize sensitive data in the report
+     *
+     * @param string $content Report content
+     * @return string Anonymized content
+     */
+    private function anonymize_sensitive_data(string $content): string
+    {
+        // Anonymize domains and URLs
+        $content = preg_replace('/https?:\/\/[^\s\/]+/', 'https://[DOMAIN]', $content);
+        
+        // Anonymize file paths (keep structure but remove identifying parts)
+        $content = preg_replace('/\/home\/[^\/]+/', '/home/[USER]', $content);
+        $content = preg_replace('/\/wp-content\/[^\/]+/', '/wp-content/[SITE]', $content);
+        
+        // Anonymize email addresses
+        $content = preg_replace('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', '[EMAIL]', $content);
+        
+        // Anonymize API keys and tokens (preserve format but hide values)
+        $content = preg_replace('/[\'\"][a-zA-Z0-9_-]{20,}[\'\"]/', '"[API_KEY]"', $content);
+        
+        return $content;
     }
 }

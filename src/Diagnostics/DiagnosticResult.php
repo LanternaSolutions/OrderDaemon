@@ -186,11 +186,21 @@ class DiagnosticResult
      */
     public function getSeverity(): string
     {
+        // Check if this is explicitly marked as a warning (successful but with concerns)
+        if ($this->successful && $this->isWarning()) {
+            return 'warning';
+        }
+        
+        // Check if successful and has recommendations (also indicates warning)
+        if ($this->successful && !empty($this->recommendations)) {
+            return 'warning';
+        }
+        
         if ($this->successful) {
             return 'success';
         }
 
-        // Determine severity based on keywords in the message
+        // For failed tests, determine severity based on keywords in the message
         $message_lower = strtolower($this->message);
         
         if (strpos($message_lower, 'critical') !== false || 

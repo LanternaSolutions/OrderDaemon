@@ -159,6 +159,7 @@ class InsightDashboard
     {
         // Initialize and render the diagnostic dashboard
         $diagnostic_dashboard = new DiagnosticDashboard();
+        $diagnostic_dashboard->init();
         $diagnostic_dashboard->render_dashboard_page();
     }
 

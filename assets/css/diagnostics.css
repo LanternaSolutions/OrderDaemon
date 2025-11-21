@@ -1,9 +1,867 @@
-/**
+ /**
  * Order Daemon Diagnostics Dashboard Styles
  *
- * Provides styling for the diagnostic dashboard interface, including
- * layout, status indicators, buttons, and result displays.
+ * Provides styling for the unified diagnostic dashboard interface
+ * with hero section, status banner, and unified results container.
+ * Extends the ODCM Design System (odcm-design-system.css)
  */
+
+/* ==========================================================================
+   UNIFIED DIAGNOSTIC REPORT STYLES
+   ========================================================================== */
+
+/* Main Container */
+.odcm-diagnostics-unified {
+    max-width: 1200px;
+    margin: 0;
+    padding: var(--odcm-theme-spacing-lg, 16px);
+}
+
+/* ==========================================================================
+   HERO SECTION
+   ========================================================================== */
+
+.odcm-diagnostic-hero {
+    display: flex;
+    gap: var(--odcm-theme-spacing-xl, 24px);
+    padding: 32px var(--odcm-theme-spacing-lg, 16px);
+    background: var(--odcm-theme-white, #ffffff);
+    border: var(--odcm-component-border-width, 1px) solid var(--odcm-component-border-color, #dee2e6);
+    border-radius: var(--odcm-component-border-radius, 3px);
+    margin-bottom: var(--odcm-theme-spacing-lg, 16px);
+    align-items: flex-start;
+}
+
+.odcm-hero-left {
+    flex: 1;
+    text-align: center;
+    min-width: 0; /* Allows flex item to shrink below its content size */
+}
+
+.odcm-hero-right {
+    flex: 0 0 400px; /* Fixed width for right column */
+    min-width: 350px;
+}
+
+.odcm-diagnostic-hero h1 {
+    margin: 0 0 var(--odcm-theme-spacing-md, 12px) 0;
+    font-size: 2.5em;
+    font-weight: var(--odcm-theme-font-weight-str, 500);
+    color: var(--odcm-component-text-color-header, #2e1f27);
+}
+
+.odcm-hero-description {
+    font-size: 16px;
+    color: var(--odcm-component-text-color-body, #343a40);
+    margin: 0 0 var(--odcm-theme-spacing-lg, 16px) 0;
+    line-height: 1.6;
+}
+
+.button-hero {
+    font-size: 18px !important;
+    padding: 16px 32px !important;
+    height: auto !important;
+    min-width: 280px;
+    margin: var(--odcm-theme-spacing-lg, 16px) 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-sm, 8px);
+}
+
+.button-hero .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+}
+
+.odcm-hero-meta {
+    margin-top: var(--odcm-theme-spacing-md, 12px);
+    display: flex;
+    justify-content: center;
+    gap: var(--odcm-theme-spacing-lg, 16px);
+    font-size: var(--odcm-theme-font-size-sm, 12px);
+    color: var(--odcm-component-text-color-body, #343a40);
+}
+
+.odcm-hero-meta span {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs, 4px);
+}
+
+/* Hero Advanced Options */
+.odcm-hero-advanced-options {
+    padding: var(--odcm-theme-spacing-lg, 16px);
+    background: var(--odcm-theme-grey-100, #f8f9fa);
+    border: 1px solid var(--odcm-component-border-color, #dee2e6);
+    border-radius: var(--odcm-component-border-radius, 3px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.odcm-hero-advanced-options h3 {
+    margin: 0 0 var(--odcm-theme-spacing-md, 12px) 0;
+    font-size: var(--odcm-theme-font-size-lg, 18px);
+    font-weight: var(--odcm-theme-font-weight-str, 500);
+    color: var(--odcm-component-text-color-header, #2e1f27);
+    text-align: center;
+    border-bottom: 2px solid var(--odcm-component-border-color, #dee2e6);
+    padding-bottom: var(--odcm-theme-spacing-sm, 8px);
+}
+
+.odcm-hero-advanced-content {
+    /* No additional styles needed */
+}
+
+.odcm-hero-advanced-section {
+    margin-bottom: var(--odcm-theme-spacing-lg, 16px);
+}
+
+.odcm-hero-advanced-section:last-child {
+    margin-bottom: 0;
+}
+
+.odcm-hero-advanced-section h4 {
+    margin: 0 0 var(--odcm-theme-spacing-sm, 8px) 0;
+    font-size: var(--odcm-theme-font-size-md, 14px);
+    font-weight: var(--odcm-theme-font-weight-str, 500);
+    color: var(--odcm-component-text-color-header, #2e1f27);
+    text-align: left;
+}
+
+.odcm-hero-advanced-section .odcm-button-group {
+    justify-content: flex-start;
+    margin-bottom: var(--odcm-theme-spacing-sm, 8px);
+}
+
+.odcm-hero-advanced-section .odcm-button-group .button {
+    font-size: var(--odcm-theme-font-size-sm, 12px);
+    padding: 6px 12px;
+}
+
+.odcm-hero-advanced-section select {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: var(--odcm-theme-spacing-sm, 8px);
+    font-size: var(--odcm-theme-font-size-sm, 12px);
+}
+
+.odcm-hero-advanced-section #run-individual {
+    font-size: var(--odcm-theme-font-size-sm, 12px);
+    padding: 6px 12px;
+    width: 100%;
+}
+
+/* ==========================================================================
+   STATUS BANNER
+   ========================================================================== */
+
+.odcm-status-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--odcm-theme-spacing-md, 12px) var(--odcm-theme-spacing-lg, 16px);
+    margin-bottom: var(--odcm-theme-spacing-lg, 16px);
+    border-radius: var(--odcm-component-border-radius, 3px);
+    font-weight: var(--odcm-theme-font-weight-str, 500);
+    position: sticky;
+    top: 32px;
+    z-index: 100;
+}
+
+.odcm-status-banner--success {
+    background: var(--odcm-theme-green-200, #E7F9EB);
+    border: var(--odcm-component-border-width, 1px) solid var(--odcm-theme-green-700, #29A847);
+    color: var(--odcm-theme-grey-800, #343a40);
+}
+
+.odcm-status-banner--warning {
+    background: var(--odcm-theme-yellow-200, #FEFAEF);
+    border: var(--odcm-component-border-width, 1px) solid var(--odcm-theme-yellow-700, #F4C95D);
+    color: var(--odcm-theme-grey-800, #343a40);
+}
+
+.odcm-status-banner--error {
+    background: var(--odcm-theme-red-200, #FBEBED);
+    border: var(--odcm-component-border-width, 1px) solid var(--odcm-theme-red-700, #dc3545);
+    color: var(--odcm-theme-grey-800, #343a40);
+}
+
+.odcm-status-banner-left {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-sm, 8px);
+}
+
+.odcm-status-banner-center {
+    font-size: var(--odcm-theme-font-size-md, 14px);
+}
+
+.odcm-status-banner-right .button {
+    margin: 0;
+}
+
+.odcm-status-icon {
+    font-size: 20px;
+}
+
+/* ==========================================================================
+   LOADING STATE
+   ========================================================================== */
+
+.odcm-loading-state {
+    text-align: center;
+    padding: 32px;
+    background: var(--odcm-theme-white, #ffffff);
+    border: var(--odcm-component-border-width, 1px) solid var(--odcm-component-border-color, #dee2e6);
+    border-radius: var(--odcm-component-border-radius, 3px);
+    margin-bottom: var(--odcm-theme-spacing-lg, 16px);
+}
+
+.odcm-loading-hero h2 {
+    margin: 0 0 var(--odcm-theme-spacing-lg, 16px) 0;
+    font-size: 1.8em;
+    color: var(--odcm-component-text-color-header, #2e1f27);
+}
+
+.odcm-loading-progress {
+    margin-bottom: var(--odcm-theme-spacing-lg, 16px);
+}
+
+.odcm-progress-bar {
+    width: 100%;
+    max-width: 400px;
+    height: 12px;
+    background: var(--odcm-theme-grey-300, #dee2e6);
+    border-radius: 6px;
+    margin: 0 auto var(--odcm-theme-spacing-sm, 8px) auto;
+    overflow: hidden;
+}
+
+.odcm-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--odcm-theme-blue-700, #007cba), var(--odcm-theme-blue-400, #80bfe6));
+    border-radius: 6px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.odcm-progress-text {
+    font-size: var(--odcm-theme-font-size-md, 14px);
+    font-weight: var(--odcm-theme-font-weight-str, 500);
+    color: var(--odcm-component-text-color-header, #2e1f27);
+}
+
+.odcm-current-test {
+    font-size: var(--odcm-theme-font-size-md, 14px);
+    color: var(--odcm-component-text-color-body, #343a40);
+    margin: 0;
+    font-style: italic;
+}
+
+/* ==========================================================================
+   UNIFIED RESULTS CONTAINER
+   ========================================================================== */
+
+.odcm-unified-results {
+    border-radius: var(--odcm-component-border-radius);
+    margin-bottom: var(--odcm-theme-spacing-lg);
+    max-width: 100%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.odcm-results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--odcm-theme-spacing-lg);
+    border: 2px solid var(--odcm-component-border-color);
+}
+
+.odcm-results-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--odcm-component-text-color-header);
+    letter-spacing: -0.2px;
+}
+
+.odcm-results-timestamp {
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-600);
+    background: var(--odcm-theme-grey-100);
+    padding: 6px 12px;
+    border-radius: var(--odcm-component-border-radius);
+    border: 1px solid var(--odcm-theme-grey-300);
+}
+
+.odcm-results-content {
+}
+
+/* Category Sections - Enhanced Visual Hierarchy */
+.odcm-results-category {
+    margin-top: var(--odcm-theme-spacing-lg);
+}
+
+.odcm-category-title {
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--odcm-component-text-color-header);
+    background: var(--odcm-theme-grey-100);
+    border-left: 4px solid var(--odcm-theme-blue-700);
+    border-top: 4px solid var(--odcm-theme-blue-700);
+    border-radius: var(--odcm-component-border-radius);
+    padding: var(--odcm-theme-spacing-lg);
+    position: relative;
+}
+
+.odcm-category-title::before {
+    content: "📋";
+    margin-right: var(--odcm-theme-spacing-sm);
+    font-size: 14px;
+}
+
+/* Test Result Items - Enhanced Cards */
+.odcm-test-result {
+    background: var(--odcm-theme-white);
+    border: 1px solid var(--odcm-theme-grey-300);
+    border-radius: var(--odcm-component-border-radius);
+    margin-bottom: 16px;
+    transition: var(--odcm-component-transition);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    gap: var(--odcm-theme-spacing-lg);
+}
+
+.odcm-test-result-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0;
+    gap: var(--odcm-theme-spacing-md);
+    padding: var(--odcm-theme-spacing-lg);
+    background: var(--odcm-theme-grey-100);
+}
+
+.odcm-test-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.odcm-test-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--odcm-component-text-color-header);
+    margin: 0;
+    letter-spacing: -0.1px;
+}
+
+.odcm-test-message {
+    font-size: 15px;
+    color: var(--odcm-component-text-color-body);
+    margin: 0;
+    line-height: 1.6;
+    padding: var(--odcm-theme-spacing-lg);
+}
+
+.odcm-test-recommendations {
+    margin: 0;
+    padding: var(--odcm-theme-spacing-lg);
+    background: var(--odcm-theme-grey-100);
+}
+
+.odcm-test-recommendations strong {
+    font-size: 14px;
+    color: var(--odcm-component-text-color-header);
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--odcm-theme-spacing-sm);
+    padding-top: var(--odcm-theme-spacing-md);
+    font-weight: 600;
+}
+
+.odcm-test-recommendations strong::before {
+    content: "💡";
+    margin-right: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-test-recommendations ul {
+    margin: 0;
+    padding-left: 20px;
+    list-style-type: none;
+}
+
+.odcm-test-recommendations li {
+    font-size: 14px;
+    color: var(--odcm-component-text-color-body);
+    margin-bottom: 6px;
+    line-height: 1.5;
+    position: relative;
+}
+
+.odcm-test-recommendations li::before {
+    content: "→";
+    color: var(--odcm-theme-grey-500);
+    font-weight: bold;
+    position: absolute;
+    left: -16px;
+}
+
+.odcm-test-technical {
+    background: var(--odcm-theme-grey-100);
+    border-top: 1px solid var(--odcm-theme-grey-300);
+    border-bottom: 1px solid var(--odcm-theme-grey-300);
+    padding: var(--odcm-theme-spacing-lg);
+}
+
+.odcm-test-technical h6 {
+    margin: 0;
+    padding: var(--odcm-theme-spacing-md);
+    font-size: var(--odcm-theme-font-size-sm);
+    font-weight: 600;
+    color: var(--odcm-component-text-color-header);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--odcm-theme-grey-200);
+    border-bottom: 1px solid var(--odcm-theme-grey-300);
+}
+
+/* .language-bash*/
+
+.odcm-technical-info {
+    /*padding: var(--odcm-theme-spacing-md) var(--odcm-theme-spacing-lg);*/
+    margin: 0;
+    display: grid;
+    gap: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-detail-item {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: var(--odcm-theme-spacing-md);
+    align-items: center;
+    padding: 0;
+    min-height: 32px;
+}
+
+.odcm-detail-item:last-child {
+    border-bottom: none;
+}
+
+.odcm-detail-key {
+    font-weight: 600;
+    color: var(--odcm-component-text-color-header);
+    font-size: var(--odcm-theme-font-size-sm);
+    background: var(--odcm-theme-grey-200);
+    padding: 4px 8px;
+    border-radius: var(--odcm-component-border-radius);
+    text-align: right;
+}
+
+.odcm-detail-value {
+    color: var(--odcm-component-text-color-body);
+    font-size: var(--odcm-theme-font-size-sm);
+    font-family: 'Courier New', Monaco, monospace;
+    word-break: break-word;
+    line-height: 1.4;
+    padding: 4px 8px;
+    background: var(--odcm-theme-white);
+    border: 1px solid var(--odcm-theme-grey-300);
+    border-radius: var(--odcm-component-border-radius);
+}
+
+/* Responsive adjustments for technical details */
+@media (max-width: 600px) {
+    .odcm-detail-item {
+        grid-template-columns: 1fr;
+        gap: var(--odcm-theme-spacing-xs);
+    }
+    
+    .odcm-detail-key {
+        text-align: left;
+    }
+}
+
+/* Enhanced Test Result Variants with Better Visual Treatment */
+.odcm-test-result--success {
+    border-left: 5px solid var(--odcm-theme-green-700);
+    background: var(--odcm-theme-green-200);
+}
+
+.odcm-test-result--success .odcm-test-result-header {
+    background: var(--odcm-theme-green-300, #c3e6cb);
+}
+
+.odcm-test-result--success .odcm-test-icon {
+    color: var(--odcm-theme-green-700);
+}
+
+.odcm-test-result--warning {
+    border-left: 5px solid var(--odcm-theme-yellow-700);
+    background: var(--odcm-theme-yellow-200);
+}
+
+.odcm-test-result--warning .odcm-test-result-header {
+    background: var(--odcm-theme-yellow-400, #fff3cd);
+}
+
+.odcm-test-result--warning .odcm-test-icon {
+    color: var(--odcm-theme-yellow-700);
+}
+
+.odcm-test-result--error {
+    border-left: 5px solid var(--odcm-theme-red-700);
+    background: var(--odcm-theme-red-200);
+}
+
+.odcm-test-result--error .odcm-test-result-header {
+    background: var(--odcm-theme-red-400, #f8d7da);
+}
+
+.odcm-test-result--error .odcm-test-icon {
+    color: var(--odcm-theme-red-700);
+}
+
+/* ==========================================================================
+   ADVANCED OPTIONS
+   ========================================================================== */
+
+.odcm-advanced-options {
+    margin-top: var(--odcm-theme-spacing-lg);
+    padding: var(--odcm-theme-spacing-md);
+    background: var(--odcm-theme-grey-100);
+    border: 1px dashed var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+}
+
+.odcm-advanced-options summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--odcm-theme-grey-700);
+    user-select: none;
+    padding: var(--odcm-theme-spacing-sm);
+    margin: calc(-1 * var(--odcm-theme-spacing-sm));
+    border-radius: var(--odcm-component-border-radius);
+}
+
+.odcm-advanced-options summary:hover {
+    color: var(--odcm-theme-blue-700);
+    background: var(--odcm-theme-blue-200, #DEF4FF);
+}
+
+.odcm-advanced-options summary:focus {
+    outline: 2px solid var(--odcm-theme-blue-700);
+    outline-offset: 2px;
+}
+
+.odcm-advanced-content {
+    margin-top: var(--odcm-theme-spacing-md);
+    padding-top: var(--odcm-theme-spacing-md);
+    border-top: 1px solid var(--odcm-component-border-color);
+}
+
+.odcm-advanced-section {
+    margin-bottom: var(--odcm-theme-spacing-md);
+}
+
+.odcm-advanced-section:last-child {
+    margin-bottom: 0;
+}
+
+.odcm-advanced-section h4 {
+    margin: 0 0 var(--odcm-theme-spacing-sm) 0;
+    font-size: var(--odcm-theme-font-size-md);
+    font-weight: var(--odcm-theme-font-weight-str);
+    color: var(--odcm-component-text-color-header);
+}
+
+.odcm-button-group {
+    display: flex;
+    gap: var(--odcm-theme-spacing-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-button-group .button {
+    margin: 0;
+}
+
+/* Individual test selection */
+#individual-test-select {
+    margin-right: var(--odcm-theme-spacing-sm);
+    margin-bottom: var(--odcm-theme-spacing-sm);
+    min-width: 200px;
+}
+
+/* ==========================================================================
+   COPY-PASTE UX IMPROVEMENTS
+   ========================================================================== */
+
+/* Copy Report Button - Uses Design System */
+.odcm-copy-report-container {
+    margin: var(--odcm-theme-spacing-md) 0;
+    padding: var(--odcm-theme-spacing-md);
+    background: var(--odcm-component-bg);
+    border: var(--odcm-component-border-width) solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-md);
+}
+
+.odcm-copy-report-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+    padding: var(--odcm-theme-spacing-sm) var(--odcm-theme-spacing-md);
+    background: var(--odcm-theme-blue-700);
+    color: var(--odcm-theme-white);
+    border: none;
+    border-radius: var(--odcm-component-border-radius);
+    font-size: var(--odcm-theme-font-size-md);
+    font-weight: var(--odcm-theme-font-weight-str);
+    cursor: pointer;
+    transition: var(--odcm-component-transition);
+    text-decoration: none;
+}
+
+.odcm-copy-report-button:hover {
+    background: var(--odcm-theme-blue-400);
+    transform: translateY(-1px);
+}
+
+.odcm-copy-report-button:active {
+    transform: translateY(0);
+}
+
+.odcm-copy-report-button:focus {
+    outline: 2px solid var(--odcm-theme-blue-700);
+    outline-offset: 2px;
+}
+
+.odcm-copy-report-button .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.odcm-copy-report-button.odcm-copying {
+    background: var(--odcm-theme-yellow-700);
+    cursor: wait;
+}
+
+.odcm-copy-report-button.odcm-copied {
+    background: var(--odcm-theme-green-700);
+}
+
+.odcm-copy-report-description {
+    flex: 1;
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-component-text-color-body);
+    line-height: 1.4;
+}
+
+/* Visual Status Dashboard - Uses Design System */
+.odcm-status-dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--odcm-theme-spacing-lg);
+    margin-bottom: var(--odcm-theme-spacing-lg);
+}
+
+.odcm-status-card {
+    padding: var(--odcm-theme-spacing-lg);
+    background: var(--odcm-component-bg);
+    border: var(--odcm-component-border-width) solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-component-transition);
+}
+
+.odcm-status-card:hover {
+}
+
+.odcm-status-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--odcm-theme-spacing-md);
+}
+
+.odcm-status-card-title {
+    font-size: var(--odcm-theme-font-size-str);
+    font-weight: var(--odcm-theme-font-weight-str);
+    color: var(--odcm-component-text-color-header);
+    margin: 0;
+}
+
+.odcm-status-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+.odcm-status-icon--healthy {
+    color: var(--odcm-theme-green-700);
+}
+
+.odcm-status-icon--warning {
+    color: var(--odcm-theme-yellow-700);
+}
+
+.odcm-status-icon--critical {
+    color: var(--odcm-theme-red-700);
+}
+
+.odcm-status-card-body {
+    color: var(--odcm-component-text-color-body);
+    font-size: var(--odcm-theme-font-size-sm);
+    line-height: 1.4;
+}
+
+.odcm-status-card-body p {
+    margin: 0 0 var(--odcm-theme-spacing-xs) 0;
+}
+
+.odcm-status-card-body p:last-child {
+    margin-bottom: 0;
+}
+
+/* Status Card Variants */
+.odcm-status-card--healthy {
+    border-left: 4px solid var(--odcm-theme-green-700);
+    background: var(--odcm-theme-green-200);
+}
+
+.odcm-status-card--warning {
+    border-left: 4px solid var(--odcm-theme-yellow-700);
+    background: var(--odcm-theme-yellow-200);
+}
+
+.odcm-status-card--critical {
+    border-left: 4px solid var(--odcm-theme-red-700);
+    background: var(--odcm-theme-red-200);
+}
+
+/* Report Preview Area */
+.odcm-report-preview {
+    background: var(--odcm-theme-white);
+    border: var(--odcm-component-border-width) solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    padding: var(--odcm-theme-spacing-md);
+    margin: var(--odcm-theme-spacing-md) 0;
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Courier New', Monaco, monospace;
+    font-size: var(--odcm-theme-font-size-sm);
+    line-height: 1.4;
+    white-space: pre-wrap;
+    background-color: var(--odcm-theme-grey-100);
+}
+
+.odcm-report-preview:focus {
+    outline: 2px solid var(--odcm-theme-blue-700);
+    outline-offset: 2px;
+}
+
+/* Enhanced Diagnostic Items */
+.odcm-diagnostic-item-enhanced {
+    padding: var(--odcm-theme-spacing-md);
+    border-bottom: var(--odcm-component-border-width) solid var(--odcm-component-border-color);
+    transition: var(--odcm-component-transition);
+    background: var(--odcm-theme-white);
+}
+
+.odcm-diagnostic-item-enhanced:hover {
+    background: var(--odcm-theme-grey-100);
+}
+
+.odcm-diagnostic-item-enhanced:last-child {
+    border-bottom: none;
+}
+
+.odcm-diagnostic-item-header-enhanced {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-diagnostic-item-title {
+    font-size: var(--odcm-theme-font-size-str);
+    font-weight: var(--odcm-theme-font-weight-str);
+    color: var(--odcm-component-text-color-header);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-diagnostic-status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.odcm-diagnostic-status-indicator--success {
+    background: var(--odcm-theme-green-700);
+}
+
+.odcm-diagnostic-status-indicator--error {
+    background: var(--odcm-theme-red-700);
+}
+
+.odcm-diagnostic-status-indicator--warning {
+    background: var(--odcm-theme-yellow-700);
+}
+
+.odcm-diagnostic-status-indicator--pending {
+    background: var(--odcm-theme-grey-500);
+    animation: odcm-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes odcm-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Run Test Button Enhancement */
+.odcm-run-test-button {
+    padding: 4px 8px;
+    font-size: var(--odcm-theme-font-size-sm);
+    height: auto;
+    line-height: 1.4;
+    background: var(--odcm-theme-grey-600);
+    color: var(--odcm-theme-white);
+    border: none;
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-component-transition);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+    cursor: pointer;
+}
+
+.odcm-run-test-button:hover {
+    background: var(--odcm-theme-blue-700);
+    transform: translateY(-1px);
+}
+
+.odcm-run-test-button.odcm-running {
+    background: var(--odcm-theme-yellow-700);
+    cursor: wait;
+}
+
+.odcm-run-test-button .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
 
 /* ===== MAIN LAYOUT ===== */
 
@@ -270,6 +1128,42 @@
     margin-bottom: 5px;
 }
 
+.odcm-all-recommendations {
+    margin-bottom: 20px;
+    padding: 12px;
+    background: var(--odcm-theme-blue-200, #DEF4FF);
+    border: 1px solid var(--odcm-theme-blue-700, #007cba);
+    border-radius: 3px;
+}
+
+.odcm-all-recommendations h4 {
+    margin: 0 0 10px 0;
+    color: var(--odcm-theme-blue-700, #007cba);
+    font-size: 1em;
+}
+
+.odcm-all-recommendations h4::before {
+    content: "💡";
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.odcm-all-recommendations ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.odcm-all-recommendations li {
+    margin-bottom: 5px;
+    color: var(--odcm-component-text-color-body, #343a40);
+    line-height: 1.5;
+}
+
+.odcm-all-recommendations li strong {
+    color: var(--odcm-theme-blue-700, #007cba);
+    font-weight: 600;
+}
+
 /* ===== BUTTON STATES ===== */
 
 .button.odcm-loading {
@@ -315,38 +1209,332 @@
     color: #dc3232;
 }
 
-/* ===== TECHNICAL DETAILS ===== */
+/* ===== NESTED TECHNICAL DETAILS WITH TREE STRUCTURE ===== */
 
-details {
-    margin-top: 10px;
+.odcm-test-details {
+    margin-top: var(--odcm-theme-spacing-md);
+    background: var(--odcm-theme-grey-100);
+    border: var(--odcm-component-border-width) solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    font-family: 'Courier New', Monaco, 'Consolas', monospace;
 }
 
-details summary {
-    cursor: pointer;
+.odcm-test-details h6 {
+    margin: 0;
+    padding: var(--odcm-theme-spacing-lg);
+    font-size: var(--odcm-theme-font-size-md);
+    font-weight: var(--odcm-theme-font-weight-str);
+    color: var(--odcm-component-text-color-header);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: inherit;
+}
+
+.odcm-technical-info {
+    font-family: 'Courier New', Monaco, 'Consolas', monospace;
+    line-height: 1.2;
+    font-size: 11px;
+    padding: 0;
+    margin: 0;
+    white-space: pre-line;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Tree Structure Base Items */
+.odcm-detail-item,
+.odcm-detail-nested-item {
+    display: block;
+    margin: 0;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.odcm-detail-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Tree Connectors - Terminal-style */
+.odcm-detail-tree-connector {
+    color: var(--odcm-theme-grey-500, #6c757d);
+    user-select: none;
+    font-weight: normal;
+}
+
+/* Detail Keys */
+.odcm-detail-key {
+    font-weight: 600;
+    color: var(--odcm-component-text-color-header, #2e1f27);
+    margin-right: 4px;
+}
+
+.odcm-detail-array-index {
     font-weight: 500;
-    color: #0073aa;
-    padding: 5px 0;
+    color: var(--odcm-theme-blue-700, #007cba);
+    margin-right: 4px;
 }
 
-details summary:hover {
-    color: #005a87;
+/* Detail Values - Different Types */
+.odcm-detail-value {
+    color: var(--odcm-component-text-color-body, #343a40);
 }
 
-details pre {
-    background: #f6f7f7;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 10px;
-    margin: 10px 0 0 0;
-    overflow-x: auto;
+.odcm-detail-scalar {
+    color: var(--odcm-theme-green-700, #29A847);
+    font-weight: 500;
+}
+
+.odcm-detail-boolean {
+    color: var(--odcm-theme-blue-700, #007cba);
+    font-weight: 600;
+}
+
+.odcm-detail-null,
+.odcm-detail-empty {
+    color: var(--odcm-theme-grey-500, #6c757d);
+    font-style: italic;
+}
+
+.odcm-detail-object,
+.odcm-detail-unknown {
+    color: var(--odcm-theme-red-700, #dc3545);
+    font-style: italic;
+}
+
+/* Array Type Indicators */
+.odcm-detail-array-type {
+    color: var(--odcm-theme-grey-600, #495057);
     font-size: 12px;
-    line-height: 1.4;
-    max-height: 300px;
-    overflow-y: auto;
+    font-weight: 500;
+    background: var(--odcm-theme-grey-200, #e9ecef);
+    padding: 1px 4px;
+    border-radius: 2px;
+    margin-right: 4px;
 }
 
-/* ===== RESPONSIVE DESIGN ===== */
+/* Nested Structure Spacing */
+.odcm-detail-level-0 {
+    margin-left: 0;
+}
 
+.odcm-detail-level-1 {
+    margin-left: 0px;
+}
+
+.odcm-detail-level-2 {
+    margin-left: 0px;
+}
+
+.odcm-detail-level-3 {
+    margin-left: 0px;
+}
+
+/* Empty State */
+.odcm-detail-empty {
+    padding: var(--odcm-theme-spacing-md);
+    text-align: center;
+    color: var(--odcm-theme-grey-500);
+    font-style: italic;
+    background: var(--odcm-theme-grey-200);
+    border-radius: var(--odcm-component-border-radius);
+}
+
+/* Responsive adjustments for technical details */
+@media (max-width: 600px) {
+    .odcm-technical-info {
+        font-size: 12px;
+        line-height: 1.4;
+    }
+    
+    .odcm-test-details {
+        padding: var(--odcm-theme-spacing-md);
+    }
+    
+    .odcm-detail-tree-connector {
+        font-size: 11px;
+    }
+}
+
+/* Prism.js will handle all syntax highlighting colors */
+
+/* ===== RESPONSIVE DESIGN - PLAN B UNIFIED ===== */
+
+/* Large screens and tablets */
+@media (max-width: 1200px) {
+    .odcm-diagnostics-unified {
+        padding: var(--odcm-theme-spacing-md);
+    }
+    
+    .odcm-diagnostic-hero {
+        padding: var(--odcm-theme-spacing-lg) var(--odcm-theme-spacing-md);
+    }
+}
+
+/* Tablets and smaller screens */
+@media (max-width: 768px) {
+    /* Stack hero columns on mobile */
+    .odcm-diagnostic-hero {
+        flex-direction: column;
+        gap: var(--odcm-theme-spacing-lg);
+    }
+    
+    .odcm-hero-left,
+    .odcm-hero-right {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .odcm-hero-right {
+        flex: none;
+    }
+
+    .odcm-diagnostic-hero h1 {
+        font-size: 2em;
+    }
+
+    .button-hero {
+        min-width: 240px;
+        font-size: 16px !important;
+        padding: 14px 28px !important;
+    }
+
+    .odcm-hero-meta {
+        flex-direction: column;
+        gap: var(--odcm-theme-spacing-sm);
+        text-align: center;
+    }
+
+    .odcm-status-banner {
+        flex-direction: column;
+        gap: var(--odcm-theme-spacing-sm);
+        text-align: center;
+    }
+
+    .odcm-status-banner-left,
+    .odcm-status-banner-center,
+    .odcm-status-banner-right {
+        justify-content: center;
+    }
+
+    .odcm-results-header {
+        flex-direction: column;
+        gap: var(--odcm-theme-spacing-sm);
+        text-align: center;
+    }
+
+    .odcm-button-group {
+        flex-direction: column;
+    }
+
+    .odcm-button-group .button {
+        width: 100%;
+    }
+
+    .odcm-advanced-section select {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: var(--odcm-theme-spacing-sm);
+    }
+
+    /* Advanced options styling adjustments for mobile */
+    .odcm-hero-advanced-options h3 {
+        text-align: center;
+    }
+
+    .odcm-hero-advanced-section h4 {
+        text-align: center;
+    }
+
+    .odcm-hero-advanced-section .odcm-button-group {
+        justify-content: center;
+    }
+}
+
+/* Mobile phones */
+@media (max-width: 600px) {
+    .odcm-diagnostics-unified {
+        padding: var(--odcm-theme-spacing-sm);
+    }
+
+    .odcm-diagnostic-hero {
+        padding: var(--odcm-theme-spacing-md);
+    }
+
+    .odcm-diagnostic-hero h1 {
+        font-size: 1.75em;
+    }
+
+    .odcm-hero-description {
+        font-size: var(--odcm-theme-font-size-md);
+    }
+
+    .button-hero {
+        min-width: 200px;
+        width: 100%;
+        max-width: 300px;
+    }
+
+    .odcm-status-banner {
+        padding: var(--odcm-theme-spacing-sm);
+        position: static;
+    }
+
+    .odcm-loading-progress {
+        padding: 0 var(--odcm-theme-spacing-sm);
+    }
+
+    .odcm-progress-bar {
+        max-width: 280px;
+    }
+
+    .odcm-test-technical {
+        font-size: 11px;
+        word-break: break-word;
+    }
+
+    .odcm-advanced-options {
+        padding: var(--odcm-theme-spacing-sm);
+    }
+
+    .odcm-advanced-content {
+        padding-top: var(--odcm-theme-spacing-sm);
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 400px) {
+    .odcm-diagnostic-hero h1 {
+        font-size: 1.5em;
+    }
+
+    .button-hero {
+        font-size: 14px !important;
+        padding: 12px 20px !important;
+        min-width: 180px;
+    }
+
+    .odcm-status-banner {
+        padding: var(--odcm-theme-spacing-xs) var(--odcm-theme-spacing-sm);
+    }
+
+    .odcm-status-banner-left .odcm-status-text {
+        font-size: var(--odcm-theme-font-size-sm);
+    }
+
+    .odcm-test-result {
+        /*padding-bottom: var(--odcm-theme-spacing-sm);*/
+    }
+
+    .odcm-test-name {
+        font-size: 14px;
+    }
+
+    .odcm-test-message {
+        font-size: 13px;
+    }
+}
+
+/* Legacy responsive styles for backward compatibility */
 @media (max-width: 960px) {
     .odcm-diagnostics-header {
         flex-direction: column;
@@ -372,6 +1560,10 @@ details pre {
     .odcm-results-panel {
         position: static;
         max-height: none;
+    }
+
+    .odcm-diagnostics-content {
+        grid-template-columns: 1fr;
     }
 }
 
