@@ -122,7 +122,7 @@ final class Plugin {
     /**
      * Load translations FIRST (before any UI rendering)
      *
-     * @since next
+     * @since 1.1.23
      */
     public function load_text_domain(): void {
         error_log('load_text_domain on init');
