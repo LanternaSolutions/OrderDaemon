@@ -1304,6 +1304,9 @@ function odcm_validate_custom_summary(string $summary, int $max_length = 60): st
  * for each post (from the now-primed cache) and stores the consolidated results in a transient
  * for future requests.
  *
+ * HPOS Compatibility: For shop_order post types, this function automatically uses OrderMetaManager
+ * to ensure compatibility with WooCommerce High-Performance Order Storage (HPOS).
+ *
  * @param array $post_ids An array of post IDs.
  * @return array An associative array where keys are post IDs and values are their metadata.
  */
@@ -1322,13 +1325,57 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
         return $cached_meta;
     }
 
-    // Prime the WordPress object cache for all post IDs in a single database query.
-    update_meta_cache('post', $post_ids);
+    // Separate order IDs from other post IDs for HPOS compatibility
+    $order_ids = [];
+    $other_post_ids = [];
+    
+    foreach ($post_ids as $post_id) {
+        if (get_post_type($post_id) === 'shop_order') {
+            $order_ids[] = $post_id;
+        } else {
+            $other_post_ids[] = $post_id;
+        }
+    }
 
     $all_meta = [];
-    foreach ($post_ids as $post_id) {
-        // This call will now hit the pre-warmed object cache, not the database.
-        $all_meta[$post_id] = get_post_meta($post_id);
+
+    // Handle orders through OrderMetaManager for HPOS compatibility
+    if (!empty($order_ids)) {
+        // Import OrderMetaManager if not already available
+        if (!class_exists('OrderDaemon\\CompletionManager\\Includes\\Utils\\OrderMetaManager')) {
+            require_once __DIR__ . '/Utils/OrderMetaManager.php';
+        }
+        
+        foreach ($order_ids as $order_id) {
+            // For orders, get all meta keys. Since OrderMetaManager doesn't have a get_all_meta method,
+            // we'll need to get the order object and extract all meta data
+            $order = \OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager::get_order($order_id);
+            if ($order) {
+                // Get all meta data from the order object
+                $order_meta = [];
+                $meta_data = $order->get_meta_data();
+                foreach ($meta_data as $meta) {
+                    $key = $meta->get_data()['key'];
+                    $value = $meta->get_data()['value'];
+                    // Store as array to match get_post_meta format (which returns arrays)
+                    $order_meta[$key] = [$value];
+                }
+                $all_meta[$order_id] = $order_meta;
+            } else {
+                $all_meta[$order_id] = [];
+            }
+        }
+    }
+
+    // Handle other post types using traditional method
+    if (!empty($other_post_ids)) {
+        // Prime the WordPress object cache for non-order post IDs in a single database query.
+        update_meta_cache('post', $other_post_ids);
+
+        foreach ($other_post_ids as $post_id) {
+            // This call will now hit the pre-warmed object cache, not the database.
+            $all_meta[$post_id] = get_post_meta($post_id);
+        }
     }
 
     // Cache the consolidated result for 1 hour.

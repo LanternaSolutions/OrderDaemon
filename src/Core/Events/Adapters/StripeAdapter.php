@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\Core\Events\Adapters;
 
 use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
+use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
 
 /**
  * Stripe Gateway Event Adapter
@@ -477,35 +478,38 @@ class StripeAdapter extends AbstractGatewayAdapter
 
     /**
      * Find WooCommerce order by Stripe ID
+     * HPOS Compatible: Uses OrderMetaManager for centralized HPOS-compatible search
      * 
      * @param string $stripe_id Stripe object ID
      * @return int|null Order ID if found
      */
     private function findOrderByStripeId(string $stripe_id): ?int
     {
-        global $wpdb;
+        if (empty($stripe_id)) {
+            return null;
+        }
 
-        // Search in order meta for various Stripe ID fields
-        $stripe_meta_keys = [
-            '_stripe_charge_id',
-            '_stripe_payment_intent_id',
+        // First try the optimized transaction ID search which covers common cases
+        $order_id = OrderMetaManager::find_order_by_transaction_id($stripe_id);
+        if ($order_id) {
+            return $order_id;
+        }
+
+        // Search additional Stripe-specific meta keys not covered by the transaction search
+        $additional_stripe_keys = [
             '_stripe_subscription_id',
-            '_stripe_invoice_id',
-            '_transaction_id'
+            '_stripe_invoice_id'
         ];
 
-        foreach ($stripe_meta_keys as $meta_key) {
-            $order_id = $wpdb->get_var($wpdb->prepare(
-                "SELECT post_id FROM {$wpdb->postmeta} 
-                 WHERE meta_key = %s 
-                 AND meta_value = %s 
-                 LIMIT 1",
-                $meta_key,
-                $stripe_id
-            ));
-
-            if ($order_id) {
-                return (int) $order_id;
+        foreach ($additional_stripe_keys as $meta_key) {
+            try {
+                $order_id = OrderMetaManager::find_order_by_meta($meta_key, $stripe_id);
+                if ($order_id) {
+                    return $order_id;
+                }
+            } catch (\Throwable $e) {
+                error_log("StripeAdapter: Failed to search orders by {$meta_key}: " . $e->getMessage());
+                continue;
             }
         }
 

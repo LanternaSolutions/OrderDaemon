@@ -18,6 +18,7 @@ if (!defined('WPINC')) {
 
 // Import required classes
 use function OrderDaemon\CompletionManager\Utils\odcm_sanitize_payload_for_logging;
+use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
 
 
 /**
@@ -1093,7 +1094,7 @@ function odcm_get_queued_checkout_data(int $order_id): ?array {
     global $wpdb;
     
     // Get queue ID from order meta
-    $queue_id = get_post_meta($order_id, '_odcm_checkout_queue_id', true);
+    $queue_id = OrderMetaManager::get_meta($order_id, '_odcm_checkout_queue_id');
     if (!$queue_id) {
         return null;
     }
@@ -1239,8 +1240,8 @@ function odcm_cleanup_processed_queue_data(int $order_id, string $queue_id): voi
     );
     
     // Remove order meta flags
-    delete_post_meta($order_id, '_odcm_checkout_queue_id');
-    delete_post_meta($order_id, '_odcm_checkout_data_queued');
+    OrderMetaManager::delete_meta($order_id, '_odcm_checkout_queue_id');
+    OrderMetaManager::delete_meta($order_id, '_odcm_checkout_data_queued');
     
     error_log("ODCM_BACKGROUND: Cleaned up queue data for order #{$order_id}, queue ID: {$queue_id}");
 }

@@ -10,6 +10,7 @@ use OrderDaemon\CompletionManager\Core\AttributionTracker;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
 use OrderDaemon\CompletionManager\Core\Events\EvaluationContext;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
+use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
 
 /**
  * Core plugin class responsible for main business logic.
@@ -686,12 +687,12 @@ class Core
             return;
         }
         $key = '_odcm_status_hook_processed';
-        $map = get_post_meta($order_id, $key, true);
+        $map = OrderMetaManager::get_meta($order_id, $key, true);
         if (!is_array($map)) {
             $map = [];
         }
         $map[$status] = time();
-        update_post_meta($order_id, $key, $map);
+        OrderMetaManager::update_meta($order_id, $key, $map);
     }
 
     /**
@@ -710,7 +711,7 @@ class Core
             return false;
         }
         $key = '_odcm_status_hook_processed';
-        $map = get_post_meta($order_id, $key, true);
+        $map = OrderMetaManager::get_meta($order_id, $key, true);
         if (!is_array($map)) {
             return false;
         }
@@ -778,7 +779,7 @@ class Core
             'user_context' => $user_context,
         ];
 
-        update_post_meta($order_id, '_odcm_last_status_processed', $payload);
+        OrderMetaManager::update_meta($order_id, '_odcm_last_status_processed', $payload);
     }
 
     /**
@@ -793,7 +794,7 @@ class Core
         if ($order_id <= 0) {
             return null;
         }
-        $val = get_post_meta($order_id, '_odcm_last_status_processed', true);
+        $val = OrderMetaManager::get_meta($order_id, '_odcm_last_status_processed', true);
         return is_array($val) ? $val : null;
     }
 
@@ -2042,7 +2043,7 @@ class Core
         
         try {
             // Check for existing rich data from block checkout
-            $has_rich_data = get_post_meta($order_id, '_odcm_checkout_data_queued', true);
+            $has_rich_data = OrderMetaManager::get_meta($order_id, '_odcm_checkout_data_queued');
             
             if ($has_rich_data) {
                 // Block checkout already queued rich data - use it
@@ -2223,8 +2224,8 @@ class Core
         }
         
         // Set marker to indicate this order has queued data
-        update_post_meta($order_id, '_odcm_checkout_queue_id', $queue_id);
-        update_post_meta($order_id, '_odcm_checkout_data_queued', '1');
+        OrderMetaManager::update_meta($order_id, '_odcm_checkout_queue_id', $queue_id);
+        OrderMetaManager::update_meta($order_id, '_odcm_checkout_data_queued', '1');
         
         odcm_log_message("Basic checkout data queued with ID: {$queue_id} for order #{$order_id}", 'info');
     }
@@ -2310,8 +2311,8 @@ class Core
         }
         
         // Set marker to indicate this order has queued data
-        update_post_meta($order_id, '_odcm_checkout_queue_id', $queue_id);
-        update_post_meta($order_id, '_odcm_checkout_data_queued', '1');
+        OrderMetaManager::update_meta($order_id, '_odcm_checkout_queue_id', $queue_id);
+        OrderMetaManager::update_meta($order_id, '_odcm_checkout_data_queued', '1');
         
         odcm_log_message("Traditional checkout data queued with ID: {$queue_id} for order #{$order_id}", 'info');
     }

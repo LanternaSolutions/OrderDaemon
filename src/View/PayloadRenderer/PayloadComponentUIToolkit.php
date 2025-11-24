@@ -473,13 +473,13 @@ class PayloadComponentUIToolkit
             $timestamp_html = '<!-- Timestamp will be added by JavaScript -->';
         }
         
-        $output .= '<span class="odcm-component__ts">' . $timestamp_html . '</span>';
-        
-        // Add event_type for debugging purposes
+        // Add event_type for clarity
         if (isset($options['event_type']) && !empty($options['event_type'])) {
-            $output .= '<span class="odcm-component__event-type" style="color: #666; font-size: 0.85em; margin-left: 8px;">(' . esc_html($options['event_type']) . ')</span>';
+            $output .= '<span class="odcm-component__event-type">(' . esc_html($options['event_type']) . ')</span>';
         }
-        
+
+        $output .= '<span class="odcm-component__ts">' . $timestamp_html . '</span>';
+                
         // Append optional timestamp metadata if provided
         $timestamp_field = $options['ts'] ?? null;
         if (!empty($timestamp_field)) {

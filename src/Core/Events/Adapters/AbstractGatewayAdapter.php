@@ -5,6 +5,7 @@ namespace OrderDaemon\CompletionManager\Core\Events\Adapters;
 
 use OrderDaemon\CompletionManager\Core\Events\GatewayEventAdapter;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
+use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
 
 /**
  * Abstract Gateway Adapter Base Class
@@ -113,50 +114,37 @@ abstract class AbstractGatewayAdapter implements GatewayEventAdapter
 
     /**
      * Find WooCommerce order by transaction ID
+     * HPOS Compatible: Uses OrderMetaManager for HPOS-compatible order search
      * 
      * @param string $transaction_id Gateway transaction ID
      * @return int|null Order ID if found
      */
     protected function findOrderByTransactionId(string $transaction_id): ?int
     {
-        global $wpdb;
+        if (empty($transaction_id)) {
+            return null;
+        }
 
-        // Search in order meta for transaction ID
-        $order_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->postmeta} 
-             WHERE meta_key = '_transaction_id' 
-             AND meta_value = %s 
-             LIMIT 1",
-            $transaction_id
-        ));
-
-        return $order_id ? (int) $order_id : null;
+        // Use OrderMetaManager which handles both HPOS and legacy storage automatically
+        return OrderMetaManager::find_order_by_transaction_id($transaction_id);
     }
 
     /**
      * Find WooCommerce subscription by gateway subscription ID
+     * HPOS Compatible: Uses OrderMetaManager for HPOS-aware subscription search
+     * Note: Subscriptions remain as custom posts even with HPOS enabled for orders
      * 
      * @param string $gateway_subscription_id Gateway subscription identifier
      * @return int|null Subscription ID if found
      */
     protected function findSubscriptionByGatewayId(string $gateway_subscription_id): ?int
     {
-        global $wpdb;
-
-        if (!function_exists('wcs_get_subscriptions')) {
+        if (empty($gateway_subscription_id)) {
             return null;
         }
 
-        // Search in subscription meta for gateway subscription ID
-        $subscription_id = $wpdb->get_var($wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->postmeta} 
-             WHERE meta_key IN ('_paypal_subscription_id', '_stripe_subscription_id', '_gateway_subscription_id')
-             AND meta_value = %s 
-             LIMIT 1",
-            $gateway_subscription_id
-        ));
-
-        return $subscription_id ? (int) $subscription_id : null;
+        // Use OrderMetaManager which handles WooCommerce Subscriptions properly
+        return OrderMetaManager::find_subscription_by_gateway_id($gateway_subscription_id);
     }
 
     /**

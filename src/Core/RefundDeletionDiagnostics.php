@@ -7,6 +7,7 @@ use WC_Order;
 use WC_Order_Refund;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
+use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
 
 /**
  * Refund & Deletion Diagnostics (observation-only).
@@ -237,7 +238,7 @@ final class RefundDeletionDiagnostics
         $whitelist = ['_payment_method', '_transaction_id', '_order_currency'];
         foreach ($whitelist as $key) {
             $m0 = microtime(true);
-            $meta[$key] = sanitize_text_field((string) get_post_meta($order_id, $key, true));
+            $meta[$key] = sanitize_text_field((string) OrderMetaManager::get_meta($order_id, $key));
             $timings['db_meta_ms'] += (microtime(true) - $m0) * 1000.0;
         }
 

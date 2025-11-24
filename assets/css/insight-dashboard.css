@@ -2069,7 +2069,8 @@ label.odcm-retention-option {
 /* Bottom row: timestamp aligned with icon */
 .odcm-component__header-bottom {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
     margin-left: calc(16px + var(--odcm-theme-spacing-xs)); /* Icon width + gap */
 }
 
@@ -2077,6 +2078,12 @@ label.odcm-retention-option {
     font-size: var(--odcm-theme-font-size-sm);
     color: var(--odcm-theme-grey-600);
     opacity: 0.85;
+}
+
+.odcm-component__event-type {
+    color: var(--odcm-theme-grey-600);
+    font-size: 0.85em;
+    margin-left: 0;
 }
 
 /* Status pill positioning - far right on top row */

@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core;
 
+use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
+
 /**
  * Manages shared process IDs for order lifecycle consolidation
  */
@@ -35,7 +37,7 @@ final class ProcessIdManager
     public function get_or_create_process_id(int $order_id): string
     {
         // Check for existing active process ID in order meta
-        $existing_id = get_post_meta($order_id, '_odcm_active_process_id', true);
+        $existing_id = OrderMetaManager::get_meta($order_id, '_odcm_active_process_id', true);
 
         if (!empty($existing_id)) {
             // Verify the process is still active (within reasonable time window)
@@ -48,8 +50,8 @@ final class ProcessIdManager
         $process_id = 'odcm:lifecycle:' . $order_id . ':' . time() . ':' . uniqid('', true);
 
         // Store in order meta
-        update_post_meta($order_id, '_odcm_active_process_id', $process_id);
-        update_post_meta($order_id, '_odcm_process_started_at', time());
+        OrderMetaManager::update_meta($order_id, '_odcm_active_process_id', $process_id);
+        OrderMetaManager::update_meta($order_id, '_odcm_process_started_at', time());
 
 
         return $process_id;
@@ -63,8 +65,8 @@ final class ProcessIdManager
      */
     public function close_process(int $order_id): void
     {
-        delete_post_meta($order_id, '_odcm_active_process_id');
-        update_post_meta($order_id, '_odcm_last_process_closed_at', time());
+        OrderMetaManager::delete_meta($order_id, '_odcm_active_process_id');
+        OrderMetaManager::update_meta($order_id, '_odcm_last_process_closed_at', time());
     }
 
     /**

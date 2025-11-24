@@ -6,6 +6,7 @@ namespace OrderDaemon\CompletionManager\Core;
 use WC_Order;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
+use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
 
 /**
  * Block Checkout Compatibility layer (observation-only).
@@ -285,8 +286,8 @@ final class BlockCheckoutCompatibility
         }
 
         // Mark order meta with indicator (safe, minimal footprint)
-        update_post_meta($order_id, '_odcm_block_checkout_observed', '1');
-        update_post_meta($order_id, '_odcm_block_checkout_observed_at', sanitize_text_field(wp_date('c')));
+        OrderMetaManager::update_meta($order_id, '_odcm_block_checkout_observed', '1');
+        OrderMetaManager::update_meta($order_id, '_odcm_block_checkout_observed_at', sanitize_text_field(wp_date('c')));
 
         // Optionally save a compact summary of context
         $summary = [
@@ -294,7 +295,7 @@ final class BlockCheckoutCompatibility
             'requires_shipping' => $context['shipping_analysis']['requires_shipping'] ?? null,
             'total_items' => $context['cart_analysis']['total_items'] ?? null,
         ];
-        update_post_meta($order_id, '_odcm_block_checkout_summary', wp_json_encode($summary));
+        OrderMetaManager::update_meta($order_id, '_odcm_block_checkout_summary', wp_json_encode($summary));
     }
 
     /**
@@ -614,8 +615,8 @@ final class BlockCheckoutCompatibility
         }
         
         // Set marker to indicate this order has queued data
-        update_post_meta($order_id, '_odcm_checkout_queue_id', $queue_id);
-        update_post_meta($order_id, '_odcm_checkout_data_queued', '1');
+        OrderMetaManager::update_meta($order_id, '_odcm_checkout_queue_id', $queue_id);
+        OrderMetaManager::update_meta($order_id, '_odcm_checkout_data_queued', '1');
         
         odcm_log_message("Block checkout data queued with ID: {$queue_id} for order #{$order_id}", 'info');
     }
