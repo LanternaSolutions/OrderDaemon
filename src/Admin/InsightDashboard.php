@@ -124,7 +124,7 @@ class InsightDashboard
         add_submenu_page(
                 self::PAGE_SLUG,
                 __('admin.insight_dashboard.submenu.all_order_rules', 'order-daemon'),
-                __('admin.insight_dashboard.submenu.all_order_rules', 'order-daemon'),
+                __('All Order Rules', 'order-daemon'),
                 'manage_woocommerce',
                 'edit.php?post_type=odcm_order_rule',
                 null
@@ -624,9 +624,9 @@ class InsightDashboard
                                 @click="manualRefresh()"
                                 :disabled="loading">
                             <span class="dashicons dashicons-update" :class="{ 'is-spinning': isRefreshing }"></span>
-                            <span class="odcm-button-text" x-text="autoRefreshEnabled ? '<?php echo esc_js(__('admin.insight_dashboard.actions.refresh', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.actions.refresh', 'order-daemon')); ?>'"></span>
+                            <span class="odcm-button-text" x-text="autoRefreshEnabled ? '<?php echo esc_js(__('Refresh', 'order-daemon')); ?>' : '<?php echo esc_js(__('Refresh', 'order-daemon')); ?>'"></span>
                         </button>
-                        <span x-text="autoRefreshEnabled ? '<?php echo esc_html__('admin.insight_dashboard.actions.every', 'order-daemon'); ?>' : ''"></span>
+                        <span x-text="autoRefreshEnabled ? '<?php echo esc_html__('every', 'order-daemon'); ?>' : ''"></span>
 
                         <template x-if="autoRefreshEnabled">
                             <input type="number" 
@@ -637,7 +637,7 @@ class InsightDashboard
                                     @click.stop>
                         </template>
                         <template x-if="autoRefreshEnabled">
-                            <span><?php echo esc_html__('admin.insight_dashboard.actions.seconds', 'order-daemon'); ?></span>
+                            <span><?php echo esc_html__('seconds', 'order-daemon'); ?></span>
                         </template>
 
                         <label class="odcm-toggle-switch">
@@ -788,7 +788,7 @@ class InsightDashboard
                             <input type="checkbox" 
                                    id="filter-include-debug"
                                    x-model="filters.include_debug">
-                            <label for="filter-include-debug"><?php echo esc_html__('admin.insight_dashboard.filters.include_debug_logs', 'order-daemon'); ?></label>
+                            <label for="filter-include-debug"><?php echo esc_html__('Include Debug Logs', 'order-daemon'); ?></label>
                         </div>
                     </div>
                 </div>
@@ -1063,21 +1063,9 @@ class InsightDashboard
                             <div class="odcm-setting-row odcm-premium-notice-small">
                                 <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
                                 <p><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
-                                <?php if (!$pro_plugin_active): ?>
-                                    <?php if ($pro_plugin_installed): ?>
-                                        <a href="<?php echo esc_url(admin_url('plugins.php')); ?>" class="button-secondary odcm-button-small">
-                                            <?php echo esc_html__('admin.insight_dashboard.settings.activate_pro', 'order-daemon'); ?>
-                                        </a>
-                                    <?php else: ?>
-                                        <a href="<?php echo esc_url(ODCM_PREMIUM_URL); ?>" class="button-secondary odcm-button-small" target="_blank">
-                                            <?php echo esc_html__('admin.insight_dashboard.settings.upgrade_to_pro', 'order-daemon'); ?>
-                                        </a>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <a href="<?php echo esc_url(admin_url('admin.php?page=odcm-license')); ?>" class="button-secondary odcm-button-small">
-                                        <?php echo esc_html__('admin.insight_dashboard.settings.activate_license', 'order-daemon'); ?>
-                                    </a>
-                                <?php endif; ?>
+                                <a href="https://orderdaemon.com/pricing" class="button-secondary odcm-button-small" target="_blank">
+                                    <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
+                                </a>
                             </div>
                         <?php else: ?>
                             <!-- Premium Export Logs Feature - Active -->
@@ -1090,14 +1078,14 @@ class InsightDashboard
                                             @click="exportLogs('csv')"
                                             :disabled="isExporting && exportFormat === 'csv'">
                                         <span class="dashicons dashicons-download"></span>
-                                        <span x-text="isExporting && exportFormat === 'csv' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.exporting', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.settings.export_csv', 'order-daemon')); ?>'"></span>
+                                        <span x-text="isExporting && exportFormat === 'csv' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.exporting', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export CSV', 'order-daemon')); ?>'"></span>
                                     </button>
                                     <button type="button" 
                                             class="button"
                                             @click="exportLogs('json')"
                                             :disabled="isExporting && exportFormat === 'json'">
                                         <span class="dashicons dashicons-download"></span>
-                                        <span x-text="isExporting && exportFormat === 'json' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.exporting', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.settings.export_json', 'order-daemon')); ?>'"></span>
+                                        <span x-text="isExporting && exportFormat === 'json' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.exporting', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export JSON', 'order-daemon')); ?>'"></span>
                                     </button>
                                 </div>
                             </div>
@@ -1108,21 +1096,9 @@ class InsightDashboard
                             <div class="odcm-setting-row odcm-danger-section">
                                 <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
                                 <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
-                                <?php if (!$pro_plugin_active): ?>
-                                    <?php if ($pro_plugin_installed): ?>
-                                        <a href="<?php echo esc_url(admin_url('plugins.php')); ?>" class="button-secondary odcm-button-small">
-                                            <?php echo esc_html__('admin.insight_dashboard.settings.activate_pro', 'order-daemon'); ?>
-                                        </a>
-                                    <?php else: ?>
-                                        <a href="<?php echo esc_url(ODCM_PREMIUM_URL); ?>" class="button-secondary odcm-button-small" target="_blank">
-                                            <?php echo esc_html__('admin.insight_dashboard.settings.upgrade_to_pro', 'order-daemon'); ?>
-                                        </a>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <a href="<?php echo esc_url(admin_url('admin.php?page=odcm-license')); ?>" class="button-secondary odcm-button-small">
-                                        <?php echo esc_html__('admin.insight_dashboard.settings.activate_license', 'order-daemon'); ?>
-                                    </a>
-                                <?php endif; ?>
+                                <a href="https://orderdaemon.com/pricing" class="button-secondary odcm-button-small" target="_blank">
+                                    <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
+                                </a>
                             </div>
                         <?php else: ?>
                             <!-- Premium Log Retention Policy Feature - Active -->
@@ -1131,7 +1107,7 @@ class InsightDashboard
                                 <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
                                 <div class="odcm-retention-controls">
                                     <div class="odcm-retention-setting">
-                                        <label for="retention-days"><?php echo esc_html__('admin.insight_dashboard.settings.retention_days.label', 'order-daemon'); ?></label>
+                                        <label for="retention-days"><?php echo esc_html__('Retention Period:', 'order-daemon'); ?></label>
                                         <input type="number" 
                                                id="retention-days"
                                                x-model="retentionDays"
@@ -1139,12 +1115,12 @@ class InsightDashboard
                                                max="365" 
                                                class="small-text"
                                                @click.stop>
-                                        <span><?php echo esc_html__('admin.insight_dashboard.settings.retention_days.unit', 'order-daemon'); ?></span>
+                                        <span><?php echo esc_html__('days', 'order-daemon'); ?></span>
                                         <button type="button" 
                                                 class="button button-small"
                                                 @click="updateRetentionPolicy()"
                                                 :disabled="isUpdatingRetention">
-                                            <span x-text="isUpdatingRetention ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.updating', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.settings.update_policy', 'order-daemon')); ?>'"></span>
+                                            <span x-text="isUpdatingRetention ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.updating', 'order-daemon')); ?>' : '<?php echo esc_js(__('Update Policy', 'order-daemon')); ?>'"></span>
                                         </button>
                                     </div>
                                     <div class="odcm-cleanup-section">
@@ -1153,9 +1129,9 @@ class InsightDashboard
                                                 @click="cleanupOldLogs()"
                                                 :disabled="isCleaningUp">
                                             <span class="dashicons dashicons-trash"></span>
-                                            <span x-text="isCleaningUp ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.cleaning', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.settings.cleanup_now', 'order-daemon')); ?>'"></span>
+                                            <span x-text="isCleaningUp ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.cleaning', 'order-daemon')); ?>' : '<?php echo esc_js(__('Cleanup Now', 'order-daemon')); ?>'"></span>
                                         </button>
-                                        <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.cleanup_description', 'order-daemon'); ?></p>
+                                        <p class="description"><?php echo esc_html__('This will remove all event logs older than the retention period.', 'order-daemon'); ?></p>
                                     </div>
                                 </div>
                             </div>
@@ -1496,7 +1472,7 @@ class InsightDashboard
                             <p><?php echo esc_html__('admin.insight_dashboard.empty.no_activity.description', 'order-daemon'); ?></p>
                             <div class="odcm-empty-actions">
                                 <button type="button" class="button" @click="fetchLogs()">
-                                    <?php echo esc_html__('admin.insight_dashboard.actions.refresh', 'order-daemon'); ?>
+                                    <?php echo esc_html__('Refresh', 'order-daemon'); ?>
                                 </button>
                                 <a href="<?php echo esc_url(admin_url('edit.php?post_type=odcm_order_rule')); ?>" class="button button-secondary">
                                     <?php echo esc_html__('admin.insight_dashboard.empty.manage_rules', 'order-daemon'); ?>
@@ -1525,7 +1501,7 @@ class InsightDashboard
                             </label>
                         </div>
                         <div class="odcm-batch-actions" x-show="hasSelection">
-                            <span class="odcm-selection-count" x-text="selectedCount + ' <?php echo esc_js(__('admin.insight_dashboard.log_stream.selected', 'order-daemon')); ?>'"></span>
+                            <span class="odcm-selection-count" x-text="selectedCount + ' <?php echo esc_js(__('selected', 'order-daemon')); ?>'"></span>
                             <button type="button" 
                                     class="odcm-delete-selected button button-secondary"
                                     @click="deleteSelectedLogs()"

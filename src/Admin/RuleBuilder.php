@@ -775,7 +775,7 @@ final class RuleBuilder
         <div class="odcm-rule-builder-wrapper" x-data="ruleBuilder()" x-cloak x-init="$watch('rule', value => { document.getElementById('odcm_rule_data_field').value = JSON.stringify(value); })">
             <!-- Rule Builder Header -->
             <div class="odcm-rule-builder-header">
-                <h2><?php esc_html_e('admin.rule_builder.header_title', 'order-daemon'); ?></h2>
+                <h2><?php esc_html_e('Rule Builder', 'order-daemon'); ?></h2>
             </div>
 
             <!-- Rule Builder Content -->
@@ -794,7 +794,7 @@ final class RuleBuilder
                 <div class="odcm-rule-section">
                     <h3 class="odcm-section-title">
                         <?php esc_html_e('admin.rule_builder.section.when', 'order-daemon'); ?>
-                        <span class="odcm-section-subtitle"><?php esc_html_e('admin.rule_builder.section.when_subtitle', 'order-daemon'); ?></span>
+                        <span class="odcm-section-subtitle"><?php esc_html_e('(Trigger)', 'order-daemon'); ?></span>
                     </h3>
 
                     <div x-show="!rule.trigger" class="odcm-empty-state">
@@ -814,7 +814,7 @@ final class RuleBuilder
                             <button type="button" 
                                     @click="removeTrigger()" 
                                     class="odcm-remove-button">
-                                <?php esc_html_e('admin.rule_builder.action.remove', 'order-daemon'); ?>
+                                <?php esc_html_e('Remove', 'order-daemon'); ?>
                             </button>
                         </div>
                     </div>
@@ -1063,7 +1063,7 @@ final class RuleBuilder
                 <div class="odcm-rule-section">
                     <h3 class="odcm-section-title">
                         <?php esc_html_e('admin.rule_builder.section.if', 'order-daemon'); ?>
-                        <span class="odcm-section-subtitle"><?php esc_html_e('admin.rule_builder.section.if_subtitle', 'order-daemon'); ?></span>
+                        <span class="odcm-section-subtitle"><?php esc_html_e('(Conditions)', 'order-daemon'); ?></span>
                         <span class="odcm-component-count" x-text="`(${rule.conditions.length})`"></span>
                     </h3>
 
@@ -1088,7 +1088,7 @@ final class RuleBuilder
                                     <button type="button" 
                                             @click="removeCondition(index)" 
                                             class="odcm-remove-button">
-                                        <?php esc_html_e('admin.rule_builder.action.remove', 'order-daemon'); ?>
+                                        <?php esc_html_e('Remove', 'order-daemon'); ?>
                                     </button>
                                 </div>
                             </div>
@@ -1278,7 +1278,7 @@ final class RuleBuilder
                             @click="isAddingCondition = !isAddingCondition" 
                             class="odcm-add-component-button odcm-add-condition-button">
                         <span class="odcm-button-icon">+</span>
-                            <?php esc_html_e('admin.rule_builder.action.add_condition_description', 'order-daemon'); ?>
+                            <?php esc_html_e('Add Condition', 'order-daemon'); ?>
                     </button>
 
                     <!-- Condition Inline Selector -->
@@ -1286,7 +1286,7 @@ final class RuleBuilder
                         <div class="odcm-selector-header">
                             <input type="text" 
                                    x-model="conditionSearchTerm" 
-                                   placeholder="<?php esc_attr_e('admin.rule_builder.search.conditions_placeholder', 'order-daemon'); ?>"
+                                   placeholder="<?php esc_attr_e('Search conditions...', 'order-daemon'); ?>"
                                    class="odcm-search-input">
                             <button type="button" 
                                     @click="isAddingCondition = false" 
@@ -1315,12 +1315,12 @@ final class RuleBuilder
                 <div class="odcm-rule-section">
                     <h3 class="odcm-section-title">
                         <?php esc_html_e('admin.rule_builder.section.then', 'order-daemon'); ?>
-                        <span class="odcm-section-subtitle"><?php esc_html_e('admin.rule_builder.section.then_subtitle', 'order-daemon'); ?></span>
+                        <span class="odcm-section-subtitle"><?php esc_html_e('(Actions)', 'order-daemon'); ?></span>
                     </h3>
 
                     <!-- Primary Action Section -->
                     <div class="odcm-primary-action-section">
-                        <h4 class="odcm-subsection-title"><?php esc_html_e('admin.rule_builder.section.primary_action', 'order-daemon'); ?></h4>
+                        <h4 class="odcm-subsection-title"><?php esc_html_e('Primary Action', 'order-daemon'); ?></h4>
                         
                         <div x-show="!rule.primaryAction" class="odcm-empty-state">
                             <button type="button" 
@@ -1339,13 +1339,13 @@ final class RuleBuilder
                             <div class="odcm-component-summary" x-html="getComponentSummary(rule.primaryAction, 'primaryAction', 0)"></div>
                             <div class="odcm-component-actions">
                                     <div class="odcm-component-badge odcm-badge-primary">
-                                        <?php esc_html_e('admin.rule_builder.label.primary', 'order-daemon'); ?>
+                                        <?php esc_html_e('Primary', 'order-daemon'); ?>
                                     </div>
                                     <button type="button" 
                                             @click="removePrimaryAction()" 
                                             class="odcm-remove-button"
                                             x-show="components.primaryActions && components.primaryActions.length > 1">
-                                        <?php esc_html_e('admin.rule_builder.action.change', 'order-daemon'); ?>
+                                        <?php esc_html_e('Change', 'order-daemon'); ?>
                                     </button>
                             </div>
                         </div>
@@ -1483,7 +1483,7 @@ final class RuleBuilder
                     <!-- Secondary Actions Section -->
                     <div class="odcm-secondary-actions-section">
                         <h4 class="odcm-subsection-title">
-                            <?php esc_html_e('admin.rule_builder.section.secondary_actions', 'order-daemon'); ?>
+                            <?php esc_html_e('Secondary Actions', 'order-daemon'); ?>
                             <span class="odcm-component-count" x-text="`(${rule.secondaryActions.length})`"></span>
                         </h4>
 
@@ -1503,7 +1503,7 @@ final class RuleBuilder
                                         <button type="button" 
                                                 @click="removeAction(index)" 
                                                 class="odcm-remove-button">
-                                            <?php esc_html_e('admin.rule_builder.action.remove', 'order-daemon'); ?>
+                                            <?php esc_html_e('Remove', 'order-daemon'); ?>
                                         </button>
                                     </div>
                                 </div>
@@ -1667,7 +1667,7 @@ final class RuleBuilder
                                 @click="isAddingAction = !isAddingAction" 
                                 class="odcm-add-component-button odcm-add-secondary-action-button">
                             <span class="odcm-button-icon">+</span>
-                                <?php esc_html_e('admin.rule_builder.action.add_secondary_action_description', 'order-daemon'); ?>
+                                <?php esc_html_e('Add Secondary Action', 'order-daemon'); ?>
                         </button>
 
                         <!-- Secondary Action Inline Selector -->

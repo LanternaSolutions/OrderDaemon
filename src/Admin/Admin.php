@@ -416,7 +416,7 @@ class Admin
         foreach ($columns as $key => $value) {
             $new_columns[$key] = $value;
             if ($key === 'cb') {
-                $new_columns['active'] = __('admin.list_table.column.active', 'order-daemon');
+                $new_columns['active'] = __('Active', 'order-daemon');
             }
         }
         
@@ -424,10 +424,10 @@ class Admin
         if (isset($new_columns['date'])) {
             $date_column = $new_columns['date'];
             unset($new_columns['date']);
-            $new_columns['priority'] = __('admin.list_table.column.priority', 'order-daemon');
+            $new_columns['priority'] = __('Priority', 'order-daemon');
             $new_columns['date'] = $date_column;
         } else {
-            $new_columns['priority'] = __('admin.list_table.column.priority', 'order-daemon');
+            $new_columns['priority'] = __('Priority', 'order-daemon');
         }
 
         return $new_columns;

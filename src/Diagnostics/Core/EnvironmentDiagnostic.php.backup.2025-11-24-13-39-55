@@ -33,7 +33,7 @@ class EnvironmentDiagnostic extends AbstractDiagnostic
      */
     public function get_name(): string
     {
-        return __('Environment Check', 'order-daemon');
+        return __('admin.diagnostics.test.environment.name', 'order-daemon');
     }
 
     /**
@@ -43,7 +43,7 @@ class EnvironmentDiagnostic extends AbstractDiagnostic
      */
     public function get_description(): string
     {
-        return __('Checks file permissions, memory limits, and debug mode status', 'order-daemon');
+        return __('admin.diagnostics.test.environment.description', 'order-daemon');
     }
 
     /**
@@ -95,7 +95,7 @@ class EnvironmentDiagnostic extends AbstractDiagnostic
         if (!$php_compatible) {
             $issues[] = sprintf(
                 /* translators: 1: Current PHP version, 2: Minimum required version */
-                __('PHP version %s is incompatible (requires %s+)', 'order-daemon'),
+                __('admin.diagnostics.test.environment.php_version.incompatible', 'order-daemon'),
                 $php_version,
                 self::MIN_PHP_VERSION
             );
@@ -108,11 +108,11 @@ class EnvironmentDiagnostic extends AbstractDiagnostic
         if (!$memory_sufficient) {
             $warnings[] = sprintf(
                 /* translators: 1: Current memory limit, 2: Recommended memory limit */
-                __('Memory limit: %s (recommended: 256M+)', 'order-daemon'),
+                __('admin.diagnostics.test.environment.memory.insufficient', 'order-daemon'),
                 $this->format_bytes($memory_limit),
                 $this->format_bytes(self::MIN_MEMORY_LIMIT)
             );
-            $recommendations[] = __('Increase memory limit to 256MB or higher for optimal performance', 'order-daemon');
+            $recommendations[] = __('admin.diagnostics.test.environment.memory.recommendation', 'order-daemon');
         }
 
         // Test 3: WordPress Debug Mode Check
@@ -120,8 +120,8 @@ class EnvironmentDiagnostic extends AbstractDiagnostic
         $debug_log_enabled = defined('WP_DEBUG_LOG') && WP_DEBUG_LOG;
         
         if ($debug_enabled && !$this->is_development_environment()) {
-            $warnings[] = __('Debug mode should be disabled in production for better performance', 'order-daemon');
-            $recommendations[] = __('Disable debug mode in production for better performance and security', 'order-daemon');
+            $warnings[] = __('admin.diagnostics.test.environment.debug_mode.warning', 'order-daemon');
+            $recommendations[] = __('admin.diagnostics.test.environment.debug_mode.recommendation', 'order-daemon');
         }
 
         // Test 4: File Permissions Check
@@ -129,8 +129,8 @@ class EnvironmentDiagnostic extends AbstractDiagnostic
         $upload_writable = wp_is_writable($upload_dir['basedir']);
         
         if (!$upload_writable) {
-            $issues[] = __('File permission issues detected', 'order-daemon');
-            $recommendations[] = __('Ensure wp-content/uploads/ is writable by the web server', 'order-daemon');
+            $issues[] = __('admin.diagnostics.test.environment.permissions.failure', 'order-daemon');
+            $recommendations[] = __('admin.diagnostics.test.environment.permissions.recommendation', 'order-daemon');
         }
 
         // Test 5: Essential PHP Extensions
@@ -146,7 +146,7 @@ class EnvironmentDiagnostic extends AbstractDiagnostic
         if (!empty($missing_extensions)) {
             $issues[] = sprintf(
                 /* translators: %s: Comma-separated list of missing PHP extensions */
-                __('Missing required PHP extensions: %s', 'order-daemon'),
+                __('admin.diagnostics.test.environment.extensions.missing', 'order-daemon'),
                 implode(', ', $missing_extensions)
             );
         }
@@ -156,7 +156,7 @@ class EnvironmentDiagnostic extends AbstractDiagnostic
         if ($max_execution_time > 0 && $max_execution_time < 30) {
             $warnings[] = sprintf(
                 /* translators: %d: Current max execution time in seconds */
-                __('Max execution time is low (%d seconds) - may cause timeouts', 'order-daemon'),
+                __('admin.diagnostics.test.environment.execution_time.low', 'order-daemon'),
                 $max_execution_time
             );
         }
@@ -181,22 +181,22 @@ class EnvironmentDiagnostic extends AbstractDiagnostic
 
         if ($has_critical_issues) {
             $result = DiagnosticResult::failure(
-                __('Environment Configuration Issue', 'order-daemon'),
-                __('Server environment has critical configuration issues', 'order-daemon'),
+                __('admin.diagnostics.test.environment.failure.title', 'order-daemon'),
+                __('admin.diagnostics.test.environment.failure.explanation', 'order-daemon'),
                 $details,
                 array_merge($issues, $recommendations)
             );
         } elseif (!empty($warnings)) {
             $result = DiagnosticResult::warning(
-                __('Environment Configuration Warning', 'order-daemon'),
-                __('Server environment has configuration warnings that should be addressed', 'order-daemon'),
+                __('admin.diagnostics.test.environment.warning.title', 'order-daemon'),
+                __('admin.diagnostics.test.environment.warning.explanation', 'order-daemon'),
                 $details,
                 array_merge($warnings, $recommendations)
             );
         } else {
             $result = DiagnosticResult::success(
-                __('Environment Configuration OK', 'order-daemon'),
-                __('Server environment is properly configured for Order Daemon', 'order-daemon'),
+                __('admin.diagnostics.test.environment.success.title', 'order-daemon'),
+                __('admin.diagnostics.test.environment.success.explanation', 'order-daemon'),
                 $details
             );
         }

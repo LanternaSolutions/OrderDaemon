@@ -23,7 +23,7 @@ class WpCliDiagnostic extends AbstractDiagnostic
      */
     public function get_name(): string
     {
-        return __('WP-CLI Availability', 'order-daemon');
+        return __('admin.diagnostics.test.wp_cli.name', 'order-daemon');
     }
 
     /**
@@ -33,7 +33,7 @@ class WpCliDiagnostic extends AbstractDiagnostic
      */
     public function get_description(): string
     {
-        return __('Checks if WP-CLI is installed and accessible for Pro plugin features', 'order-daemon');
+        return __('admin.diagnostics.test.wp_cli.description', 'order-daemon');
     }
 
     /**
@@ -78,13 +78,13 @@ class WpCliDiagnostic extends AbstractDiagnostic
         // Test 1: Check if shell_exec is available
         if (!function_exists('shell_exec')) {
             return DiagnosticResult::failure(
-                __('WP-CLI Missing', 'order-daemon'),
-                __('Shell execution is disabled on this server', 'order-daemon'),
+                __('admin.diagnostics.test.wp_cli.failure.title', 'order-daemon'),
+                __('admin.diagnostics.test.wp_cli.failure.shell_exec_disabled', 'order-daemon'),
                 [
                     'shell_exec_available' => false,
                     'disabled_functions' => ini_get('disable_functions'),
                 ],
-                [__('Contact your hosting provider to enable shell_exec() function for WP-CLI access', 'order-daemon')]
+                [__('admin.diagnostics.test.wp_cli.failure.shell_exec_recommendation', 'order-daemon')]
             );
         }
 
@@ -93,29 +93,29 @@ class WpCliDiagnostic extends AbstractDiagnostic
         
         if (empty($wp_cli_output)) {
             return DiagnosticResult::failure(
-                __('WP-CLI Missing', 'order-daemon'),
-                __('WP-CLI is required for Pro plugin features but was not found on this server', 'order-daemon'),
+                __('admin.diagnostics.test.wp_cli.failure.title', 'order-daemon'),
+                __('admin.diagnostics.test.wp_cli.failure.explanation', 'order-daemon'),
                 [
                     'command_tested' => 'wp --version',
                     'output' => 'No output returned',
                     'server_path' => $_SERVER['PATH'] ?? 'Unknown',
                     'execution_time' => round((microtime(true) - $start_time) * 1000, 2) . 'ms'
                 ],
-                [__('Install WP-CLI through your hosting provider or contact your server administrator', 'order-daemon')]
+                [__('admin.diagnostics.test.wp_cli.failure.recommendation', 'order-daemon')]
             );
         }
 
         // Check if output indicates WP-CLI is present
         if (strpos($wp_cli_output, 'WP-CLI') === false) {
             return DiagnosticResult::failure(
-                __('WP-CLI Missing', 'order-daemon'),
-                __('WP-CLI command returned invalid output', 'order-daemon'),
+                __('admin.diagnostics.test.wp_cli.failure.title', 'order-daemon'),
+                __('admin.diagnostics.test.wp_cli.failure.invalid_output', 'order-daemon'),
                 [
                     'command_tested' => 'wp --version',
                     'output' => trim($wp_cli_output),
                     'execution_time' => round((microtime(true) - $start_time) * 1000, 2) . 'ms'
                 ],
-                [__('Install WP-CLI through your hosting provider or contact your server administrator', 'order-daemon')]
+                [__('admin.diagnostics.test.wp_cli.failure.recommendation', 'order-daemon')]
             );
         }
 
@@ -137,15 +137,15 @@ class WpCliDiagnostic extends AbstractDiagnostic
 
         // Success result with comprehensive details
         $result = DiagnosticResult::success(
-            __('WP-CLI Available', 'order-daemon'),
+            __('admin.diagnostics.test.wp_cli.success.title', 'order-daemon'),
             /* translators: %s: WP-CLI version information */
-            sprintf(__('WP-CLI version %s is properly installed and can access this WordPress installation', 'order-daemon'), trim($wp_cli_output)),
+            sprintf(__('admin.diagnostics.test.wp_cli.success.details', 'order-daemon'), trim($wp_cli_output)),
             $details
         );
 
         // Add warning if WP-CLI can't access WordPress
         if (!$can_access_wp) {
-            $result->addRecommendation(__('WP-CLI is installed but may not have access to this WordPress installation', 'order-daemon'));
+            $result->addRecommendation(__('admin.diagnostics.test.wp_cli.warning.wp_access', 'order-daemon'));
         }
 
         $result->setExecutionTime(microtime(true) - $start_time);

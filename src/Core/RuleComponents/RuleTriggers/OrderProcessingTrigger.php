@@ -31,7 +31,7 @@ class OrderProcessingTrigger implements TriggerInterface
 
     public function get_label(): string
     {
-        return __('rule_component.trigger.order_processing.label', 'order-daemon');
+        return __('Order Processing', 'order-daemon');
     }
 
     public function get_description(): string

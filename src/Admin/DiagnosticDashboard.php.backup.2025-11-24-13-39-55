@@ -113,47 +113,47 @@ class DiagnosticDashboard
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('odcm_diagnostics'),
             'strings' => [
-                'running' => __('Running', 'order-daemon'),
-                'success' => __('Completed Successfully', 'order-daemon'),
-                'error' => __('Error Running', 'order-daemon'),
-                'passed' => __('passed', 'order-daemon'),
-                'issuesDetected' => __('Issues Detected', 'order-daemon'),
-                'executed' => __('Executed', 'order-daemon'),
-                'runningTests' => __('Running tests...', 'order-daemon'),
-                'testProgress' => __('Test %1$d of %2$d', 'order-daemon'),
-                'timestampLabel' => __('Executed:', 'order-daemon'),
-                'systemHealthy' => __('System Healthy', 'order-daemon'),
-                'warningsFound' => __('Warnings Found', 'order-daemon'),
-                'testsCompleted' => __('Tests completed', 'order-daemon'),
-                'preparingTests' => __('Preparing tests...', 'order-daemon'),
-                'buttonRunning' => __('Running...', 'order-daemon'),
-                'justNow' => __('just now', 'order-daemon'),
-                'minuteAgo' => __('%d minute ago', 'order-daemon'),
-                'minutesAgo' => __('%d minutes ago', 'order-daemon'),
-                'hourAgo' => __('%d hour ago', 'order-daemon'),
-                'hoursAgo' => __('%d hours ago', 'order-daemon'),
-                'dayAgo' => __('%d day ago', 'order-daemon'),
-                'daysAgo' => __('%d days ago', 'order-daemon'),
-                'selectTest' => __('Please select a test to run', 'order-daemon'),
-                'testCompleted' => __('Test completed: %s', 'order-daemon'),
-                'failedRunTest' => __('Failed to run test', 'order-daemon'),
-                'failedRunDiagnostics' => __('Failed to run diagnostics', 'order-daemon'),
-                'failedGenerateReport' => __('Failed to generate report', 'order-daemon'),
-                'executedPrefix' => __('Executed:', 'order-daemon'),
-                'errorTitle' => __('Error', 'order-daemon'),
-                'diagnosticError' => __('Diagnostic Error', 'order-daemon'),
-                'recommendationsIcon' => __('💡 Recommendations:', 'order-daemon'),
-                'tryRefresh' => __('Try refreshing the page and running again', 'order-daemon'),
-                'checkConsole' => __('Check browser console for additional errors', 'order-daemon'),
-                'contactSupport' => __('Contact support if the issue persists', 'order-daemon'),
-                'autoCopyFailed' => __('Could not copy automatically. Report generated in console.', 'order-daemon'),
-                'singleTestTitle' => __('Individual Test Result', 'order-daemon'),
-                'recommendationsLabel' => __('💡 Recommendations:', 'order-daemon'),
-                'detailsLabel' => __('📊 Details:', 'order-daemon'),
-                'testsCompletedSuccessfully' => __('Diagnostic tests completed successfully', 'order-daemon'),
-                'copying' => __('Copying...', 'order-daemon'),
-                'copied' => __('Copied!', 'order-daemon'),
-                'copySuccess' => __('Diagnostic report copied to clipboard! Paste this in your support request.', 'order-daemon'),
+                'running' => __('admin.diagnostics.status.running', 'order-daemon'),
+                'success' => __('admin.diagnostics.status.completed_successfully', 'order-daemon'),
+                'error' => __('admin.diagnostics.status.error_running', 'order-daemon'),
+                'passed' => __('admin.diagnostics.status.passed', 'order-daemon'),
+                'issuesDetected' => __('admin.diagnostics.status.issues_detected', 'order-daemon'),
+                'executed' => __('admin.diagnostics.status.executed', 'order-daemon'),
+                'runningTests' => __('admin.diagnostics.loading.running_tests', 'order-daemon'),
+                'testProgress' => __('admin.diagnostics.loading.test_progress', 'order-daemon'),
+                'timestampLabel' => __('admin.diagnostics.results.timestamp_label', 'order-daemon'),
+                'systemHealthy' => __('admin.diagnostics.status.system_healthy', 'order-daemon'),
+                'warningsFound' => __('admin.diagnostics.status.warnings_found', 'order-daemon'),
+                'testsCompleted' => __('admin.diagnostics.loading.tests_completed', 'order-daemon'),
+                'preparingTests' => __('admin.diagnostics.loading.preparing_tests', 'order-daemon'),
+                'buttonRunning' => __('admin.diagnostics.button.running', 'order-daemon'),
+                'justNow' => __('admin.diagnostics.time.just_now', 'order-daemon'),
+                'minuteAgo' => __('admin.diagnostics.time.minutes_ago', 'order-daemon'),
+                'minutesAgo' => __('admin.diagnostics.time.minutes_ago_plural', 'order-daemon'),
+                'hourAgo' => __('admin.diagnostics.time.hours_ago', 'order-daemon'),
+                'hoursAgo' => __('admin.diagnostics.time.hours_ago_plural', 'order-daemon'),
+                'dayAgo' => __('admin.diagnostics.time.days_ago', 'order-daemon'),
+                'daysAgo' => __('admin.diagnostics.time.days_ago_plural', 'order-daemon'),
+                'selectTest' => __('admin.diagnostics.error.select_test', 'order-daemon'),
+                'testCompleted' => __('admin.diagnostics.success.test_completed', 'order-daemon'),
+                'failedRunTest' => __('admin.diagnostics.error.failed_run_test', 'order-daemon'),
+                'failedRunDiagnostics' => __('admin.diagnostics.error.failed_run_diagnostics', 'order-daemon'),
+                'failedGenerateReport' => __('admin.diagnostics.error.failed_generate_report', 'order-daemon'),
+                'executedPrefix' => __('admin.diagnostics.results.executed_prefix', 'order-daemon'),
+                'errorTitle' => __('admin.diagnostics.error.category_title', 'order-daemon'),
+                'diagnosticError' => __('admin.diagnostics.error.diagnostic_error', 'order-daemon'),
+                'recommendationsIcon' => __('admin.diagnostics.error.recommendations_icon', 'order-daemon'),
+                'tryRefresh' => __('admin.diagnostics.error.try_refresh', 'order-daemon'),
+                'checkConsole' => __('admin.diagnostics.error.check_console', 'order-daemon'),
+                'contactSupport' => __('admin.diagnostics.error.contact_support', 'order-daemon'),
+                'autoCopyFailed' => __('admin.diagnostics.error.auto_copy_failed', 'order-daemon'),
+                'singleTestTitle' => __('admin.diagnostics.single_test.result_title', 'order-daemon'),
+                'recommendationsLabel' => __('admin.diagnostics.format.recommendations_label', 'order-daemon'),
+                'detailsLabel' => __('admin.diagnostics.format.details_label', 'order-daemon'),
+                'testsCompletedSuccessfully' => __('admin.diagnostics.success.tests_completed_successfully', 'order-daemon'),
+                'copying' => __('admin.diagnostics.copy_paste.copying', 'order-daemon'),
+                'copied' => __('admin.diagnostics.copy_paste.copied', 'order-daemon'),
+                'copySuccess' => __('admin.diagnostics.copy_paste.copy_success', 'order-daemon'),
             ],
         ]);
     }
@@ -174,26 +174,26 @@ class DiagnosticDashboard
             <!-- Hero Section -->
             <div class="odcm-diagnostic-hero">
                 <div class="odcm-hero-left">
-                    <h1><?php echo esc_html__('WordPress System Diagnostics', 'order-daemon'); ?></h1>
+                    <h1><?php echo esc_html__('admin.diagnostics.hero.title', 'order-daemon'); ?></h1>
                     <p class="odcm-hero-description">
-                        <?php echo esc_html__('Comprehensive health check for Order Daemon', 'order-daemon'); ?>
+                        <?php echo esc_html__('admin.diagnostics.hero.description', 'order-daemon'); ?>
                     </p>
                     <button class="button button-primary button-hero" id="run-diagnostics">
-                        <?php echo esc_html__('Run Full Diagnostic', 'order-daemon'); ?>
+                        <?php echo esc_html__('admin.diagnostics.hero.run_full_button', 'order-daemon'); ?>
                     </button>
                     <div class="odcm-hero-meta">
-                        <span><?php echo esc_html__('Last run:', 'order-daemon'); ?> <time id="last-run-time"><?php echo esc_html__('Never', 'order-daemon'); ?></time></span>
-                        <span><?php echo esc_html__('Status:', 'order-daemon'); ?> <strong id="status-summary"><?php echo esc_html__('Pending', 'order-daemon'); ?></strong></span>
+                        <span><?php echo esc_html__('admin.diagnostics.hero.last_run_label', 'order-daemon'); ?> <time id="last-run-time"><?php echo esc_html__('admin.diagnostics.hero.last_run_never', 'order-daemon'); ?></time></span>
+                        <span><?php echo esc_html__('admin.diagnostics.hero.status_label', 'order-daemon'); ?> <strong id="status-summary"><?php echo esc_html__('admin.diagnostics.hero.status_pending', 'order-daemon'); ?></strong></span>
                     </div>
                 </div>
                 
                 <div class="odcm-hero-right">
                     <!-- Advanced Options Box -->
                     <div class="odcm-hero-advanced-options">
-                        <h3><?php echo esc_html__('Advanced Options', 'order-daemon'); ?></h3>
+                        <h3><?php echo esc_html__('admin.diagnostics.hero.advanced_options', 'order-daemon'); ?></h3>
                         <div class="odcm-hero-advanced-content">
                             <div class="odcm-hero-advanced-section">
-                                <h4><?php echo esc_html__('Run by Category:', 'order-daemon'); ?></h4>
+                                <h4><?php echo esc_html__('admin.diagnostics.hero.run_by_category', 'order-daemon'); ?></h4>
                                 <div class="odcm-button-group">
                                     <?php
                                     $categories = ['core', 'api', 'performance', 'frontend'];
@@ -201,20 +201,20 @@ class DiagnosticDashboard
                                         if (empty(array_filter($available_diagnostics, function($diag) use ($category) { return $diag['category'] === $category; }))) continue;
                                     ?>
                                     <button class="button" data-category="<?php echo esc_attr($category); ?>" id="run-category-<?php echo esc_attr($category); ?>">
-                                        <?php echo esc_html__($category, 'order-daemon'); ?>
+                                        <?php echo esc_html__("admin.diagnostics.category.{$category}", 'order-daemon'); ?>
                                     </button>
                                     <?php endforeach; ?>
                                 </div>
                             </div>
                             <div class="odcm-hero-advanced-section">
-                                <h4><?php echo esc_html__('Run Individual Test:', 'order-daemon'); ?></h4>
+                                <h4><?php echo esc_html__('admin.diagnostics.hero.run_individual_test', 'order-daemon'); ?></h4>
                                 <select id="individual-test-select">
-                                    <option value=""><?php echo esc_html__('Select test...', 'order-daemon'); ?></option>
+                                    <option value=""><?php echo esc_html__('admin.diagnostics.hero.select_test', 'order-daemon'); ?></option>
                                     <?php foreach ($available_diagnostics as $key => $diagnostic): ?>
                                     <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($diagnostic['name']); ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <button class="button" id="run-individual"><?php echo esc_html__('Run Selected Test', 'order-daemon'); ?></button>
+                                <button class="button" id="run-individual"><?php echo esc_html__('admin.diagnostics.hero.run_selected', 'order-daemon'); ?></button>
                             </div>
                         </div>
                     </div>
@@ -230,13 +230,13 @@ class DiagnosticDashboard
                 <div class="odcm-status-banner-center" id="banner-status-summary">
                     <?php
                     /* translators: 1: Number of tests passed, 2: Number of tests failed */
-                    printf(esc_html__('%1$d passed, %2$d failed', 'order-daemon'), 0, 0); 
+                    printf(esc_html__('admin.diagnostics.banner.tests_summary', 'order-daemon'), 0, 0); 
                     ?>
                 </div>
                 <div class="odcm-status-banner-right">
                     <button class="button button-secondary" id="copy-report">
                         <span class="dashicons dashicons-clipboard"></span>
-                        <?php esc_html_e('Copy to Clipboard', 'order-daemon'); ?>
+                        <?php esc_html_e('admin.diagnostics.copy_paste.copy_button', 'order-daemon'); ?>
                     </button>
                 </div>
             </div>
@@ -244,7 +244,7 @@ class DiagnosticDashboard
             <!-- Loading State -->
             <div class="odcm-loading-state" id="loading-state" style="display: none;">
                 <div class="odcm-loading-hero">
-                    <h2><?php esc_html_e('Running diagnostics...', 'order-daemon'); ?></h2>
+                    <h2><?php esc_html_e('admin.diagnostics.loading.title', 'order-daemon'); ?></h2>
                     <div class="odcm-loading-progress">
                         <div class="odcm-progress-bar">
                             <div class="odcm-progress-fill" id="progress-bar"></div>
@@ -258,8 +258,8 @@ class DiagnosticDashboard
             <!-- Unified Results Container -->
             <div class="odcm-unified-results" id="unified-results" style="display: none;">
                 <div class="odcm-results-header">
-                    <h2><?php esc_html_e('Diagnostics Results', 'order-daemon'); ?></h2>
-                    <span class="odcm-results-timestamp" id="results-timestamp"><?php printf(esc_html__('Executed: %s', 'order-daemon'), 'Nov 21, 12:30 PM'); ?></span>
+                    <h2><?php esc_html_e('admin.diagnostics.results.title', 'order-daemon'); ?></h2>
+                    <span class="odcm-results-timestamp" id="results-timestamp"><?php printf(esc_html__('admin.diagnostics.results.timestamp_format', 'order-daemon'), 'Nov 21, 12:30 PM'); ?></span>
                 </div>
 
                 <div class="odcm-results-content" id="odcm-results-content">
@@ -310,7 +310,7 @@ class DiagnosticDashboard
         } catch (\Throwable $e) {
             wp_send_json_error([
                 /* translators: %s: The error message that occurred while running diagnostics */
-                'message' => sprintf(__('Failed to run diagnostics: %s', 'order-daemon'), $e->getMessage())
+                'message' => sprintf(__('admin.diagnostics.error.failed_to_run_diagnostics', 'order-daemon'), $e->getMessage())
             ]);
         }
     }
@@ -336,13 +336,13 @@ class DiagnosticDashboard
             $diagnostic_key = sanitize_text_field($_POST['diagnostic'] ?? '');
             
             if (empty($diagnostic_key)) {
-                wp_send_json_error(['message' => __('No diagnostic specified', 'order-daemon')]);
+                wp_send_json_error(['message' => __('admin.diagnostics.error.no_diagnostic_specified', 'order-daemon')]);
             }
 
             $result = $this->runner->run_diagnostic($diagnostic_key);
             
             if (!$result) {
-                wp_send_json_error(['message' => __('Diagnostic not found', 'order-daemon')]);
+                wp_send_json_error(['message' => __('admin.diagnostics.error.diagnostic_not_found', 'order-daemon')]);
             }
 
             wp_send_json_success([
@@ -353,7 +353,7 @@ class DiagnosticDashboard
         } catch (\Throwable $e) {
             wp_send_json_error([
                 /* translators: %s: The error message that occurred while running a single diagnostic */
-                'message' => sprintf(__('Failed to run diagnostic: %s', 'order-daemon'), $e->getMessage())
+                'message' => sprintf(__('admin.diagnostics.error.failed_to_run_diagnostic', 'order-daemon'), $e->getMessage())
             ]);
         }
     }
@@ -385,14 +385,14 @@ class DiagnosticDashboard
 
             wp_send_json_success([
                 'report' => $formatted_report,
-                'message' => __('Report generated successfully', 'order-daemon')
+                'message' => __('admin.diagnostics.copy_paste.report_success', 'order-daemon')
             ]);
 
         } catch (\Throwable $e) {
             wp_send_json_error([
                 'message' => sprintf(
                     /* translators: %s: The error message that occurred while generating dual-audience report */
-                    __('Failed to generate report', 'order-daemon'),
+                    __('admin.diagnostics.copy_paste.report_failed', 'order-daemon'),
                     $e->getMessage()
                 )
             ]);
@@ -411,11 +411,11 @@ class DiagnosticDashboard
         ?>
         <div class="odcm-report">
             <div class="odcm-report-summary">
-                <h4><?php esc_html_e('Summary', 'order-daemon'); ?></h4>
+                <h4><?php esc_html_e('admin.diagnostics.results.summary_title', 'order-daemon'); ?></h4>
                 <p>
                     <?php
                     /* translators: 1: Number of tests run, 2: Number passed, 3: Number failed */
-                    printf(esc_html__('Ran %1$d tests: %2$d passed, %3$d failed', 'order-daemon'), 
+                    printf(esc_html__('admin.diagnostics.results.test_summary', 'order-daemon'), 
                            esc_html($report['summary']['total_tests']),
                            esc_html($report['summary']['passed']),
                            esc_html($report['summary']['failed']));
@@ -425,7 +425,7 @@ class DiagnosticDashboard
 
             <?php if (!empty($report['critical_issues'])): ?>
             <div class="odcm-critical-issues">
-                <h4><?php esc_html_e('Critical Issues', 'order-daemon'); ?></h4>
+                <h4><?php esc_html_e('admin.diagnostics.results.critical_issues_title', 'order-daemon'); ?></h4>
                 <ul>
                     <?php foreach ($report['critical_issues'] as $issue): ?>
                     <li class="odcm-error">
@@ -439,11 +439,11 @@ class DiagnosticDashboard
 
             <?php if (!empty($report['recommendations'])): ?>
             <div class="odcm-all-recommendations">
-                <h4><?php esc_html_e('All Recommendations', 'order-daemon'); ?></h4>
+                <h4><?php esc_html_e('admin.diagnostics.results.all_recommendations_title', 'order-daemon'); ?></h4>
                 <ul>
                     <?php foreach ($report['recommendations'] as $rec): ?>
                     <li>
-                        <strong><?php echo esc_html__("{$rec['category']}", 'order-daemon'); ?>:</strong> 
+                        <strong><?php echo esc_html__("admin.diagnostics.category.{$rec['category']}", 'order-daemon'); ?>:</strong> 
                         <?php echo esc_html($rec['recommendation']); ?>
                     </li>
                     <?php endforeach; ?>
@@ -453,13 +453,13 @@ class DiagnosticDashboard
 
             <?php if (!empty($report['categories'])): ?>
             <div class="odcm-detailed-results">
-                <h4><?php esc_html_e('Detailed Results', 'order-daemon'); ?></h4>
+                <h4><?php esc_html_e('admin.diagnostics.results.detailed_results_title', 'order-daemon'); ?></h4>
                 <?php foreach ($report['categories'] as $category_name => $category_data): ?>
                 <div class="odcm-category-results">
                     <h5><?php
                     /* translators: 1: Category name, 2: Number passed, 3: Total number */
-                    printf(esc_html__('%1$s: %2$d/%3$d passed', 'order-daemon'),
-                           esc_html__("{$category_name}", 'order-daemon'),
+                    printf(esc_html__('admin.diagnostics.results.category_status', 'order-daemon'),
+                           esc_html__("admin.diagnostics.category.{$category_name}", 'order-daemon'),
                            esc_html($category_data['passed']),
                            esc_html($category_data['total']));
                     ?></h5>
@@ -493,7 +493,7 @@ class DiagnosticDashboard
                         
                         <?php if (!empty($test_result['recommendations'])): ?>
                         <div class="odcm-test-recommendations">
-                            <strong><?php esc_html_e('Recommendations', 'order-daemon'); ?>:</strong>
+                            <strong><?php esc_html_e('admin.diagnostics.results.recommendations_title', 'order-daemon'); ?>:</strong>
                             <ul>
                                 <?php foreach ($test_result['recommendations'] as $rec): ?>
                                 <li><?php echo esc_html($rec); ?></li>
@@ -511,7 +511,7 @@ class DiagnosticDashboard
                         ?>
                         <?php if (!empty($test_result['details'])): ?>
                         <div class="odcm-test-details">
-                            <h6><?php esc_html_e('Technical Details', 'order-daemon'); ?>:</h6>
+                            <h6><?php esc_html_e('admin.diagnostics.results.technical_details_title', 'order-daemon'); ?>:</h6>
                             <div class="odcm-technical-info">
                                 <?php 
                                 error_log("DEBUG render_results_html: About to call render_nested_details for '{$test_result['name']}'");
@@ -555,7 +555,7 @@ class DiagnosticDashboard
         $status_class = $result['successful'] ? 'success' : 'error';
         ?>
         <div class="odcm-results-category">
-            <h3 class="odcm-category-title"><?php echo esc_html__('Individual Test Result', 'order-daemon'); ?></h3>
+            <h3 class="odcm-category-title"><?php echo esc_html__('admin.diagnostics.single_test.title', 'order-daemon'); ?></h3>
             <div class="odcm-test-result odcm-test-result--<?php echo esc_attr($status_class); ?>">
                 <div class="odcm-test-result-header">
                     <span class="odcm-test-icon"><?php echo $status_icon; ?></span>
@@ -566,7 +566,7 @@ class DiagnosticDashboard
                 
                 <?php if (!empty($result['recommendations'])): ?>
                 <div class="odcm-test-recommendations">
-                    <strong><?php esc_html_e('Recommendations', 'order-daemon'); ?>:</strong>
+                    <strong><?php esc_html_e('admin.diagnostics.results.recommendations_title', 'order-daemon'); ?>:</strong>
                     <ul>
                         <?php foreach ($result['recommendations'] as $rec): ?>
                         <li><?php echo esc_html($rec); ?></li>
@@ -577,7 +577,7 @@ class DiagnosticDashboard
 
                 <?php if (!empty($result['details'])): ?>
                 <div class="odcm-test-details">
-                    <h6><?php esc_html_e('Technical Details', 'order-daemon'); ?>:</h6>
+                    <h6><?php esc_html_e('admin.diagnostics.results.technical_details_title', 'order-daemon'); ?>:</h6>
                     <div class="odcm-technical-info">
                         <?php echo $this->render_nested_details($result['details']); ?>
                     </div>
@@ -601,7 +601,7 @@ class DiagnosticDashboard
     private function render_nested_details(array $details, int $level = 0, bool $for_html = true, array $ancestry_path = []): string
     {
         if (empty($details)) {
-            $no_details_text = __('No details available', 'order-daemon');
+            $no_details_text = __('admin.diagnostics.technical.no_details', 'order-daemon');
             return $for_html ? '<pre><code class="language-bash">' . $no_details_text . '</code></pre>' : $no_details_text;
         }
 
@@ -747,16 +747,16 @@ class DiagnosticDashboard
         $output = '';
         
         // Header
-        $output .= __('ORDER DAEMON DIAGNOSTICS REPORT', 'order-daemon') . "\n";
-        $output .= sprintf(__('Generated: %s', 'order-daemon'), current_time('Y-m-d H:i:s T')) . "\n";
-        $output .= sprintf(__('Plugin Version: %s', 'order-daemon'), defined('ODCM_VERSION') ? ODCM_VERSION : __('unknown', 'order-daemon')) . "\n";
+        $output .= __('admin.diagnostics.report.header', 'order-daemon') . "\n";
+        $output .= sprintf(__('admin.diagnostics.report.generated_timestamp', 'order-daemon'), current_time('Y-m-d H:i:s T')) . "\n";
+        $output .= sprintf(__('admin.diagnostics.report.plugin_version', 'order-daemon'), defined('ODCM_VERSION') ? ODCM_VERSION : __('admin.diagnostics.report.unknown', 'order-daemon')) . "\n";
         $output .= "\n";
 
         // Report Summary
-        $output .= __('SUMMARY', 'order-daemon') . "\n";
+        $output .= __('admin.diagnostics.report.summary_header', 'order-daemon') . "\n";
         $output .= "-------\n";
         $output .= sprintf(
-            __('Tests run: %1$d | Passed: %2$d | Failed: %3$d', 'order-daemon'),
+            __('admin.diagnostics.report.tests_summary', 'order-daemon'),
             $report['summary']['total_tests'],
             $report['summary']['passed'],
             $report['summary']['failed']
@@ -765,7 +765,7 @@ class DiagnosticDashboard
 
         // Critical Issues Section (if any)
         if (!empty($report['critical_issues'])) {
-            $output .= __('CRITICAL ISSUES', 'order-daemon') . "\n";
+            $output .= __('admin.diagnostics.report.critical_header', 'order-daemon') . "\n";
             $output .= "---------------\n";
             foreach ($report['critical_issues'] as $issue) {
                 $output .= sprintf("❌ %s: %s\n", $issue['name'], $issue['message']);
@@ -775,7 +775,7 @@ class DiagnosticDashboard
 
         // All Recommendations Section (if any)
         if (!empty($report['recommendations'])) {
-            $output .= __('ALL RECOMMENDATIONS', 'order-daemon') . "\n";
+            $output .= __('admin.diagnostics.report.recommendations_header', 'order-daemon') . "\n";
             $output .= "-------------------\n";
             foreach ($report['recommendations'] as $rec) {
                 $category_label = $this->format_category_name($rec['category'] ?? 'general');
@@ -786,13 +786,13 @@ class DiagnosticDashboard
 
         // Detailed Results by Category
         if (!empty($report['categories'])) {
-            $output .= __('DETAILED RESULTS', 'order-daemon') . "\n";
+            $output .= __('admin.diagnostics.report.detailed_header', 'order-daemon') . "\n";
             $output .= "----------------\n";
             
             foreach ($report['categories'] as $category_name => $category_data) {
                 $category_label = $this->format_category_name($category_name);
                 $output .= sprintf(
-                    __('%s DIAGNOSTICS (%d/%d passed)', 'order-daemon'),
+                    __('admin.diagnostics.report.diagnostics_format', 'order-daemon'),
                     strtoupper($category_label),
                     $category_data['passed'],
                     $category_data['total']
@@ -804,12 +804,12 @@ class DiagnosticDashboard
                     $status_icon = $this->get_status_icon_for_text($test_result);
                     
                     $output .= sprintf("\n%s %s\n", $status_icon, $test_result['name']);
-                    $output .= sprintf(__('Status: %s', 'order-daemon'), ucfirst($test_result['status'])) . "\n";
-                    $output .= sprintf(__('Message: %s', 'order-daemon'), $test_result['message']) . "\n";
+                    $output .= sprintf(__('admin.diagnostics.report.status_format', 'order-daemon'), ucfirst($test_result['status'])) . "\n";
+                    $output .= sprintf(__('admin.diagnostics.report.message_format', 'order-daemon'), $test_result['message']) . "\n";
                     
                     // Add recommendations if any
                     if (!empty($test_result['recommendations'])) {
-                        $output .= __('Recommendations:', 'order-daemon') . "\n";
+                        $output .= __('admin.diagnostics.report.recommendations_label', 'order-daemon') . "\n";
                         foreach ($test_result['recommendations'] as $rec) {
                             $output .= sprintf("   • %s\n", $rec);
                         }
@@ -817,7 +817,7 @@ class DiagnosticDashboard
                     
                     // Add technical details if any
                     if (!empty($test_result['details'])) {
-                        $output .= __('Technical Details:', 'order-daemon') . "\n";
+                        $output .= __('admin.diagnostics.report.technical_details_label', 'order-daemon') . "\n";
                         $details_text = $this->render_nested_details($test_result['details'], 1, false);
                         if (trim($details_text)) {
                             // Add proper indentation for text output
@@ -833,22 +833,22 @@ class DiagnosticDashboard
 
         // System Information
         if (!empty($report['system_info'])) {
-            $output .= "\n" . __('SYSTEM INFORMATION', 'order-daemon') . "\n";
+            $output .= "\n" . __('admin.diagnostics.report.system_info_header', 'order-daemon') . "\n";
             $output .= "------------------\n";
             /* translators: %s: The WordPress version number */
-            $output .= sprintf(__('WordPress Version: %s', 'order-daemon'), $report['system_info']['wordpress_version'] ?? __('unknown', 'order-daemon')) . "\n";
+            $output .= sprintf(__('admin.diagnostics.report.wordpress_version', 'order-daemon'), $report['system_info']['wordpress_version'] ?? __('admin.diagnostics.report.unknown', 'order-daemon')) . "\n";
             /* translators: %s: The PHP version number */
-            $output .= sprintf(__('PHP Version: %s', 'order-daemon'), $report['system_info']['php_version'] ?? __('unknown', 'order-daemon')) . "\n";
+            $output .= sprintf(__('admin.diagnostics.report.php_version', 'order-daemon'), $report['system_info']['php_version'] ?? __('admin.diagnostics.report.unknown', 'order-daemon')) . "\n";
             /* translators: %s: The Order Daemon plugin version number */
-            $output .= sprintf(__('Order Daemon Version: %s', 'order-daemon'), $report['system_info']['order_daemon_version'] ?? __('unknown', 'order-daemon')) . "\n";
+            $output .= sprintf(__('admin.diagnostics.report.order_daemon_version', 'order-daemon'), $report['system_info']['order_daemon_version'] ?? __('admin.diagnostics.report.unknown', 'order-daemon')) . "\n";
             /* translators: %s: Whether WooCommerce is active (Yes/No) */
-            $output .= sprintf(__('WooCommerce Active: %s', 'order-daemon'), ($report['system_info']['woocommerce_active'] ?? false) ? __('Yes', 'order-daemon') : __('No', 'order-daemon')) . "\n";
+            $output .= sprintf(__('admin.diagnostics.report.woocommerce_active', 'order-daemon'), ($report['system_info']['woocommerce_active'] ?? false) ? __('admin.diagnostics.report.yes', 'order-daemon') : __('admin.diagnostics.report.no', 'order-daemon')) . "\n";
             /* translators: %s: Whether debug mode is enabled (Enabled/Disabled) */
-            $output .= sprintf(__('Debug Mode: %s', 'order-daemon'), ($report['system_info']['debug_mode'] ?? false) ? __('Enabled', 'order-daemon') : __('Disabled', 'order-daemon')) . "\n";
+            $output .= sprintf(__('admin.diagnostics.report.debug_mode', 'order-daemon'), ($report['system_info']['debug_mode'] ?? false) ? __('admin.diagnostics.report.enabled', 'order-daemon') : __('admin.diagnostics.report.disabled', 'order-daemon')) . "\n";
             $output .= "\n";
         }
 
-        $output .= "=== " . __('End of Report', 'order-daemon') . " ===\n";
+        $output .= "=== " . __('admin.diagnostics.report.end_header', 'order-daemon') . " ===\n";
         
         return $output;
     }
