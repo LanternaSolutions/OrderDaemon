@@ -1,5 +1,123 @@
 #!/bin/bash
 
+# ============================================================================
+# Version Update Script - PRO Edition
+# ============================================================================
+#
+# PURPOSE:
+#   Updates version numbers in Pro edition project files and creates git 
+#   commits/tags. This is the Pro variant that requires explicit version numbers.
+#
+# USAGE:
+#   ./update-version.sh [-f|--force] <version>
+#
+# OPTIONS:
+#   -f, --force     Force update even if the new version is the same or lower
+#   -h, --help      Show help instructions
+#
+# ARGUMENTS:
+#   version         Specific version number in X.Y.Z format (e.g., 1.2.3)
+#                   Note: Unlike the standard script, this does NOT accept
+#                   major/minor/patch keywords - you must specify the exact version.
+#
+# EXAMPLES:
+#   # Set version to 1.2.3
+#   ./update-version.sh 1.2.3
+#
+#   # Force update to a specific version (even if lower or same)
+#   ./update-version.sh --force 1.2.3
+#
+#   # Show help
+#   ./update-version.sh --help
+#
+# WHAT IT DOES:
+#   1. Reads current version from ./order-daemon-pro.php
+#   2. Validates the new version format (must be X.Y.Z)
+#   3. Compares new version with current version
+#   4. Updates version in:
+#      - ./order-daemon-pro.php (Version header and ODCM_VERSION constant)
+#   5. Replaces "@since next" placeholders with the new version in all
+#      PHP, JS, and CSS files
+#   6. Creates a git commit with the version as the message
+#   7. Creates an annotated git tag (e.g., v1.2.3)
+#
+# VERSION VALIDATION:
+#   - If the new version is the same as current: exits with suggestion
+#   - If the new version is lower than current: exits with error and suggestion
+#   - The script will suggest the next patch version if validation fails
+#
+# REQUIREMENTS:
+#   - Git must be initialized in the project
+#   - ./order-daemon-pro.php must exist with a Version header
+#
+# DIFFERENCES FROM STANDARD SCRIPT:
+#   - Targets order-daemon-pro.php instead of order-daemon.php
+#   - Does NOT update README.txt
+#   - Does NOT support major/minor/patch increment keywords
+#   - Requires explicit version numbers only
+#   - Provides helpful version suggestions on validation failures
+#
+# ============================================================================
+
+# ============================================================================
+# Version Update Script
+# ============================================================================
+#
+# PURPOSE:
+#   Updates version numbers in project files and creates git commits/tags.
+#
+# USAGE:
+#   ./update-version.sh [-f|--force] [-n|--dry-run] <version|major|minor|patch>
+#
+# OPTIONS:
+#   -f, --force     Force update even if the new version is the same or lower
+#   -n, --dry-run   Do everything except creating git commits and tags
+#   -h, --help      Show help instructions
+#
+# ARGUMENTS:
+#   version         Specific version number (e.g., 1.2.3)
+#   major           Increment major version (e.g., 1.2.3 -> 2.0.0)
+#   minor           Increment minor version (e.g., 1.2.3 -> 1.3.0)
+#   patch           Increment patch version (e.g., 1.2.3 -> 1.2.4)
+#
+# EXAMPLES:
+#   # Increment patch version (1.2.3 -> 1.2.4)
+#   ./update-version.sh patch
+#
+#   # Increment minor version (1.2.3 -> 1.3.0)
+#   ./update-version.sh minor
+#
+#   # Increment major version (1.2.3 -> 2.0.0)
+#   ./update-version.sh major
+#
+#   # Set a specific version
+#   ./update-version.sh 1.5.0
+#
+#   # Force update to a specific version (even if lower or same)
+#   ./update-version.sh --force 1.2.3
+#
+#   # Dry-run to see what would happen without making changes
+#   ./update-version.sh --dry-run minor
+#
+#   # Show help
+#   ./update-version.sh --help
+#
+# WHAT IT DOES:
+#   1. Reads current version from ./order-daemon.php
+#   2. Updates version in:
+#      - ./order-daemon.php (Version header and ODCM_VERSION constant)
+#      - ./README.txt (Stable tag)
+#   3. Replaces "@since next" placeholders with the new version
+#   4. Creates a git commit with the version as the message
+#   5. Creates an annotated git tag (e.g., v1.2.3)
+#
+# REQUIREMENTS:
+#   - Git must be initialized in the project
+#   - ./order-daemon.php must exist with a Version header
+#   - ./README.txt must exist with a Stable tag
+#
+# ============================================================================
+
 show_instructions() {
     echo "Usage: $0 [-f|--force] [-n|--dry-run] <version|major|minor|patch>"
     echo "Options:"
