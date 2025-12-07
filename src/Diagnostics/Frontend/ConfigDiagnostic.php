@@ -88,9 +88,20 @@ class ConfigDiagnostic extends AbstractDiagnostic
         // Test 2: Check for duplicate script loading
         $duplicate_test = $this->test_duplicate_script_loading();
         $details['duplicate_scripts'] = $duplicate_test;
-        if ($duplicate_test['duplicates_found']) {
-            $issues_found[] = 'Duplicate script loading detected - causes double initialization';
-            $recommendations[] = 'Implement proper script dependency management and conditional loading';
+        
+        // Handle different severity levels for duplicates
+        if (!empty($duplicate_test['critical_odcm_duplicates'])) {
+            foreach ($duplicate_test['critical_odcm_duplicates'] as $duplicate) {
+                $issues_found[] = "Critical ODCM script duplicate: {$duplicate['description']}";
+            }
+            $recommendations[] = 'Fix ODCM script duplication - causes double initialization';
+        }
+        
+        if (!empty($duplicate_test['potential_conflicts'])) {
+            foreach ($duplicate_test['potential_conflicts'] as $conflict) {
+                $issues_found[] = "Potential script conflict: {$conflict['description']}";
+            }
+            $recommendations[] = 'Review potential script conflicts that may affect ODCM functionality';
         }
 
         // Test 3: Check JavaScript localization and configuration
@@ -224,7 +235,7 @@ class ConfigDiagnostic extends AbstractDiagnostic
     }
 
     /**
-     * Test for duplicate script loading
+     * Test for duplicate script loading with tiered severity
      *
      * @return array Duplicate script test results
      */
@@ -235,7 +246,10 @@ class ConfigDiagnostic extends AbstractDiagnostic
         $result = [
             'duplicates_found' => false,
             'duplicate_groups' => [],
-            'script_sources' => []
+            'script_sources' => [],
+            'critical_odcm_duplicates' => [],
+            'potential_conflicts' => [],
+            'harmless_duplicates' => []
         ];
 
         if (!$wp_scripts instanceof \WP_Scripts) {
@@ -254,7 +268,21 @@ class ConfigDiagnostic extends AbstractDiagnostic
             }
         }
 
-        // Find duplicates
+        // Define known harmless duplicates
+        $harmless_patterns = [
+            'www.google.com/recaptcha/api.js' => 'reCAPTCHA v2/v3 APIs are commonly loaded together',
+            'googletagmanager.com' => 'Multiple GTM implementations are sometimes intentional',
+            'google-analytics.com' => 'GA can be loaded multiple ways for different tracking'
+        ];
+
+        // Define potential conflict patterns (scripts that might affect ODCM)
+        $potential_conflict_patterns = [
+            'jquery' => 'Multiple jQuery versions',
+            'bootstrap' => 'Multiple Bootstrap versions',
+            'datatables' => 'Multiple DataTables instances'
+        ];
+
+        // Categorize duplicates by severity
         foreach ($source_groups as $src => $handles) {
             if (count($handles) > 1) {
                 $result['duplicates_found'] = true;
@@ -262,6 +290,62 @@ class ConfigDiagnostic extends AbstractDiagnostic
                     'source' => $src,
                     'handles' => $handles
                 ];
+
+                // Check if any handles are ODCM-related
+                $odcm_handles = array_filter($handles, function($handle) {
+                    return preg_match('/^(odcm|order.?daemon)/i', $handle);
+                });
+
+                if (!empty($odcm_handles)) {
+                    // Critical: ODCM script duplicates
+                    $result['critical_odcm_duplicates'][] = [
+                        'source' => $src,
+                        'handles' => $handles,
+                        'odcm_handles' => $odcm_handles,
+                        'description' => 'ODCM script loaded multiple times: ' . implode(', ', $odcm_handles)
+                    ];
+                } else {
+                    // Check if it's a known harmless duplicate
+                    $is_harmless = false;
+                    foreach ($harmless_patterns as $pattern => $reason) {
+                        if (strpos($src, $pattern) !== false) {
+                            $result['harmless_duplicates'][] = [
+                                'source' => $src,
+                                'handles' => $handles,
+                                'reason' => $reason,
+                                'description' => "Harmless duplicate: {$reason}"
+                            ];
+                            $is_harmless = true;
+                            break;
+                        }
+                    }
+
+                    // Check if it's a potential conflict
+                    if (!$is_harmless) {
+                        $is_potential_conflict = false;
+                        foreach ($potential_conflict_patterns as $pattern => $description) {
+                            if (stripos($src, $pattern) !== false) {
+                                $result['potential_conflicts'][] = [
+                                    'source' => $src,
+                                    'handles' => $handles,
+                                    'description' => $description . ': ' . implode(', ', $handles)
+                                ];
+                                $is_potential_conflict = true;
+                                break;
+                            }
+                        }
+
+                        // If not categorized, treat as general informational duplicate
+                        if (!$is_potential_conflict) {
+                            $result['harmless_duplicates'][] = [
+                                'source' => $src,
+                                'handles' => $handles,
+                                'reason' => 'Non-conflicting duplicate from different plugins',
+                                'description' => "General duplicate: " . implode(', ', $handles)
+                            ];
+                        }
+                    }
+                }
             }
         }
 

@@ -20,8 +20,9 @@ class PluginStateDiagnostic extends AbstractDiagnostic
      * Required Order Daemon database tables
      */
     private const REQUIRED_TABLES = [
-        'odcm_logs',
-        'odcm_payload_data'
+        'odcm_audit_log',
+        'odcm_audit_log_payloads',
+        'odcm_audit_log_queue'
     ];
 
     /**
@@ -227,7 +228,7 @@ class PluginStateDiagnostic extends AbstractDiagnostic
 
             // Add informational note about table data
             if (!empty($table_data)) {
-                $total_logs = $table_data['odcm_logs'] ?? 0;
+                $total_logs = $table_data['odcm_audit_log'] ?? 0;
                 if ($total_logs > 0) {
                     $result->addRecommendation(sprintf(
                         /* translators: %d: Number of log entries in database */
