@@ -125,14 +125,36 @@ class UniversalEventProcessor
         }
 
         try {
-            // Validate event data
-            if (!$this->validateEventData($event_data)) {
+            // Enhanced validation with detailed debugging
+            $validation_result = $this->validateEventData($event_data, $process_id);
+            if (!$validation_result) {
                 $this->logError('Invalid event data structure', $event_data, $process_id);
                 return false;
             }
 
-            // Create UniversalEvent object from data
-            $universal_event = new UniversalEvent($event_data);
+            // Create UniversalEvent object from data with enhanced error handling
+            try {
+                $universal_event = new UniversalEvent($event_data);
+            } catch (\InvalidArgumentException $e) {
+                // Log the specific validation failure in UniversalEvent constructor
+                $this->logError('UniversalEvent constructor validation failed: ' . $e->getMessage(), [
+                    'original_event_data' => $event_data,
+                    'validation_error' => $e->getMessage(),
+                    'error_file' => $e->getFile(),
+                    'error_line' => $e->getLine(),
+                ], $process_id);
+                return false;
+            } catch (\Throwable $e) {
+                // Log any other unexpected errors during UniversalEvent construction
+                $this->logError('UniversalEvent constructor failed with unexpected error: ' . $e->getMessage(), [
+                    'original_event_data' => $event_data,
+                    'error_type' => get_class($e),
+                    'error_message' => $e->getMessage(),
+                    'error_file' => $e->getFile(),
+                    'error_line' => $e->getLine(),
+                ], $process_id);
+                return false;
+            }
 
             // Create evaluation context
             $context = new EvaluationContext($universal_event);
@@ -162,12 +184,13 @@ class UniversalEventProcessor
     }
 
     /**
-     * Validate event data structure
+     * Validate event data structure with detailed debugging
      * 
      * @param array $event_data Event data to validate
+     * @param string $process_id Process ID for debugging
      * @return bool True if valid
      */
-    private function validateEventData(array $event_data): bool
+    private function validateEventData(array $event_data, string $process_id): bool
     {
         // Required fields for UniversalEvent
         $required_fields = [
@@ -180,20 +203,46 @@ class UniversalEventProcessor
             'idempotencyKey'
         ];
 
+        // DEBUG: Log validation start
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_VALIDATION_DEBUG: Starting validateEventData for process_id: $process_id");
+            error_log("ODCM_VALIDATION_DEBUG: Event data keys: " . implode(', ', array_keys($event_data)));
+        }
+
         foreach ($required_fields as $field) {
             if (!isset($event_data[$field])) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    error_log("ODCM_VALIDATION_DEBUG: FAIL - Missing required field: $field");
+                }
                 return false;
+            }
+            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $value = $event_data[$field];
+                $type = gettype($value);
+                $display_value = is_null($value) ? 'NULL' : (is_string($value) ? "\"$value\"" : $value);
+                error_log("ODCM_VALIDATION_DEBUG: OK - Field '$field': $display_value (type: $type)");
             }
         }
 
         // Validate event type format
         if (!is_string($event_data['eventType']) || empty($event_data['eventType'])) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_VALIDATION_DEBUG: FAIL - eventType validation failed. Value: " . var_export($event_data['eventType'], true));
+            }
             return false;
         }
 
         // Validate idempotency key
         if (!is_string($event_data['idempotencyKey']) || empty($event_data['idempotencyKey'])) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_VALIDATION_DEBUG: FAIL - idempotencyKey validation failed. Value: " . var_export($event_data['idempotencyKey'], true));
+            }
             return false;
+        }
+
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_VALIDATION_DEBUG: SUCCESS - All initial validation passed. Moving to UniversalEvent constructor...");
         }
 
         return true;

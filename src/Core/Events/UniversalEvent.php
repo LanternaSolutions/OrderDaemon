@@ -159,36 +159,102 @@ final class UniversalEvent
      */
     public function __construct(array $data)
     {
-        // Validate and set required fields
-        $this->eventType = $this->validateEventType($data['eventType'] ?? '');
-        $this->channel = $this->validateChannel($data['channel'] ?? '');
-        $this->primaryObjectType = $this->validateObjectType($data['primaryObjectType'] ?? '');
-        
-        // Set optional fields with validation
-        $this->sourceGateway = $this->sanitizeString($data['sourceGateway'] ?? null);
-        $this->primaryObjectID = $this->validateObjectID($data['primaryObjectID'] ?? null);
-        $this->secondaryObjectType = $this->validateOptionalObjectType($data['secondaryObjectType'] ?? null);
-        $this->secondaryObjectID = $this->validateObjectID($data['secondaryObjectID'] ?? null);
-        $this->transactionID = $this->sanitizeString($data['transactionID'] ?? null);
-        $this->status = $this->sanitizeString($data['status'] ?? null);
-        $this->reason = $this->sanitizeString($data['reason'] ?? null);
-        $this->amount = $this->validateAmount($data['amount'] ?? null);
-        $this->currency = $this->validateCurrency($data['currency'] ?? null);
-        
-        // Set timestamps
-        $this->occurredAt = $this->validateTimestamp($data['occurredAt'] ?? '');
-        $this->receivedAt = $this->validateTimestamp($data['receivedAt'] ?? current_time('c'));
-        
-        // Set or generate idempotency key
-        $this->idempotencyKey = !empty($data['idempotencyKey']) 
-            ? sanitize_text_field((string) $data['idempotencyKey'])
-            : $this->generateIdempotencyKey();
+        // DEBUG: Log constructor entry
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log("ODCM_CONSTRUCTOR_DEBUG: UniversalEvent constructor started");
+            error_log("ODCM_CONSTRUCTOR_DEBUG: Input data keys: " . implode(', ', array_keys($data)));
+        }
+
+        try {
+            // Validate and set required fields
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating eventType: " . var_export($data['eventType'] ?? '', true));
+            }
+            $this->eventType = $this->validateEventType($data['eventType'] ?? '');
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating channel: " . var_export($data['channel'] ?? '', true));
+            }
+            $this->channel = $this->validateChannel($data['channel'] ?? '');
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating primaryObjectType: " . var_export($data['primaryObjectType'] ?? '', true));
+            }
+            $this->primaryObjectType = $this->validateObjectType($data['primaryObjectType'] ?? '');
             
-        // Sanitize raw data
-        $this->rawData = $this->sanitizeRawData($data['rawData'] ?? []);
-        
-        // Set UI components
-        $this->components = isset($data['components']) && is_array($data['components']) ? $data['components'] : [];
+            // Set optional fields with validation
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Processing sourceGateway: " . var_export($data['sourceGateway'] ?? null, true));
+            }
+            $this->sourceGateway = $this->sanitizeString($data['sourceGateway'] ?? null);
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating primaryObjectID: " . var_export($data['primaryObjectID'] ?? null, true));
+            }
+            $this->primaryObjectID = $this->validateObjectID($data['primaryObjectID'] ?? null);
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Processing optional fields...");
+            }
+            $this->secondaryObjectType = $this->validateOptionalObjectType($data['secondaryObjectType'] ?? null);
+            $this->secondaryObjectID = $this->validateObjectID($data['secondaryObjectID'] ?? null);
+            $this->transactionID = $this->sanitizeString($data['transactionID'] ?? null);
+            $this->status = $this->sanitizeString($data['status'] ?? null);
+            $this->reason = $this->sanitizeString($data['reason'] ?? null);
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating amount: " . var_export($data['amount'] ?? null, true));
+            }
+            $this->amount = $this->validateAmount($data['amount'] ?? null);
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating currency: " . var_export($data['currency'] ?? null, true));
+            }
+            $this->currency = $this->validateCurrency($data['currency'] ?? null);
+            
+            // Set timestamps
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating occurredAt timestamp: " . var_export($data['occurredAt'] ?? '', true));
+            }
+            $this->occurredAt = $this->validateTimestamp($data['occurredAt'] ?? '');
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating receivedAt timestamp: " . var_export($data['receivedAt'] ?? current_time('c'), true));
+            }
+            $this->receivedAt = $this->validateTimestamp($data['receivedAt'] ?? current_time('c'));
+            
+            // Set or generate idempotency key
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Processing idempotencyKey: " . var_export($data['idempotencyKey'] ?? '', true));
+            }
+            $this->idempotencyKey = !empty($data['idempotencyKey']) 
+                ? sanitize_text_field((string) $data['idempotencyKey'])
+                : $this->generateIdempotencyKey();
+                
+            // Sanitize raw data
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Processing rawData...");
+            }
+            $this->rawData = $this->sanitizeRawData($data['rawData'] ?? []);
+            
+            // Set UI components
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Processing components...");
+            }
+            $this->components = isset($data['components']) && is_array($data['components']) ? $data['components'] : [];
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: UniversalEvent constructor completed successfully");
+            }
+
+        } catch (\Throwable $e) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log("ODCM_CONSTRUCTOR_DEBUG: CONSTRUCTOR FAILED - " . get_class($e) . ": " . $e->getMessage());
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Error in file: " . $e->getFile() . " at line: " . $e->getLine());
+                error_log("ODCM_CONSTRUCTOR_DEBUG: Stack trace: " . $e->getTraceAsString());
+            }
+            throw $e; // Re-throw the original exception
+        }
     }
 
     /**
