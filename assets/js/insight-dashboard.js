@@ -1630,7 +1630,18 @@ function insightDashboard() {
                     'info'
                 );
 
-                // Clean up form and reset state after a delay
+                // Reset button state immediately - the form submission is complete
+                // The browser handles the download independently
+                this.$nextTick(() => {
+                    this.isExporting = false;
+                    this.exportFormat = null;
+
+                    if (odcmIsDebug()) {
+                        console.log('ODCM: Export initiated, button state reset');
+                    }
+                });
+
+                // Clean up form after a brief delay
                 setTimeout(() => {
                     try {
                         if (form.parentNode) {
@@ -1641,15 +1652,7 @@ function insightDashboard() {
                             console.warn('ODCM: Error removing form:', e);
                         }
                     }
-
-                    // Reset export state
-                    this.isExporting = false;
-                    this.exportFormat = null;
-
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: Export complete, state reset');
-                    }
-                }, 2000);
+                }, 100);
 
             } catch (error) {
                 console.error('ODCM: Error during export:', error);
