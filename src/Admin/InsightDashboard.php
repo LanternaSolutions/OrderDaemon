@@ -43,19 +43,27 @@ class InsightDashboard
     private array $componentRenderers = [];
 
     /**
+     * Constructor
+     */
+    public function __construct()
+    {
+        // Clean constructor - no fragile export handling here
+    }
+
+    /**
      * Initialize the insight dashboard functionality
      */
     public function init(): void
     {
         // Apply debug override early in the lifecycle
         $this->apply_debug_override();
-        
+
         add_action('admin_menu', [$this, 'register_menu_page'], 15);
         add_action('admin_menu', [$this, 'remove_duplicate_submenu'], 999); // Late priority to ensure removal after WordPress processes menus
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets'], 10, 1);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_custom_menu_icon'], 15);
         add_filter('admin_body_class', [$this, 'add_body_class']);
-        
+
         // Register AJAX handlers for settings
         add_action('wp_ajax_odcm_update_per_page', [$this, 'handle_update_per_page_ajax']);
         add_action('wp_ajax_odcm_save_debug_settings', [$this, 'handle_debug_settings_ajax']);
@@ -64,6 +72,9 @@ class InsightDashboard
         // Register AJAX handlers for onboarding
         add_action('wp_ajax_odcm_check_welcome_scenario', [$this, 'handle_welcome_scenario_check']);
 
+        // Register admin-post handlers for file downloads (WordPress way)
+        add_action('admin_post_odcm_export_logs_csv', [$this, 'handle_export_csv']);
+        add_action('admin_post_odcm_export_logs_json', [$this, 'handle_export_json']);
     }
 
     /**
@@ -269,6 +280,7 @@ class InsightDashboard
             'renderUrl' => wp_make_link_relative(rest_url('odcm/v1/audit-log/render-components/')),
             'renderBatchUrl' => wp_make_link_relative(rest_url('odcm/v1/audit-log/render-components/batch/')),
             'ajaxUrl' => admin_url('admin-ajax.php'),
+            'adminPostUrl' => admin_url('admin-post.php'),
             'nonce' => wp_create_nonce('wp_rest'),
             'restNonce' => wp_create_nonce('wp_rest'),
             'premium_access' => (bool) apply_filters('odcm_is_premium_user', false),
@@ -1044,14 +1056,14 @@ class InsightDashboard
                                             @click="exportLogs('csv')"
                                             :disabled="isExporting && exportFormat === 'csv'">
                                         <span class="dashicons dashicons-download"></span>
-                                        <span x-text="isExporting && exportFormat === 'csv' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.exporting', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export CSV', 'order-daemon')); ?>'"></span>
+                                        <span x-text="isExporting && exportFormat === 'csv' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export CSV', 'order-daemon')); ?>'"></span>
                                     </button>
                                     <button type="button" 
                                             class="button"
                                             @click="exportLogs('json')"
                                             :disabled="isExporting && exportFormat === 'json'">
                                         <span class="dashicons dashicons-download"></span>
-                                        <span x-text="isExporting && exportFormat === 'json' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.exporting', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export JSON', 'order-daemon')); ?>'"></span>
+                                        <span x-text="isExporting && exportFormat === 'json' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export JSON', 'order-daemon')); ?>'"></span>
                                     </button>
                                 </div>
                             </div>
@@ -1072,22 +1084,24 @@ class InsightDashboard
                                 <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
                                 <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
                                 <div class="odcm-retention-controls">
-                                    <div class="odcm-retention-setting">
+                                    <div>
                                         <label for="retention-days"><?php echo esc_html__('Retention Period:', 'order-daemon'); ?></label>
-                                        <input type="number" 
-                                               id="retention-days"
-                                               x-model="retentionDays"
-                                               min="1" 
-                                               max="365" 
-                                               class="small-text"
-                                               @click.stop>
-                                        <span><?php echo esc_html__('days', 'order-daemon'); ?></span>
-                                        <button type="button" 
-                                                class="button button-small"
-                                                @click="updateRetentionPolicy()"
-                                                :disabled="isUpdatingRetention">
-                                            <span x-text="isUpdatingRetention ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.updating', 'order-daemon')); ?>' : '<?php echo esc_js(__('Update Policy', 'order-daemon')); ?>'"></span>
-                                        </button>
+                                        <div class="odcm-retention-setting">
+                                            <input type="number"
+                                                   id="retention-days"
+                                                   x-model="retentionDays"
+                                                   min="1"
+                                                   max="365"
+                                                   class="small-text"
+                                                   @click.stop>
+                                            <span><?php echo esc_html__('days', 'order-daemon'); ?></span>
+                                            <button type="button"
+                                                    class="button button-small"
+                                                    @click="updateRetentionPolicy()"
+                                                    :disabled="isUpdatingRetention">
+                                                <span x-text="isUpdatingRetention ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.updating', 'order-daemon')); ?>' : '<?php echo esc_js(__('Update Policy', 'order-daemon')); ?>'"></span>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="odcm-cleanup-section">
                                         <button type="button" 
@@ -1364,6 +1378,101 @@ class InsightDashboard
         $pl->add_component('info', 'Reprocess orders requested', [ 'message' => sprintf('%s requested reprocessing of %d orders', $user_display_name, $count) ]);
         $pl->add_component('metrics', 'Orders scheduled', [ 'name' => 'orders_scheduled', 'value' => (float)$count ]);
         $pl->finish('success', sprintf('Admin requested reprocessing of %d orders', $count));
+    }
+
+    /**
+     * Handle CSV export via admin-post.php (WordPress way)
+     * This is called by the admin_post_odcm_export_logs_csv action
+     */
+    public function handle_export_csv(): void
+    {
+        $this->handle_export_request('csv');
+    }
+
+    /**
+     * Handle JSON export via admin-post.php (WordPress way)
+     * This is called by the admin_post_odcm_export_logs_json action
+     */
+    public function handle_export_json(): void
+    {
+        $this->handle_export_request('json');
+    }
+
+    /**
+     * Handle export requests via admin-post.php (WordPress way)
+     * This method is called by admin-post handlers, which don't load the admin UI
+     * 
+     * @param string $format Export format ('csv' or 'json')
+     */
+    private function handle_export_request(string $format): void
+    {
+        // Clear any existing output buffers immediately to ensure clean headers
+        // This is critical to prevent "headers already sent" errors or inline display
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        try {
+            // Check if headers have already been sent, which would break the download
+            if (headers_sent($file, $line)) {
+                if (self::is_global_debug_active()) {
+                    error_log("ODCM Export: Headers already sent in $file:$line");
+                }
+                // If headers are sent, we can't force a download. Output a plain error.
+                http_response_code(500);
+                echo "Error: Output started in $file:$line. Cannot start file download.";
+                exit;
+            }
+
+            // Check user capabilities first
+            if (!current_user_can('manage_woocommerce')) {
+                wp_die(esc_html__('admin.insight_dashboard.ajax.permission_denied', 'order-daemon'), 403);
+            }
+
+            // Verify nonce
+            $nonce = $_REQUEST['_wpnonce'] ?? '';
+            if (!wp_verify_nonce($nonce, 'wp_rest')) {
+                if (self::is_global_debug_active()) {
+                    error_log('ODCM Export: Nonce verification failed. Nonce: ' . $nonce);
+                }
+                wp_die(esc_html__('upgrade_prompts.ajax.security_check_failed', 'order-daemon'), 403);
+            }
+
+            // Check premium access
+            if (!apply_filters('odcm_is_premium_user', false)) {
+                wp_die(esc_html__('This is a premium feature. Please upgrade to access log export.', 'order-daemon'), 403);
+            }
+
+            // Check if LogExporter class exists (pro plugin must be active)
+            if (!class_exists('OrderDaemon\CompletionManager\Pro\Admin\LogExporter')) {
+                wp_die(esc_html__('Export functionality is not available. Please ensure the Pro plugin is active.', 'order-daemon'), 500);
+            }
+
+            if (self::is_global_debug_active()) {
+                error_log('ODCM: Starting export via admin-post.php - Format: ' . $format);
+                error_log('ODCM: Request parameters: ' . print_r($_REQUEST, true));
+            }
+
+            // Initialize LogExporter
+            global $wpdb;
+            $exporter = new \OrderDaemon\CompletionManager\Pro\Admin\LogExporter($wpdb);
+
+            // Call the appropriate export method based on format
+            if ($format === 'csv') {
+                $exporter->export_csv();
+            } else {
+                $exporter->export_json();
+            }
+
+            // Note: export methods call exit, so execution stops here
+
+        } catch (\Exception $e) {
+            if (self::is_global_debug_active()) {
+                error_log('ODCM Export Error: ' . $e->getMessage());
+                error_log('ODCM Export Stack Trace: ' . $e->getTraceAsString());
+            }
+            wp_die('Export failed: ' . esc_html($e->getMessage()), 500);
+        }
     }
 
 

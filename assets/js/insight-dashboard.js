@@ -147,6 +147,12 @@ function insightDashboard() {
         // Reprocess pending orders state
         isReprocessing: false,
 
+        // Export logs state (premium feature)
+        isExporting: false,
+        exportFormat: null,
+        // Export logs state (premium feature)
+        isExporting: false,
+        exportFormat: null,
 
         // Generate sample logs state
 
@@ -1510,6 +1516,146 @@ function insightDashboard() {
         removeToast(id) {
             if (typeof window !== 'undefined' && window.ODCMToasts && typeof window.ODCMToasts.removeToast === 'function') {
                 window.ODCMToasts.removeToast(id);
+            }
+        },
+
+        // =================================================================
+        // LOG EXPORT (PREMIUM FEATURE)
+        // =================================================================
+        exportLogs(format) {
+            try {
+                // Prevent multiple simultaneous exports
+                if (this.isExporting) {
+                    if (odcmIsDebug()) {
+                        console.log('ODCM: Export already in progress');
+                    }
+                    return;
+                }
+
+                // Validate format
+                if (format !== 'csv' && format !== 'json') {
+                    this.showToast('Invalid export format', 'error');
+                    return;
+                }
+
+                // Set exporting state
+                this.isExporting = true;
+                this.exportFormat = format;
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Starting export via admin-post.php:', {
+                        format: format,
+                        adminPostUrl: this.config.adminPostUrl,
+                        nonce: this.config.nonce ? 'present' : 'missing',
+                        filters: this.getActiveFilters()
+                    });
+                }
+
+                // Create a hidden form to submit the export request with current filters
+                // Use admin-post.php (WordPress way) for clean file downloads without admin UI
+                const form = document.createElement('form');
+                form.method = 'POST';
+
+                // Use configured URL or fail gracefully
+                if (!this.config.adminPostUrl) {
+                    console.error('ODCM: Admin Post URL not configured');
+                    this.showToast('Export configuration missing. Please refresh the page.', 'error');
+                    this.isExporting = false;
+                    return;
+                }
+                form.action = this.config.adminPostUrl;
+
+                form.target = '_self'; // Ensure it doesn't open in new window
+                form.style.display = 'none';
+
+                // Add action parameter
+                const actionInput = document.createElement('input');
+                actionInput.type = 'hidden';
+                actionInput.name = 'action';
+                actionInput.value = format === 'csv' ? 'odcm_export_logs_csv' : 'odcm_export_logs_json';
+                form.appendChild(actionInput);
+
+                // Add nonce
+                const nonceInput = document.createElement('input');
+                nonceInput.type = 'hidden';
+                nonceInput.name = '_wpnonce';
+                nonceInput.value = this.config.nonce;
+                form.appendChild(nonceInput);
+
+                // Add current filter parameters so export respects active filters
+                const activeFilters = this.getActiveFilters();
+                Object.keys(activeFilters).forEach(key => {
+                    const filterInput = document.createElement('input');
+                    filterInput.type = 'hidden';
+                    filterInput.name = key;
+                    filterInput.value = activeFilters[key];
+                    form.appendChild(filterInput);
+                });
+
+                // Add sorting parameters
+                const orderbyInput = document.createElement('input');
+                orderbyInput.type = 'hidden';
+                orderbyInput.name = 'orderby';
+                orderbyInput.value = 'timestamp'; // Default sorting
+                form.appendChild(orderbyInput);
+
+                const orderInput = document.createElement('input');
+                orderInput.type = 'hidden';
+                orderInput.name = 'order';
+                orderInput.value = 'DESC'; // Default order
+                form.appendChild(orderInput);
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Form created with fields:', {
+                        action: actionInput.value,
+                        nonce: nonceInput.value ? 'present' : 'missing',
+                        filterCount: Object.keys(activeFilters).length
+                    });
+                }
+
+                // Append form to body and submit
+                document.body.appendChild(form);
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Submitting form to:', form.action);
+                }
+
+                form.submit();
+
+                // Show info toast
+                this.showToast(
+                    format === 'csv' 
+                        ? 'Preparing CSV download...' 
+                        : 'Preparing JSON download...',
+                    'info'
+                );
+
+                // Clean up form and reset state after a delay
+                setTimeout(() => {
+                    try {
+                        if (form.parentNode) {
+                            document.body.removeChild(form);
+                        }
+                    } catch (e) {
+                        if (odcmIsDebug()) {
+                            console.warn('ODCM: Error removing form:', e);
+                        }
+                    }
+
+                    // Reset export state
+                    this.isExporting = false;
+                    this.exportFormat = null;
+
+                    if (odcmIsDebug()) {
+                        console.log('ODCM: Export complete, state reset');
+                    }
+                }, 2000);
+
+            } catch (error) {
+                console.error('ODCM: Error during export:', error);
+                this.showToast('Failed to initiate export', 'error');
+                this.isExporting = false;
+                this.exportFormat = null;
             }
         },
 

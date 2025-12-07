@@ -1897,7 +1897,7 @@ class AuditLogEndpoint extends WP_REST_Controller
     /**
      * Apply filters to SQL query
      */
-    private function apply_filters_to_query(WP_REST_Request $request, array &$where_conditions, array &$where_values): void
+    public static function apply_filters_to_query(WP_REST_Request $request, array &$where_conditions, array &$where_values): void
     {
         global $wpdb;
 

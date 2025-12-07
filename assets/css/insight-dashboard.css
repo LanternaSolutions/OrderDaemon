@@ -2835,3 +2835,54 @@ label.odcm-retention-option {
     text-align: right;
     white-space: nowrap;
 }
+
+
+/* Data Management: Export controls and retention controls tweaks (Pro UX fixes) */
+.odcm-export-controls .button,
+.odcm-retention-controls .button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--odcm-theme-spacing-xs);
+}
+
+/* Ensure dashicons are centered in buttons */
+.odcm-export-controls .button .dashicons,
+.odcm-retention-controls .button .dashicons {
+  line-height: 1;
+  display: inline-block;
+}
+
+/* Space between export buttons */
+.odcm-export-controls {
+  display: flex;
+  gap: var(--odcm-theme-spacing-sm);
+}
+
+/* Retention controls layout and spacing */
+.odcm-retention-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--odcm-theme-spacing-sm);
+}
+
+/* Group for retention input + update button */
+.odcm-retention-controls .odcm-retention-setting {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--odcm-theme-spacing-xs);
+}
+
+/* Make Update Policy and Cleanup Now buttons a uniform size */
+.odcm-retention-controls .button,
+.odcm-retention-controls .button-secondary {
+  min-height: 32px; /* consistent small button height */
+  padding: 6px 10px;
+}
+
+/* Add separation between update policy group and cleanup section for clarity */
+.odcm-retention-controls .odcm-cleanup-section {
+    border: 1px solid var(--odcm-theme-red-400);
+    border-radius: var(--odcm-theme-border-radius);
+    padding: var(--odcm-theme-spacing-md);
+}
