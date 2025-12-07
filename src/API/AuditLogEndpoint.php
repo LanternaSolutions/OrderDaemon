@@ -381,7 +381,55 @@ class AuditLogEndpoint extends WP_REST_Controller
             $per_page = max(1, min(200, (int) $per_page));
             $page = max(1, (int) $page);
 
-            // Fetch all filtered logs (no pagination), then consolidate and paginate the consolidated list
+            // Determine view mode: consolidated (default) or flat (raw chronological)
+            $view = $request->get_param('view') ?: 'consolidated';
+            if ($view === 'flat') {
+                // Flat view: paginate raw events directly, no consolidation
+                $page_logs = $this->get_filtered_logs($request, $per_page, $page);
+                $total = $this->get_filtered_log_count($request);
+                $total_pages = max(1, (int) ceil($total / $per_page));
+                if ($page > $total_pages) {
+                    $page = $total_pages;
+                }
+                $offset = ($page - 1) * $per_page;
+                $start_item = $total > 0 ? ($offset + 1) : 0;
+                $end_item = $total > 0 ? min($offset + $per_page, $total) : 0;
+
+                // Performance monitoring
+                $execution_time = microtime(true) - $start_time;
+                $this->log_api_performance('get_logs', $execution_time, [
+                    'total_logs' => $total,
+                    'per_page' => $per_page,
+                    'page' => $page,
+                    'filters_applied' => count(array_filter($request->get_params()))
+                ]);
+
+                $response_data = [
+                    'logs' => $this->format_logs_for_api($page_logs),
+                    'pagination' => [
+                        'total' => $total,
+                        'total_pages' => $total_pages,
+                        'current_page' => $page,
+                        'per_page' => $per_page,
+                        'start_item' => $start_item,
+                        'end_item' => $end_item,
+                        'has_previous' => $page > 1,
+                        'has_next' => $page < $total_pages,
+                    ],
+                    'filters' => $this->get_applied_filters($request),
+                    'meta' => [
+                        'execution_time' => $execution_time,
+                        'cache_status' => $this->get_cache_status($request),
+                        'timestamp' => current_time('mysql'),
+                        'consolidated_pagination' => false,
+                        'pagination_basis' => 'raw',
+                    ],
+                ];
+
+                return new WP_REST_Response($response_data, 200);
+            }
+
+            // Consolidated view (default): fetch all filtered, consolidate by process, then paginate
             $all_logs = $this->get_all_filtered_logs($request);
             if (is_wp_error($all_logs)) {
                 // Normalize erroneous 404/other errors into empty data so UI can render empty state
@@ -1258,6 +1306,15 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'default'           => 'desc',
                 'sanitize_callback' => function($value) {
                     return in_array(strtolower($value), ['asc', 'desc']) ? strtolower($value) : 'desc';
+                },
+            ],
+            'view' => [
+                'type'              => 'string',
+                'enum'              => ['consolidated', 'flat'],
+                'default'           => 'consolidated',
+                'sanitize_callback' => function($value) {
+                    $v = is_string($value) ? strtolower($value) : '';
+                    return in_array($v, ['consolidated','flat'], true) ? $v : 'consolidated';
                 },
             ],
         ];

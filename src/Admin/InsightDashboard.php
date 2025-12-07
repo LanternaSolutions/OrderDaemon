@@ -255,7 +255,6 @@ class InsightDashboard
         $accordion_state = [
             'display' => false,
             'orderProcessing' => false,
-            'education' => false,
             'debug' => false,
             'dataManagement' => false,
         ];
@@ -299,11 +298,6 @@ class InsightDashboard
             'dateAndTime' => __('admin.insight_dashboard.timestamp.date_and_time', 'order-daemon'),
             'relativeTime' => __('admin.insight_dashboard.timestamp.relative_time', 'order-daemon'),
         ],
-        'upgrade' => [
-            'enabled' => DependencyChecker::should_show_upgrade_prompts(),
-            'message' => esc_html(DependencyChecker::get_wordpress_org_compliant_message('insight_filters')),
-            'docsUrl' => defined('ODCM_DOCS_URL') ? esc_url_raw(ODCM_DOCS_URL) : '',
-        ]
     ]);
     }
 
@@ -618,6 +612,23 @@ class InsightDashboard
                     <h3><?php echo esc_html__('admin.insight_dashboard.stream.title', 'order-daemon'); ?></h3>
                 </div>
                 <div class="odcm-stream-controls">
+                    <div class="odcm-stream-view-toggle" role="group" aria-label="Toggle view mode">
+                        <span class="odcm-toggle-label"
+                              :class="{ 'is-active': viewMode === 'consolidated' }">
+                            <?php echo esc_html__('Consolidated', 'order-daemon'); ?>
+                        </span>
+                        <label class="odcm-toggle-switch" @click.stop>
+                            <input type="checkbox"
+                                   :checked="viewMode === 'flat'"
+                                   @change="setViewMode($event.target.checked ? 'flat' : 'consolidated')">
+                            <span class="odcm-toggle-slider"></span>
+                        </label>
+                        <span class="odcm-toggle-label"
+                              :class="{ 'is-active': viewMode === 'flat' }"
+                              title="<?php echo esc_attr__('Shows all events ungrouped, in strict chronological order', 'order-daemon'); ?>">
+                            Flat Stream (VERBOSE!)
+                        </span>
+                    </div>
                     <div class="odcm-refresh-controls">
                         <button type="button" 
                                 class="odcm-refresh-button button"
@@ -917,51 +928,6 @@ class InsightDashboard
                 </div>
             </div>
 
-            <!-- Educational Prompts Accordion Section -->
-            <?php 
-                // Read current frequency preference from user meta (shared with UpgradePrompts)
-                $prefs = get_user_meta(get_current_user_id(), 'odcm_upgrade_prefs', true);
-                $freq = is_array($prefs) && isset($prefs['frequency']) ? $prefs['frequency'] : 'normal';
-                $freq = in_array($freq, ['normal','reduced','off'], true) ? $freq : 'normal';
-            ?>
-            <div class="odcm-settings-accordion">
-                <div class="odcm-settings-accordion-header" 
-                     @click="toggleSettingsSection('education')"
-                     :class="{ 'is-expanded': settingsAccordionState.education }"
-                     role="button"
-                     tabindex="0"
-                     :aria-expanded="settingsAccordionState.education"
-                     aria-controls="education-settings-content">
-                    <div class="odcm-settings-accordion-title">
-                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('admin.insight_dashboard.settings.educational_prompts.title', 'order-daemon'); ?></span>
-                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('admin.insight_dashboard.settings.educational_prompts.description', 'order-daemon'); ?></p>
-                    </div>
-                    <span class="odcm-settings-accordion-icon dashicons dashicons-arrow-down-alt2"></span>
-                </div>
-                <div class="odcm-settings-accordion-content" 
-                     id="education-settings-content"
-                     x-show="settingsAccordionState.education"
-                     x-transition:enter="odcm-accordion-enter"
-                     x-transition:enter-start="odcm-accordion-enter-start"
-                     x-transition:enter-end="odcm-accordion-enter-end"
-                     x-transition:leave="odcm-accordion-leave"
-                     x-transition:leave-start="odcm-accordion-leave-start"
-                     x-transition:leave-end="odcm-accordion-leave-end">
-                    <div class="odcm-settings-section-inner">
-                        <div class="odcm-setting-row">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.prompt_frequency.label', 'order-daemon'); ?></label>
-                            <div class="odcm-setting-row">
-                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.prompt_frequency.description', 'order-daemon'); ?></p>
-                                <fieldset role="radiogroup" aria-label="<?php echo esc_attr__('admin.insight_dashboard.settings.prompt_frequency.label', 'order-daemon'); ?>">
-                                    <label class="odcm-radio-row"><input type="radio" class="odcm-upgrade-frequency" name="odcm-upgrade-frequency" value="normal" <?php checked($freq, 'normal'); ?> > <?php echo esc_html__('admin.insight_dashboard.settings.prompt_frequency.normal', 'order-daemon'); ?></label>
-                                    <label class="odcm-radio-row"><input type="radio" class="odcm-upgrade-frequency" name="odcm-upgrade-frequency" value="reduced" <?php checked($freq, 'reduced'); ?> > <?php echo esc_html__('admin.insight_dashboard.settings.prompt_frequency.reduced', 'order-daemon'); ?></label>
-                                    <label class="odcm-radio-row"><input type="radio" class="odcm-upgrade-frequency" name="odcm-upgrade-frequency" value="off" <?php checked($freq, 'off'); ?> > <?php echo esc_html__('admin.insight_dashboard.settings.prompt_frequency.off', 'order-daemon'); ?></label>
-                                </fieldset>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <?php
             // Allow pro plugin to add additional settings sections
@@ -1429,8 +1395,25 @@ class InsightDashboard
             <!-- Empty State with Context Awareness - Only render when appropriate -->
             <template x-if="!loading && !error && logs.length === 0 && !initialLoad">
                 <div class="odcm-empty-state">
+                    <!-- Filtered Empty State (No results match current filters/search) -->
+                    <template x-if="hasActiveFilters">
+                        <div class="odcm-filtered-empty-state">
+                            <span class="dashicons dashicons-filter"></span>
+                            <h4><?php echo esc_html__('No results match your current filters', 'order-daemon'); ?></h4>
+                            <p><?php echo esc_html__('Try adjusting your filters or clear them to see all activity.', 'order-daemon'); ?></p>
+                            <div class="odcm-empty-actions">
+                                <button type="button" class="button" @click="clearFilters()">
+                                    <?php echo esc_html__('Clear filters', 'order-daemon'); ?>
+                                </button>
+                                <button type="button" class="button button-secondary" @click="fetchLogs()">
+                                    <?php echo esc_html__('Refresh', 'order-daemon'); ?>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
                     <!-- Welcome State (Fresh Installation) -->
-                    <template x-if="isWelcomeScenario">
+                    <template x-if="!hasActiveFilters && isWelcomeScenario">
                         <div class="odcm-welcome-state">
                             <div class="odcm-welcome-icon">
                                 <span class="dashicons dashicons-chart-line"></span>
@@ -1465,7 +1448,7 @@ class InsightDashboard
                     </template>
 
                     <!-- Regular Empty State (Rules exist, no recent activity) -->
-                    <template x-if="!isWelcomeScenario">
+                    <template x-if="!hasActiveFilters && !isWelcomeScenario">
                         <div class="odcm-regular-empty-state">
                             <span class="dashicons dashicons-admin-post"></span>
                             <h4><?php echo esc_html__('admin.insight_dashboard.empty.no_activity.title', 'order-daemon'); ?></h4>

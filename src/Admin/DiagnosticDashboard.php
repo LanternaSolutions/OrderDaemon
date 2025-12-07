@@ -518,14 +518,7 @@ class DiagnosticDashboard
                                 $rendered_output = $this->render_nested_details($test_result['details']);
                                 error_log("DEBUG render_results_html: Rendered output length: " . strlen($rendered_output));
                                 
-                                // For very large outputs, truncate to prevent browser issues
-                                if (strlen($rendered_output) > 50000) {
-                                    error_log("DEBUG render_results_html: Output too large, truncating");
-                                    $rendered_output = substr($rendered_output, 0, 50000) . 
-                                        '<div class="odcm-detail-truncated"><em>Output truncated due to size (showing first 50KB of ' . 
-                                        round(strlen($rendered_output)/1024) . 'KB total)</em></div>';
-                                }
-                                
+                                // Output the full details without truncation. Escaping is already handled in render_nested_details().
                                 echo $rendered_output;
                                 ?>
                             </div>

@@ -97,6 +97,9 @@ function insightDashboard() {
         activeFilterTab: 'filters', // 'filters' or 'settings'
         lastOpenedTab: 'filters', // remembers last opened tab for reopen action
 
+        // View mode: 'consolidated' (default) or 'flat'
+        viewMode: 'consolidated',
+
         // Detail pane
         detailHtml: '',
         detailLoading: false,
@@ -160,6 +163,14 @@ function insightDashboard() {
 
                 // Load persistent settings
                 this.loadSettings();
+
+                // Load view mode from localStorage
+                try {
+                    const savedView = localStorage.getItem('odcm_view_mode');
+                    if (savedView === 'flat' || savedView === 'consolidated') {
+                        this.viewMode = savedView;
+                    }
+                } catch (e) { /* ignore */ }
 
                 // Debug initial state
                 if (odcmIsDebug()) { console.log('ODCM: Initial state - filterPaneVisible:', this.filterPaneVisible, 'detailsOpen:', this.detailsOpen); }
@@ -320,6 +331,7 @@ function insightDashboard() {
                     const params = new URLSearchParams({
                         page: this.currentPage,
                         per_page: this.perPage,
+                        view: this.viewMode || 'consolidated',
                         ...this.getActiveFilters()
                     });
 
@@ -1248,6 +1260,18 @@ function insightDashboard() {
             return activeFilters;
         },
         // =================================================================
+        // VIEW MODE
+        // =================================================================
+        setViewMode(mode) {
+            if (mode !== 'consolidated' && mode !== 'flat') return;
+            if (this.viewMode === mode) return;
+            this.viewMode = mode;
+            try { localStorage.setItem('odcm_view_mode', mode); } catch (e) {}
+            this.currentPage = 1;
+            this.fetchLogs();
+        },
+
+        // =================================================================
         // UI AND LAYOUT HELPERS
         // =================================================================
         get dashboardClasses() {
@@ -1256,6 +1280,30 @@ function insightDashboard() {
             if (this.selectedLog) classes.push('details-pane-visible');
             if (this.detailPaneExpanded) classes.push('detail-pane-expanded');
             return classes.join(' ');
+        },
+        
+        // Returns true when any filter is active (including search and toggles)
+        get hasActiveFilters() {
+            try {
+                const f = this.filters || {};
+                // Basic search
+                if (typeof f.search === 'string' && f.search.trim() !== '') return true;
+                // Premium filters if available
+                if (this.canUsePremiumFilters) {
+                    if (f.status) return true;
+                    if (f.event_type) return true;
+                    if (f.source) return true;
+                    if (f.order_id) return true;
+                    if (f.date_start) return true;
+                    if (f.date_end) return true;
+                }
+                // Toggles available for all
+                if (f.include_tests === true) return true;
+                if (f.include_debug === true) return true;
+                return false;
+            } catch (e) {
+                return false;
+            }
         },
         closeFilterPane() {
             this.filterPaneVisible = false;

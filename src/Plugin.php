@@ -321,11 +321,6 @@ final class Plugin {
 			$diagnostic_dashboard = new DiagnosticDashboard();
 			$diagnostic_dashboard->init();
 
-			// Initialize WordPress.org compliant upgrade prompts (educational messaging)
-			if (class_exists('OrderDaemon\\CompletionManager\\Includes\\UpgradePrompts')) {
-				$upgrade_prompts = new \OrderDaemon\CompletionManager\Includes\UpgradePrompts();
-				$upgrade_prompts->init();
-			}
 		}
 	}
 

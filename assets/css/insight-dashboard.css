@@ -1580,7 +1580,7 @@ label.odcm-retention-option {
     height: 0;
 }
 
-.odcm-toggle-slider {
+.odcm-toggle-switch .odcm-toggle-slider {
     position: relative;
     display: inline-block;
     width: 36px;
@@ -1591,7 +1591,7 @@ label.odcm-retention-option {
     cursor: pointer;
 }
 
-.odcm-toggle-slider::before {
+.odcm-toggle-switch .odcm-toggle-slider::before {
     content: '';
     position: absolute;
     top: 2px;
@@ -2803,4 +2803,35 @@ label.odcm-retention-option {
     text-align: left;
     width: 80%;
     margin: 0 auto;
+}
+
+/*** ODCM STREAM VIEW TOGGLE LAYOUT ************************************************/
+/* Ensure the Consolidated / [switch] / Flat Stream labels render in one row */
+.odcm-stream-view-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center; /* middle switch stays centered due to side labels flexing */
+    gap: var(--odcm-theme-spacing-sm);
+    flex-wrap: nowrap;
+    flex: 1 1 auto; /* allow it to take available space within .odcm-stream-controls */
+    min-width: 0;   /* prevent overflow in tight spaces */
+}
+
+/* Left label */
+.odcm-stream-view-toggle .odcm-toggle-label:first-of-type {
+    flex: 1 1 0;
+    text-align: left;
+    white-space: nowrap;
+}
+
+/* Center switch */
+.odcm-stream-view-toggle .odcm-toggle-switch {
+    flex: 0 0 auto; /* do not stretch */
+}
+
+/* Right label */
+.odcm-stream-view-toggle .odcm-toggle-label:last-of-type {
+    flex: 1 1 0;
+    text-align: right;
+    white-space: nowrap;
 }

@@ -299,11 +299,6 @@ final class RuleBuilder
                 'searchActions'    => __('admin.rule_builder.search.actions_placeholder', 'order-daemon'),
                 'noSettings'       => __('admin.rule_builder.message.no_settings_required', 'order-daemon'),
             ],
-            'upgrade' => [
-                'enabled' => DependencyChecker::should_show_upgrade_prompts(),
-                'message' => esc_html(DependencyChecker::get_wordpress_org_compliant_message('rule_builder')),
-                'docsUrl' => defined('ODCM_DOCS_URL') ? esc_url_raw(ODCM_DOCS_URL) : '',
-            ],
         ];
 
         // Allow pro plugin to modify the configuration

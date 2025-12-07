@@ -103,7 +103,7 @@
 
   /* --- Key-Value Layout Primitives --- */
   --odcm-theme-key-value-gap: var(--odcm-theme-gap-horizontal);
-  --odcm-theme-key-value-row-gap: var(--odcm-theme-gap-);
+  --odcm-theme-key-value-row-gap: var(--odcm-theme-gap-vertical);
   --odcm-theme-key-border-color: var(--odcm-theme-grey-400);
   --odcm-theme-value-bg: var(--odcm-theme-grey-200);
 
@@ -511,7 +511,7 @@
 }
 
 /* High contrast mode support */
-@media (prefers-contrast: high) {
+@media (prefers-contrast: more) {
     .odcm-component {
         border-width: 2px;
     }
@@ -519,4 +519,143 @@
     .odcm-status-pill {
         border: 1px solid currentColor;
     }
+}
+
+
+/* Segmented toggle for mutually exclusive options (e.g., Consolidated vs Flat) */
+.odcm-segmented-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--odcm-theme-grey-300);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--odcm-theme-white);
+}
+
+/* Place nicely inside header controls */
+.odcm-unified-header-stream .odcm-segmented-toggle {
+  margin-right: 8px;
+}
+
+/* Base segment button reset to avoid WP button styles overshadowing */
+.odcm-segmented-toggle .odcm-segment.button {
+  box-shadow: none !important;
+  border: 0 !important;
+  background: transparent;
+  color: var(--odcm-theme-grey-700);
+  height: 30px;
+  line-height: 28px;
+  padding: 0 10px;
+  border-right: 1px solid var(--odcm-theme-grey-300);
+  border-radius: 0;
+  cursor: pointer;
+  margin: 0 !important; /* ensure buttons appear as a single control with no gaps */
+}
+
+/* Remove divider on last */
+.odcm-segmented-toggle .odcm-segment.button:last-child {
+  border-right: 0;
+}
+
+/* Hover state for inactive */
+.odcm-segmented-toggle .odcm-segment.button:hover {
+  background: var(--odcm-theme-grey-100);
+}
+
+/* Active state (selected) */
+.odcm-segmented-toggle .odcm-segment.button.is-active,
+.odcm-segmented-toggle .odcm-segment.button[aria-pressed="true"] {
+  background: var(--odcm-theme-blue-700);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Focus state for accessibility */
+.odcm-segmented-toggle .odcm-segment.button:focus-visible {
+  outline: 2px solid var(--odcm-theme-blue-400);
+  outline-offset: -2px; /* keep within the group */
+}
+
+.odcm-binary-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none
+}
+
+.odcm-unified-header-stream .odcm-binary-toggle {
+    margin-right: 8px
+}
+
+.odcm-binary-toggle[role="switch"] {
+    outline: 0
+}
+
+.odcm-binary-toggle:focus-visible {
+    outline: 2px solid var(--odcm-theme-blue-400);
+    outline-offset: 2px
+}
+
+.odcm-binary-toggle-label {
+    font-size: 13px;
+    color: var(--odcm-theme-grey-700);
+    opacity: .7;
+    transition: opacity var(--odcm-theme-transition),color var(--odcm-theme-transition);
+    white-space: nowrap
+}
+
+.odcm-binary-toggle-label.is-active {
+    opacity: 1;
+    color: var(--odcm-theme-grey-900);
+    font-weight: 600
+}
+
+.odcm-binary-toggle-track {
+    position: relative;
+    width: 56px;
+    height: 28px;
+    background: var(--odcm-theme-blue-700);
+    border-radius: 999px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+    flex: 0 0 auto
+}
+
+.odcm-binary-toggle .odcm-toggle-slider {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 24px;
+    height: 24px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    transition: transform var(--odcm-theme-transition),background var(--odcm-theme-transition)
+}
+
+.odcm-binary-toggle .odcm-toggle-slider.is-right {
+    transform: translateX(28px)
+}
+
+.odcm-binary-toggle[aria-checked="true"] .odcm-binary-toggle-track {
+    background: var(--odcm-theme-blue-700)
+}
+
+.odcm-binary-toggle[aria-checked="true"] .odcm-toggle-slider {
+    background: #fff
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .odcm-binary-toggle-label,.odcm-binary-toggle .odcm-toggle-slider{transition:none}
+}
+
+
+/* Override: Keep binary toggle track color constant (no change between states) */
+.odcm-binary-toggle-track{
+    background:var(--odcm-theme-blue-700);
+}
+
+.odcm-binary-toggle[aria-checked="true"] .odcm-binary-toggle-track{
+    background:var(--odcm-theme-blue-700);
 }
