@@ -671,17 +671,17 @@ final class BlockCheckoutCompatibility
         
         $table_name = $wpdb->prefix . 'actionscheduler_actions';
         
-        // Use prepared statement for security
-        $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table_name} 
-             WHERE hook = %s 
-             AND status IN ('pending', 'in-progress')
-             AND hook_arguments LIKE %s",
-            'odcm_process_checkout_completion',
-            '%"order_id":' . intval($order_id) . '%'
+        // Inline prepare() to satisfy Plugin Checker's variable tracking
+        $existing_count = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table_name} 
+                 WHERE hook = %s 
+                 AND status IN ('pending', 'in-progress')
+                 AND hook_arguments LIKE %s",
+                'odcm_process_checkout_completion',
+                '%"order_id":' . intval($order_id) . '%'
+            )
         );
-        
-        $existing_count = (int) $wpdb->get_var($sql);
         
         if ($existing_count > 0) {
             odcm_log_message("Block checkout skipping order #{$order_id} - found {$existing_count} existing jobs via database query", 'info');

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\API;
 
+use OrderDaemon\CompletionManager\Core\RuleComponents\Interfaces\ComponentInterface;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_REST_Request;

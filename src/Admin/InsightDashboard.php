@@ -431,7 +431,9 @@ class InsightDashboard
         
         // Check if audit log table exists
         $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$audit_log_table}'") === $audit_log_table;
+        $table_exists = $wpdb->get_var(
+            $wpdb->prepare("SHOW TABLES LIKE %s", $audit_log_table)
+        ) === $audit_log_table;
         
         if (!$table_exists) {
             // If table doesn't exist, it's definitely a welcome scenario
@@ -439,6 +441,7 @@ class InsightDashboard
         }
         
         // Check if any log entries exist
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $log_count = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_log_table}");
         
         // If no logs exist, show welcome scenario

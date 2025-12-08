@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Diagnostics;
 
+use WP_Error;
+
 /**
  * Abstract Diagnostic Base Class
  *
@@ -217,7 +219,9 @@ abstract class AbstractDiagnostic implements DiagnosticInterface
     {
         global $wpdb;
         $full_table_name = $wpdb->prefix . $table_name;
-        $result = $wpdb->get_var("SHOW TABLES LIKE '{$full_table_name}'");
+        $result = $wpdb->get_var(
+            $wpdb->prepare("SHOW TABLES LIKE %s", $full_table_name)
+        );
         return $result === $full_table_name;
     }
 

@@ -98,7 +98,7 @@ class WpCliDiagnostic extends AbstractDiagnostic
                 [
                     'command_tested' => 'wp --version',
                     'output' => 'No output returned',
-                    'server_path' => $_SERVER['PATH'] ?? 'Unknown',
+                    'server_path' => isset($_SERVER['PATH']) ? sanitize_text_field(wp_unslash($_SERVER['PATH'])) : 'Unknown',
                     'execution_time' => round((microtime(true) - $start_time) * 1000, 2) . 'ms'
                 ],
                 [__('Install WP-CLI through your hosting provider or contact your server administrator', 'order-daemon')]
@@ -139,7 +139,11 @@ class WpCliDiagnostic extends AbstractDiagnostic
         $result = DiagnosticResult::success(
             __('WP-CLI Available', 'order-daemon'),
             /* translators: %s: WP-CLI version information */
-            sprintf(__('WP-CLI version %s is properly installed and can access this WordPress installation', 'order-daemon'), trim($wp_cli_output)),
+            sprintf(
+                /* translators: %s: WP-CLI version string */
+                __('WP-CLI version %s is properly installed and can access this WordPress installation', 'order-daemon'),
+                trim($wp_cli_output)
+            ),
             $details
         );
 

@@ -208,6 +208,7 @@ class CheckoutContextBuilder
         if (function_exists('apply_filters')) {
             $filter_name = 'odcm_capture_gateway_context_' . sanitize_key($gateway_id);
             try {
+                // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- Hook name is prefixed with 'odcm_'
                 $filtered = apply_filters($filter_name, $context, $order, $gateway_instance);
                 if (is_array($filtered)) {
                     $context = $filtered;

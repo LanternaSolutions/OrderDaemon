@@ -502,24 +502,15 @@ class DiagnosticDashboard
                         </div>
                         <?php endif; ?>
                         
-                        <?php 
-                        // DEBUG: Log details check
-                        error_log("DEBUG render_results_html: Test '{$test_result['name']}' has details: " . (!empty($test_result['details']) ? 'YES' : 'NO'));
-                        if (!empty($test_result['details'])) {
-                            error_log("DEBUG render_results_html: Details structure: " . print_r($test_result['details'], true));
-                        }
-                        ?>
                         <?php if (!empty($test_result['details'])): ?>
                         <div class="odcm-test-details">
                             <h6><?php esc_html_e('Technical Details', 'order-daemon'); ?>:</h6>
                             <div class="odcm-technical-info">
                                 <?php 
-                                error_log("DEBUG render_results_html: About to call render_nested_details for '{$test_result['name']}'");
                                 $rendered_output = $this->render_nested_details($test_result['details']);
-                                error_log("DEBUG render_results_html: Rendered output length: " . strlen($rendered_output));
                                 
                                 // Output the full details without truncation. Escaping is already handled in render_nested_details().
-                                echo $rendered_output;
+                                echo wp_kses_post($rendered_output);
                                 ?>
                             </div>
                         </div>

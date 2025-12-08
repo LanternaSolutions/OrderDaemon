@@ -11,6 +11,7 @@ use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
 use OrderDaemon\CompletionManager\Core\Events\EvaluationContext;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
 use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
+use WC_Order;
 
 /**
  * Core plugin class responsible for main business logic.

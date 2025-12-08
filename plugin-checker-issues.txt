@@ -1,0 +1,1097 @@
+FILE: src/Diagnostics/Core/EnvironmentDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+98 	20 	ERROR 	WordPress.WP.I18n.UnorderedPlaceholdersText 	Multiple placeholders in translatable strings should be ordered. Expected "%1$s, %2$s", but got "%s, %s" in 'PHP version %s is incompatible (requires %s+)'.
+Learn more (opens in a new tab)
+
+FILE: src/Admin/DiagnosticDashboard.php
+Line 	Column 	Type 	Code 	Message
+123 	35 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+131 	32 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+132 	33 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+133 	30 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+134 	31 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+135 	29 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+136 	30 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+138 	36 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+204 	63 	ERROR 	WordPress.WP.I18n.NonSingularStringLiteralText 	The $text parameter must be a single text string literal. Found: $category
+Learn more (opens in a new tab)
+262 	94 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to esc_html__() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+446 	55 	ERROR 	WordPress.WP.I18n.InterpolatedVariableText 	The $text parameter must not contain interpolated variables or expressions. Found: {$rec['category']}
+Learn more (opens in a new tab)
+462 	39 	ERROR 	WordPress.WP.I18n.InterpolatedVariableText 	The $text parameter must not contain interpolated variables or expressions. Found: {$category_name}
+Learn more (opens in a new tab)
+744 	28 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+745 	28 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+752 	13 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+788 	21 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+788 	24 	ERROR 	WordPress.WP.I18n.UnorderedPlaceholdersText 	Multiple placeholders in translatable strings should be ordered. Expected "%1$s, %2$d, %3$d", but got "%s, %d, %d" in '%s DIAGNOSTICS (%d/%d passed)'.
+Learn more (opens in a new tab)
+800 	40 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+801 	40 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+
+FILE: src/Admin/InsightDashboard.php
+Line 	Column 	Type 	Code 	Message
+771 	78 	ERROR 	WordPress.WP.I18n.NoEmptyStrings 	The $text text string should have translatable content. Found: ''
+Learn more (opens in a new tab)
+
+FILE: src/API/AuditLogEndpoint.php
+Line 	Column 	Type 	Code 	Message
+898 	64 	ERROR 	WordPress.WP.I18n.NoEmptyStrings 	The $text text string should have translatable content. Found: ''
+Learn more (opens in a new tab)
+
+FILE: src/Includes/UpgradePrompts.php
+Line 	Column 	Type 	Code 	Message
+298 	51 	ERROR 	WordPress.WP.I18n.NoEmptyStrings 	The $text text string should have translatable content. Found: ''
+Learn more (opens in a new tab)
+
+FILE: src/Admin/DiagnosticDashboard.php
+Line 	Column 	Type 	Code 	Message
+486 	69 	ERROR 	WordPress.Security.EscapeOutput.OutputNotEscaped 	All output should be run through an escaping function (see the Security sections in the WordPress Developer Handbooks), found '$status_icon'.
+Learn more (opens in a new tab)
+522 	38 	ERROR 	WordPress.Security.EscapeOutput.OutputNotEscaped 	All output should be run through an escaping function (see the Security sections in the WordPress Developer Handbooks), found '$rendered_output'.
+Learn more (opens in a new tab)
+554 	61 	ERROR 	WordPress.Security.EscapeOutput.OutputNotEscaped 	All output should be run through an escaping function (see the Security sections in the WordPress Developer Handbooks), found '$status_icon'.
+Learn more (opens in a new tab)
+575 	36 	ERROR 	WordPress.Security.EscapeOutput.OutputNotEscaped 	All output should be run through an escaping function (see the Security sections in the WordPress Developer Handbooks), found '$this'.
+Learn more (opens in a new tab)
+
+FILE: src/Admin/InsightDashboard.php
+Line 	Column 	Type 	Code 	Message
+1443 	22 	ERROR 	WordPress.Security.EscapeOutput.OutputNotEscaped 	All output should be run through an escaping function (see the Security sections in the WordPress Developer Handbooks), found '"Error: Output started in $file:$line. Cannot start file download."'.
+Learn more (opens in a new tab)
+
+FILE: src/Plugin.php
+Line 	Column 	Type 	Code 	Message
+133 	43 	ERROR 	PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound 	load_plugin_textdomain() has been discouraged since WordPress version 4.6. When your plugin is hosted on WordPress.org, you no longer need to manually include this function call for translations under your plugin slug. WordPress will automatically load the translations for you as needed.
+Learn more (opens in a new tab)
+128 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+131 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+134 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+136 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+137 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+139 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+140 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+141 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+142 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+147 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+148 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+149 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+153 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+157 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+158 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+161 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+168 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+169 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+170 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+171 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+265 	4 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+296 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Core/BlockCheckoutCompatibility.php
+Line 	Column 	Type 	Code 	Message
+684 	48 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $sql
+676 	13 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$table_name} at "SELECT COUNT(*) FROM {$table_name} \n
+
+FILE: src/Core/Core.php
+Line 	Column 	Type 	Code 	Message
+2110 	48 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $sql
+2129 	43 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $details_sql
+144 	70 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+165 	48 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER["REQUEST_METHOD"] not unslashed before sanitization. Use wp_unslash() or similar
+165 	48 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER["REQUEST_METHOD"]
+166 	45 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER["REQUEST_URI"] not unslashed before sanitization. Use wp_unslash() or similar
+166 	45 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER["REQUEST_URI"]
+167 	57 	WARNING 	WordPress.Security.NonceVerification.Missing 	Processing form data without nonce verification.
+168 	56 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+221 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally b
+144 	25 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.e used in production.
+644 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+650 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+662 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+664 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+950 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1045 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1046 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1047 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1048 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1049 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1756 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1793 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1846 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1850 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1871 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2102 	13 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$table_name} at "SELECT COUNT(*) FROM {$table_name} \n
+2121 	13 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$table_name} at "SELECT action_id, hook_arguments, status FROM {$table_name} \n
+2344 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2350 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2361 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2364 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Diagnostics/AbstractDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+170 	29 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_HOST'] not unslashed before sanitization. Use wp_unslash() or similar
+170 	29 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['HTTP_HOST']
+220 	34 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$full_table_name} at "SHOW TABLES LIKE '{$full_table_name}'"
+238 	37 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$full_table_name} at "SELECT COUNT(*) FROM {$full_table_name}"
+
+FILE: src/Diagnostics/Core/WpCliDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+101 	38 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['PATH'] not unslashed before sanitization. Use wp_unslash() or similar
+101 	38 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['PATH']
+
+FILE: src/Diagnostics/Core/EnvironmentDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+216 	24 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['SERVER_NAME'] not unslashed before sanitization. Use wp_unslash() or similar
+216 	24 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['SERVER_NAME']
+
+FILE: src/Diagnostics/API/NetworkDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+586 	23 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_USER_AGENT'] not unslashed before sanitization. Use wp_unslash() or similar
+586 	23 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['HTTP_USER_AGENT']
+
+FILE: src/Diagnostics/Frontend/ConfigDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+671 	20 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+672 	56 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+672 	56 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_GET['page'] not unslashed before sanitization. Use wp_unslash() or similar
+
+FILE: src/Diagnostics/Performance/QueryDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+412 	43 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $table_name at "SHOW INDEX FROM $table_name"
+
+FILE: src/Admin/Notices.php
+Line 	Column 	Type 	Code 	Message
+102 	56 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['nonce'] not unslashed before sanitization. Use wp_unslash() or similar
+102 	56 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['nonce']
+
+FILE: src/Admin/DiagnosticDashboard.php
+Line 	Column 	Type 	Code 	Message
+282 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['nonce'] not unslashed before sanitization. Use wp_unslash() or similar
+282 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['nonce']
+292 	45 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['category'] not unslashed before sanitization. Use wp_unslash() or similar
+326 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['nonce'] not unslashed before sanitization. Use wp_unslash() or similar
+326 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['nonce']
+336 	51 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['diagnostic'] not unslashed before sanitization. Use wp_unslash() or similar
+369 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['nonce'] not unslashed before sanitization. Use wp_unslash() or similar
+369 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['nonce']
+507 	25 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+509 	29 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+509 	90 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_print_r 	print_r() found. Debug code should not normally be used in production.
+517 	33 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+519 	33 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Admin/Admin.php
+Line 	Column 	Type 	Code 	Message
+286 	40 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+286 	75 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+487 	57 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['nonce'] not unslashed before sanitization. Use wp_unslash() or similar
+487 	57 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['nonce']
+
+FILE: src/Admin/CompletionRulesListTable.php
+Line 	Column 	Type 	Code 	Message
+351 	26 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+351 	63 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+352 	24 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+352 	59 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+375 	20 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+376 	46 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+376 	46 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_REQUEST['s'] not unslashed before sanitization. Use wp_unslash() or similar
+
+FILE: src/Admin/InsightDashboard.php
+Line 	Column 	Type 	Code 	Message
+379 	23 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+379 	41 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+397 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['_wpnonce'] not unslashed before sanitization. Use wp_unslash() or similar
+397 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['_wpnonce']
+418 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+434 	40 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$audit_log_table} at "SHOW TABLES LIKE '{$audit_log_table}'"
+442 	37 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$audit_log_table} at "SELECT COUNT(*) FROM {$audit_log_table}"
+1149 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['_wpnonce'] not unslashed before sanitization. Use wp_unslash() or similar
+1149 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['_wpnonce']
+1190 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['_wpnonce'] not unslashed before sanitization. Use wp_unslash() or similar
+1190 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['_wpnonce']
+1342 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['_wpnonce'] not unslashed before sanitization. Use wp_unslash() or similar
+1342 	30 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['_wpnonce']
+1373 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1439 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1453 	22 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_REQUEST['_wpnonce'] not unslashed before sanitization. Use wp_unslash() or similar
+1453 	22 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_REQUEST['_wpnonce']
+1456 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1472 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1473 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1473 	58 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_print_r 	print_r() found. Debug code should not normally be used in production.
+1491 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1492 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Admin/RuleBuilder.php
+Line 	Column 	Type 	Code 	Message
+95 	33 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['_odcm_rule_data']
+104 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+116 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+121 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Core/Logging/ProcessLogger.php
+Line 	Column 	Type 	Code 	Message
+152 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+193 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+213 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+290 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+308 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+314 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Core/ProcessLifecycleDiscovery.php
+Line 	Column 	Type 	Code 	Message
+83 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+286 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $table_name at FROM $table_name\n
+296 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Core/audit-filters.php
+Line 	Column 	Type 	Code 	Message
+189 	24 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+189 	67 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+189 	67 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_GET['date_start'] not unslashed before sanitization. Use wp_unslash() or similar
+190 	22 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+190 	63 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+190 	63 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_GET['date_end'] not unslashed before sanitization. Use wp_unslash() or similar
+
+FILE: src/Core/ManualStatusTracker.php
+Line 	Column 	Type 	Code 	Message
+258 	22 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace 	debug_backtrace() found. Debug code should not normally be used in production.
+347 	22 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace 	debug_backtrace() found. Debug code should not normally be used in production.
+386 	23 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+386 	23 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_GET['action'] not unslashed before sanitization. Use wp_unslash() or similar
+386 	23 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_GET['action']
+412 	19 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+412 	19 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_REQUEST['action'] not unslashed before sanitization. Use wp_unslash() or similar
+412 	19 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_REQUEST['action']
+439 	24 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_URI'] not unslashed before sanitization. Use wp_unslash() or similar
+439 	24 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REQUEST_URI']
+443 	23 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_METHOD'] not unslashed before sanitization. Use wp_unslash() or similar
+443 	23 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REQUEST_METHOD']
+
+FILE: src/Core/Events/Adapters/AbstractGatewayAdapter.php
+Line 	Column 	Type 	Code 	Message
+206 	23 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER[$header] not unslashed before sanitization. Use wp_unslash() or similar
+206 	23 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER[$header]
+220 	16 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REMOTE_ADDR'] not unslashed before sanitization. Use wp_unslash() or similar
+220 	16 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REMOTE_ADDR']
+
+FILE: src/Core/Events/Adapters/StripeAdapter.php
+Line 	Column 	Type 	Code 	Message
+511 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Core/Events/UniversalEventProcessor.php
+Line 	Column 	Type 	Code 	Message
+84 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+85 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+86 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+87 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+88 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+98 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+99 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+100 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+101 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+103 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+104 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+114 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+122 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+123 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+208 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+209 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+215 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+224 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+231 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+231 	98 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+239 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+239 	103 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+245 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+637 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+643 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+658 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+663 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+690 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+694 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+711 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+778 	25 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+802 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+840 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Core/Events/UniversalEvent.php
+Line 	Column 	Type 	Code 	Message
+164 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+165 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+171 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+171 	78 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+176 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+176 	76 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+181 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+181 	86 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+187 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+187 	82 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+192 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+192 	84 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+197 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+206 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+206 	75 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+211 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+211 	77 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+217 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+217 	89 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+222 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+222 	89 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+228 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+228 	83 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+236 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+242 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+247 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+252 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+253 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+254 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Core/Events/EventRouter.php
+Line 	Column 	Type 	Code 	Message
+351 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Core/RefundDeletionDiagnostics.php
+Line 	Column 	Type 	Code 	Message
+132 	91 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REMOTE_ADDR'] not unslashed before sanitization. Use wp_unslash() or similar
+133 	95 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_USER_AGENT'] not unslashed before sanitization. Use wp_unslash() or similar
+134 	84 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_REFERER'] not unslashed before sanitization. Use wp_unslash() or similar
+283 	19 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace 	debug_backtrace() found. Debug code should not normally be used in production.
+391 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1060 	103 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REMOTE_ADDR'] not unslashed before sanitization. Use wp_unslash() or similar
+1061 	107 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_USER_AGENT'] not unslashed before sanitization. Use wp_unslash() or similar
+1062 	96 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_REFERER'] not unslashed before sanitization. Use wp_unslash() or similar
+1144 	103 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REMOTE_ADDR'] not unslashed before sanitization. Use wp_unslash() or similar
+1145 	107 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_USER_AGENT'] not unslashed before sanitization. Use wp_unslash() or similar
+1146 	96 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_REFERER'] not unslashed before sanitization. Use wp_unslash() or similar
+
+FILE: src/Core/Security/GuardChecker.php
+Line 	Column 	Type 	Code 	Message
+161 	25 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_METHOD'] not unslashed before sanitization. Use wp_unslash() or similar
+161 	25 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REQUEST_METHOD']
+162 	49 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_USER_AGENT'] not unslashed before sanitization. Use wp_unslash() or similar
+163 	38 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_REFERER'] not unslashed before sanitization. Use wp_unslash() or similar
+164 	42 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_URI'] not unslashed before sanitization. Use wp_unslash() or similar
+
+FILE: src/Core/RuleComponents/RuleIndexBuilder.php
+Line 	Column 	Type 	Code 	Message
+273 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Core/RuleComponents/RuleComponentRegistry.php
+Line 	Column 	Type 	Code 	Message
+159 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+163 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+165 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+171 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+174 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+179 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+182 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+186 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+189 	25 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+192 	29 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+195 	29 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+197 	29 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+199 	29 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+202 	25 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+206 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+207 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+213 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Core/AttributionTracker.php
+Line 	Column 	Type 	Code 	Message
+112 	91 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_METHOD'] not unslashed before sanitization. Use wp_unslash() or similar
+113 	80 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_URI'] not unslashed before sanitization. Use wp_unslash() or similar
+114 	89 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['QUERY_STRING'] not unslashed before sanitization. Use wp_unslash() or similar
+226 	19 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace 	debug_backtrace() found. Debug code should not normally be used in production.
+341 	168 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_USER_AGENT'] not unslashed before sanitization. Use wp_unslash() or similar
+342 	143 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_REFERER'] not unslashed before sanitization. Use wp_unslash() or similar
+457 	58 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_URI'] not unslashed before sanitization. Use wp_unslash() or similar
+457 	58 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REQUEST_URI']
+496 	23 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace 	debug_backtrace() found. Debug code should not normally be used in production.
+587 	38 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_CLIENT_IP'] not unslashed before sanitization. Use wp_unslash() or similar
+587 	38 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['HTTP_CLIENT_IP']
+591 	44 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_X_FORWARDED_FOR'] not unslashed before sanitization. Use wp_unslash() or similar
+591 	44 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['HTTP_X_FORWARDED_FOR']
+597 	38 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REMOTE_ADDR'] not unslashed before sanitization. Use wp_unslash() or similar
+597 	38 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REMOTE_ADDR']
+
+FILE: src/Core/LogCleanup.php
+Line 	Column 	Type 	Code 	Message
+57 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_table at FROM $log_table\n
+79 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_table at FROM $log_table\n
+110 	25 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_table at "DELETE FROM $log_table\n
+111 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $placeholders at WHERE log_id IN ($placeholders)"
+111 	57 	WARNING 	WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare 	Replacement variables found, but no valid placeholders found in the query.
+129 	25 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $payloads_table at "DELETE FROM $payloads_table\n
+130 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $placeholders at WHERE payload_id IN ($placeholders)"
+130 	61 	WARNING 	WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare 	Replacement variables found, but no valid placeholders found in the query.
+204 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_table at FROM $log_table\n
+223 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_table at FROM $log_table\n
+
+FILE: src/Core/CheckoutCircuitBreaker.php
+Line 	Column 	Type 	Code 	Message
+56 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+95 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+126 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+131 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+213 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+231 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+281 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+306 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+321 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+355 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/API/AuditLogEndpoint.php
+Line 	Column 	Type 	Code 	Message
+220 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+221 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+222 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+223 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+224 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+225 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+226 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+227 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+227 	43 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_USER_AGENT'] not unslashed before sanitization. Use wp_unslash() or similar
+227 	43 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['HTTP_USER_AGENT']
+228 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+228 	40 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_REFERER'] not unslashed before sanitization. Use wp_unslash() or similar
+228 	40 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['HTTP_REFERER']
+237 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+247 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+248 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+249 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+256 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+450 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+556 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+804 	25 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1026 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $table_name at FROM $table_name\n
+1036 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $table_name at FROM $table_name\n
+1046 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $table_name at FROM $table_name\n
+1428 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_table at FROM $log_table l\n
+1429 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $payload_table at LEFT JOIN $payload_table p ON l.payload_id = p.payload_id\n
+1466 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_table at FROM $log_table l\n
+1467 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $payload_table at LEFT JOIN $payload_table p ON l.payload_id = p.payload_id\n
+1468 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $placeholders at WHERE l.log_id IN ($placeholders)"
+1468 	51 	WARNING 	WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare 	Replacement variables found, but no valid placeholders found in the query.
+1539 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1549 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1561 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1623 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1658 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_table at FROM $log_table l\n
+1659 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $payload_table at LEFT JOIN $payload_table p ON l.payload_id = p.payload_id\n
+1715 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1860 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1992 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2042 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_table at FROM $log_table\n
+2043 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$placeholders} at WHERE log_id IN ({$placeholders})"
+2043 	51 	WARNING 	WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare 	Replacement variables found, but no valid placeholders found in the query.
+2075 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_table at FROM $log_table\n
+2076 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$placeholders} at WHERE log_id IN ({$placeholders})\n
+2077 	52 	WARNING 	WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare 	Replacement variables found, but no valid placeholders found in the query.
+2087 	25 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $payload_table at "DELETE FROM $payload_table\n
+2088 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$payload_placeholders} at WHERE payload_id IN ({$payload_placeholders})"
+2088 	71 	WARNING 	WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare 	Replacement variables found, but no valid placeholders found in the query.
+2097 	21 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_table at "DELETE FROM $log_table\n
+2098 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$placeholders} at WHERE log_id IN ({$placeholders})"
+2098 	55 	WARNING 	WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare 	Replacement variables found, but no valid placeholders found in the query.
+2140 	38 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REMOTE_ADDR'] not unslashed before sanitization. Use wp_unslash() or similar
+2140 	38 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REMOTE_ADDR']
+2141 	41 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_USER_AGENT'] not unslashed before sanitization. Use wp_unslash() or similar
+2141 	41 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['HTTP_USER_AGENT']
+2195 	25 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2210 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2290 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$log_table} at FROM {$log_table} l \n
+2291 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$payload_table} at LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id\n
+2381 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2552 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2599 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2677 	37 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_METHOD'] not unslashed before sanitization. Use wp_unslash() or similar
+2677 	37 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REQUEST_METHOD']
+2678 	34 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_URI'] not unslashed before sanitization. Use wp_unslash() or similar
+2678 	34 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REQUEST_URI']
+2679 	32 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_HOST'] not unslashed before sanitization. Use wp_unslash() or similar
+2679 	32 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['HTTP_HOST']
+2680 	33 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_USER_AGENT'] not unslashed before sanitization. Use wp_unslash() or similar
+2680 	33 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['HTTP_USER_AGENT']
+2681 	34 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REMOTE_ADDR'] not unslashed before sanitization. Use wp_unslash() or similar
+2681 	34 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REMOTE_ADDR']
+2755 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2854 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+2875 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+3078 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+3081 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+3094 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+3095 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+3099 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+3104 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+3124 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+3125 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+3297 	38 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $full_table_name at "SHOW TABLES LIKE '$full_table_name'"
+3303 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $full_table_name at FROM $full_table_name"
+
+FILE: src/API/RuleBuilderApiController.php
+Line 	Column 	Type 	Code 	Message
+360 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1097 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1206 	88 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['HTTP_USER_AGENT'] not unslashed before sanitization. Use wp_unslash() or similar
+1229 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1242 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1385 	43 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER[$key] not unslashed before sanitization. Use wp_unslash() or similar
+1396 	36 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REMOTE_ADDR'] not unslashed before sanitization. Use wp_unslash() or similar
+1888 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/API/WebhookController.php
+Line 	Column 	Type 	Code 	Message
+544 	23 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER[$header] not unslashed before sanitization. Use wp_unslash() or similar
+544 	23 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER[$header]
+556 	16 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REMOTE_ADDR'] not unslashed before sanitization. Use wp_unslash() or similar
+556 	16 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REMOTE_ADDR']
+587 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+623 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+660 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+774 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/API/Timeline/DatabaseTimelineBuilder.php
+Line 	Column 	Type 	Code 	Message
+59 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $logTable at FROM $logTable l\n
+60 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $payloadTable at LEFT JOIN $payloadTable p ON l.payload_id = p.payload_id\n
+93 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $logTable at FROM $logTable l\n
+94 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $payloadTable at LEFT JOIN $payloadTable p ON l.payload_id = p.payload_id\n
+154 	52 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_TIME_FLOAT'] not unslashed before sanitization. Use wp_unslash() or similar
+154 	52 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REQUEST_TIME_FLOAT']
+208 	52 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_TIME_FLOAT'] not unslashed before sanitization. Use wp_unslash() or similar
+208 	52 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REQUEST_TIME_FLOAT']
+
+FILE: src/API/Timeline/RegistryTimelineRenderer.php
+Line 	Column 	Type 	Code 	Message
+48 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+71 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+72 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+73 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+74 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+75 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+76 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+77 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+79 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+86 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+93 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+101 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+110 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+111 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+112 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+117 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+118 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+130 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+139 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+140 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+141 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+147 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+160 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+162 	25 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+164 	25 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+173 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+174 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+187 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+188 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+189 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+190 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+192 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/View/PayloadAnalyzer.php
+Line 	Column 	Type 	Code 	Message
+768 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/View/PayloadRenderer/RuleRenderer.php
+Line 	Column 	Type 	Code 	Message
+969 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+971 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+973 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+977 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1000 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1007 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/View/PayloadRenderer/PayloadComponentUIToolkit.php
+Line 	Column 	Type 	Code 	Message
+810 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/View/PayloadRenderer/BaseRenderer.php
+Line 	Column 	Type 	Code 	Message
+52 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+68 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+77 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+83 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+100 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+116 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+130 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/View/PayloadRenderer/OrderRenderer.php
+Line 	Column 	Type 	Code 	Message
+58 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+59 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+60 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+67 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+74 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+78 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+81 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+85 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+90 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+95 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+99 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+103 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+107 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+111 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+356 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+357 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+358 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+360 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+361 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+386 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+391 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+394 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+397 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/View/PayloadRenderer/FallbackRenderer.php
+Line 	Column 	Type 	Code 	Message
+40 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+49 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+55 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+61 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Includes/Installer.php
+Line 	Column 	Type 	Code 	Message
+56 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+132 	28 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $table_name at "SHOW TABLES LIKE '$table_name'"
+159 	28 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $table_name at "SHOW TABLES LIKE '$table_name'"
+191 	28 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $table_name at "SHOW TABLES LIKE '$table_name'"
+
+FILE: src/Includes/Utils/OrderMetaManager.php
+Line 	Column 	Type 	Code 	Message
+61 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+84 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+95 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+117 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+128 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+152 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+167 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+188 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+210 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+296 	21 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+323 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+362 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+403 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+479 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Includes/functions.php
+Line 	Column 	Type 	Code 	Message
+457 	5 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1164 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1176 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1184 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Includes/actions.php
+Line 	Column 	Type 	Code 	Message
+39 	5 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+46 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+46 	90 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+52 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+59 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+127 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+170 	13 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $audit_log_table at "INSERT IGNORE INTO $audit_log_table ($log_column_names)\n
+170 	13 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_column_names at "INSERT IGNORE INTO $audit_log_table ($log_column_names)\n
+171 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable $log_row_values at VALUES ($log_row_values)"
+171 	38 	WARNING 	WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare 	Replacement variables found, but no valid placeholders found in the query.
+247 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+248 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+249 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+274 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+278 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+280 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+284 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+376 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+432 	5 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+433 	5 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+434 	5 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+435 	5 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+436 	5 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+437 	5 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+440 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+446 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+452 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+457 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+458 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+460 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+465 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+466 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+471 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+473 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+486 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+490 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+512 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+514 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+713 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+719 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+725 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+726 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+727 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+755 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+759 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+761 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+764 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+786 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+808 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+810 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+831 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+839 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+844 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+856 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+917 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+934 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+970 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+981 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+1027 	53 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['nonce'] not unslashed before sanitization. Use wp_unslash() or similar
+1027 	53 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['nonce']
+1246 	5 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Includes/UpgradePrompts.php
+Line 	Column 	Type 	Code 	Message
+255 	18 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['nonce'] not unslashed before sanitization. Use wp_unslash() or similar
+255 	18 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['nonce']
+282 	18 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_POST['nonce'] not unslashed before sanitization. Use wp_unslash() or similar
+282 	18 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_POST['nonce']
+
+FILE: order-daemon.php
+Line 	Column 	Type 	Code 	Message
+97 	5 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Diagnostics/AbstractDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+220 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+220 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+238 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+238 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Diagnostics/Core/CheckoutFlowDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+276 	27 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+276 	27 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Diagnostics/Core/PluginStateDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+127 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+127 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Diagnostics/API/NetworkDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+208 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+208 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Diagnostics/Performance/QueryDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+233 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+233 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+295 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+295 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+363 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+363 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+412 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+412 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+477 	34 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+477 	34 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+491 	26 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+491 	26 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+546 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+546 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+552 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+552 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Admin/InsightDashboard.php
+Line 	Column 	Type 	Code 	Message
+434 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+434 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+442 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+442 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Core/ProcessLifecycleDiscovery.php
+Line 	Column 	Type 	Code 	Message
+283 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+283 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Core/BlockCheckoutCompatibility.php
+Line 	Column 	Type 	Code 	Message
+602 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+684 	33 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+684 	33 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Core/Core.php
+Line 	Column 	Type 	Code 	Message
+2110 	33 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2110 	33 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2129 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2129 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2211 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2298 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Core/Events/UniversalEventProcessor.php
+Line 	Column 	Type 	Code 	Message
+262 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+262 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+567 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+567 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+575 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+575 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+584 	26 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+584 	26 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+592 	29 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+592 	29 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+600 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+600 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Core/LogCleanup.php
+Line 	Column 	Type 	Code 	Message
+54 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+54 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+75 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+75 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+108 	33 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+108 	33 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+127 	17 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+127 	17 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+201 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+201 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+220 	36 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+220 	36 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/API/AuditLogEndpoint.php
+Line 	Column 	Type 	Code 	Message
+1023 	29 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1023 	29 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1033 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1033 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1043 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1043 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1416 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1416 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1454 	17 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1454 	17 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1645 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1645 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1791 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1791 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1794 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1794 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1850 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1850 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1853 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1853 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1893 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1893 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1896 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1896 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2039 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2039 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2063 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2063 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2072 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2072 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2085 	17 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2085 	17 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2095 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2095 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2104 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2104 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2110 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2110 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2277 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2277 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+3297 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+3297 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+3301 	35 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+3301 	35 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/API/RuleBuilderApiController.php
+Line 	Column 	Type 	Code 	Message
+1536 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1536 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/API/Timeline/DatabaseTimelineBuilder.php
+Line 	Column 	Type 	Code 	Message
+46 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+46 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+80 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+80 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Includes/Installer.php
+Line 	Column 	Type 	Code 	Message
+132 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+132 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+133 	33 	WARNING 	WordPress.DB.DirectDatabaseQuery.SchemaChange 	Attempting a database schema change is discouraged.
+159 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+159 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+160 	33 	WARNING 	WordPress.DB.DirectDatabaseQuery.SchemaChange 	Attempting a database schema change is discouraged.
+191 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+191 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+192 	34 	WARNING 	WordPress.DB.DirectDatabaseQuery.SchemaChange 	Attempting a database schema change is discouraged.
+
+FILE: src/Includes/functions.php
+Line 	Column 	Type 	Code 	Message
+1153 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Includes/actions.php
+Line 	Column 	Type 	Code 	Message
+121 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+168 	5 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+168 	5 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+849 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+849 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+874 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+885 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+906 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+906 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+924 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+924 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+963 	16 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+963 	16 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+974 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+974 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1103 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1103 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1233 	5 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1233 	5 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Admin/Admin.php
+Line 	Column 	Type 	Code 	Message
+524 	21 	WARNING 	WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude 	Using exclusionary parameters, like exclude, in calls to get_posts() should be done with caution, see https://wpvip.com/documentation/performance-improvements-by-removing-usage-of-post__not_in/ for more information.
+
+FILE: src/Core/Logging/ComponentSanitizer.php
+Line 	Column 	Type 	Code 	Message
+140 	26 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_key 	Detected usage of meta_key, possible slow query.
+
+FILE: src/Core/PremiumComponentFallback.php
+Line 	Column 	Type 	Code 	Message
+218 	13 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_query 	Detected usage of meta_query, possible slow query.
+
+FILE: src/Core/Core.php
+Line 	Column 	Type 	Code 	Message
+1623 	13 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_query 	Detected usage of meta_query, possible slow query.
+
+FILE: src/Includes/Utils/OrderMetaManager.php
+Line 	Column 	Type 	Code 	Message
+349 	17 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_key 	Detected usage of meta_key, possible slow query.
+350 	17 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_value 	Detected usage of meta_value, possible slow query.
+390 	17 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_key 	Detected usage of meta_key, possible slow query.
+391 	17 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_value 	Detected usage of meta_value, possible slow query.
+465 	21 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_key 	Detected usage of meta_key, possible slow query.
+466 	21 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_value 	Detected usage of meta_value, possible slow query.
+
+FILE: README.txt
+Line 	Column 	Type 	Code 	Message
+0 	0 	ERROR 	outdated_tested_upto_header 	Tested up to: 6.8 < 6.9.
+The "Tested up to" value in your plugin is not set to the current version of WordPress. This means your plugin will not show up in searches, as we require plugins to be compatible and documented as tested up to the most recent version of WordPress.
+Learn more (opens in a new tab)
+0 	0 	WARNING 	readme_parser_warnings_too_many_tags 	One or more tags were ignored. Please limit your plugin to 5 tags.
+0 	0 	WARNING 	readme_parser_warnings_trimmed_short_description 	The "Short Description" section is too long and was truncated. A maximum of 150 characters is supported.
+
+FILE: src/Core/options.php
+Line 	Column 	Type 	Code 	Message
+90 	1 	ERROR 	WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound 	Global variables defined by a theme/plugin should start with the theme/plugin prefix. Found: "$registry".
+
+FILE: src/Core/CheckoutContextBuilder.php
+Line 	Column 	Type 	Code 	Message
+211 	43 	WARNING 	WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound 	Hook names invoked by a theme/plugin should start with the theme/plugin prefix. Found: "$filter_name".
+
+FILE: src/Core/BlockCheckoutCompatibility.php
+Line 	Column 	Type 	Code 	Message
+684 	40 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_var($sql)\n$sql assigned unsafely at line 675:\n $sql = $wpdb->prepare(\n "SELECT COUNT(*) FROM {$table_name} \n WHERE hook = %s \n AND status IN ('pending', 'in-progress')\n AND hook_arguments LIKE %s",\n 'odcm_process_checkout_completion',\n '%"order_id":' . intval($order_id) . '%'\n )\n$table_name assigned unsafely at line 672:\n $table_name = $wpdb->prefix . 'actionscheduler_actions'\n$order_id used without escaping.
+
+FILE: src/Core/Core.php
+Line 	Column 	Type 	Code 	Message
+2110 	40 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_var($sql)\n$sql assigned unsafely at line 2101:\n $sql = $wpdb->prepare(\n "SELECT COUNT(*) FROM {$table_name} \n WHERE hook = %s \n AND status IN ('pending', 'in-progress')\n AND hook_arguments LIKE %s",\n 'odcm_process_checkout_completion',\n '%"order_id":' . intval($order_id) . '%'\n )\n$table_name assigned unsafely at line 2098:\n $table_name = $wpdb->prefix . 'actionscheduler_actions'\n$order_id used without escaping.
+2129 	31 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $details_sql used in $wpdb->get_results($details_sql)\n$details_sql assigned unsafely at line 2120:\n $details_sql = $wpdb->prepare(\n "SELECT action_id, hook_arguments, status FROM {$table_name} \n WHERE hook = %s \n AND hook_arguments LIKE %s \n LIMIT 5",\n 'odcm_process_checkout_completion',\n '%"order_id":' . intval($order_id) . '%'\n )\n$table_name assigned unsafely at line 2098:\n $table_name = $wpdb->prefix . 'actionscheduler_actions'\n$sql assigned unsafely at line 2101:\n $sql = $wpdb->prepare(\n "SELECT COUNT(*) FROM {$table_name} \n WHERE hook = %s \n AND status IN ('pending', 'in-progress')\n AND hook_arguments LIKE %s",\n 'odcm_process_checkout_completion',\n '%"order_id":' . intval($order_id) . '%'\n )\n$order_id used without escaping.
+
+FILE: src/Core/LogCleanup.php
+Line 	Column 	Type 	Code 	Message
+54 	35 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->get_var($wpdb->prepare(\n "SELECT COUNT(*)\n FROM $log_table\n WHERE timestamp < %s",\n $cutoff_date\n ))\n$log_table assigned unsafely at line 47:\n $log_table = $wpdb->prefix.'odcm_audit_log'
+75 	38 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->get_results($wpdb->prepare(\n "SELECT log_id,\n payload_id\n FROM $log_table\n WHERE timestamp < %s\n LIMIT %d",\n $cutoff_date,\n self::BATCH_SIZE\n ))\n$log_table assigned unsafely at line 47:\n $log_table = $wpdb->prefix.'odcm_audit_log'
+108 	40 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->query($wpdb->prepare(\n "DELETE FROM $log_table\n WHERE log_id IN ($placeholders)",\n ...$log_ids\n ))\n$log_table assigned unsafely at line 47:\n $log_table = $wpdb->prefix.'odcm_audit_log'
+127 	24 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $payloads_table used in $wpdb->query($wpdb->prepare(\n "DELETE FROM $payloads_table\n WHERE payload_id IN ($placeholders)",\n ...$payload_ids\n ))
+201 	35 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->get_var($wpdb->prepare(\n "SELECT COUNT(*)\n FROM $log_table\n WHERE timestamp < %s",\n $cutoff_date\n ))
+220 	43 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->get_var($wpdb->prepare(\n "SELECT COUNT(*)\n FROM $log_table\n WHERE timestamp < %s\n AND payload_id IS NOT NULL",\n $cutoff_date\n ))
+
+FILE: src/API/Timeline/DatabaseTimelineBuilder.php
+Line 	Column 	Type 	Code 	Message
+46 	26 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $logTable used in $wpdb->get_row($wpdb->prepare(\n "SELECT l.log_id as id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n l.process_id,\n COALESCE(p.payload, l.details, %s) as payload\n FROM $logTable l\n LEFT JOIN $payloadTable p ON l.payload_id = p.payload_id\n WHERE l.log_id = %d",\n '',\n $logId\n ))\n$logTable assigned unsafely at line 43:\n $logTable = $wpdb->prefix . 'odcm_audit_log'\n$payloadTable assigned unsafely at line 44:\n $payloadTable = $wpdb->prefix . 'odcm_audit_log_payloads'\n$result assigned unsafely at line 46:\n $result = $wpdb->get_row(\n $wpdb->prepare(\n "SELECT l.log_id as id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n l.process_id,\n COALESCE(p.payload, l.details, %s) as payload\n FROM $logTable l\n LEFT JOIN $payloadTable p ON l.payload_id = p.payload_id\n WHERE l.log_id = %d",\n '',\n $logId\n ),\n 'ARRAY_A'\n )\n$logId used without escaping.
+80 	27 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $logTable used in $wpdb->get_results($wpdb->prepare(\n "SELECT l.log_id as id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n l.process_id,\n COALESCE(p.payload, l.details, %s) as payload\n FROM $logTable l\n LEFT JOIN $payloadTable p ON l.payload_id = p.payload_id\n WHERE l.process_id = %s\n ORDER BY l.timestamp ASC",\n '',\n $processId\n ))\n$logTable assigned unsafely at line 77:\n $logTable = $wpdb->prefix . 'odcm_audit_log'\n$payloadTable assigned unsafely at line 78:\n $payloadTable = $wpdb->prefix . 'odcm_audit_log_payloads'\n$results assigned unsafely at line 80:\n $results = $wpdb->get_results(\n $wpdb->prepare(\n "SELECT l.log_id as id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n l.process_id,\n COALESCE(p.payload, l.details, %s) as payload\n FROM $logTable l\n LEFT JOIN $payloadTable p ON l.payload_id = p.payload_id\n WHERE l.process_id = %s\n ORDER BY l.timestamp ASC",\n '',\n $processId\n ),\n 'ARRAY_A'\n )\n$processId used without escaping.
+
+FILE: src/Diagnostics/AbstractDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+220 	26 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $full_table_name used in $wpdb->get_var("SHOW TABLES LIKE '{$full_table_name}'")\n$full_table_name assigned unsafely at line 219:\n $full_table_name = $wpdb->prefix . $table_name
+238 	29 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $full_table_name used in $wpdb->get_var("SELECT COUNT(*) FROM {$full_table_name}")\n$full_table_name assigned unsafely at line 237:\n $full_table_name = $wpdb->prefix . $table_name
+
+FILE: src/Diagnostics/Performance/QueryDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+295 	35 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $query used in $wpdb->get_col($query)\n$query used without escaping.
+363 	35 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $query used in $wpdb->get_results($query)\n$query used without escaping.
+412 	31 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $table_name used in $wpdb->get_results("SHOW INDEX FROM $table_name")\n$table_name assigned unsafely at line 408:\n $table_name = $wpdb->prefix . 'odcm_audit_log'\n$indexes assigned unsafely at line 412:\n $indexes = $wpdb->get_results("SHOW INDEX FROM $table_name", ARRAY_A)
+546 	20 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $test_query used in $wpdb->get_var($test_query)\n$test_query assigned unsafely at line 537:\n $test_query =\n "SELECT COUNT(*)\n FROM $table_name\n WHERE timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)"\n$table_name assigned unsafely at line 536:\n $table_name = $wpdb->prefix . 'odcm_audit_log'
+552 	20 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $test_query used in $wpdb->get_var($test_query)\n$test_query assigned unsafely at line 537:\n $test_query =\n "SELECT COUNT(*)\n FROM $table_name\n WHERE timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)"\n$table_name assigned unsafely at line 536:\n $table_name = $wpdb->prefix . 'odcm_audit_log'
+
+FILE: src/Admin/InsightDashboard.php
+Line 	Column 	Type 	Code 	Message
+434 	32 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $audit_log_table used in $wpdb->get_var("SHOW TABLES LIKE '{$audit_log_table}'")\n$audit_log_table assigned unsafely at line 433:\n $audit_log_table = $wpdb->prefix . 'odcm_audit_log'\n$table_exists assigned unsafely at line 434:\n $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$audit_log_table}'") === $audit_log_table
+442 	29 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $audit_log_table used in $wpdb->get_var("SELECT COUNT(*) FROM {$audit_log_table}")\n$audit_log_table assigned unsafely at line 433:\n $audit_log_table = $wpdb->prefix . 'odcm_audit_log'\n$table_exists assigned unsafely at line 434:\n $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$audit_log_table}'") === $audit_log_table
+
+FILE: src/Core/ProcessLifecycleDiscovery.php
+Line 	Column 	Type 	Code 	Message
+283 	31 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $table_name used in $wpdb->get_col($wpdb->prepare(\n "SELECT DISTINCT event_type\n FROM $table_name\n WHERE event_type IS NOT NULL AND event_type != %s",\n ''\n ))\n$table_name assigned unsafely at line 279:\n $table_name = $wpdb->prefix . 'odcm_audit_log'\n$results assigned unsafely at line 283:\n $results = $wpdb->get_col(\n $wpdb->prepare(\n "SELECT DISTINCT event_type\n FROM $table_name\n WHERE event_type IS NOT NULL AND event_type != %s",\n ''\n )\n )
+
+FILE: src/API/AuditLogEndpoint.php
+Line 	Column 	Type 	Code 	Message
+1023 	36 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $table_name used in $wpdb->get_col($wpdb->prepare(\n "SELECT DISTINCT status\n FROM $table_name\n WHERE status IS NOT NULL\n AND status != %s\n ORDER BY status ASC",\n ''\n ))\n$table_name assigned unsafely at line 1017:\n $table_name = $wpdb->prefix . 'odcm_audit_log'\n$statuses_raw assigned unsafely at line 1023:\n $statuses_raw = $wpdb->get_col(\n $wpdb->prepare(\n "SELECT DISTINCT status\n FROM $table_name\n WHERE status IS NOT NULL\n AND status != %s\n ORDER BY status ASC",\n ''\n )\n ) ?: []
+1033 	39 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $table_name used in $wpdb->get_col($wpdb->prepare(\n "SELECT DISTINCT event_type\n FROM $table_name\n WHERE event_type IS NOT NULL\n AND event_type != %s\n ORDER BY event_type ASC",\n ''\n ))\n$table_name assigned unsafely at line 1017:\n $table_name = $wpdb->prefix . 'odcm_audit_log'\n$statuses_raw assigned unsafely at line 1023:\n $statuses_raw = $wpdb->get_col(\n $wpdb->prepare(\n "SELECT DISTINCT status\n FROM $table_name\n WHERE status IS NOT NULL\n AND status != %s\n ORDER BY status ASC",\n ''\n )\n ) ?: []
+1043 	35 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $table_name used in $wpdb->get_col($wpdb->prepare(\n "SELECT DISTINCT source\n FROM $table_name\n WHERE source IS NOT NULL\n AND source != %s\n ORDER BY source ASC",\n ''\n ))\n$table_name assigned unsafely at line 1017:\n $table_name = $wpdb->prefix . 'odcm_audit_log'\n$statuses_raw assigned unsafely at line 1023:\n $statuses_raw = $wpdb->get_col(\n $wpdb->prepare(\n "SELECT DISTINCT status\n FROM $table_name\n WHERE status IS NOT NULL\n AND status != %s\n ORDER BY status ASC",\n ''\n )\n ) ?: []
+1416 	26 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->get_row($wpdb->prepare(\n "SELECT l.log_id as id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n COALESCE(p.payload, l.details, '') as payload\n FROM $log_table l\n LEFT JOIN $payload_table p ON l.payload_id = p.payload_id\n WHERE l.log_id = %d",\n $log_id\n ))\n$log_table assigned unsafely at line 1413:\n $log_table = $wpdb->prefix . 'odcm_audit_log'\n$payload_table assigned unsafely at line 1414:\n $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads'\n$result assigned unsafely at line 1416:\n $result = $wpdb->get_row(\n $wpdb->prepare(\n "SELECT l.log_id as id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n COALESCE(p.payload, l.details, '') as payload\n FROM $log_table l\n LEFT JOIN $payload_table p ON l.payload_id = p.payload_id\n WHERE l.log_id = %d",\n $log_id\n ),\n 'ARRAY_A'\n )\n$log_id used without escaping.
+1454 	24 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->get_results($wpdb->prepare(\n "SELECT l.log_id as id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n COALESCE(p.payload, l.details, '') as payload\n FROM $log_table l\n LEFT JOIN $payload_table p ON l.payload_id = p.payload_id\n WHERE l.log_id IN ($placeholders)",\n $ids\n ))\n$log_table assigned unsafely at line 1448:\n $log_table = $wpdb->prefix . 'odcm_audit_log'
+1645 	28 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->get_results($wpdb->prepare(\n "SELECT l.log_id as id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n l.process_id,\n COALESCE(p.payload, l.details, '') as payload\n FROM $log_table l\n LEFT JOIN $payload_table p ON l.payload_id = p.payload_id\n WHERE l.process_id = %s\n ORDER BY l.timestamp ASC",\n $process_id\n ))\n$log_table assigned unsafely at line 1642:\n $log_table = $wpdb->prefix . 'odcm_audit_log'\n$payload_table assigned unsafely at line 1643:\n $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads'\n$rows assigned unsafely at line 1645:\n $rows = $wpdb->get_results(\n $wpdb->prepare(\n "SELECT l.log_id as id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n l.process_id,\n COALESCE(p.payload, l.details, '') as payload\n FROM $log_table l\n LEFT JOIN $payload_table p ON l.payload_id = p.payload_id\n WHERE l.process_id = %s\n ORDER BY l.timestamp ASC",\n $process_id\n ),\n 'ARRAY_A'\n )
+1791 	31 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_results($wpdb->prepare($sql, $where_values))\n$sql assigned unsafely at line 1784:\n $sql .= " LIMIT %d OFFSET %d"\n$where_values[] used without escaping.
+1794 	31 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_results($sql)\n$sql assigned unsafely at line 1784:\n $sql .= " LIMIT %d OFFSET %d"\n$where_values[] used without escaping.
+1850 	35 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_results($wpdb->prepare($sql, $where_values))\n$sql assigned unsafely at line 1845:\n $sql .= " ORDER BY l.{$orderby} {$order}"\n$orderby assigned unsafely at line 1843:\n $orderby = $request->get_param('orderby') ?: 'timestamp'\n$order assigned unsafely at line 1844:\n $order = $request->get_param('order') ?: 'desc'\n$request used without escaping.
+1853 	35 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_results($sql)\n$sql assigned unsafely at line 1845:\n $sql .= " ORDER BY l.{$orderby} {$order}"\n$orderby assigned unsafely at line 1843:\n $orderby = $request->get_param('orderby') ?: 'timestamp'\n$order assigned unsafely at line 1844:\n $order = $request->get_param('order') ?: 'desc'\n$request used without escaping.
+1893 	29 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_var($wpdb->prepare($sql, $where_values))\n$sql assigned unsafely at line 1874:\n $sql =\n "SELECT COUNT(*)\n FROM $log_table l"\n$log_table assigned unsafely at line 1871:\n $log_table = $wpdb->prefix . 'odcm_audit_log'
+1896 	29 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_var($sql)\n$sql assigned unsafely at line 1874:\n $sql =\n "SELECT COUNT(*)\n FROM $log_table l"\n$log_table assigned unsafely at line 1871:\n $log_table = $wpdb->prefix . 'odcm_audit_log'
+2039 	32 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->get_col($wpdb->prepare(\n "SELECT log_id\n FROM $log_table\n WHERE log_id IN ({$placeholders})",\n $sanitized_ids\n ))
+2072 	35 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->get_col($wpdb->prepare(\n "SELECT DISTINCT payload_id\n FROM $log_table\n WHERE log_id IN ({$placeholders})\n AND payload_id IS NOT NULL",\n $log_ids\n ))\n$log_table assigned unsafely at line 2059:\n $log_table = $wpdb->prefix . 'odcm_audit_log'\n$payload_table assigned unsafely at line 2060:\n $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads'
+2085 	24 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $payload_table used in $wpdb->query($wpdb->prepare(\n "DELETE FROM $payload_table\n WHERE payload_id IN ({$payload_placeholders})",\n $payload_ids\n ))\n$payload_table assigned unsafely at line 2060:\n $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads'
+2095 	37 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->query($wpdb->prepare(\n "DELETE FROM $log_table\n WHERE log_id IN ({$placeholders})",\n $log_ids\n ))\n$log_table assigned unsafely at line 2059:\n $log_table = $wpdb->prefix . 'odcm_audit_log'\n$payload_table assigned unsafely at line 2060:\n $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads'
+2277 	38 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $log_table used in $wpdb->get_results($wpdb->prepare(\n "SELECT l.log_id as id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n l.process_id,\n COALESCE(p.payload, l.details, '') as payload\n FROM {$log_table} l \n LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id\n WHERE l.process_id = %s \n ORDER BY l.timestamp ASC",\n $process_id\n ))\n$log_table assigned unsafely at line 2274:\n $log_table = $wpdb->prefix . 'odcm_audit_log'\n$payload_table assigned unsafely at line 2275:\n $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads'\n$process_events assigned unsafely at line 2277:\n $process_events = $wpdb->get_results(\n $wpdb->prepare(\n "SELECT l.log_id as id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n l.process_id,\n COALESCE(p.payload, l.details, '') as payload\n FROM {$log_table} l \n LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id\n WHERE l.process_id = %s \n ORDER BY l.timestamp ASC",\n $process_id\n ),\n 'ARRAY_A'\n )\n$process_id used without escaping.
+3297 	30 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $full_table_name used in $wpdb->get_var("SHOW TABLES LIKE '$full_table_name'")\n$full_table_name assigned unsafely at line 3294:\n $full_table_name = $wpdb->prefix . $table_name
+3301 	42 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $full_table_name used in $wpdb->get_var("SELECT COUNT(*)\n FROM $full_table_name")\n$full_table_name assigned unsafely at line 3294:\n $full_table_name = $wpdb->prefix . $table_name
+
+FILE: src/API/RuleBuilderApiController.php
+Line 	Column 	Type 	Code 	Message
+1536 	27 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_results($wpdb->prepare($sql, $search_params))\n$sql assigned unsafely at line 1529:\n $sql .= " AND (" . implode(' OR ', $where_conditions) . ")"\n$where_conditions assigned unsafely at line 1524:\n $where_conditions[] = "pm.meta_value LIKE %s"\n$search assigned unsafely at line 1496:\n $search = sanitize_text_field($search)\nNote: sanitize_text_field() is not a safe escaping function.
+
+FILE: src/Includes/Installer.php
+Line 	Column 	Type 	Code 	Message
+132 	20 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $table_name used in $wpdb->get_var("SHOW TABLES LIKE '$table_name'")
+159 	20 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $table_name used in $wpdb->get_var("SHOW TABLES LIKE '$table_name'")
+191 	20 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $table_name used in $wpdb->get_var("SHOW TABLES LIKE '$table_name'")
+
+FILE: src/Includes/actions.php
+Line 	Column 	Type 	Code 	Message
+168 	12 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $audit_log_table used in $wpdb->query($wpdb->prepare(\n "INSERT IGNORE INTO $audit_log_table ($log_column_names)\n VALUES ($log_row_values)",\n array_values($log_data)\n ))\n$audit_log_table assigned unsafely at line 164:\n $audit_log_table = $wpdb->prefix . 'odcm_audit_log'\n$log_column_names assigned unsafely at line 165:\n $log_column_names = implode(', ', array_keys($log_data))\n$log_data assigned unsafely at line 134:\n $log_data = [\n 'summary' => sanitize_text_field($summary),\n 'event_type' => sanitize_key($event_type),\n 'status' => sanitize_key($status),\n 'payload_id' => $payload_id,\n 'timestamp' => current_time('mysql'),\n 'is_test' => $is_test ? 1 : 0,\n ]\nNote: sanitize_text_field() is not a safe escaping function.\n$summary assigned unsafely at line 112:\n $summary = $comp_data['s'] ?? 'Custom event processed'\n$comp_data['s'] used without escaping.

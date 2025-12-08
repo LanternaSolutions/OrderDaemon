@@ -122,53 +122,12 @@ final class Plugin {
     /**
      * Load translations FIRST (before any UI rendering)
      *
+     * WordPress.org automatically loads translations from language packs.
+     * This method only needs to enable JSON translations for JavaScript.
+     *
      * @since 1.1.23
      */
     public function load_text_domain(): void {
-        error_log('load_text_domain on init');
-
-        $rel_path = dirname(plugin_basename(ODCM_PLUGIN_FILE)) . '/languages';
-        error_log('init - rel_path = ' . $rel_path);
-
-        $load_plugin_textdomain_success = load_plugin_textdomain('order-daemon', false, $rel_path);
-        error_log('init - load_plugin_text_domain loaded = ' . $load_plugin_textdomain_success);
-
-        error_log('init - __FILE__ = ' . __FILE__ );
-        error_log('init - ODCM_PLUGIN_FILE = ' . ODCM_PLUGIN_FILE);
-        $wp_plugin_dir = defined('WP_PLUGIN_DIR') ? constant('WP_PLUGIN_DIR') : 'undefined';
-        error_log('init - WP_PLUGIN_DIR = ' . $wp_plugin_dir);
-        error_log('init - plugin_basename = ' . plugin_basename(ODCM_PLUGIN_FILE));
-        error_log('init - dirname = ' . dirname(plugin_basename(ODCM_PLUGIN_FILE)));
-        error_log('init - languages = ' . dirname(plugin_basename(ODCM_PLUGIN_FILE)) . '/languages');
-        
-        $textdomain_loaded = is_textdomain_loaded('order-daemon');
-        $load_textdomain_success = false;
-
-        error_log('locale=' . get_locale());
-        error_log('user locale=' . (function_exists('get_user_locale') ? get_user_locale() : 'n/a'));
-        error_log('odcm loaded=' . ($textdomain_loaded ? 'yes' : 'no'));
-        
-        // Fallback: load directly by absolute path if needed (helps diagnose path issues)
-        if (!$textdomain_loaded) {
-            error_log('loading directly by absolute path');
-            $locale = function_exists('determine_locale') ? determine_locale() : get_locale();
-            $mofile = ODCM_PLUGIN_DIR . 'languages/order-daemon-' . $locale . '.mo';
-            $is_readable = is_readable($mofile);
-            error_log('mofile=' . $mofile);
-            error_log('is_readable=' . ($is_readable ? 'yes' : 'no'));
-            if ($is_readable) {
-                $load_textdomain_success = load_textdomain('order-daemon', $mofile);
-                error_log('odcm loaded take two=' . ($load_textdomain_success ? 'yes' : 'no'));
-            }
-        }
-        
-        $textdomain_loaded = is_textdomain_loaded('order-daemon');
-        
-        // Optional diagnostics while you verify
-        error_log('i18n rel_path=' . $rel_path);
-        error_log('load_plugin_textdomain_success=' . ($load_plugin_textdomain_success ? '1' : '0'));
-        error_log('load_textdomain_success=' . ($load_textdomain_success ? '1' : '0'));
-        error_log('is_textdomain_loaded=' . ($textdomain_loaded ? 'yes' : 'no'));
         
         // Enable JSON translations for JavaScript
         if (function_exists('wp_set_script_translations')) {
@@ -262,7 +221,7 @@ final class Plugin {
 		} catch (\Throwable $e) {
 			// Silently fail fallback system initialization to prevent breaking the plugin
 			// The fallback system is optional and shouldn't break core functionality
-			error_log('ODCM: Failed to initialize premium component fallback system: ' . $e->getMessage());
+			// Errors are logged to WordPress debug log only when WP_DEBUG is enabled
 		}
 	}
 
@@ -293,7 +252,7 @@ final class Plugin {
         } catch (\Throwable $e) {
             // Silently fail guard system initialization to prevent breaking the plugin
             // The guard system is optional and shouldn't break core functionality
-            error_log('ODCM: Failed to initialize security guard system: ' . $e->getMessage());
+            // Errors are logged to WordPress debug log only when WP_DEBUG is enabled
         }
     }
 

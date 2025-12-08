@@ -95,7 +95,8 @@ class EnvironmentDiagnostic extends AbstractDiagnostic
         if (!$php_compatible) {
             $issues[] = sprintf(
                 /* translators: 1: Current PHP version, 2: Minimum required version */
-                __('PHP version %s is incompatible (requires %s+)', 'order-daemon'),
+                            /* translators: 1: Current PHP version, 2: Required PHP version */
+                            __('PHP version %1$s is incompatible (requires %2$s+)', 'order-daemon'),
                 $php_version,
                 self::MIN_PHP_VERSION
             );

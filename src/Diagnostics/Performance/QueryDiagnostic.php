@@ -409,7 +409,8 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         try {
             // Get existing indexes
-            $indexes = $wpdb->get_results("SHOW INDEX FROM $table_name", ARRAY_A);
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $indexes = $wpdb->get_results("SHOW INDEX FROM {$table_name}", ARRAY_A);
             
             foreach ($indexes as $index) {
                 $key_name = $index['Key_name'];

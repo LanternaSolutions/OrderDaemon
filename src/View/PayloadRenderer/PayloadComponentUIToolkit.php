@@ -807,7 +807,7 @@ class PayloadComponentUIToolkit
             } catch (\Exception $e) {
                 // Silently handle registry errors - component should still render without status pill
                 $lookup_id = isset($options['component_id']) ? $options['component_id'] : $theme;
-                error_log('PayloadComponentUIToolkit: Failed to retrieve registry metadata for component "' . $lookup_id . '": ' . $e->getMessage());
+                // Failed to retrieve registry metadata for component
             }
         }
         

@@ -1,14 +1,14 @@
 === Order Daemon for WooCommerce ===
 Contributors: orderdaemon
-Tags: woocommerce, automation, order completion, virtual products, downloadable products, order management
+Tags: woocommerce, automation, order-completion, virtual-products, order-management
 Requires at least: 5.6
-Tested up to: 6.8
+Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.1.32
+Stable tag: 1.1.33
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Stop wasting time manually completing WooCommerce orders. Order Daemon is a lightweight, high-performance utility that ensures your virtual and downloadable orders are completed reliably, every time, without slowing down your site.
+Rule-based automation for WooCommerce order completion. Auto-complete orders based on products, payment, and custom conditions.
 
 == Description ==
 
