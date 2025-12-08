@@ -81,11 +81,11 @@ class UniversalEventProcessor
         
         // DEBUG: Log the incoming event data for process_id assignment troubleshooting
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_PROCESS_ID_DEBUG: UniversalEventProcessor received event data:");
-            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectType: " . ($event_data['primaryObjectType'] ?? 'MISSING'));
-            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectID: " . ($event_data['primaryObjectID'] ?? 'MISSING') . " (type: " . gettype($event_data['primaryObjectID'] ?? null) . ")");
-            error_log("ODCM_PROCESS_ID_DEBUG: - eventType: " . ($event_data['eventType'] ?? 'MISSING'));
-            error_log("ODCM_PROCESS_ID_DEBUG: - idempotencyKey: " . ($event_data['idempotencyKey'] ?? 'MISSING'));
+            odcm_log_message("ODCM_PROCESS_ID_DEBUG: UniversalEventProcessor received event data:", 'info');
+            odcm_log_message("ODCM_PROCESS_ID_DEBUG: - primaryObjectType: " . ($event_data['primaryObjectType'] ?? 'MISSING'), 'info');
+            odcm_log_message("ODCM_PROCESS_ID_DEBUG: - primaryObjectID: " . ($event_data['primaryObjectID'] ?? 'MISSING') . " (type: " . gettype($event_data['primaryObjectID'] ?? null) . ")", 'info');
+            odcm_log_message("ODCM_PROCESS_ID_DEBUG: - eventType: " . ($event_data['eventType'] ?? 'MISSING'), 'info');
+            odcm_log_message("ODCM_PROCESS_ID_DEBUG: - idempotencyKey: " . ($event_data['idempotencyKey'] ?? 'MISSING'), 'info');
         }
         
         // Use shared process_id for order lifecycle events, random for others
@@ -95,13 +95,13 @@ class UniversalEventProcessor
         
         // DEBUG: Log the process_id assignment logic
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_PROCESS_ID_DEBUG: Process ID assignment logic:");
-            error_log("ODCM_PROCESS_ID_DEBUG: - Extracted order_id: $order_id");
-            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectType check: " . ($event_data['primaryObjectType'] === 'order' ? 'PASS' : 'FAIL'));
-            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectID isset: " . (isset($event_data['primaryObjectID']) ? 'YES' : 'NO'));
+            odcm_log_message("ODCM_PROCESS_ID_DEBUG: Process ID assignment logic:", 'info');
+            odcm_log_message("ODCM_PROCESS_ID_DEBUG: - Extracted order_id: $order_id", 'info');
+            odcm_log_message("ODCM_PROCESS_ID_DEBUG: - primaryObjectType check: " . ($event_data['primaryObjectType'] === 'order' ? 'PASS' : 'FAIL'), 'info');
+            odcm_log_message("ODCM_PROCESS_ID_DEBUG: - primaryObjectID isset: " . (isset($event_data['primaryObjectID']) ? 'YES' : 'NO'), 'info');
             if (isset($event_data['primaryObjectID'])) {
-                error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectID value: " . $event_data['primaryObjectID']);
-                error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectID > 0: " . ($event_data['primaryObjectID'] > 0 ? 'YES' : 'NO'));
+                odcm_log_message("ODCM_PROCESS_ID_DEBUG: - primaryObjectID value: " . $event_data['primaryObjectID'], 'info');
+                odcm_log_message("ODCM_PROCESS_ID_DEBUG: - primaryObjectID > 0: " . ($event_data['primaryObjectID'] > 0 ? 'YES' : 'NO'), 'info');
             }
         }
             
@@ -205,14 +205,14 @@ class UniversalEventProcessor
 
         // DEBUG: Log validation start
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_VALIDATION_DEBUG: Starting validateEventData for process_id: $process_id");
-            error_log("ODCM_VALIDATION_DEBUG: Event data keys: " . implode(', ', array_keys($event_data)));
+            odcm_log_message("ODCM_VALIDATION_DEBUG: Starting validateEventData for process_id: $process_id", 'info');
+            odcm_log_message("ODCM_VALIDATION_DEBUG: Event data keys: " . implode(', ', array_keys($event_data)), 'info');
         }
 
         foreach ($required_fields as $field) {
             if (!isset($event_data[$field])) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log("ODCM_VALIDATION_DEBUG: FAIL - Missing required field: $field");
+                    odcm_log_message("ODCM_VALIDATION_DEBUG: FAIL - Missing required field: $field", 'error');
                 }
                 return false;
             }
@@ -220,15 +220,15 @@ class UniversalEventProcessor
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $value = $event_data[$field];
                 $type = gettype($value);
-                $display_value = is_null($value) ? 'NULL' : (is_string($value) ? "\"$value\"" : $value);
-                error_log("ODCM_VALIDATION_DEBUG: OK - Field '$field': $display_value (type: $type)");
+                $display_value = is_null($value) ? 'NULL' : (is_string($value) ? "\"$value\"" : (is_scalar($value) ? (string) $value : '[complex]'));
+                odcm_log_message("ODCM_VALIDATION_DEBUG: OK - Field '$field': $display_value (type: $type)", 'info');
             }
         }
 
         // Validate event type format
         if (!is_string($event_data['eventType']) || empty($event_data['eventType'])) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_VALIDATION_DEBUG: FAIL - eventType validation failed. Value: " . var_export($event_data['eventType'], true));
+                odcm_log_message("ODCM_VALIDATION_DEBUG: FAIL - eventType validation failed.", 'error');
             }
             return false;
         }
@@ -236,13 +236,13 @@ class UniversalEventProcessor
         // Validate idempotency key
         if (!is_string($event_data['idempotencyKey']) || empty($event_data['idempotencyKey'])) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_VALIDATION_DEBUG: FAIL - idempotencyKey validation failed. Value: " . var_export($event_data['idempotencyKey'], true));
+                odcm_log_message("ODCM_VALIDATION_DEBUG: FAIL - idempotencyKey validation failed.", 'error');
             }
             return false;
         }
 
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_VALIDATION_DEBUG: SUCCESS - All initial validation passed. Moving to UniversalEvent constructor...");
+            odcm_log_message("ODCM_VALIDATION_DEBUG: SUCCESS - All initial validation passed. Moving to UniversalEvent constructor...", 'info');
         }
 
         return true;

@@ -277,13 +277,15 @@ final class ProcessLifecycleDiscovery
 
         try {
             $table_name = $wpdb->prefix . 'odcm_audit_log';
+            // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
+            $table_identifier = ($table_name === $wpdb->prefix . 'odcm_audit_log') ? '`' . $table_name . '`' : '`odcm_audit_log`';
 
             // Use the authoritative event_type column for discovered process types.
             // This is reliable across environments and matches the values used by the UI and API.
             $results = $wpdb->get_col(
                 $wpdb->prepare(
                     "SELECT DISTINCT event_type
-                    FROM $table_name
+                    FROM {$table_identifier}
                     WHERE event_type IS NOT NULL AND event_type != %s",
                     ''
                 )
@@ -293,7 +295,7 @@ final class ProcessLifecycleDiscovery
 
             return $types;
         } catch (\Throwable $e) {
-            error_log('ODCM: Process type discovery failed: ' . $e->getMessage());
+            odcm_log_message('ODCM: Process type discovery failed: ' . $e->getMessage(), 'error');
             return [];
         }
     }

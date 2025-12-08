@@ -52,8 +52,8 @@ class Installer
             self::update_db_version();
 
         } catch (Exception $e) {
-            // Log installation error
-            error_log('Order Daemon Database Setup Error: ' . $e->getMessage());
+            // Log installation error (debug-gated)
+            odcm_log_message('Database Setup Error: ' . $e->getMessage(), 'error');
             throw $e;
         }
     }
@@ -129,7 +129,10 @@ class Installer
         dbDelta($sql);
         
         // Verify table creation
-        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
+        $table_exists = $wpdb->get_var(
+            $wpdb->prepare("SHOW TABLES LIKE %s", $table_name)
+        );
+        if ($table_exists !== $table_name) {
             throw new Exception("Failed to create complete audit log table: " . esc_html($table_name));
         }
     }
@@ -156,7 +159,10 @@ class Installer
         dbDelta($sql);
         
         // Verify table creation
-        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
+        $exists = $wpdb->get_var(
+            $wpdb->prepare("SHOW TABLES LIKE %s", $table_name)
+        );
+        if ($exists !== $table_name) {
             throw new Exception("Failed to create complete audit payloads table: " . esc_html($table_name));
         }
     }
@@ -188,7 +194,8 @@ class Installer
         dbDelta($sql);
         
         // Verify table creation
-        if ($wpdb->get_var("SHOW TABLES LIKE '$table_name'") !== $table_name) {
+        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+        if ($exists !== $table_name) {
             throw new \Exception("Failed to create audit log queue table: " . esc_html($table_name));
         }
     }

@@ -42,6 +42,9 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         global $wpdb;
         $logTable = $wpdb->prefix . 'odcm_audit_log';
         $payloadTable = $wpdb->prefix . 'odcm_audit_log_payloads';
+        // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
+        $logTableIdentifier = ($logTable === $wpdb->prefix . 'odcm_audit_log') ? '`' . $logTable . '`' : '`odcm_audit_log`';
+        $payloadTableIdentifier = ($payloadTable === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payloadTable . '`' : '`odcm_audit_log_payloads`';
 
         $result = $wpdb->get_row(
             $wpdb->prepare(
@@ -56,8 +59,8 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
                     l.is_test,
                     l.process_id,
                     COALESCE(p.payload, l.details, %s) as payload
-                FROM $logTable l
-                    LEFT JOIN $payloadTable p ON l.payload_id = p.payload_id
+                FROM {$logTableIdentifier} l
+                    LEFT JOIN {$payloadTableIdentifier} p ON l.payload_id = p.payload_id
                 WHERE l.log_id = %d",
                 '',
                 $logId
@@ -76,6 +79,9 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         global $wpdb;
         $logTable = $wpdb->prefix . 'odcm_audit_log';
         $payloadTable = $wpdb->prefix . 'odcm_audit_log_payloads';
+        // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
+        $logTableIdentifier = ($logTable === $wpdb->prefix . 'odcm_audit_log') ? '`' . $logTable . '`' : '`odcm_audit_log`';
+        $payloadTableIdentifier = ($payloadTable === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payloadTable . '`' : '`odcm_audit_log_payloads`';
 
         $results = $wpdb->get_results(
             $wpdb->prepare(
@@ -90,8 +96,8 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
                     l.is_test,
                     l.process_id,
                     COALESCE(p.payload, l.details, %s) as payload
-                FROM $logTable l
-                    LEFT JOIN $payloadTable p ON l.payload_id = p.payload_id
+                FROM {$logTableIdentifier} l
+                    LEFT JOIN {$payloadTableIdentifier} p ON l.payload_id = p.payload_id
                 WHERE l.process_id = %s
                 ORDER BY l.timestamp ASC",
                 '',

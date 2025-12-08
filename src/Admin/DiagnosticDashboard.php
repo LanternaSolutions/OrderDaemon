@@ -120,6 +120,7 @@ class DiagnosticDashboard
                 'issuesDetected' => __('Issues Detected', 'order-daemon'),
                 'executed' => __('Executed', 'order-daemon'),
                 'runningTests' => __('Running tests...', 'order-daemon'),
+                /* translators: 1: current test number, 2: total number of tests */
                 'testProgress' => __('Test %1$d of %2$d', 'order-daemon'),
                 'timestampLabel' => __('Executed:', 'order-daemon'),
                 'systemHealthy' => __('System Healthy', 'order-daemon'),
@@ -128,13 +129,20 @@ class DiagnosticDashboard
                 'preparingTests' => __('Preparing tests...', 'order-daemon'),
                 'buttonRunning' => __('Running...', 'order-daemon'),
                 'justNow' => __('just now', 'order-daemon'),
+                /* translators: %d: number of minutes */
                 'minuteAgo' => __('%d minute ago', 'order-daemon'),
+                /* translators: %d: number of minutes */
                 'minutesAgo' => __('%d minutes ago', 'order-daemon'),
+                /* translators: %d: number of hours */
                 'hourAgo' => __('%d hour ago', 'order-daemon'),
+                /* translators: %d: number of hours */
                 'hoursAgo' => __('%d hours ago', 'order-daemon'),
+                /* translators: %d: number of days */
                 'dayAgo' => __('%d day ago', 'order-daemon'),
+                /* translators: %d: number of days */
                 'daysAgo' => __('%d days ago', 'order-daemon'),
                 'selectTest' => __('Please select a test to run', 'order-daemon'),
+                /* translators: %s: test name */
                 'testCompleted' => __('Test completed: %s', 'order-daemon'),
                 'failedRunTest' => __('Failed to run test', 'order-daemon'),
                 'failedRunDiagnostics' => __('Failed to run diagnostics', 'order-daemon'),
@@ -201,7 +209,7 @@ class DiagnosticDashboard
                                         if (empty(array_filter($available_diagnostics, function($diag) use ($category) { return $diag['category'] === $category; }))) continue;
                                     ?>
                                     <button class="button" data-category="<?php echo esc_attr($category); ?>" id="run-category-<?php echo esc_attr($category); ?>">
-                                        <?php echo esc_html__($category, 'order-daemon'); ?>
+                                        <?php echo esc_html( $this->format_category_name($category) ); ?>
                                     </button>
                                     <?php endforeach; ?>
                                 </div>
@@ -230,7 +238,8 @@ class DiagnosticDashboard
                 <div class="odcm-status-banner-center" id="banner-status-summary">
                     <?php
                     /* translators: 1: Number of tests passed, 2: Number of tests failed */
-                    printf(esc_html__('%1$d passed, %2$d failed', 'order-daemon'), 0, 0); 
+                    /* translators: 1: Number of tests passed, 2: Number of tests failed */
+                                        printf(esc_html__('%1$d passed, %2$d failed', 'order-daemon'), 0, 0);
                     ?>
                 </div>
                 <div class="odcm-status-banner-right">
@@ -259,7 +268,10 @@ class DiagnosticDashboard
             <div class="odcm-unified-results" id="unified-results" style="display: none;">
                 <div class="odcm-results-header">
                     <h2><?php esc_html_e('Diagnostics Results', 'order-daemon'); ?></h2>
-                    <span class="odcm-results-timestamp" id="results-timestamp"><?php printf(esc_html__('Executed: %s', 'order-daemon'), 'Nov 21, 12:30 PM'); ?></span>
+                    <span class="odcm-results-timestamp" id="results-timestamp"><?php 
+                                        /* translators: %s: timestamp of when diagnostics were executed */
+                                        printf(esc_html__('Executed: %s', 'order-daemon'), 'Nov 21, 12:30 PM'); 
+                                        ?></span>
                 </div>
 
                 <div class="odcm-results-content" id="odcm-results-content">
@@ -279,7 +291,7 @@ class DiagnosticDashboard
     public function ajax_run_diagnostics(): void
     {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'odcm_diagnostics')) {
+        if (!wp_verify_nonce( wp_unslash($_POST['nonce'] ?? ''), 'odcm_diagnostics')) {
             wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -289,7 +301,7 @@ class DiagnosticDashboard
         }
 
         try {
-            $category = sanitize_text_field($_POST['category'] ?? '');
+            $category = sanitize_text_field( wp_unslash($_POST['category'] ?? '') );
             
             if ($category && $category !== 'all') {
                 $results = $this->runner->run_category_diagnostics($category);
@@ -323,7 +335,7 @@ class DiagnosticDashboard
     public function ajax_run_single_diagnostic(): void
     {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'odcm_diagnostics')) {
+        if (!wp_verify_nonce( wp_unslash($_POST['nonce'] ?? ''), 'odcm_diagnostics')) {
             wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -333,7 +345,7 @@ class DiagnosticDashboard
         }
 
         try {
-            $diagnostic_key = sanitize_text_field($_POST['diagnostic'] ?? '');
+            $diagnostic_key = sanitize_text_field( wp_unslash($_POST['diagnostic'] ?? '') );
             
             if (empty($diagnostic_key)) {
                 wp_send_json_error(['message' => __('No diagnostic specified', 'order-daemon')]);
@@ -366,7 +378,7 @@ class DiagnosticDashboard
     public function ajax_generate_dual_report(): void
     {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'odcm_diagnostics')) {
+        if (!wp_verify_nonce( wp_unslash($_POST['nonce'] ?? ''), 'odcm_diagnostics')) {
             wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -443,7 +455,7 @@ class DiagnosticDashboard
                 <ul>
                     <?php foreach ($report['recommendations'] as $rec): ?>
                     <li>
-                        <strong><?php echo esc_html__("{$rec['category']}", 'order-daemon'); ?>:</strong> 
+                        <strong><?php echo esc_html( $this->format_category_name($rec['category'] ?? 'general') ); ?>:</strong> 
                         <?php echo esc_html($rec['recommendation']); ?>
                     </li>
                     <?php endforeach; ?>
@@ -458,10 +470,13 @@ class DiagnosticDashboard
                 <div class="odcm-category-results">
                     <h5><?php
                     /* translators: 1: Category name, 2: Number passed, 3: Total number */
-                    printf(esc_html__('%1$s: %2$d/%3$d passed', 'order-daemon'),
-                           esc_html__("{$category_name}", 'order-daemon'),
+                    printf(
+                           /* translators: 1: Category name, 2: Number passed, 3: Total number */
+                           esc_html__('%1$s: %2$d/%3$d passed', 'order-daemon'),
+                           esc_html( $this->format_category_name($category_name) ),
                            esc_html($category_data['passed']),
-                           esc_html($category_data['total']));
+                           esc_html($category_data['total'])
+                    );
                     ?></h5>
                     
                     <?php foreach ($category_data['tests'] as $test_key => $test_result): ?>
@@ -483,7 +498,7 @@ class DiagnosticDashboard
                     ?>
                     <div class="odcm-test-result odcm-test-result--<?php echo esc_attr($test_result['status']); ?>">
                         <div class="odcm-test-result-header">
-                            <span class="odcm-test-icon"><?php echo $status_icon; ?></span>
+                            <span class="odcm-test-icon"><?php echo esc_html($status_icon); ?></span>
                             <h4 class="odcm-test-name"><?php echo esc_html($test_result['name']); ?></h4>
                         </div>
                         
@@ -542,7 +557,7 @@ class DiagnosticDashboard
             <h3 class="odcm-category-title"><?php echo esc_html__('Individual Test Result', 'order-daemon'); ?></h3>
             <div class="odcm-test-result odcm-test-result--<?php echo esc_attr($status_class); ?>">
                 <div class="odcm-test-result-header">
-                    <span class="odcm-test-icon"><?php echo $status_icon; ?></span>
+                    <span class="odcm-test-icon"><?php echo esc_html($status_icon); ?></span>
                     <h4 class="odcm-test-name"><?php echo esc_html($result['name']); ?></h4>
                 </div>
                 
@@ -563,7 +578,7 @@ class DiagnosticDashboard
                 <div class="odcm-test-details">
                     <h6><?php esc_html_e('Technical Details', 'order-daemon'); ?>:</h6>
                     <div class="odcm-technical-info">
-                        <?php echo $this->render_nested_details($result['details']); ?>
+                        <?php echo wp_kses_post( $this->render_nested_details($result['details']) ); ?>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -775,8 +790,9 @@ class DiagnosticDashboard
             
             foreach ($report['categories'] as $category_name => $category_data) {
                 $category_label = $this->format_category_name($category_name);
+                /* translators: 1: Category name (uppercase), 2: Number passed, 3: Total number */
                 $output .= sprintf(
-                    __('%s DIAGNOSTICS (%d/%d passed)', 'order-daemon'),
+                    __('%1$s DIAGNOSTICS (%2$d/%3$d passed)', 'order-daemon'),
                     strtoupper($category_label),
                     $category_data['passed'],
                     $category_data['total']

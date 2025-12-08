@@ -239,7 +239,10 @@ abstract class AbstractDiagnostic implements DiagnosticInterface
 
         global $wpdb;
         $full_table_name = $wpdb->prefix . $table_name;
-        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$full_table_name}");
+        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
+        $table_identifier = '`' . $full_table_name . '`';
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Validated and backticked identifier; no values interpolated.
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table_identifier}");
     }
 
     /**

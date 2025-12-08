@@ -87,7 +87,7 @@ if (!defined('ABSPATH')) {
 
 // Get the global registry instance
 // This singleton pattern ensures all registrations use the same registry object
-$registry = odcm_get_registry_instance();
+$odcm_registry = odcm_get_registry_instance();
 
 /**
  * Render callback functions for option settings
@@ -155,7 +155,7 @@ if (!function_exists('odcm_render_action_settings')) {
  * Hook: woocommerce_order_status_processing
  * Capability: trigger_basic (free)
  */
-$registry->register_trigger([
+$odcm_registry->register_trigger([
     'id'              => 'order_processing',
     'label'           => __('rule_component.trigger.order_processing.label', 'order-daemon'),
     'description'     => __('rule_component.trigger.order_processing.description', 'order-daemon'),
@@ -219,7 +219,7 @@ $registry->register_trigger([
  * Data Source: WC_Product->is_virtual(), WC_Product->is_downloadable()
  * Capability: condition_product_type (free)
  */
-$registry->register_condition([
+$odcm_registry->register_condition([
     'id'              => 'product_type',
     'label'           => __('rule_component.condition.product_type.label', 'order-daemon'),
     'description'     => __('rule_component.condition.product_type.description', 'order-daemon'),
@@ -240,7 +240,7 @@ $registry->register_condition([
  * Capability: condition_single_category (freemium base)
  * Premium Upgrade: condition_multi_category for multiple selection
  */
-$registry->register_condition([
+$odcm_registry->register_condition([
     'id'              => 'product_category',
     'label'           => __('rule_component.condition.product_category.label', 'order-daemon'),
     'description'     => __('rule_component.condition.product_category.description', 'order-daemon'),
@@ -260,7 +260,7 @@ $registry->register_condition([
  * Data Source: WC_Order->get_total()
  * Capability: condition_order_total (free)
  */
-$registry->register_condition([
+$odcm_registry->register_condition([
     'id'              => 'order_total',
     'label'           => __('rule_component.condition.order_total.label', 'order-daemon'),
     'description'     => __('rule_component.condition.order_total.description', 'order-daemon'),
@@ -326,7 +326,7 @@ $registry->register_condition([
  * Capability: action_basic (free)
  * Side Effects: Triggers WooCommerce completion emails, inventory updates
  */
-$registry->register_action([
+$odcm_registry->register_action([
     'id'              => 'change_status_to_completed',
     'label'           => __('rule_component.action.complete_order.label', 'order-daemon'),
     'description'     => __('rule_component.action.complete_order.description', 'order-daemon'),
@@ -350,9 +350,9 @@ $registry->register_action([
 
 // Allow pro add-on to register additional components
 if (function_exists('do_action')) {
-    do_action('odcm_register_triggers', $registry);
-    do_action('odcm_register_conditions', $registry);
-    do_action('odcm_register_actions', $registry);
+    do_action('odcm_register_triggers', $odcm_registry);
+    do_action('odcm_register_conditions', $odcm_registry);
+    do_action('odcm_register_actions', $odcm_registry);
 }
 
 // =============================================================================

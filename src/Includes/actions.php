@@ -35,21 +35,21 @@ use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
 function odcm_handle_log_processing($args) {
     global $wpdb;
     
-    // TEMPORARY DEBUG: Log that function is being called
-    error_log("ODCM_DEBUG_TRACE: odcm_handle_log_processing() called with args: " . wp_json_encode($args));
+    // Debug trace (gated)
+    odcm_log_message("DEBUG_TRACE: odcm_handle_log_processing() called with args: " . wp_json_encode($args), 'info');
     
     // Handle both array and JSON string arguments from Action Scheduler
     if (is_string($args)) {
         // Action Scheduler is passing JSON string - decode it
         $args = json_decode($args, true);
         if (!is_array($args)) {
-            error_log("ODCM: Failed to decode JSON args in log processing. Raw args: " . var_export($args, true));
+            odcm_log_message("Failed to decode JSON args in log processing. Raw args: " . wp_json_encode($args), 'error');
             return;
         }
     }
 
     if (!is_array($args)) {
-        error_log("ODCM: Args must be array or JSON string, got " . gettype($args));
+        odcm_log_message("Args must be array or JSON string, got " . gettype($args), 'error');
         return;
     }
 
@@ -162,16 +162,27 @@ function odcm_handle_log_processing($args) {
     $log_data['duplicate_hash'] = $duplicate_hash;
 
     $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
-    $log_column_names = implode(', ', array_keys($log_data));
-    $log_row_values = implode(', ', array_fill(0, count($log_data), '%s'));
 
-    $wpdb->query(
-        $wpdb->prepare(
-            "INSERT IGNORE INTO $audit_log_table ($log_column_names)
-            VALUES ($log_row_values)",
-            array_values($log_data)
-        )
-    );
+    // Use $wpdb->insert() with explicit formats to satisfy sniffs and ensure safety
+    $format_map = [
+        'summary' => '%s',
+        'event_type' => '%s',
+        'status' => '%s',
+        'payload_id' => '%d',
+        'timestamp' => '%s',
+        'is_test' => '%d',
+        'order_id' => '%d',
+        'process_id' => '%s',
+        'source' => '%s',
+        'duplicate_hash' => '%s',
+    ];
+
+    $formats = [];
+    foreach ($log_data as $k => $_) {
+        $formats[] = $format_map[$k] ?? '%s';
+    }
+
+    $wpdb->insert($audit_log_table, $log_data, $formats);
 }
 
 // Hook the handler to the action scheduled by the Feeder

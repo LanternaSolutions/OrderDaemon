@@ -279,27 +279,38 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
+        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
+        $table_identifier = ($table_name === $wpdb->prefix . 'odcm_audit_log') ? '`' . $table_name . '`' : '`odcm_audit_log`';
         $start_time = microtime(true);
 
         try {
-            // Execute the same queries that the filter-options endpoint runs
-            $queries = [
-                'statuses' => "SELECT DISTINCT status FROM $table_name WHERE status IS NOT NULL AND status != '' ORDER BY status ASC",
-                'event_types' => "SELECT DISTINCT event_type FROM $table_name WHERE event_type IS NOT NULL AND event_type != '' ORDER BY event_type ASC",
-                'sources' => "SELECT DISTINCT source FROM $table_name WHERE source IS NOT NULL AND source != '' ORDER BY source ASC"
+            // Execute the same queries that the filter-options endpoint runs, using prepare for values.
+            $defs = [
+                'statuses' => [
+                    "SELECT DISTINCT status FROM {$table_identifier} WHERE status IS NOT NULL AND status != %s ORDER BY status ASC",
+                    ''
+                ],
+                'event_types' => [
+                    "SELECT DISTINCT event_type FROM {$table_identifier} WHERE event_type IS NOT NULL AND event_type != %s ORDER BY event_type ASC",
+                    ''
+                ],
+                'sources' => [
+                    "SELECT DISTINCT source FROM {$table_identifier} WHERE source IS NOT NULL AND source != %s ORDER BY source ASC",
+                    ''
+                ],
             ];
 
-            foreach ($queries as $type => $query) {
+            foreach ($defs as $type => $parts) {
+                [$sql_tpl, $val] = $parts;
                 $query_start = microtime(true);
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- This loop runs multiple queries, none of which use any user input.
-                $results = $wpdb->get_col($query);
+                $results = $wpdb->get_col($wpdb->prepare($sql_tpl, $val));
                 $query_time = (microtime(true) - $query_start) * 1000;
 
                 $result['queries_executed'][] = [
                     'type' => $type,
                     'execution_time_ms' => round($query_time, 2),
                     'result_count' => count($results ?? []),
-                    'query' => $query
+                    'query' => $sql_tpl
                 ];
 
                 $result['results_count'][$type] = count($results ?? []);
@@ -360,7 +371,7 @@ class QueryDiagnostic extends AbstractDiagnostic
             
             try {
                 // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- This loop runs multiple queries, none of which use any user input.
-                $results = $wpdb->get_results($query, ARRAY_A);
+                $results = $wpdb->get_results($query, 'ARRAY_A');
                 $execution_time = (microtime(true) - $start_time) * 1000;
                 
                 $result['tests'][$test_name] = [
@@ -406,11 +417,13 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
+        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
+        $table_identifier = ($table_name === $wpdb->prefix . 'odcm_audit_log') ? '`' . $table_name . '`' : '`odcm_audit_log`';
 
         try {
             // Get existing indexes
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $indexes = $wpdb->get_results("SHOW INDEX FROM {$table_name}", ARRAY_A);
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Validated and backticked identifier; values are not interpolated.
+            $indexes = $wpdb->get_results("SHOW INDEX FROM {$table_identifier}", 'ARRAY_A');
             
             foreach ($indexes as $index) {
                 $key_name = $index['Key_name'];

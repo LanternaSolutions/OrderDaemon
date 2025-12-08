@@ -895,7 +895,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         try {
             $log_ids = $request->get_param('log_ids');
             if (!is_array($log_ids) || empty($log_ids)) {
-                return new WP_Error('odcm_invalid_log_ids', __('', 'order-daemon'), ['status' => 400]);
+                return new WP_Error('odcm_invalid_log_ids', __('audit.logs.render.error.invalid_log_ids', 'order-daemon'), ['status' => 400]);
             }
             
             // Normalize IDs (absint, unique, cap to 50)
@@ -1015,6 +1015,8 @@ class AuditLogEndpoint extends WP_REST_Controller
         try {
             global $wpdb;
             $table_name = $wpdb->prefix . 'odcm_audit_log';
+            // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
+            $table_identifier = ($table_name === $wpdb->prefix . 'odcm_audit_log') ? '`' . $table_name . '`' : '`odcm_audit_log`';
 
             // Build queries with proper NULL/empty handling and ordering.
 
@@ -1023,7 +1025,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $statuses_raw = $wpdb->get_col(
                 $wpdb->prepare(
                     "SELECT DISTINCT status
-                    FROM $table_name
+                    FROM {$table_identifier}
                     WHERE status IS NOT NULL
                         AND status != %s
                     ORDER BY status ASC",
@@ -1033,7 +1035,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $event_types_raw = $wpdb->get_col(
                 $wpdb->prepare(
                     "SELECT DISTINCT event_type
-                    FROM $table_name
+                    FROM {$table_identifier}
                     WHERE event_type IS NOT NULL
                         AND event_type != %s
                     ORDER BY event_type ASC",
@@ -1043,7 +1045,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $sources_raw = $wpdb->get_col(
                 $wpdb->prepare(
                     "SELECT DISTINCT source
-                    FROM $table_name
+                    FROM {$table_identifier}
                     WHERE source IS NOT NULL
                         AND source != %s
                     ORDER BY source ASC",
@@ -1412,6 +1414,9 @@ class AuditLogEndpoint extends WP_REST_Controller
         global $wpdb;
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
+        // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
+        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
+        $payload_table_identifier = ($payload_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payload_table . '`' : '`odcm_audit_log_payloads`';
 
         $result = $wpdb->get_row(
             $wpdb->prepare(
@@ -1425,8 +1430,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                     l.payload_id,
                     l.is_test,
                     COALESCE(p.payload, l.details, '') as payload
-                FROM $log_table l
-                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
+                FROM {$log_table_identifier} l
+                    LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id
                 WHERE l.log_id = %d",
                 $log_id
             ),
@@ -1447,6 +1452,9 @@ class AuditLogEndpoint extends WP_REST_Controller
         global $wpdb;
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
+        // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
+        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
+        $payload_table_identifier = ($payload_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payload_table . '`' : '`odcm_audit_log_payloads`';
 
         // Build placeholders for IN clause
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
@@ -1463,8 +1471,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                     l.payload_id,
                     l.is_test,
                     COALESCE(p.payload, l.details, '') as payload
-                FROM $log_table l
-                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
+                FROM {$log_table_identifier} l
+                    LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id
                 WHERE l.log_id IN ($placeholders)",
                 $ids
             ),
@@ -1536,7 +1544,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             
         } catch (\Throwable $e) {
             // Fallback for completely broken entries
-            error_log('ODCM: render_log_components failed: ' . $e->getMessage());
+            odcm_log_message('ODCM: render_log_components failed: ' . $e->getMessage(), 'error');
             return '<div class="odcm-empty-data">' . esc_html__('audit.logs.timeline.empty', 'order-daemon') . '</div>';
         }
     }
@@ -1546,7 +1554,7 @@ class AuditLogEndpoint extends WP_REST_Controller
      */
     private function render_narrative_timeline(array $envelope, bool $include_debug = false): string
     {
-        error_log("ODCM: Legacy render_narrative_timeline called - this should use clean timeline system");
+        odcm_log_message('ODCM: Legacy render_narrative_timeline called - this should use clean timeline system', 'error');
         return '<div class="odcm-error">Legacy rendering method called. Please use clean timeline system.</div>';
     }
 
@@ -1558,7 +1566,7 @@ class AuditLogEndpoint extends WP_REST_Controller
      */
     private function render_fallback_timeline(array $envelope): string
     {
-        error_log("ODCM FALLBACK: render_fallback_timeline called");
+        odcm_log_message("ODCM FALLBACK: render_fallback_timeline called", 'error');
         
         // Load UI toolkit for consistent rendering
         if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
@@ -1620,7 +1628,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         
         $html .= '</div>';
         
-        error_log("ODCM FALLBACK: Generated " . strlen($html) . " characters of fallback HTML");
+        odcm_log_message("ODCM FALLBACK: Generated " . strlen($html) . " characters of fallback HTML", 'error');
         
         return $html;
     }
@@ -1641,6 +1649,9 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             $log_table = $wpdb->prefix . 'odcm_audit_log';
             $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
+            // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
+            $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
+            $payload_table_identifier = ($payload_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payload_table . '`' : '`odcm_audit_log_payloads`';
 
             $rows = $wpdb->get_results(
                 $wpdb->prepare(
@@ -1655,8 +1666,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                         l.is_test,
                         l.process_id,
                         COALESCE(p.payload, l.details, '') as payload
-                    FROM $log_table l
-                        LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
+                    FROM {$log_table_identifier} l
+                        LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id
                     WHERE l.process_id = %s
                     ORDER BY l.timestamp ASC",
                     $process_id
@@ -1745,6 +1756,9 @@ class AuditLogEndpoint extends WP_REST_Controller
         global $wpdb;
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
+        // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
+        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
+        $payload_table_identifier = ($payload_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payload_table . '`' : '`odcm_audit_log_payloads`';
 
         // Build base query
         $sql =
@@ -1759,8 +1773,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                 l.is_test,
                 l.process_id,
                 COALESCE(p.payload, l.details, '') as payload
-            FROM $log_table l
-                LEFT JOIN $payload_table p ON l.payload_id = p.payload_id";
+            FROM {$log_table_identifier} l
+                LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id";
 
         // Build WHERE clause
         $where_conditions = [];
@@ -1774,9 +1788,12 @@ class AuditLogEndpoint extends WP_REST_Controller
             $sql .= ' WHERE ' . implode(' AND ', $where_conditions);
         }
 
-        // Add ordering
-        $orderby = $request->get_param('orderby') ?: 'timestamp';
-        $order = $request->get_param('order') ?: 'desc';
+        // Add ordering with strict whitelist
+        $allowed_orderby = ['timestamp', 'status', 'event_type', 'source', 'order_id'];
+        $requested_orderby = (string) ($request->get_param('orderby') ?: 'timestamp');
+        $orderby = in_array($requested_orderby, $allowed_orderby, true) ? $requested_orderby : 'timestamp';
+        $requested_order = strtoupper((string) ($request->get_param('order') ?: 'DESC'));
+        $order = in_array($requested_order, ['ASC', 'DESC'], true) ? $requested_order : 'DESC';
         $sql .= " ORDER BY l.{$orderby} {$order}";
 
         // Add pagination
@@ -1787,10 +1804,10 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         // Execute query
         if (!empty($where_values)) {
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Dynamic query with validated identifiers and whitelisted ORDER BY.
             $results = $wpdb->get_results($wpdb->prepare($sql, $where_values), 'ARRAY_A');
         } else {
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Dynamic query with validated identifiers and whitelisted ORDER BY.
             $results = $wpdb->get_results($sql, 'ARRAY_A');
         }
 
@@ -1810,6 +1827,9 @@ class AuditLogEndpoint extends WP_REST_Controller
             global $wpdb;
             $log_table = $wpdb->prefix . 'odcm_audit_log';
             $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
+            // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
+            $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
+            $payload_table_identifier = ($payload_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payload_table . '`' : '`odcm_audit_log_payloads`';
 
             // Build base query
             $sql =
@@ -1824,8 +1844,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                     l.is_test,
                     l.process_id,
                     COALESCE(p.payload, l.details, '') as payload
-                FROM $log_table l
-                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id";
+                FROM {$log_table_identifier} l
+                    LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id";
 
             // Build WHERE clause
             $where_conditions = [];
@@ -1839,9 +1859,14 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $sql .= ' WHERE ' . implode(' AND ', $where_conditions);
             }
 
-            // Add ordering
-            $orderby = $request->get_param('orderby') ?: 'timestamp';
-            $order = $request->get_param('order') ?: 'desc';
+            // Add ordering with strict whitelist to prevent SQL injection
+            $allowed_orderby = ['timestamp', 'status', 'event_type', 'source', 'order_id'];
+            $requested_orderby = (string) ($request->get_param('orderby') ?: 'timestamp');
+            $orderby = in_array($requested_orderby, $allowed_orderby, true) ? $requested_orderby : 'timestamp';
+
+            $requested_order = strtoupper((string) ($request->get_param('order') ?: 'DESC'));
+            $order = in_array($requested_order, ['ASC', 'DESC'], true) ? $requested_order : 'DESC';
+
             $sql .= " ORDER BY l.{$orderby} {$order}";
 
             // Execute query
@@ -1857,7 +1882,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             return is_array($results) ? $results : [];
         } catch (\Throwable $e) {
             // Log and return empty result to allow frontend empty state rendering
-            error_log('ODCM API: get_all_filtered_logs failed: ' . $e->getMessage());
+            odcm_log_message('ODCM API: get_all_filtered_logs failed: ' . $e->getMessage(), 'error');
             return [];
         }
     }
@@ -1869,11 +1894,13 @@ class AuditLogEndpoint extends WP_REST_Controller
     {
         global $wpdb;
         $log_table = $wpdb->prefix . 'odcm_audit_log';
+        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
+        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
 
         // Build count query
         $sql =
             "SELECT COUNT(*)
-            FROM $log_table l";
+            FROM {$log_table_identifier} l";
 
         // Build WHERE clause
         $where_conditions = [];
@@ -1988,13 +2015,13 @@ class AuditLogEndpoint extends WP_REST_Controller
      */
     private function log_api_error(string $endpoint, \Exception $e, array $context): void
     {
-        // Log to WordPress error log
-        error_log(sprintf(
+        // Log to WordPress error log via debug-gated helper
+        odcm_log_message(sprintf(
             'ODCM API Error in %s: %s - Context: %s',
             $endpoint,
             $e->getMessage(),
             json_encode($context)
-        ));
+        ), 'error');
 
         // Log to plugin's audit trail if available
         if (function_exists('odcm_log_event')) {
@@ -2035,11 +2062,14 @@ class AuditLogEndpoint extends WP_REST_Controller
         // Create placeholders for IN clause
         $placeholders = implode(',', array_fill(0, count($sanitized_ids), '%d'));
 
+        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
+        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
+
         // Check which log IDs actually exist
         $existing_ids = $wpdb->get_col(
             $wpdb->prepare(
                 "SELECT log_id
-                FROM $log_table
+                FROM {$log_table_identifier}
                 WHERE log_id IN ({$placeholders})",
                 $sanitized_ids
             )

@@ -186,13 +186,15 @@ class Admin
         odcm_check_user_capability('manage_woocommerce', 'ajax');
         
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key($_POST['nonce']), 'odcm_update_rule_order')) {
+        $nonce = isset($_POST['nonce']) ? sanitize_key( wp_unslash($_POST['nonce']) ) : '';
+        if (!$nonce || !wp_verify_nonce($nonce, 'odcm_update_rule_order')) {
             wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
             wp_die();
         }
         
         // Get the rule order data
-        $rule_ids = isset($_POST['rule_ids']) ? array_map('absint', $_POST['rule_ids']) : [];
+        $rule_ids_raw = isset($_POST['rule_ids']) ? (array) wp_unslash($_POST['rule_ids']) : [];
+        $rule_ids = array_map('absint', $rule_ids_raw);
         
         if (empty($rule_ids)) {
             wp_send_json_error(['message' => __('admin.ajax.no_rule_order_data', 'order-daemon')]);
@@ -483,8 +485,9 @@ class Admin
         odcm_check_user_capability('manage_woocommerce', 'ajax');
 
         // Get post ID and verify nonce
-        $post_id = isset($_POST['rule_id']) ? absint($_POST['rule_id']) : 0;
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'odcm_toggle_rule_'.$post_id)) {
+        $post_id = isset($_POST['rule_id']) ? absint( wp_unslash($_POST['rule_id']) ) : 0;
+        $nonce = isset($_POST['nonce']) ? sanitize_key( wp_unslash($_POST['nonce']) ) : '';
+        if (!$nonce || !wp_verify_nonce($nonce, 'odcm_toggle_rule_'.$post_id)) {
             wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
             wp_die();
         }

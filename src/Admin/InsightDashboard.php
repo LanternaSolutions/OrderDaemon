@@ -394,7 +394,7 @@ class InsightDashboard
     public function handle_welcome_scenario_check(): void
     {
         // Verify nonce
-        if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
+        if (!wp_verify_nonce( wp_unslash($_POST['_wpnonce'] ?? ''), 'wp_rest')) {
             wp_die(esc_html__('upgrade_prompts.ajax.security_check_failed', 'order-daemon'));
         }
 
@@ -415,7 +415,7 @@ class InsightDashboard
                     'is_welcome_scenario' => $is_welcome_scenario
             ]);
         } catch (\Exception $e) {
-            error_log('ODCM: Error checking welcome scenario: ' . $e->getMessage());
+            odcm_log_message('Error checking welcome scenario: ' . $e->getMessage(), 'error');
             wp_send_json_error(__('admin.insight_dashboard.ajax.failed_welcome_scenario_check', 'order-daemon'));
         }
     }
@@ -441,8 +441,9 @@ class InsightDashboard
         }
         
         // Check if any log entries exist
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $log_count = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_log_table}");
+        $audit_log_table_identifier = ($audit_log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $audit_log_table . '`' : '`odcm_audit_log`';
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Validated and backticked identifier; values are not interpolated.
+        $log_count = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_log_table_identifier}");
         
         // If no logs exist, show welcome scenario
         return (int) $log_count === 0;
@@ -771,7 +772,7 @@ class InsightDashboard
                                 x-model="filters.event_type"
                                 :disabled="!canUsePremiumFilters">
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.event_type.all', 'order-daemon'); ?></option>
-                            <option value="rule_check"><?php echo esc_html__('', 'order-daemon'); ?></option>
+                            <option value="rule_check"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.rule_check', 'order-daemon'); ?></option>
                             <option value="order_completion"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.order_completion', 'order-daemon'); ?></option>
                             <option value="manual_trigger"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.manual_trigger', 'order-daemon'); ?></option>
                             <option value="scheduled_task"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.scheduled_task', 'order-daemon'); ?></option>
@@ -1149,7 +1150,7 @@ class InsightDashboard
         }
 
         // Verify nonce
-        if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
+        if (!wp_verify_nonce( wp_unslash($_POST['_wpnonce'] ?? ''), 'wp_rest')) {
             wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -1190,7 +1191,7 @@ class InsightDashboard
         }
 
         // Verify nonce
-        if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
+        if (!wp_verify_nonce( wp_unslash($_POST['_wpnonce'] ?? ''), 'wp_rest')) {
             wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -1342,7 +1343,7 @@ class InsightDashboard
         }
 
         // Verify nonce
-        if (!wp_verify_nonce($_POST['_wpnonce'] ?? '', 'wp_rest')) {
+        if (!wp_verify_nonce( wp_unslash($_POST['_wpnonce'] ?? ''), 'wp_rest')) {
             wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -1373,7 +1374,7 @@ class InsightDashboard
             
         } catch (\Exception $e) {
             // Log the error
-            error_log('ODCM: Error in reprocess pending orders AJAX: ' . $e->getMessage());
+            odcm_log_message('Error in reprocess pending orders AJAX: ' . $e->getMessage(), 'error');
             
             wp_send_json_error([
                 'message' => __('admin.insight_dashboard.ajax.failed_reprocess_orders', 'order-daemon')
@@ -1439,11 +1440,16 @@ class InsightDashboard
             // Check if headers have already been sent, which would break the download
             if (headers_sent($file, $line)) {
                 if (self::is_global_debug_active()) {
-                    error_log("ODCM Export: Headers already sent in $file:$line");
+                    odcm_log_message(sprintf('Export: Headers already sent in %s:%d', $file, $line), 'error');
                 }
                 // If headers are sent, we can't force a download. Output a plain error.
                 http_response_code(500);
-                echo "Error: Output started in $file:$line. Cannot start file download.";
+                echo esc_html( sprintf(
+                                    /* translators: 1: file name, 2: line number */
+                                    __( 'Error: Output started in %1$s:%2$d. Cannot start file download.', 'order-daemon' ),
+                                    $file,
+                                    $line
+                                ) );
                 exit;
             }
 
@@ -1453,10 +1459,10 @@ class InsightDashboard
             }
 
             // Verify nonce
-            $nonce = $_REQUEST['_wpnonce'] ?? '';
+            $nonce = wp_unslash($_REQUEST['_wpnonce'] ?? '');
             if (!wp_verify_nonce($nonce, 'wp_rest')) {
                 if (self::is_global_debug_active()) {
-                    error_log('ODCM Export: Nonce verification failed. Nonce: ' . $nonce);
+                    odcm_log_message('ODCM Export: Nonce verification failed. Nonce: ' . $nonce, 'error');
                 }
                 wp_die(esc_html__('upgrade_prompts.ajax.security_check_failed', 'order-daemon'), 403);
             }

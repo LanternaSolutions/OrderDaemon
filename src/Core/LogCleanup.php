@@ -44,8 +44,11 @@ class LogCleanup
         $retention_days = 30; // Fixed for free/core - 30 days provides good balance
         
         // Define table names
-        $log_table = $wpdb->prefix.'odcm_audit_log';
-        $payloads_table = $wpdb->prefix.'odcm_audit_log_payloads';
+        $log_table = $wpdb->prefix . 'odcm_audit_log';
+        $payloads_table = $wpdb->prefix . 'odcm_audit_log_payloads';
+        // Validate identifiers and wrap in backticks for safety (placeholders cannot be used for identifiers)
+        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
+        $payloads_table_identifier = ($payloads_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payloads_table . '`' : '`odcm_audit_log_payloads`';
 
         // Calculate the cutoff date
         $cutoff_date = gmdate('Y-m-d H:i:s', strtotime("-{$retention_days} days"));
@@ -54,7 +57,7 @@ class LogCleanup
         $total_to_delete = $wpdb->get_var(
             $wpdb->prepare(
                 "SELECT COUNT(*)
-                FROM $log_table
+                FROM {$log_table_identifier}
                 WHERE timestamp < %s",
                 $cutoff_date
             )
@@ -76,7 +79,7 @@ class LogCleanup
                 $wpdb->prepare(
                     "SELECT log_id,
                         payload_id
-                    FROM $log_table
+                    FROM {$log_table_identifier}
                     WHERE timestamp < %s
                     LIMIT %d",
                     $cutoff_date,
@@ -107,7 +110,7 @@ class LogCleanup
                 $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
                 $deleted_rows = $wpdb->query(
                     $wpdb->prepare(
-                        "DELETE FROM $log_table
+                        "DELETE FROM {$log_table_identifier}
                         WHERE log_id IN ($placeholders)",
                         ...$log_ids
                     )
@@ -126,7 +129,7 @@ class LogCleanup
                 $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
                 $wpdb->query(
                     $wpdb->prepare(
-                        "DELETE FROM $payloads_table
+                        "DELETE FROM {$payloads_table_identifier}
                         WHERE payload_id IN ($placeholders)",
                         ...$payload_ids
                     )
@@ -194,14 +197,15 @@ class LogCleanup
         // Free/Core plugin: use a fixed retention period
         $retention_days = 30;
 
-        $log_table = $wpdb->prefix.'odcm_audit_log';
+        $log_table = $wpdb->prefix . 'odcm_audit_log';
+        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
         $cutoff_date = gmdate('Y-m-d H:i:s', strtotime("-{$retention_days} days"));
 
         // Count records that would be deleted
         $count_to_delete = $wpdb->get_var(
             $wpdb->prepare(
                 "SELECT COUNT(*)
-                FROM $log_table
+                FROM {$log_table_identifier}
                 WHERE timestamp < %s",
                 $cutoff_date
             )
@@ -220,7 +224,7 @@ class LogCleanup
         $payload_count_to_delete = $wpdb->get_var(
             $wpdb->prepare(
                 "SELECT COUNT(*)
-                FROM $log_table
+                FROM {$log_table_identifier}
                 WHERE timestamp < %s
                 AND payload_id IS NOT NULL",
                 $cutoff_date

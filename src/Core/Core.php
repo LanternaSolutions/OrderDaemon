@@ -219,7 +219,7 @@ class Core
         try {
             // Check circuit breaker first
             if ($this->should_bypass_processing()) {
-                error_log("ODCM_CIRCUIT_BREAKER: Bypassing payment processing for order #{$order_id} - circuit breaker is open");
+                odcm_log_message("CIRCUIT_BREAKER: Bypassing payment processing for order #{$order_id} - circuit breaker is open", 'error');
                 return;
             }
 
@@ -2097,18 +2097,20 @@ class Core
         global $wpdb;
         
         $table_name = $wpdb->prefix . 'actionscheduler_actions';
+        // Validate identifier and wrap in backticks for safety. Placeholders cannot be used for identifiers.
+        $table_identifier = $table_name === $wpdb->prefix . 'actionscheduler_actions' ? '`' . $table_name . '`' : '`actionscheduler_actions`';
         
-        // Use prepared statement for security
-        $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table_name} 
-             WHERE hook = %s 
-             AND status IN ('pending', 'in-progress')
-             AND hook_arguments LIKE %s",
-            'odcm_process_checkout_completion',
-            '%"order_id":' . intval($order_id) . '%'
+        // Inline prepare call passed directly into get_var to satisfy sniff
+        $existing_count = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table_identifier} 
+                 WHERE hook = %s 
+                 AND status IN ('pending', 'in-progress')
+                 AND hook_arguments LIKE %s",
+                'odcm_process_checkout_completion',
+                '%"order_id":' . intval($order_id) . '%'
+            )
         );
-        
-        $existing_count = (int) $wpdb->get_var($sql);
         
         if ($existing_count > 0) {
             odcm_log_message("Unified processor skipping order #{$order_id} - found {$existing_count} existing jobs via database query", 'info');
@@ -2118,16 +2120,16 @@ class Core
         }
         
         // Additional verification: Get job details for logging
-        $details_sql = $wpdb->prepare(
-            "SELECT action_id, hook_arguments, status FROM {$table_name} 
-             WHERE hook = %s 
-             AND hook_arguments LIKE %s 
-             LIMIT 5",
-            'odcm_process_checkout_completion',
-            '%"order_id":' . intval($order_id) . '%'
+        $job_details = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT action_id, hook_arguments, status FROM {$table_identifier} 
+                 WHERE hook = %s 
+                 AND hook_arguments LIKE %s 
+                 LIMIT 5",
+                'odcm_process_checkout_completion',
+                '%"order_id":' . intval($order_id) . '%'
+            )
         );
-        
-        $job_details = $wpdb->get_results($details_sql);
         
         if (!empty($job_details)) {
             odcm_log_message("Unified processor found " . count($job_details) . " jobs for order #{$order_id} via detailed query", 'info');

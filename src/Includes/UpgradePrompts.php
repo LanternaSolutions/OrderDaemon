@@ -89,8 +89,8 @@ final class UpgradePrompts
         $prefs   = $this->get_user_prefs($user_id);
         $nonce   = wp_create_nonce('odcm_upgrade_prompts');
 
-        $website_url = defined('ODCM_WEBSITE_URL') ? esc_url_raw(ODCM_WEBSITE_URL) : '';
-        $docs_url    = defined('ODCM_DOCS_URL') ? esc_url_raw(ODCM_DOCS_URL) : $website_url;
+        $website_url = defined('ODCM_WEBSITE_URL') ? esc_url_raw(constant('ODCM_WEBSITE_URL')) : '';
+        $docs_url    = defined('ODCM_DOCS_URL') ? esc_url_raw(constant('ODCM_DOCS_URL')) : $website_url;
 
         // Feature comparison data (non-exhaustive, educational only)
         $comparison = [
@@ -295,7 +295,7 @@ final class UpgradePrompts
         $ok = update_user_meta($user_id, self::USER_META_KEY, $prefs);
 
         if ($ok) {
-            wp_send_json_success(['message' => __('', 'order-daemon')]);
+            wp_send_json_success(['message' => __('upgrade_prompts.ajax.prompt_dismissed', 'order-daemon')]);
         }
         wp_send_json_error(['message' => __('upgrade_prompts.ajax.ate', 'order-daemon')]);
     }

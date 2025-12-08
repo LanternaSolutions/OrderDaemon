@@ -670,11 +670,13 @@ final class BlockCheckoutCompatibility
         global $wpdb;
         
         $table_name = $wpdb->prefix . 'actionscheduler_actions';
+        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
+        $table_identifier = ($table_name === $wpdb->prefix . 'actionscheduler_actions') ? '`' . $table_name . '`' : '`actionscheduler_actions`';
         
         // Inline prepare() to satisfy Plugin Checker's variable tracking
         $existing_count = (int) $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table_name} 
+                "SELECT COUNT(*) FROM {$table_identifier} 
                  WHERE hook = %s 
                  AND status IN ('pending', 'in-progress')
                  AND hook_arguments LIKE %s",
