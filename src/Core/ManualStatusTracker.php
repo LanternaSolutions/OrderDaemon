@@ -383,7 +383,7 @@ class ManualStatusTracker
 
         // Check if we're on the orders list page with edit action
         if ($pagenow === 'edit.php' && $typenow === 'shop_order') {
-            $action = $_GET['action'] ?? '';
+            $action = isset($_GET['action']) ? sanitize_key($_GET['action']) : '';
             return $action === 'edit';
         }
 
@@ -409,7 +409,7 @@ class ManualStatusTracker
             return false;
         }
 
-        $action = $_REQUEST['action'] ?? '';
+        $action = isset($_REQUEST['action']) ? sanitize_key($_REQUEST['action']) : '';
         
         // WooCommerce order management AJAX actions
         $order_ajax_actions = [
@@ -436,11 +436,11 @@ class ManualStatusTracker
             return false;
         }
 
-        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+        $request_uri = isset($_SERVER['REQUEST_URI']) ? esc_url_raw($_SERVER['REQUEST_URI']) : '';
         
         // WooCommerce REST API order endpoints
         if (strpos($request_uri, '/wp-json/wc/') !== false && strpos($request_uri, '/orders/') !== false) {
-            $method = $_SERVER['REQUEST_METHOD'] ?? '';
+            $method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field($_SERVER['REQUEST_METHOD']) : '';
             // Only consider PUT/POST as potentially manual (not GET which could be automated)
             return in_array($method, ['PUT', 'POST', 'PATCH'], true);
         }

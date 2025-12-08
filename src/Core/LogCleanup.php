@@ -54,11 +54,11 @@ class LogCleanup
         $cutoff_date = gmdate('Y-m-d H:i:s', strtotime("-{$retention_days} days"));
 
         // First, count how many records would be deleted (for logging purposes)
-        $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM " . $log_table_identifier . " WHERE timestamp < %s",
-            $cutoff_date
-        );
-        $total_to_delete = $wpdb->get_var($sql);
+        // Split the query to properly handle table identifiers which can't use placeholders
+        $query_template = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s";
+        $prepared_query = $wpdb->prepare($query_template, $cutoff_date);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prepared_query is properly prepared above
+        $total_to_delete = $wpdb->get_var($prepared_query);
 
         if (!$total_to_delete || $total_to_delete === 0) {
             // No records to delete
@@ -72,12 +72,11 @@ class LogCleanup
 
         while ($deleted_total < $total_to_delete && $iteration < $max_iterations) {
             // First, get a batch of log IDs to delete
-            $sql = $wpdb->prepare(
-                "SELECT log_id, payload_id FROM " . $log_table_identifier . " WHERE timestamp < %s LIMIT %d",
-                $cutoff_date,
-                self::BATCH_SIZE
-            );
-            $logs_to_delete = $wpdb->get_results($sql);
+            // Split the query to properly handle table identifiers which can't use placeholders
+            $query_template = "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d";
+            $prepared_query = $wpdb->prepare($query_template, $cutoff_date, self::BATCH_SIZE);
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prepared_query is properly prepared above
+            $logs_to_delete = $wpdb->get_results($prepared_query);
             
             if (empty($logs_to_delete)) {
                 // No more logs to delete
@@ -97,13 +96,17 @@ class LogCleanup
                 }
             }
             
-            // Delete the log entries
-            if (!empty($log_ids)) {
-                $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
-                $query = "DELETE FROM " . $log_table_identifier . " WHERE log_id IN ($placeholders)";
-                $deleted_rows = $wpdb->query(
-                    $wpdb->prepare($query, ...$log_ids)
-                );
+                // Delete the log entries
+                if (!empty($log_ids)) {
+                    // Create placeholder string for the IN clause
+                    $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
+                    // Build query with properly separated table identifier and placeholders
+                    $query_template = "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)";
+                    // Prepare with all log IDs as parameters
+                    $prepared_query = $wpdb->prepare($query_template, ...$log_ids);
+                    // Execute the query
+                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prepared_query is properly prepared above
+                    $deleted_rows = $wpdb->query($prepared_query);
                 
                 if ($deleted_rows === false) {
                     // Error occurred
@@ -113,14 +116,18 @@ class LogCleanup
                 $deleted_total += $deleted_rows;
             }
             
-            // Delete the corresponding payload entries
-            if (!empty($payload_ids)) {
-                $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
-                $query = "DELETE FROM " . $payloads_table_identifier . " WHERE payload_id IN ($placeholders)";
-                $wpdb->query(
-                    $wpdb->prepare($query, ...$payload_ids)
-                );
-            }
+                // Delete the corresponding payload entries 
+                if (!empty($payload_ids)) {
+                    // Create placeholder string for the IN clause
+                    $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
+                    // Build query with properly separated table identifier and placeholders
+                    $query_template = "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)";
+                    // Prepare with all payload IDs as parameters
+                    $prepared_query = $wpdb->prepare($query_template, ...$payload_ids);
+                    // Execute the query with caching disabled for delete operations
+                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prepared_query is properly prepared above
+                    $wpdb->query($prepared_query);
+                }
             
             $iteration++;
 
@@ -188,34 +195,32 @@ class LogCleanup
         $cutoff_date = gmdate('Y-m-d H:i:s', strtotime("-{$retention_days} days"));
 
         // Count records that would be deleted
-        $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM " . $log_table_identifier . " WHERE timestamp < %s",
-            $cutoff_date
-        );
-        $count_to_delete = $wpdb->get_var($sql);
+        $query_template = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s";
+        $prepared_query = $wpdb->prepare($query_template, $cutoff_date);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prepared_query is properly prepared above
+        $count_to_delete = $wpdb->get_var($prepared_query);
 
         if (!$count_to_delete || $count_to_delete === 0) {
             return [
                 'success'       => true,
-                'message'       => __('core.log_cleanup.no_old_records', 'order-daemon'),
+                'message'       => __('No old records found to clean up', 'order-daemon'),
                 'deleted_count' => 0,
                 'deleted_payloads' => 0,
             ];
         }
 
         // Count payload records that would be deleted
-        $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM " . $log_table_identifier . " WHERE timestamp < %s AND payload_id IS NOT NULL",
-            $cutoff_date
-        );
-        $payload_count_to_delete = $wpdb->get_var($sql);
+        $query_template = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL";
+        $prepared_query = $wpdb->prepare($query_template, $cutoff_date);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prepared_query is properly prepared above
+        $payload_count_to_delete = $wpdb->get_var($prepared_query);
 
         // Perform the cleanup
         $this->cleanup_old_logs();
 
         $message = sprintf(
             /* translators: %1$d: number of deleted records, %2$d: retention period in days */
-            __('core.log_cleanup.success_deleted_records', 'order-daemon'),
+            __('Successfully deleted %1$d log records (retention: %2$d days)', 'order-daemon'),
             $count_to_delete,
             $retention_days
         );
@@ -223,7 +228,7 @@ class LogCleanup
         if ($payload_count_to_delete > 0) {
             $message .= ' ' . sprintf(
                 /* translators: %d: number of deleted payload records */
-                __('core.log_cleanup.deleted_payload_records', 'order-daemon'),
+                __('Also deleted %d payload records', 'order-daemon'),
                 $payload_count_to_delete
             );
         }

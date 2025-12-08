@@ -233,7 +233,7 @@ class DiagnosticDashboard
             <div class="odcm-status-banner" id="status-banner" style="display: none;">
                 <div class="odcm-status-banner-left">
                     <span class="odcm-status-icon" id="banner-status-icon">✅</span>
-                        <span class="odcm-status-text" id="banner-status-text"><?php esc_html_e('admin.diagnostics.status.system_healthy', 'order-daemon'); ?></span>
+                        <span class="odcm-status-text" id="banner-status-text"><?php esc_html_e('System Healthy', 'order-daemon'); ?></span>
                 </div>
                 <div class="odcm-status-banner-center" id="banner-status-summary">
                     <?php
@@ -259,7 +259,7 @@ class DiagnosticDashboard
                         </div>
                         <span class="odcm-progress-text" id="progress-text">0/8 tests</span>
                     </div>
-                    <p class="odcm-current-test" id="current-test"><?php esc_html_e('admin.diagnostics.loading.preparing', 'order-daemon'); ?></p>
+                    <p class="odcm-current-test" id="current-test"><?php esc_html_e('Preparing tests...', 'order-daemon'); ?></p>
                 </div>
             </div>
 
@@ -290,7 +290,7 @@ class DiagnosticDashboard
     public function ajax_run_diagnostics(): void
     {
         // Verify nonce
-        if (!wp_verify_nonce( wp_unslash($_POST['nonce'] ?? ''), 'odcm_diagnostics')) {
+        if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'] ?? '')), 'odcm_diagnostics')) {
             wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -334,7 +334,7 @@ class DiagnosticDashboard
     public function ajax_run_single_diagnostic(): void
     {
         // Verify nonce
-        if (!wp_verify_nonce( wp_unslash($_POST['nonce'] ?? ''), 'odcm_diagnostics')) {
+        if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'] ?? '')), 'odcm_diagnostics')) {
             wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -377,7 +377,7 @@ class DiagnosticDashboard
     public function ajax_generate_dual_report(): void
     {
         // Verify nonce
-        if (!wp_verify_nonce( wp_unslash($_POST['nonce'] ?? ''), 'odcm_diagnostics')) {
+        if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'] ?? '')), 'odcm_diagnostics')) {
             wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -403,6 +403,7 @@ class DiagnosticDashboard
             wp_send_json_error([
                 /* translators: %s: The error message that occurred while generating dual-audience report */
                 'message' => sprintf(
+                    // translators: %s: Error message
                     __('Failed to generate report: %s', 'order-daemon'),
                     $e->getMessage()
                 )
@@ -468,7 +469,7 @@ class DiagnosticDashboard
                 <?php foreach ($report['categories'] as $category_name => $category_data): ?>
                 <div class="odcm-category-results">
                     <h5><?php
-                    /* translators: 1: Category name, 2: Number passed, 3: Total number */
+                        /* translators: 1: Category name, 2: Number passed, 3: Total number */
                     printf(
                            esc_html__('%1$s: %2$d/%3$d passed', 'order-daemon'),
                            esc_html( $this->format_category_name($category_name) ),
@@ -615,10 +616,19 @@ class DiagnosticDashboard
 
         $plain_text = implode("\n", $lines);
         
-        // Only return content if we have actual data
-        if (trim($plain_text)) {
-            return $for_html ? '<pre><code class="language-bash">' . esc_html($plain_text) . '</code></pre>' : $plain_text;
-        }
+                // Only return content if we have actual data
+                if (trim($plain_text)) {
+                    // Cache detailed output for better performance
+                    $cache_key = 'odcm_detail_output_' . md5($plain_text);
+                    $cached_output = wp_cache_get($cache_key);
+                    
+                    if (false === $cached_output && $for_html) {
+                        $cached_output = '<pre><code class="language-bash">' . esc_html($plain_text) . '</code></pre>';
+                        wp_cache_set($cache_key, $cached_output, '', HOUR_IN_SECONDS); // Cache for 1 hour
+                    }
+                    
+                    return $for_html ? ($cached_output ?: '<pre><code class="language-bash">' . esc_html($plain_text) . '</code></pre>') : $plain_text;
+                }
         
         return $for_html ? '' : '';
     }
@@ -756,6 +766,7 @@ class DiagnosticDashboard
         $output .= "-------\n";
                 /* translators: 1: Total tests run, 2: Number passed, 3: Number failed */
                 $output .= sprintf(
+                    // translators: 1: Total number of tests run, 2: Number of tests passed, 3: Number of tests failed
                     __('Tests run: %1$d | Passed: %2$d | Failed: %3$d', 'order-daemon'),
                     $report['summary']['total_tests'],
                     $report['summary']['passed'],
@@ -793,6 +804,7 @@ class DiagnosticDashboard
                 $category_label = $this->format_category_name($category_name);
                 /* translators: 1: Category name (uppercase), 2: Number passed, 3: Total number */
                 $output .= sprintf(
+                    // translators: 1: Category name in uppercase, 2: Number of tests passed, 3: Total number of tests
                     __('%1$s DIAGNOSTICS (%2$d/%3$d passed)', 'order-daemon'),
                     strtoupper($category_label),
                     $category_data['passed'],

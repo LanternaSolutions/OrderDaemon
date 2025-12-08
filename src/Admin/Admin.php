@@ -113,7 +113,7 @@ class Admin
         // Add a notice explaining drag-and-drop functionality
         add_action('admin_notices', function() {
             echo '<div class="notice notice-info is-dismissible"><p>' . 
-                                esc_html__('admin.ui.drag_drop_tip', 'order-daemon') .
+                                esc_html__('You can drag and drop rules to reorder them. Higher rules take precedence.', 'order-daemon') .
                 '</p></div>';
         });
         
@@ -196,17 +196,15 @@ class Admin
         // Verify nonce
         $nonce = isset($_POST['nonce']) ? sanitize_key( wp_unslash($_POST['nonce']) ) : '';
         if (!$nonce || !wp_verify_nonce($nonce, 'odcm_update_rule_order')) {
-            wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
             wp_die();
         }
         
         // Get the rule order data
-        $rule_ids_raw = isset($_POST['rule_ids']) ? $_POST['rule_ids'] : [];
+        $rule_ids_raw = isset($_POST['rule_ids']) ? sanitize_text_field(wp_unslash($_POST['rule_ids'])) : [];
         
         // Sanitize the rule IDs
         if (is_string($rule_ids_raw)) {
-            // If it's a string (like a JSON string), unslash it first
-            $rule_ids_raw = wp_unslash($rule_ids_raw);
             // Try to decode JSON if it appears to be JSON
             if (strpos($rule_ids_raw, '[') === 0) {
                 $decoded = json_decode($rule_ids_raw, true);
@@ -219,17 +217,14 @@ class Admin
                 $rule_ids_raw = [$rule_ids_raw];
             }
         } elseif (!is_array($rule_ids_raw)) {
-            $rule_ids_raw = wp_unslash($rule_ids_raw); // Ensure we unslash
             $rule_ids_raw = [$rule_ids_raw]; // Ensure it's an array
-        } else {
-            $rule_ids_raw = wp_unslash($rule_ids_raw); // Ensure we unslash the array
         }
         
         // Now sanitize each ID as an integer
         $rule_ids = array_map('absint', $rule_ids_raw);
         
         if (empty($rule_ids)) {
-            wp_send_json_error(['message' => __('admin.ajax.no_rule_order_data', 'order-daemon')]);
+            wp_send_json_error(['message' => __('No rule order data received', 'order-daemon')]);
             wp_die();
         }
         
@@ -254,9 +249,9 @@ class Admin
         }
         
         if ($success) {
-            wp_send_json_success(['message' => __('admin.ajax.rule_order_update_success', 'order-daemon')]);
+            wp_send_json_success(['message' => __('Rule order updated successfully', 'order-daemon')]);
         } else {
-            wp_send_json_error(['message' => __('admin.ajax.rule_order_update_error', 'order-daemon')]);
+            wp_send_json_error(['message' => __('Failed to update rule order', 'order-daemon')]);
         }
         
         wp_die();
@@ -332,7 +327,7 @@ class Admin
             }
             
             // This is just determining which assets to load
-            $current_post_type = isset($_GET['post_type']) ? sanitize_key(wp_unslash($_GET['post_type'])) : 'post';
+            $current_post_type = isset($_GET['post_type']) ? sanitize_key(wp_unslash($_GET['post_type'] ?? '')) : 'post';
             
             if ('odcm_order_rule' !== $current_post_type) {
                 return;
@@ -368,14 +363,14 @@ class Admin
                 'odcmToggleRules',
                 [
                     'ajaxUrl'          => admin_url('admin-ajax.php'),
-                    'activeText'       => __('admin.ui.active', 'order-daemon'),
-                    'inactiveText'     => __('admin.ui.inactive', 'order-daemon'),
-                    'errorMessage'     => __('admin.ui.rule_status_update_error', 'order-daemon'),
-                    'draftText'        => __('admin.ui.draft', 'order-daemon'),
-                    'publishedText'    => __('admin.ui.published', 'order-daemon'),
-                    'lastModifiedText' => __('admin.ui.last_modified', 'order-daemon'),
-                    'orderNonce'       => wp_create_nonce('odcm_update_rule_order'),
-                    'orderErrorMessage' => __('admin.ui.rule_order_update_error', 'order-daemon'),
+                'activeText'       => __('Active', 'order-daemon'),
+                'inactiveText'     => __('Inactive', 'order-daemon'),
+                'errorMessage'     => __('Error updating rule status', 'order-daemon'),
+                'draftText'        => __('Draft', 'order-daemon'),
+                'publishedText'    => __('Published', 'order-daemon'),
+                'lastModifiedText' => __('Last modified', 'order-daemon'),
+                'orderNonce'       => wp_create_nonce('odcm_update_rule_order'),
+                'orderErrorMessage' => __('Error updating rule order', 'order-daemon'),
                 ]
             );
         }//end if
@@ -407,25 +402,25 @@ class Admin
     public function register_completion_rule_post_type(): void
     {
         $labels = [
-            'name'               => _x('admin.post_type.order_rules_plural', 'post type general name', 'order-daemon'),
-            'singular_name'      => _x('admin.post_type.order_rule_singular', 'post type singular name', 'order-daemon'),
-            'menu_name'          => _x('admin.post_type.order_rules_menu', 'admin menu', 'order-daemon'),
-            'name_admin_bar'     => _x('admin.post_type.order_rule_admin_bar', 'add new on admin bar', 'order-daemon'),
-            'add_new'            => _x('admin.post_type.add_new', 'order rule', 'order-daemon'),
-            'add_new_item'       => __('admin.post_type.add_new_item', 'order-daemon'),
-            'new_item'           => __('admin.post_type.new_item', 'order-daemon'),
-            'edit_item'          => __('admin.post_type.edit_item', 'order-daemon'),
-            'view_item'          => __('admin.post_type.view_item', 'order-daemon'),
-            'all_items'          => __('admin.post_type.all_items', 'order-daemon'),
-            'search_items'       => __('admin.post_type.search_items', 'order-daemon'),
-            'parent_item_colon'  => __('admin.post_type.parent_item_colon', 'order-daemon'),
-            'not_found'          => __('admin.post_type.not_found', 'order-daemon'),
-            'not_found_in_trash' => __('admin.post_type.not_found_in_trash', 'order-daemon'),
+            'name'               => _x('Order Rules', 'post type general name', 'order-daemon'),
+            'singular_name'      => _x('Order Rule', 'post type singular name', 'order-daemon'),
+            'menu_name'          => _x('Order Rules', 'admin menu', 'order-daemon'),
+            'name_admin_bar'     => _x('Order Rule', 'add new on admin bar', 'order-daemon'),
+            'add_new'            => _x('Add New', 'order rule', 'order-daemon'),
+            'add_new_item'       => __('Add New Order Rule', 'order-daemon'),
+            'new_item'           => __('New Order Rule', 'order-daemon'),
+            'edit_item'          => __('Edit Order Rule', 'order-daemon'),
+            'view_item'          => __('View Order Rule', 'order-daemon'),
+            'all_items'          => __('All Order Rules', 'order-daemon'),
+            'search_items'       => __('Search Order Rules', 'order-daemon'),
+            'parent_item_colon'  => __('Parent Order Rules:', 'order-daemon'),
+            'not_found'          => __('No order rules found.', 'order-daemon'),
+            'not_found_in_trash' => __('No order rules found in Trash.', 'order-daemon'),
         ];
 
         $args = [
             'labels'             => $labels,
-            'description'        => __('admin.post_type.description', 'order-daemon'),
+            'description'        => __('Order rules for automated completion based on specified conditions.', 'order-daemon'),
             'public'             => false,
             'publicly_queryable' => false,
             'show_ui'            => true,
@@ -504,7 +499,7 @@ class Admin
 
             // Render the toggle switch
             echo '<div class="odcm-toggle-container">';
-            echo '<label class="odcm-toggle-switch" title="'.($is_active ? esc_attr__('admin.ui.active', 'order-daemon') : esc_attr__('admin.ui.inactive', 'order-daemon')).'">';
+            echo '<label class="odcm-toggle-switch" title="'.($is_active ? esc_attr__('Active', 'order-daemon') : esc_attr__('Inactive', 'order-daemon')).'">';
             echo '<input type="checkbox" '.checked($is_active, true, false).' data-rule-id="'.esc_attr($post_id).'" data-nonce="'.esc_attr(wp_create_nonce('odcm_toggle_rule_'.$post_id)).'">';
             echo '<span class="odcm-toggle-slider"></span>';
             echo '</label>';
@@ -514,7 +509,7 @@ class Admin
             $post = get_post($post_id);
             
             // Display the menu_order (priority) with a hint
-            echo '<span class="priority-value" title="' . esc_attr__('admin.ui.priority_tooltip', 'order-daemon') . '">';
+            echo '<span class="priority-value" title="' . esc_attr__('Lower numbers have higher priority. Rules are processed in order.', 'order-daemon') . '">';
             echo esc_html($post->menu_order);
             echo '</span>';
         }
@@ -536,20 +531,20 @@ class Admin
         $post_id = isset($_POST['rule_id']) ? absint( wp_unslash($_POST['rule_id']) ) : 0;
         $nonce = isset($_POST['nonce']) ? sanitize_key( wp_unslash($_POST['nonce']) ) : '';
         if (!$nonce || !wp_verify_nonce($nonce, 'odcm_toggle_rule_'.$post_id)) {
-            wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
             wp_die();
         }
 
         // Check specific post permissions
         if (!current_user_can('edit_post', $post_id)) {
-            wp_send_json_error(['message' => __('admin.ajax.no_permission_edit_rule', 'order-daemon')]);
+            wp_send_json_error(['message' => __('You do not have permission to edit this rule', 'order-daemon')]);
             wp_die();
         }
 
         // Get current post
         $post = get_post($post_id);
         if (!$post) {
-            wp_send_json_error(['message' => __('admin.ajax.rule_not_found', 'order-daemon')]);
+            wp_send_json_error(['message' => __('Rule not found', 'order-daemon')]);
         }
 
         // Check if user can use unlimited rules
@@ -604,17 +599,17 @@ class Admin
             $updated_post = get_post($post_id);
 
             // Format the date text based on post status
-            $date_text = $new_post_status === 'publish' ? __('admin.ui.published', 'order-daemon') : __('admin.ui.last_modified', 'order-daemon');
+            $date_text = $new_post_status === 'publish' ? __('Published', 'order-daemon') : __('Last modified', 'order-daemon');
 
             // Get the post title
             $post_title = $updated_post->post_title;
 
             // For draft posts, we need to include the "- Draft" suffix for the title
-            $display_title = $new_post_status === 'publish' ? $post_title : $post_title.' - '.__('admin.ui.draft', 'order-daemon');
+            $display_title = $new_post_status === 'publish' ? $post_title : $post_title.' - '.__('Draft', 'order-daemon');
 
             wp_send_json_success(
                 [
-                    'message'        => __('admin.ajax.rule_status_update_success', 'order-daemon'),
+                    'message'        => __('Rule status updated successfully', 'order-daemon'),
                     'new_status'     => $new_post_status === 'publish' ? '1' : '0',
                     'is_premium'     => $can_use_unlimited_rules,
                     'affected_rules' => !$can_use_unlimited_rules && $new_post_status === 'publish' ? count($published_rules) : 0,
@@ -625,7 +620,7 @@ class Admin
                 ]
             );
         } else {
-            wp_send_json_error(['message' => __('admin.ajax.rule_status_update_failure', 'order-daemon')]);
+            wp_send_json_error(['message' => __('Failed to update rule status', 'order-daemon')]);
         }//end if
 
     }//end ajax_toggle_rule_status()
@@ -663,7 +658,7 @@ class Admin
         $wp_admin_bar->add_node(array(
             'parent' => 'new-content',
             'id'     => 'new-order-rule',
-            'title'  => __('admin.ui.order_rule', 'order-daemon'),
+            'title'  => __('Order Rule', 'order-daemon'),
             'href'   => admin_url('post-new.php?post_type=odcm_order_rule'),
         ));
     }

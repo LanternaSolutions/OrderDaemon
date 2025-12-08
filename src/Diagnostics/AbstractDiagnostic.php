@@ -222,10 +222,25 @@ abstract class AbstractDiagnostic implements DiagnosticInterface
     {
         global $wpdb;
         $full_table_name = $wpdb->prefix . $table_name;
+        
+        // Check cache first
+        $cache_key = 'odcm_table_exists_' . md5($full_table_name);
+        $cached_result = wp_cache_get($cache_key);
+        
+        if ($cached_result !== false) {
+            return (bool)$cached_result;
+        }
+        
         $result = $wpdb->get_var(
             $wpdb->prepare("SHOW TABLES LIKE %s", $full_table_name)
         );
-        return $result === $full_table_name;
+        
+        $exists = $result === $full_table_name;
+        
+        // Cache the result for 1 hour - table existence rarely changes
+        wp_cache_set($cache_key, $exists ? '1' : '0', '', HOUR_IN_SECONDS);
+        
+        return $exists;
     }
 
     /**
@@ -242,10 +257,25 @@ abstract class AbstractDiagnostic implements DiagnosticInterface
 
         global $wpdb;
         $full_table_name = $wpdb->prefix . $table_name;
+        
+        // Check cache first
+        $cache_key = 'odcm_table_row_count_' . md5($full_table_name);
+        $cached_count = wp_cache_get($cache_key);
+        
+        if ($cached_count !== false) {
+            return (int)$cached_count;
+        }
+        
         // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
         $table_identifier = '`' . $full_table_name . '`';
+        
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Validated and backticked identifier; no values interpolated.
-        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table_identifier}");
+        $count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table_identifier}");
+        
+        // Cache the result for 5 minutes - row counts may change more frequently
+        wp_cache_set($cache_key, $count, '', 5 * MINUTE_IN_SECONDS);
+        
+        return $count;
     }
 
     /**

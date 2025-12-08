@@ -39,7 +39,10 @@ class Core
                 odcm_log_message($message, 'error');
             } else {
                 // Fallback to WordPress error log with a consistent prefix
-                error_log('ODCM_CORE: ' . $message);
+                // Use WordPress error_log only in debug mode
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('ODCM_CORE: ' . $message);
+                }
             }
         }
     }
@@ -1861,8 +1864,10 @@ class Core
                 'peak_memory' => memory_get_peak_usage(true)
             ];
             
-            // Use controlled error logging to avoid additional DB operations
-            $this->controlled_error_log('SAFE_ERROR: ' . wp_json_encode($error_data));
+            // Use controlled error logging to avoid additional DB operations, but only in debug mode
+            if ((defined('WP_DEBUG') && WP_DEBUG) || (defined('ODCM_DEBUG') && ODCM_DEBUG)) {
+                $this->controlled_error_log('SAFE_ERROR: ' . wp_json_encode($error_data));
+            }
         } catch (\Throwable $e) {
             // Even error logging should not break checkout - complete silence on failure
         }
@@ -2174,17 +2179,27 @@ class Core
         // Create SQL query with validated table identifier
         // We need to use string concatenation for the table identifier since WordPress doesn't
         // support placeholders for identifiers
-        $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM " . $table_identifier . " 
-             WHERE hook = %s 
-             AND status IN ('pending', 'in-progress')
-             AND hook_arguments LIKE %s",
-            'odcm_process_checkout_completion',
-            '%"order_id":' . intval($order_id) . '%'
+        // First prepare the hook name and status conditions
+        $hook_name = 'odcm_process_checkout_completion';
+        $prepared_hook_part = $wpdb->prepare(
+            "WHERE hook = %s AND status IN ('pending', 'in-progress')",
+            $hook_name
         );
         
-        // Execute the prepared query
-        $existing_count = (int) $wpdb->get_var($sql);
+        // Prepare the hook arguments separately with proper integer casting
+        $order_id_int = intval($order_id);
+        $prepared_args_part = $wpdb->prepare(
+            "AND hook_arguments LIKE %s",
+            '%"order_id":' . $order_id_int . '%'
+        );
+        
+        // Build the full query with safe table identifier
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table identifier is validated earlier
+            $full_query = "SELECT COUNT(*) FROM {$table_identifier} {$prepared_hook_part} {$prepared_args_part}";
+            
+            // Execute the prepared query
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is properly built with $wpdb->prepare() above
+            $existing_count = (int) $wpdb->get_var($full_query);
         
         if ($existing_count > 0) {
             odcm_log_message("Unified processor skipping order #{$order_id} - found {$existing_count} existing jobs via database query", 'info');
@@ -2193,20 +2208,27 @@ class Core
             return false;
         }
         
-        // Create SQL query for job details with validated table identifier
-        // We need to use string concatenation for the table identifier since WordPress doesn't
-        // support placeholders for identifiers
-        $sql_details = $wpdb->prepare(
-            "SELECT action_id, hook_arguments, status FROM " . $table_identifier . " 
-             WHERE hook = %s 
-             AND hook_arguments LIKE %s 
-             LIMIT 5",
-            'odcm_process_checkout_completion',
-            '%"order_id":' . intval($order_id) . '%'
+        // First prepare the hook name for job details query
+        $hook_name = 'odcm_process_checkout_completion';
+        $prepared_hook_part = $wpdb->prepare(
+            "WHERE hook = %s", 
+            $hook_name
         );
         
-        // Execute the prepared job details query
-        $job_details = $wpdb->get_results($sql_details);
+        // Prepare the hook arguments separately with proper integer casting
+        $order_id_int = intval($order_id);
+        $prepared_args_part = $wpdb->prepare(
+            "AND hook_arguments LIKE %s", 
+            '%"order_id":' . $order_id_int . '%'
+        );
+        
+        // Build the full job details query with safe table identifier
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table identifier is validated earlier
+            $details_query = "SELECT action_id, hook_arguments, status FROM {$table_identifier} {$prepared_hook_part} {$prepared_args_part} LIMIT 5";
+            
+            // Execute the prepared job details query
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is properly built with $wpdb->prepare() above
+            $job_details = $wpdb->get_results($details_query);
         
         if (!empty($job_details)) {
             odcm_log_message("Unified processor found " . count($job_details) . " jobs for order #{$order_id} via detailed query", 'info');

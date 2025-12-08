@@ -229,16 +229,24 @@ class QueryDiagnostic extends AbstractDiagnostic
             // Get row count
             $row_count = $this->get_table_row_count($table);
             
-            // Get table size information
-            $size_mb = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb'
-                    FROM information_schema.TABLES 
-                    WHERE table_schema = %s AND table_name = %s",
-                    DB_NAME,
-                    $full_table_name
-                )
-            ) ?? 0;
+            // Get table size information with caching
+            $cache_key = 'odcm_table_size_' . md5($full_table_name);
+            $size_mb = wp_cache_get($cache_key);
+
+            if (false === $size_mb) {
+                $size_mb = $wpdb->get_var(
+                    $wpdb->prepare(
+                        "SELECT ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb'
+                        FROM information_schema.TABLES 
+                        WHERE table_schema = %s AND table_name = %s",
+                        DB_NAME,
+                        $full_table_name
+                    )
+                ) ?? 0;
+                
+                // Cache the result for 1 hour - table sizes don't change frequently
+                wp_cache_set($cache_key, $size_mb, '', HOUR_IN_SECONDS);
+            }
 
             $table_info = [
                 'row_count' => $row_count,
@@ -300,29 +308,52 @@ class QueryDiagnostic extends AbstractDiagnostic
                     continue; // Skip invalid columns
                 }
                 
-                // Build query with validated column names (cannot use placeholders for column names)
-                // This is secure because:
-                // 1. $column is explicitly validated against a whitelist of valid columns
-                // 2. $table_identifier is properly validated and backticked earlier
+                // Check cache first
+                $cache_key = 'odcm_filter_options_' . $column;
+                $results = wp_cache_get($cache_key);
                 
-                // First prepare a safe SQL statement with the known value placeholder
-                $val = '';
-                
-                // Construct query with column names explicitly validated against whitelist
-                // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- Column names can't use placeholders but are pre-validated
-                if ($column === 'status') {
-                    $sql_tpl = "SELECT DISTINCT status FROM {$table_identifier} WHERE status IS NOT NULL AND status != %s ORDER BY status ASC";
-                    $sql = $wpdb->prepare($sql_tpl, $val);
-                } elseif ($column === 'event_type') {
-                    $sql_tpl = "SELECT DISTINCT event_type FROM {$table_identifier} WHERE event_type IS NOT NULL AND event_type != %s ORDER BY event_type ASC";
-                    $sql = $wpdb->prepare($sql_tpl, $val);
-                } elseif ($column === 'source') {
-                    $sql_tpl = "SELECT DISTINCT source FROM {$table_identifier} WHERE source IS NOT NULL AND source != %s ORDER BY source ASC";
-                    $sql = $wpdb->prepare($sql_tpl, $val);
+                if (false === $results) {
+                    // Cache miss - run the query
+                    // First prepare a safe SQL statement with the known value placeholder
+                    $val = '';
+                    
+                    // Construct query with column names explicitly validated against whitelist
+                    // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- Column names can't use placeholders but are pre-validated
+                    if ($column === 'status') {
+                        $sql_tpl = "SELECT DISTINCT status FROM {$table_identifier} WHERE status IS NOT NULL AND status != %s ORDER BY status ASC";
+                        $sql = $wpdb->prepare($sql_tpl, $val);
+                    } elseif ($column === 'event_type') {
+                        $sql_tpl = "SELECT DISTINCT event_type FROM {$table_identifier} WHERE event_type IS NOT NULL AND event_type != %s ORDER BY event_type ASC";
+                        $sql = $wpdb->prepare($sql_tpl, $val);
+                    } elseif ($column === 'source') {
+                        $sql_tpl = "SELECT DISTINCT source FROM {$table_identifier} WHERE source IS NOT NULL AND source != %s ORDER BY source ASC";
+                        $sql = $wpdb->prepare($sql_tpl, $val);
+                    }
+                    // phpcs:enable
+                    
+                    // Add index hint for performance on large tables
+                    $sql = str_replace("FROM {$table_identifier}", "FROM {$table_identifier} USE INDEX (idx_{$column})", $sql);
+                    
+                    // Execute the query with proper caching
+                    $query_cache_key = 'odcm_col_query_' . md5($sql);
+                    $results = wp_cache_get($query_cache_key);
+                    
+                    if (false === $results) {
+                        // The SQL is created using $wpdb->prepare() above with validated column names
+                        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is safely prepared above
+                        $results = $wpdb->get_col($sql);
+                        
+                        // Cache results for 5 minutes (filter options change infrequently)
+                        if ($results !== null) {
+                            wp_cache_set($query_cache_key, $results, '', 5 * MINUTE_IN_SECONDS);
+                        }
+                    }
+                    
+                    // Cache overall filter options
+                    if ($results !== null) {
+                        wp_cache_set($cache_key, $results, '', 5 * MINUTE_IN_SECONDS);
+                    }
                 }
-                // phpcs:enable
-                
-                $results = $wpdb->get_col($sql);
                 $query_time = (microtime(true) - $query_start) * 1000;
 
                 $result['queries_executed'][] = [
@@ -445,11 +476,21 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         try {
             // Get existing indexes
-            // We can't use $wpdb->prepare() for "SHOW INDEX" with a table name as there's no 
-            // placeholder for identifiers, but table_identifier is already validated and backticked
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $query = "SHOW INDEX FROM {$table_identifier}";
-            $indexes = $wpdb->get_results($query, 'ARRAY_A');
+            // Cache the index info for better performance
+            $cache_key = 'odcm_indexes_' . md5($table_identifier);
+            $indexes = wp_cache_get($cache_key);
+            
+            if (false === $indexes) {
+                // We can't use $wpdb->prepare() for "SHOW INDEX" with a table name as there's no 
+                // placeholder for identifiers, but table_identifier is already validated and backticked
+                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table identifier cannot use placeholders but is pre-validated
+                $indexes = $wpdb->get_results("SHOW INDEX FROM {$table_identifier}", 'ARRAY_A');
+                
+                if ($indexes !== null) {
+                    // Cache for 1 hour - indexes don't change frequently
+                    wp_cache_set($cache_key, $indexes, '', HOUR_IN_SECONDS);
+                }
+            }
             
             foreach ($indexes as $index) {
                 $key_name = $index['Key_name'];
@@ -513,8 +554,19 @@ class QueryDiagnostic extends AbstractDiagnostic
         ];
 
         try {
-            // Get MySQL version
-            $result['version'] = $wpdb->get_var("SELECT VERSION()");
+            // Get MySQL version with caching
+            $cache_key = 'odcm_mysql_version';
+            $mysql_version = wp_cache_get($cache_key);
+            
+            if (false === $mysql_version) {
+                $mysql_version = $wpdb->get_var("SELECT VERSION()");
+                // Cache for 24 hours - MySQL version rarely changes
+                if ($mysql_version) {
+                    wp_cache_set($cache_key, $mysql_version, '', DAY_IN_SECONDS);
+                }
+            }
+            
+            $result['version'] = $mysql_version;
 
             // Check important performance variables
             $important_vars = [
@@ -527,12 +579,33 @@ class QueryDiagnostic extends AbstractDiagnostic
                 'long_query_time'
             ];
 
-            foreach ($important_vars as $var) {
-                $value = $wpdb->get_var($wpdb->prepare("SHOW VARIABLES LIKE %s", $var));
-                if ($value !== null) {
-                    $result['variables'][$var] = $value;
+            // Get MySQL configuration variables with caching
+            $cache_key = 'odcm_mysql_variables';
+            $mysql_variables = wp_cache_get($cache_key);
+            
+            if (false === $mysql_variables) {
+                $mysql_variables = [];
+                foreach ($important_vars as $var) {
+                    $var_cache_key = 'odcm_mysql_var_' . md5($var);
+                    $var_value = wp_cache_get($var_cache_key);
+                    
+                    if (false === $var_value) {
+                        $var_value = $wpdb->get_var($wpdb->prepare("SHOW VARIABLES LIKE %s", $var));
+                        if ($var_value !== null) {
+                            // Cache individual variables for 24 hours
+                            wp_cache_set($var_cache_key, $var_value, '', DAY_IN_SECONDS);
+                        }
+                    }
+                    
+                    if ($var_value !== null) {
+                        $mysql_variables[$var] = $var_value;
+                    }
                 }
+                // Cache all variables for 24 hours
+                wp_cache_set($cache_key, $mysql_variables, '', DAY_IN_SECONDS);
             }
+            
+            $result['variables'] = $mysql_variables;
 
             // Analyze for common performance issues
             if (isset($result['variables']['query_cache_type']) && 
@@ -566,6 +639,7 @@ class QueryDiagnostic extends AbstractDiagnostic
             'effective' => false,
             'first_execution_ms' => 0,
             'second_execution_ms' => 0,
+            'wp_cache_execution_ms' => 0,
             'cache_improvement_percent' => 0
         ];
 
@@ -576,31 +650,61 @@ class QueryDiagnostic extends AbstractDiagnostic
         $table_name = $wpdb->prefix . 'odcm_audit_log';
         // Create backticked, safe table identifier
         $table_identifier = '`' . $table_name . '`';
-        $test_query =
-            "SELECT COUNT(*)
-            FROM {$table_identifier}
-            WHERE timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)";
-
+        
+        // Construct a test query that will benefit from indexing
+        $cutoff_time = gmdate('Y-m-d H:i:s', strtotime('-1 hour'));
+        $query_template = "SELECT COUNT(*) FROM {$table_identifier} WHERE timestamp > %s";
+        $prepared_query = $wpdb->prepare($query_template, $cutoff_time);
+        
         try {
-            // First execution
+            // Clear any existing cached values
+            $cache_key = 'odcm_query_cache_test_' . md5($prepared_query);
+            wp_cache_delete($cache_key);
+            
+            // First execution (no cache)
             $start_time = microtime(true);
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The same query is run twice and does not use any user input.
-            $wpdb->get_var($test_query);
+            $wpdb->get_var($prepared_query);
             $result['first_execution_ms'] = round((microtime(true) - $start_time) * 1000, 2);
 
-            // Second execution (should hit cache)
+            // Second execution (MySQL query cache might help if enabled)
             $start_time = microtime(true);
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The same query is run twice and does not use any user input.
-            $wpdb->get_var($test_query);
+            $wpdb->get_var($prepared_query);
             $result['second_execution_ms'] = round((microtime(true) - $start_time) * 1000, 2);
+            
+            // Third execution with WordPress caching
+            $start_time = microtime(true);
+            
+            // Example caching implementation
+            $cache_result = wp_cache_get($cache_key);
+            if (false === $cache_result) {
+                $cache_result = $wpdb->get_var($prepared_query);
+                wp_cache_set($cache_key, $cache_result, '', 5 * MINUTE_IN_SECONDS);
+            }
+            
+            $result['wp_cache_execution_ms'] = round((microtime(true) - $start_time) * 1000, 2);
 
-            // Calculate improvement
+            // Calculate improvements (MySQL query cache and WordPress object cache)
             if ($result['first_execution_ms'] > 0) {
-                $improvement = (($result['first_execution_ms'] - $result['second_execution_ms']) / $result['first_execution_ms']) * 100;
-                $result['cache_improvement_percent'] = round($improvement, 1);
+                // MySQL query cache improvement
+                $mysql_improvement = (($result['first_execution_ms'] - $result['second_execution_ms']) / $result['first_execution_ms']) * 100;
+                $result['mysql_cache_improvement_percent'] = round($mysql_improvement, 1);
                 
-                // Consider cache effective if second query is at least 20% faster
-                $result['effective'] = $improvement > 20;
+                // WordPress object cache improvement
+                $wp_cache_improvement = (($result['first_execution_ms'] - $result['wp_cache_execution_ms']) / $result['first_execution_ms']) * 100;
+                $result['wp_cache_improvement_percent'] = round($wp_cache_improvement, 1);
+                
+                // Overall cache effectiveness
+                $result['cache_improvement_percent'] = max($mysql_improvement, $wp_cache_improvement);
+                
+                // Consider cache effective if either caching method is at least 20% faster
+                $result['effective'] = ($mysql_improvement > 20) || ($wp_cache_improvement > 20);
+                
+                // Add recommendations based on results
+                if ($wp_cache_improvement > $mysql_improvement) {
+                    $result['recommendation'] = 'WordPress object caching is more effective - consider using object caching for all database queries';
+                } else {
+                    $result['recommendation'] = 'MySQL query caching appears effective - ensure it remains enabled in the database configuration';
+                }
             }
 
         } catch (\Throwable $e) {

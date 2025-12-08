@@ -118,7 +118,7 @@ final class ProcessLifecycleDiscovery
             'order_lifecycle' => [
                 'id' => 'order_lifecycle',
                 /* translators: Process group label for order processing workflows and lifecycle */
-                'label' => __('core.process.lifecycle.order_processing', 'order-daemon'),
+                'label' => __('Order Processing Workflows', 'order-daemon'),
                 'process_types' => array_values(array_unique($order_lifecycle_types)),
                 'consolidate_ui' => true,
                 'time_window_minutes' => 30,
@@ -126,7 +126,7 @@ final class ProcessLifecycleDiscovery
             'payment_gateway_lifecycle' => [
                 'id' => 'payment_gateway_lifecycle',
                 /* translators: Process group label for payment gateway events and transactions */
-                'label' => __('core.process.lifecycle.payment_gateway_events', 'order-daemon'),
+                'label' => __('Payment Gateway Events', 'order-daemon'),
                 'process_types' => array_values(array_unique($payment_gateway_types)),
                 'consolidate_ui' => true,
                 'cross_entity' => true,
@@ -135,7 +135,7 @@ final class ProcessLifecycleDiscovery
             'subscription_lifecycle' => [
                 'id' => 'subscription_lifecycle',
                 /* translators: Process group label for subscription lifecycle events */
-                'label' => __('core.process.lifecycle.subscription_lifecycle', 'order-daemon'),
+                'label' => __('Subscription Lifecycle', 'order-daemon'),
                 'process_types' => array_values(array_unique($subscription_lifecycle_types)),
                 'consolidate_ui' => true,
                 'time_window_minutes' => 60,
@@ -287,15 +287,37 @@ final class ProcessLifecycleDiscovery
             // Create the SQL query with the validated table identifier
             // We need to concatenate the SQL parts since WordPress doesn't support placeholders
             // for table identifiers
-            $sql = $wpdb->prepare(
-                "SELECT DISTINCT event_type FROM " . $table_identifier . " WHERE event_type IS NOT NULL AND event_type != %s",
-                ''
+            // First prepare the query with the empty string for the event_type check
+            $empty_value = '';
+            $prepared_where_clause = $wpdb->prepare(
+                "WHERE event_type IS NOT NULL AND event_type != %s",
+                $empty_value
             );
-            $results = $wpdb->get_col($sql);
-            $types = is_array($results) ? $results : [];
-            $types = array_values(array_unique(array_filter(array_map('strval', $types))));
-
-            return $types;
+            
+            // Cache key for process types
+            $cache_key = 'odcm_process_types_' . md5($table_name);
+            $cached_types = wp_cache_get($cache_key);
+            
+            if (false === $cached_types) {
+                // Cache miss - run the query
+                
+                // Then run the full query with the properly escaped table name
+                // Note: This approach is necessary because WordPress doesn't support placeholders for table names
+                // We've already validated $table_identifier earlier to ensure it's safe
+                $results = $wpdb->get_col(
+                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                    "SELECT DISTINCT event_type FROM {$table_identifier} {$prepared_where_clause}"
+                );
+                $types = is_array($results) ? $results : [];
+                $types = array_values(array_unique(array_filter(array_map('strval', $types))));
+                
+                // Cache results for 1 hour (process types don't change frequently)
+                wp_cache_set($cache_key, $types, '', HOUR_IN_SECONDS);
+                
+                return $types;
+            }
+            
+            return $cached_types;
         } catch (\Throwable $e) {
             // Log error using the plugin's logging function instead of error_log
             if (function_exists('odcm_log_message')) {

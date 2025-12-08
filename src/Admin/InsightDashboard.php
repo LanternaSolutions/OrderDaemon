@@ -406,7 +406,7 @@ class InsightDashboard
     public function handle_welcome_scenario_check(): void
     {
         // Verify nonce
-        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(wp_unslash($_POST['_wpnonce']), 'wp_rest')) {
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
             wp_die(esc_html__('upgrade_prompts.ajax.security_check_failed', 'order-daemon'));
         }
 
@@ -444,24 +444,56 @@ class InsightDashboard
     {
         global $wpdb;
         
+        // Check cache first
+        $cache_key = 'odcm_welcome_scenario';
+        $cached_result = wp_cache_get($cache_key);
+        
+        if ($cached_result !== false) {
+            return (bool)$cached_result;
+        }
+        
         // Check if audit log table exists
         $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
-        $table_exists = $wpdb->get_var(
-            $wpdb->prepare("SHOW TABLES LIKE %s", $audit_log_table)
-        ) === $audit_log_table;
+        $table_exists_cache_key = 'odcm_table_exists_' . md5($audit_log_table);
+        $table_exists = wp_cache_get($table_exists_cache_key);
+        
+        if ($table_exists === false) {
+            $table_exists = $wpdb->get_var(
+                $wpdb->prepare("SHOW TABLES LIKE %s", $audit_log_table)
+            ) === $audit_log_table;
+            
+            // Cache the result for 1 hour - table existence rarely changes
+            wp_cache_set($table_exists_cache_key, $table_exists ? '1' : '0', '', HOUR_IN_SECONDS);
+        } else {
+            $table_exists = (bool)$table_exists;
+        }
         
         if (!$table_exists) {
             // If table doesn't exist, it's definitely a welcome scenario
+            wp_cache_set($cache_key, '1', '', 5 * MINUTE_IN_SECONDS);
             return true;
         }
         
         // Check if any log entries exist
         $audit_log_table_identifier = ($audit_log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $audit_log_table . '`' : '`odcm_audit_log`';
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Validated and backticked identifier; values are not interpolated.
-        $log_count = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_log_table_identifier}");
+        $log_count_cache_key = 'odcm_log_count';
+        $log_count = wp_cache_get($log_count_cache_key);
+        
+        if ($log_count === false) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Validated and backticked identifier; values are not interpolated.
+            $log_count = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_log_table_identifier}");
+            
+            // Cache the result for 5 minutes - log count may change more frequently
+            wp_cache_set($log_count_cache_key, $log_count, '', 5 * MINUTE_IN_SECONDS);
+        }
+        
+        $is_welcome = (int) $log_count === 0;
+        
+        // Cache the final result for 5 minutes
+        wp_cache_set($cache_key, $is_welcome ? '1' : '0', '', 5 * MINUTE_IN_SECONDS);
         
         // If no logs exist, show welcome scenario
-        return (int) $log_count === 0;
+        return $is_welcome;
     }
 
     /**
@@ -1358,7 +1390,7 @@ class InsightDashboard
         }
 
         // Verify nonce
-        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(wp_unslash($_POST['_wpnonce']), 'wp_rest')) {
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
             wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -1474,7 +1506,7 @@ class InsightDashboard
             }
 
             // Verify nonce
-            $nonce = isset($_REQUEST['_wpnonce']) ? wp_unslash($_REQUEST['_wpnonce']) : '';
+            $nonce = isset($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '';
             if (!wp_verify_nonce($nonce, 'wp_rest')) {
                 if (self::is_global_debug_active()) {
                     odcm_log_message('ODCM Export: Nonce verification failed. Nonce: ' . $nonce, 'error');

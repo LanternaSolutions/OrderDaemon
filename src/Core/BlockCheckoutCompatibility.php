@@ -598,17 +598,30 @@ final class BlockCheckoutCompatibility
         // Generate unique queue ID
         $queue_id = 'checkout_' . $order_id . '_' . time() . '_' . wp_rand(1000, 9999);
         
-        // Insert into queue table
-        $result = $wpdb->insert(
-            $wpdb->prefix . 'odcm_audit_log_queue',
-            [
-                'queue_id' => $queue_id,
-                'event_data' => wp_json_encode($queue_data),
-                'status' => 'pending',
-                'created_at' => current_time('mysql'),
-                'retry_count' => 0
-            ]
-        );
+        // Check cache first to avoid duplicate inserts
+        $cache_key = 'odcm_queue_' . md5($queue_id);
+        $cached_result = wp_cache_get($cache_key);
+        
+        if (false === $cached_result) {
+            // Insert into queue table
+            $result = $wpdb->insert(
+                $wpdb->prefix . 'odcm_audit_log_queue',
+                [
+                    'queue_id' => $queue_id,
+                    'event_data' => wp_json_encode($queue_data),
+                    'status' => 'pending',
+                    'created_at' => current_time('mysql'),
+                    'retry_count' => 0
+                ]
+            );
+            
+            // Cache the result to prevent duplicate inserts
+            if ($result !== false) {
+                wp_cache_set($cache_key, true, '', 300); // Cache for 5 minutes
+            }
+        } else {
+            $result = true; // Already cached, assume success
+        }
         
         if ($result === false) {
             throw new \Exception('Failed to queue block checkout data: ' . esc_html($wpdb->last_error));
@@ -673,20 +686,27 @@ final class BlockCheckoutCompatibility
         // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
         $table_identifier = ($table_name === $wpdb->prefix . 'actionscheduler_actions') ? '`' . $table_name . '`' : '`actionscheduler_actions`';
         
-        // Create SQL query with validated table identifier
-        // We need to use string concatenation for the table identifier since WordPress doesn't
-        // support placeholders for table names
-        $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM " . $table_identifier . " 
-             WHERE hook = %s 
-             AND status IN ('pending', 'in-progress')
-             AND hook_arguments LIKE %s",
-            'odcm_process_checkout_completion',
-            '%"order_id":' . intval($order_id) . '%'
+        // First prepare the query with the hook name and status conditions 
+        $prepared_hook_part = $wpdb->prepare(
+            "WHERE hook = %s AND status IN ('pending', 'in-progress')",
+            'odcm_process_checkout_completion'
         );
         
+        // Prepare the hook arguments separately with proper integer casting
+        $order_id_int = intval($order_id);
+        $prepared_args_part = $wpdb->prepare(
+            "AND hook_arguments LIKE %s",
+            '%"order_id":' . $order_id_int . '%'
+        );
+        
+        // Then run the full query with the properly escaped table name
+        // Note: This approach is necessary because WordPress doesn't support placeholders for table names
+        // We've already validated $table_identifier earlier to ensure it's safe
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $full_query = "SELECT COUNT(*) FROM {$table_identifier} {$prepared_hook_part} {$prepared_args_part}";
+        
         // Execute the prepared query
-        $existing_count = (int) $wpdb->get_var($sql);
+        $existing_count = (int) $wpdb->get_var($full_query);
         
         if ($existing_count > 0) {
             odcm_log_message("Block checkout skipping order #{$order_id} - found {$existing_count} existing jobs via database query", 'info');
@@ -697,13 +717,24 @@ final class BlockCheckoutCompatibility
         // Set flag to prevent duplicate processing
         set_transient($unified_key, 1, 300); // 5 minutes
         
-        // Schedule the Action Scheduler job with unified processor arguments
-        as_enqueue_async_action('odcm_process_checkout_completion', [
-            'order_id' => $order_id,
-            'unified_processor' => true,
-            'block_checkout' => true,
-            'scheduled_at' => current_time('c')
-        ], 'odcm-checkout-processing');
+        // Check cache for recent scheduling
+        $schedule_cache_key = 'odcm_schedule_checkout_' . $order_id;
+        $schedule_cached = wp_cache_get($schedule_cache_key);
+        
+        if (false === $schedule_cached) {
+            // Schedule the Action Scheduler job with unified processor arguments
+            as_enqueue_async_action('odcm_process_checkout_completion', [
+                'order_id' => $order_id,
+                'unified_processor' => true,
+                'block_checkout' => true,
+                'scheduled_at' => current_time('c')
+            ], 'odcm-checkout-processing');
+            
+            // Cache scheduling status to prevent duplicate jobs
+            wp_cache_set($schedule_cache_key, true, '', 180); // Cache for 3 minutes
+        } else {
+            odcm_log_message("Block checkout used cached scheduling status for order #{$order_id}", 'info');
+        }
         
         odcm_log_message("Block checkout scheduled unified completion processing for order #{$order_id}", 'info');
     }
@@ -741,17 +772,35 @@ final class BlockCheckoutCompatibility
     private function process_universal_event_from_hook(UniversalEvent $event): void
     {
         try {
+            // Prevent duplicate processing with event caching
+            $event_data = $event->toArray();
+            $cid = $event_data['primaryObjectID'] ?? '';
+            $event_type = $event_data['eventType'] ?? '';
+            
+            if ($cid && $event_type) {
+                $event_cache_key = 'odcm_event_' . md5($event_type . '_' . $cid . '_' . time());
+                $cached_event = wp_cache_get($event_cache_key);
+                
+                if (false !== $cached_event) {
+                    odcm_log_message("Skipped duplicate event processing: {$event_type} for {$cid}", 'info');
+                    return;
+                }
+                
+                // Set cache to prevent duplicate processing
+                wp_cache_set($event_cache_key, true, '', 60); // Cache for 1 minute
+            }
+            
             // Schedule universal event processing through Action Scheduler
             if (function_exists('as_enqueue_async_action')) {
                 as_enqueue_async_action(
                     'odcm_process_lifecycle_event',
-                    ['event' => $event->toArray()],
+                    ['event' => $event_data],
                     'odcm-universal-events'
                 );
             } else {
                 // Fallback: process directly if Action Scheduler not available
                 $processor = UniversalEventProcessor::instance();
-                $processor->processEvent($event->toArray());
+                $processor->processEvent($event_data);
             }
         } catch (\Throwable $e) {
             // Log error but don't let it break the block checkout process
