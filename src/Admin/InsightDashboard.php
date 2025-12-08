@@ -25,6 +25,11 @@ use OrderDaemon\CompletionManager\View\DashboardComponents\DetailPaneRenderer;
  * - Filter persistence across sessions
  * - WordPress standard pagination
  * 
+ * Permission Model:
+ * - Dashboard access and viewing: view_woocommerce_reports (Shop Manager + Administrator)
+ * - Settings changes: manage_woocommerce (Administrator only)
+ * - Destructive operations (reprocess, export, delete): manage_woocommerce (Administrator only)
+ * 
  * @package OrderDaemon\CompletionManager\Admin
  * @since   1.0.0
  */
@@ -105,33 +110,37 @@ class InsightDashboard
      * The key ordering here ensures the Insight Dashboard is both the
      * default destination for the top-level Order Daemon menu and the
      * first item in the submenu list.
+     * 
+     * Uses view_woocommerce_reports capability to allow Shop Managers access to reports.
      */
     public function register_menu_page(): void
     {
         // 1. First, add the main top-level menu (Order Daemon) pointing to the dashboard
         // WooCommerce uses position 55-56, Products around 57, so we use 56.5
+        // Use view_woocommerce_reports to allow Shop Managers access (WooCommerce standard for reports)
         add_menu_page(
             __('admin.insight_dashboard.menu.title', 'order-daemon'),
             __('admin.insight_dashboard.menu.title', 'order-daemon'),
-            'manage_woocommerce',
+            'view_woocommerce_reports',
             self::PAGE_SLUG,
             [$this, 'render_dashboard_page'],
             'none',
             56.5
         );
-        
+
         // 2. IMPORTANT: First submenu must use EXACTLY the same slug as the parent
         // to ensure the parent menu links to the Insight Dashboard
         add_submenu_page(
             self::PAGE_SLUG,
             __('admin.insight_dashboard.submenu.insight_dashboard', 'order-daemon'),
             __('admin.insight_dashboard.submenu.insight_dashboard', 'order-daemon'),
-            'manage_woocommerce',
+            'view_woocommerce_reports',
             self::PAGE_SLUG,
             [$this, 'render_dashboard_page']
         );
-        
+
         // 3. Then add remaining submenu items
+        // Keep manage_woocommerce for order rules management (requires admin)
         add_submenu_page(
                 self::PAGE_SLUG,
                 __('admin.insight_dashboard.submenu.all_order_rules', 'order-daemon'),
@@ -142,6 +151,7 @@ class InsightDashboard
         );
 
         // Add "Diagnostics" as third submenu item
+        // Keep manage_woocommerce for diagnostics (requires admin)
         add_submenu_page(
             self::PAGE_SLUG,
             __('admin.insight_dashboard.submenu.diagnostics', 'order-daemon'),
@@ -388,8 +398,8 @@ class InsightDashboard
             wp_die(esc_html__('upgrade_prompts.ajax.security_check_failed', 'order-daemon'));
         }
 
-        // Check user capabilities
-        if (!current_user_can('manage_woocommerce')) {
+        // Check user capabilities - use WooCommerce standard for reports (allows Shop Managers)
+        if (!current_user_can('view_woocommerce_reports') && !current_user_can('manage_woocommerce')) {
             wp_send_json_error(__('admin.insight_dashboard.permission.insufficient_permissions', 'order-daemon'));
         }
 
@@ -524,8 +534,9 @@ class InsightDashboard
      */
     public function render_dashboard_page(): void
     {
-        // Check user capabilities
-        if (!current_user_can('manage_woocommerce')) {
+        // Check user capabilities - use WooCommerce standard for reports (allows Shop Managers)
+        // Fallback to manage_woocommerce for backward compatibility
+        if (!current_user_can('view_woocommerce_reports') && !current_user_can('manage_woocommerce')) {
             wp_die(esc_html__('admin.insight_dashboard.permission.insufficient_permissions', 'order-daemon'));
         }
 
@@ -1129,8 +1140,8 @@ class InsightDashboard
      */
     public function handle_update_per_page_ajax(): void
     {
-        // Check user capabilities
-        if (!current_user_can('manage_woocommerce')) {
+        // Check user capabilities - use WooCommerce standard for reports (allows Shop Managers)
+        if (!current_user_can('view_woocommerce_reports') && !current_user_can('manage_woocommerce')) {
             wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.permission_denied', 'order-daemon')]);
         }
 
@@ -1164,10 +1175,13 @@ class InsightDashboard
 
     /**
      * Handle AJAX request to save debug settings
+     * 
+     * Note: Debug settings require manage_woocommerce (Administrator only)
+     * as they can affect site behavior and performance.
      */
     public function handle_debug_settings_ajax(): void
     {
-        // Check user capabilities
+        // Check user capabilities - require manage_woocommerce for settings changes
         if (!current_user_can('manage_woocommerce')) {
             wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.permission_denied', 'order-daemon')]);
         }
@@ -1313,10 +1327,13 @@ class InsightDashboard
 
     /**
      * Handle AJAX request to reprocess pending orders
+     * 
+     * Note: Reprocessing orders requires manage_woocommerce (Administrator only)
+     * as this is a potentially destructive operation affecting order processing.
      */
     public function handle_reprocess_pending_orders_ajax(): void
     {
-        // Check user capabilities
+        // Check user capabilities - require manage_woocommerce for order reprocessing
         if (!current_user_can('manage_woocommerce')) {
             wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.permission_denied', 'order-daemon')]);
         }
@@ -1402,6 +1419,9 @@ class InsightDashboard
      * Handle export requests via admin-post.php (WordPress way)
      * This method is called by admin-post handlers, which don't load the admin UI
      * 
+     * Note: Export requires manage_woocommerce (Administrator only) as this is
+     * a data export operation that could contain sensitive information.
+     * 
      * @param string $format Export format ('csv' or 'json')
      */
     private function handle_export_request(string $format): void
@@ -1424,7 +1444,7 @@ class InsightDashboard
                 exit;
             }
 
-            // Check user capabilities first
+            // Check user capabilities - require manage_woocommerce for data export
             if (!current_user_can('manage_woocommerce')) {
                 wp_die(esc_html__('admin.insight_dashboard.ajax.permission_denied', 'order-daemon'), 403);
             }

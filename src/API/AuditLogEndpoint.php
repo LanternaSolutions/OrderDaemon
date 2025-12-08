@@ -204,32 +204,37 @@ class AuditLogEndpoint extends WP_REST_Controller
     /**
      * Check API permissions (Core policy)
      *
-     * - GET routes: require manage_woocommerce capability.
-     * - POST routes: require manage_woocommerce + valid REST nonce.
+     * - GET routes: require view_woocommerce_reports capability (aligned with WooCommerce reports).
+     * - POST routes: require view_woocommerce_reports + valid REST nonce.
      *
      * Insight Dashboard is a core free feature; no premium entitlement checks apply here.
+     * Uses WooCommerce standard capability for report viewing, allowing both Admin and Shop Manager access.
      *
      * @param WP_REST_Request $request The REST request
      * @return bool True if permitted; false otherwise
      */
     public function check_permissions(WP_REST_Request $request): bool
     {
-        // Enhanced permission debugging for 404 troubleshooting
+        // Enhanced permission debugging for 403 troubleshooting
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             error_log('ODCM API Permission Check (Free):');
             error_log('- User ID: ' . get_current_user_id());
             error_log('- User roles: ' . implode(', ', wp_get_current_user()->roles ?? []));
-            error_log('- manage_woocommerce: ' . (current_user_can('manage_woocommerce') ? 'YES' : 'NO'));
+            error_log('- view_woocommerce_reports: ' . (current_user_can('view_woocommerce_reports') ? 'YES' : 'NO'));
+            error_log('- manage_woocommerce (fallback): ' . (current_user_can('manage_woocommerce') ? 'YES' : 'NO'));
             error_log('- Request method: ' . $request->get_method());
             error_log('- Request URL: ' . $request->get_route());
             error_log('- User agent: ' . ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'));
             error_log('- Referer: ' . ($_SERVER['HTTP_REFERER'] ?? 'unknown'));
         }
 
-        // Strict capability requirement for all routes
-        if (!current_user_can('manage_woocommerce')) {
+        // Use WooCommerce standard capability for reports (allows Shop Manager access)
+        // Fall back to manage_woocommerce for sites where view_woocommerce_reports isn't available
+        $has_permission = current_user_can('view_woocommerce_reports') || current_user_can('manage_woocommerce');
+        
+        if (!$has_permission) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM API: Permission denied - user lacks manage_woocommerce capability');
+                error_log('ODCM API: Permission denied - user lacks view_woocommerce_reports or manage_woocommerce capability');
             }
             return false;
         }
