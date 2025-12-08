@@ -169,7 +169,10 @@ abstract class AbstractDiagnostic implements DiagnosticInterface
             $path = $matches[2] ?? '';
             
             // Use the current server's protocol and host
-            $current_host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $current_host = 'localhost';
+            if (isset($_SERVER['HTTP_HOST'])) {
+                $current_host = sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST']));
+            }
             $protocol = is_ssl() ? 'https' : 'http';
             
             // For internal requests, we can use localhost without the external port

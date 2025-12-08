@@ -22,6 +22,51 @@ use WC_Order;
 class Core
 {
     /**
+     * Controlled error logging that follows WordPress coding standards
+     *
+     * This method centralizes all error logging to ensure consistency
+     * and respect WordPress debugging settings.
+     *
+     * @param string $message Message to log
+     * @return void
+     */
+    private function controlled_error_log(string $message): void
+    {
+        // Only log when debugging is enabled, with safety checks
+        if ((defined('WP_DEBUG') && WP_DEBUG) || (defined('ODCM_DEBUG') && ODCM_DEBUG)) {
+            // Use WordPress logging function if available
+            if (function_exists('odcm_log_message')) {
+                odcm_log_message($message, 'error');
+            } else {
+                // Fallback to WordPress error log with a consistent prefix
+                error_log('ODCM_CORE: ' . $message);
+            }
+        }
+    }
+
+    /**
+     * Controls if global $woocommerce object is available for our checks.
+     *
+     * @return bool True if WooCommerce global is available.
+     */
+    private function is_woocommerce_ready(): bool
+    {
+        global $woocommerce;
+        
+        if (!isset($woocommerce) || !is_object($woocommerce)) {
+            $this->controlled_error_log('Emergency check: WooCommerce global not available');
+            return false;
+        }
+        
+        if (!method_exists($woocommerce, 'init') || !property_exists($woocommerce, 'version')) {
+            $this->controlled_error_log('Emergency check: WooCommerce global missing required methods/properties');
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
      * Initializes the core functionality.
      *
      * CRITICAL: This method registers admin_init hooks with priority 20 to ensure
@@ -142,9 +187,15 @@ class Core
     public function handle_reprocess_request(): void
     {
         // Only process when explicitly requested via admin-post action
-        $action = isset($_REQUEST['action']) ? sanitize_key((string) $_REQUEST['action']) : '';
+        // Verify the nonce and check the action
+        $action = isset($_REQUEST['action']) ? sanitize_key((string) wp_unslash($_REQUEST['action'])) : '';
         if ($action !== 'odcm_reprocess_orders') {
             return;
+        }
+        
+        // Verify nonce for added security
+        if (!isset($_REQUEST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])), 'odcm_reprocess_action')) {
+            wp_die(esc_html__('Security check failed', 'order-daemon'));
         }
 
         // DEFENSIVE CHECK: Verify post type exists before processing
@@ -163,10 +214,30 @@ class Core
 
         // Log that this method was called
         odcm_log_message("handle_reprocess_request() called from hook: " . current_action(), 'info');
-        odcm_log_message("REQUEST_METHOD: " . ($_SERVER["REQUEST_METHOD"] ?? "unknown"), 'info');
-        odcm_log_message("REQUEST_URI: " . ($_SERVER["REQUEST_URI"] ?? "unknown"), 'info');
-        odcm_log_message("POST data: " . wp_json_encode($_POST), 'info');
-        odcm_log_message("GET data: " . wp_json_encode($_GET), 'info');
+        odcm_log_message("REQUEST_METHOD: " . (isset($_SERVER["REQUEST_METHOD"]) ? sanitize_text_field(wp_unslash($_SERVER["REQUEST_METHOD"])) : "unknown"), 'info');
+        odcm_log_message("REQUEST_URI: " . (isset($_SERVER["REQUEST_URI"]) ? esc_url_raw(wp_unslash($_SERVER["REQUEST_URI"])) : "unknown"), 'info');
+        
+        // Sanitize and verify nonce for $_POST and $_GET data
+        $safe_post = array();
+        foreach ($_POST as $key => $value) {
+            if (is_array($value)) {
+                $safe_post[$key] = array_map('sanitize_text_field', array_map('wp_unslash', $value));
+            } else {
+                $safe_post[$key] = sanitize_text_field(wp_unslash($value));
+            }
+        }
+        
+        $safe_get = array();
+        foreach ($_GET as $key => $value) {
+            if (is_array($value)) {
+                $safe_get[$key] = array_map('sanitize_text_field', array_map('wp_unslash', $value));
+            } else {
+                $safe_get[$key] = sanitize_text_field(wp_unslash($value));
+            }
+        }
+        
+        odcm_log_message("POST data: " . wp_json_encode($safe_post), 'info');
+        odcm_log_message("GET data: " . wp_json_encode($safe_get), 'info');
         odcm_log_message("Current user ID: " . get_current_user_id(), 'info');
         odcm_log_message("Is admin: " . (is_admin() ? "yes" : "no"), 'info');
 
@@ -324,7 +395,7 @@ class Core
         // Check if the reprocess button was clicked and nonce is valid
         if (isset($_POST['odcm_reprocess_orders']) &&
             isset($_POST['odcm_reprocess_nonce']) &&
-            wp_verify_nonce(sanitize_key($_POST['odcm_reprocess_nonce']), 'odcm_reprocess_action')) {
+            wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['odcm_reprocess_nonce'])), 'odcm_reprocess_action')) {
             return current_user_can('manage_woocommerce');
         }
         return false;
@@ -642,13 +713,13 @@ class Core
 
         // Log rule matching results when debug mode is enabled
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} ({$from_slug} → {$to_slug}) - Found " . count($matching_rules) . " matching rules");
+            $this->controlled_error_log("DEBUG_TRACE: Order #{$order_id} ({$from_slug} → {$to_slug}) - Found " . count($matching_rules) . " matching rules");
         }
         
         if (empty($matching_rules)) {
             // Log when no rules match (only in debug mode)
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - NO RULES MATCHED, skipping rule evaluation but timeline event already created");
+                $this->controlled_error_log("DEBUG_TRACE: Order #{$order_id} - NO RULES MATCHED, skipping rule evaluation but timeline event already created");
             }
             
             // Schedule basic order check for compatibility
@@ -660,9 +731,9 @@ class Core
 
         // Log that we found matching rules (only in debug mode)
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - RULES MATCHED, proceeding to rule evaluation");
+            $this->controlled_error_log("DEBUG_TRACE: Order #{$order_id} - RULES MATCHED, proceeding to rule evaluation");
             foreach ($matching_rules as $rule) {
-                error_log("ODCM_DEBUG_TRACE: Order #{$order_id} - Matching rule: {$rule['name']} (ID: {$rule['id']})");
+                $this->controlled_error_log("DEBUG_TRACE: Order #{$order_id} - Matching rule: {$rule['name']} (ID: {$rule['id']})");
             }
         }
 
@@ -948,7 +1019,7 @@ class Core
         
         // DEBUG: Log the event creation process
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_PROCESS_ID_DEBUG: Creating UniversalEvent for order #{$order_id} status change ({$from_status} → {$to_status})");
+            $this->controlled_error_log("PROCESS_ID_DEBUG: Creating UniversalEvent for order #{$order_id} status change ({$from_status} → {$to_status})");
         }
 
         // USE REAL OCCURRENCE TIMESTAMP from WooCommerce order data
@@ -1043,11 +1114,11 @@ class Core
 
         // DEBUG: Log the UniversalEvent data structure
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_PROCESS_ID_DEBUG: UniversalEvent data for order #{$order_id}:");
-            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectType: " . $universal_event_data['primaryObjectType']);
-            error_log("ODCM_PROCESS_ID_DEBUG: - primaryObjectID: " . $universal_event_data['primaryObjectID'] . " (type: " . gettype($universal_event_data['primaryObjectID']) . ")");
-            error_log("ODCM_PROCESS_ID_DEBUG: - eventType: " . $universal_event_data['eventType']);
-            error_log("ODCM_PROCESS_ID_DEBUG: - idempotencyKey: " . $universal_event_data['idempotencyKey']);
+            $this->controlled_error_log("PROCESS_ID_DEBUG: UniversalEvent data for order #{$order_id}:");
+            $this->controlled_error_log("PROCESS_ID_DEBUG: - primaryObjectType: " . $universal_event_data['primaryObjectType']);
+            $this->controlled_error_log("PROCESS_ID_DEBUG: - primaryObjectID: " . $universal_event_data['primaryObjectID'] . " (type: " . gettype($universal_event_data['primaryObjectID']) . ")");
+            $this->controlled_error_log("PROCESS_ID_DEBUG: - eventType: " . $universal_event_data['eventType']);
+            $this->controlled_error_log("PROCESS_ID_DEBUG: - idempotencyKey: " . $universal_event_data['idempotencyKey']);
         }
 
         return new UniversalEvent($universal_event_data);
@@ -1790,8 +1861,8 @@ class Core
                 'peak_memory' => memory_get_peak_usage(true)
             ];
             
-            // Use WordPress error logging to avoid additional DB operations
-            error_log('ODCM_SAFE_ERROR: ' . wp_json_encode($error_data));
+            // Use controlled error logging to avoid additional DB operations
+            $this->controlled_error_log('SAFE_ERROR: ' . wp_json_encode($error_data));
         } catch (\Throwable $e) {
             // Even error logging should not break checkout - complete silence on failure
         }
@@ -1844,11 +1915,11 @@ class Core
                     'order_id' => $order_id
                 ], 'odcm-emergency-processing');
                 
-                error_log("ODCM_EMERGENCY: Scheduled fallback processing for order #{$order_id}");
+                $this->controlled_error_log("EMERGENCY: Scheduled fallback processing for order #{$order_id}");
             }
         } catch (\Throwable $e) {
             // Even emergency fallback should not break checkout
-            error_log("ODCM_EMERGENCY: Final fallback failed for order #{$order_id}");
+            $this->controlled_error_log("EMERGENCY: Final fallback failed for order #{$order_id}");
         }
     }
 
@@ -1869,8 +1940,8 @@ class Core
             
             // Log slow operations (>0.5 seconds)
             if ($execution_time > 0.5) {
-                error_log(sprintf(
-                    'ODCM_SLOW_OPERATION: %s took %.3fs for order #%d',
+                $this->controlled_error_log(sprintf(
+                    'SLOW_OPERATION: %s took %.3fs for order #%d',
                     $operation_name,
                     $execution_time,
                     $order_id
@@ -2100,17 +2171,20 @@ class Core
         // Validate identifier and wrap in backticks for safety. Placeholders cannot be used for identifiers.
         $table_identifier = $table_name === $wpdb->prefix . 'actionscheduler_actions' ? '`' . $table_name . '`' : '`actionscheduler_actions`';
         
-        // Inline prepare call passed directly into get_var to satisfy sniff
-        $existing_count = (int) $wpdb->get_var(
-            $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table_identifier} 
-                 WHERE hook = %s 
-                 AND status IN ('pending', 'in-progress')
-                 AND hook_arguments LIKE %s",
-                'odcm_process_checkout_completion',
-                '%"order_id":' . intval($order_id) . '%'
-            )
+        // Create SQL query with validated table identifier
+        // We need to use string concatenation for the table identifier since WordPress doesn't
+        // support placeholders for identifiers
+        $sql = $wpdb->prepare(
+            "SELECT COUNT(*) FROM " . $table_identifier . " 
+             WHERE hook = %s 
+             AND status IN ('pending', 'in-progress')
+             AND hook_arguments LIKE %s",
+            'odcm_process_checkout_completion',
+            '%"order_id":' . intval($order_id) . '%'
         );
+        
+        // Execute the prepared query
+        $existing_count = (int) $wpdb->get_var($sql);
         
         if ($existing_count > 0) {
             odcm_log_message("Unified processor skipping order #{$order_id} - found {$existing_count} existing jobs via database query", 'info');
@@ -2119,17 +2193,20 @@ class Core
             return false;
         }
         
-        // Additional verification: Get job details for logging
-        $job_details = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT action_id, hook_arguments, status FROM {$table_identifier} 
-                 WHERE hook = %s 
-                 AND hook_arguments LIKE %s 
-                 LIMIT 5",
-                'odcm_process_checkout_completion',
-                '%"order_id":' . intval($order_id) . '%'
-            )
+        // Create SQL query for job details with validated table identifier
+        // We need to use string concatenation for the table identifier since WordPress doesn't
+        // support placeholders for identifiers
+        $sql_details = $wpdb->prepare(
+            "SELECT action_id, hook_arguments, status FROM " . $table_identifier . " 
+             WHERE hook = %s 
+             AND hook_arguments LIKE %s 
+             LIMIT 5",
+            'odcm_process_checkout_completion',
+            '%"order_id":' . intval($order_id) . '%'
         );
+        
+        // Execute the prepared job details query
+        $job_details = $wpdb->get_results($sql_details);
         
         if (!empty($job_details)) {
             odcm_log_message("Unified processor found " . count($job_details) . " jobs for order #{$order_id} via detailed query", 'info');
@@ -2344,13 +2421,13 @@ class Core
         }
 
         if ($order_id <= 0) {
-            error_log('ODCM_BACKGROUND: Invalid order ID for payment processing');
+            $this->controlled_error_log('BACKGROUND: Invalid order ID for payment processing');
             return;
         }
 
         $order = wc_get_order($order_id);
         if (!$order instanceof \WC_Order) {
-            error_log("ODCM_BACKGROUND: Order #{$order_id} not found for payment processing");
+            $this->controlled_error_log("BACKGROUND: Order #{$order_id} not found for payment processing");
             return;
         }
 
@@ -2361,10 +2438,10 @@ class Core
             // Process through universal event pipeline
             $this->process_universal_event_from_hook($universal_event);
 
-            error_log("ODCM_BACKGROUND: Payment completion processed for order #{$order_id}");
+            $this->controlled_error_log("BACKGROUND: Payment completion processed for order #{$order_id}");
 
         } catch (\Throwable $e) {
-            error_log("ODCM_BACKGROUND: Payment processing failed for order #{$order_id}: " . $e->getMessage());
+            $this->controlled_error_log("BACKGROUND: Payment processing failed for order #{$order_id}: " . $e->getMessage());
             
             // Emergency fallback: schedule traditional order check if Universal Events fails
             $this->emergency_fallback_processing($order_id);

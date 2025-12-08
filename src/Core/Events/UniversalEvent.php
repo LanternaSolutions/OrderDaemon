@@ -161,40 +161,40 @@ final class UniversalEvent
     {
         // DEBUG: Log constructor entry
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_CONSTRUCTOR_DEBUG: UniversalEvent constructor started");
-            error_log("ODCM_CONSTRUCTOR_DEBUG: Input data keys: " . implode(', ', array_keys($data)));
+            $this->logDebugMessage("UniversalEvent constructor started");
+            $this->logDebugMessage("Input data keys: " . implode(', ', array_keys($data)));
         }
 
         try {
             // Validate and set required fields
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating eventType: " . var_export($data['eventType'] ?? '', true));
+                $this->logDebugMessage("Validating eventType: " . var_export($data['eventType'] ?? '', true));
             }
             $this->eventType = $this->validateEventType($data['eventType'] ?? '');
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating channel: " . var_export($data['channel'] ?? '', true));
+                $this->logDebugMessage("Validating channel: " . var_export($data['channel'] ?? '', true));
             }
             $this->channel = $this->validateChannel($data['channel'] ?? '');
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating primaryObjectType: " . var_export($data['primaryObjectType'] ?? '', true));
+                $this->logDebugMessage("Validating primaryObjectType: " . var_export($data['primaryObjectType'] ?? '', true));
             }
             $this->primaryObjectType = $this->validateObjectType($data['primaryObjectType'] ?? '');
             
             // Set optional fields with validation
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Processing sourceGateway: " . var_export($data['sourceGateway'] ?? null, true));
+                $this->logDebugMessage("Processing sourceGateway: " . var_export($data['sourceGateway'] ?? null, true));
             }
             $this->sourceGateway = $this->sanitizeString($data['sourceGateway'] ?? null);
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating primaryObjectID: " . var_export($data['primaryObjectID'] ?? null, true));
+                $this->logDebugMessage("Validating primaryObjectID: " . var_export($data['primaryObjectID'] ?? null, true));
             }
             $this->primaryObjectID = $this->validateObjectID($data['primaryObjectID'] ?? null);
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Processing optional fields...");
+                $this->logDebugMessage("Processing optional fields...");
             }
             $this->secondaryObjectType = $this->validateOptionalObjectType($data['secondaryObjectType'] ?? null);
             $this->secondaryObjectID = $this->validateObjectID($data['secondaryObjectID'] ?? null);
@@ -203,29 +203,29 @@ final class UniversalEvent
             $this->reason = $this->sanitizeString($data['reason'] ?? null);
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating amount: " . var_export($data['amount'] ?? null, true));
+                $this->logDebugMessage("Validating amount: " . var_export($data['amount'] ?? null, true));
             }
             $this->amount = $this->validateAmount($data['amount'] ?? null);
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating currency: " . var_export($data['currency'] ?? null, true));
+                $this->logDebugMessage("Validating currency: " . var_export($data['currency'] ?? null, true));
             }
             $this->currency = $this->validateCurrency($data['currency'] ?? null);
             
             // Set timestamps
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating occurredAt timestamp: " . var_export($data['occurredAt'] ?? '', true));
+                $this->logDebugMessage("Validating occurredAt timestamp: " . var_export($data['occurredAt'] ?? '', true));
             }
             $this->occurredAt = $this->validateTimestamp($data['occurredAt'] ?? '');
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Validating receivedAt timestamp: " . var_export($data['receivedAt'] ?? current_time('c'), true));
+                $this->logDebugMessage("Validating receivedAt timestamp: " . var_export($data['receivedAt'] ?? current_time('c'), true));
             }
             $this->receivedAt = $this->validateTimestamp($data['receivedAt'] ?? current_time('c'));
             
             // Set or generate idempotency key
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Processing idempotencyKey: " . var_export($data['idempotencyKey'] ?? '', true));
+                $this->logDebugMessage("Processing idempotencyKey: " . var_export($data['idempotencyKey'] ?? '', true));
             }
             $this->idempotencyKey = !empty($data['idempotencyKey']) 
                 ? sanitize_text_field((string) $data['idempotencyKey'])
@@ -233,25 +233,25 @@ final class UniversalEvent
                 
             // Sanitize raw data
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Processing rawData...");
+                $this->logDebugMessage("Processing rawData...");
             }
             $this->rawData = $this->sanitizeRawData($data['rawData'] ?? []);
             
             // Set UI components
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Processing components...");
+                $this->logDebugMessage("Processing components...");
             }
             $this->components = isset($data['components']) && is_array($data['components']) ? $data['components'] : [];
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: UniversalEvent constructor completed successfully");
+                $this->logDebugMessage("UniversalEvent constructor completed successfully");
             }
 
         } catch (\Throwable $e) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_CONSTRUCTOR_DEBUG: CONSTRUCTOR FAILED - " . get_class($e) . ": " . $e->getMessage());
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Error in file: " . $e->getFile() . " at line: " . $e->getLine());
-                error_log("ODCM_CONSTRUCTOR_DEBUG: Stack trace: " . $e->getTraceAsString());
+                $this->logDebugMessage("CONSTRUCTOR FAILED - " . get_class($e) . ": " . $e->getMessage());
+                $this->logDebugMessage("Error in file: " . $e->getFile() . " at line: " . $e->getLine());
+                $this->logDebugMessage("Stack trace: " . $e->getTraceAsString());
             }
             throw $e; // Re-throw the original exception
         }
@@ -594,8 +594,38 @@ final class UniversalEvent
             $date = new \DateTime($timestamp);
             return $date->format('c') !== false;
         } catch (\Exception $e) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("Invalid ISO8601 timestamp: " . $timestamp);
+            }
             return false;
         }
+    }
+
+    /**
+     * Log debug messages using WordPress-friendly logging methods
+     *
+     * @param string $message The message to log
+     * @return void
+     */
+    private function logDebugMessage(string $message): void
+    {
+        // Prefix for all debug messages from this class
+        $prefix = "ODCM_CONSTRUCTOR_DEBUG: ";
+        
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($prefix . $message, 'debug');
+            return;
+        }
+        
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($prefix . $message);
+            return;
+        }
+        
+        // Fallback to error_log only if neither of the above are available
+        error_log($prefix . $message);
     }
 
     /**

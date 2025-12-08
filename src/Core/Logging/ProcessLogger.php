@@ -149,7 +149,7 @@ final class ProcessLogger
             return ['correlation_id' => $this->correlation_id];
         } catch (\Throwable $e) {
             // 3) Last Resort Error Handler (do not call internal logger again)
-            error_log('ODCM CRITICAL LOGGER FAILURE in ' . __METHOD__ . ': ' . $e->getMessage());
+            $this->critical_log('CRITICAL LOGGER FAILURE in ' . __METHOD__ . ': ' . $e->getMessage());
             return ['correlation_id' => $this->correlation_id ?? ''];
         } finally {
             // 4) Release the Lock
@@ -190,7 +190,7 @@ final class ProcessLogger
             return $component_key;
         } catch (\Throwable $e) {
             // 3) Last Resort Error Handler
-            error_log('ODCM CRITICAL LOGGER FAILURE in ' . __METHOD__ . ': ' . $e->getMessage());
+            $this->critical_log('CRITICAL LOGGER FAILURE in ' . __METHOD__ . ': ' . $e->getMessage());
             return $key ?: '';
         } finally {
             // 4) Release the Lock
@@ -210,7 +210,7 @@ final class ProcessLogger
         // 1) Recursion Guard
         if (self::$is_logging) {
             // Critical: Log recursion guard triggers as they indicate serious bugs
-            error_log('ODCM ProcessLogger: Recursion guard triggered in finish() - possible infinite loop');
+            $this->critical_log('Recursion guard triggered in finish() - possible infinite loop');
             return false;
         }
 
@@ -287,7 +287,7 @@ final class ProcessLogger
             // since UniversalEventProcessor will create enhanced events instead
             if (self::$universal_event_context) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log('ODCM ProcessLogger: Skipping timeline event creation due to universal event context');
+                    $this->critical_log('Skipping timeline event creation due to universal event context');
                 }
                 // Still return the correlation_id as log_id for process continuity
                 return $this->correlation_id; 
@@ -305,13 +305,13 @@ final class ProcessLogger
             
             // Critical: Log logging failures as they indicate serious system issues
             if (!$log_result) {
-                error_log('ODCM ProcessLogger: odcm_log_event() failed for process: ' . $this->type);
+                $this->critical_log('odcm_log_event() failed for process: ' . $this->type);
             }
             
             return $log_result;
         } catch (\Throwable $e) {
             // 3) Last Resort Error Handler
-            error_log('ODCM CRITICAL LOGGER FAILURE in ' . __METHOD__ . ': ' . $e->getMessage());
+            $this->critical_log('CRITICAL LOGGER FAILURE in ' . __METHOD__ . ': ' . $e->getMessage());
             return false;
         } finally {
             // 4) Release the Lock
@@ -462,5 +462,30 @@ final class ProcessLogger
     public static function is_universal_event_context(): bool
     {
         return self::$universal_event_context;
+    }
+    
+    /**
+     * Safe critical logging that respects WordPress debugging settings
+     * 
+     * This is used as a last resort error handler when the standard logging
+     * mechanisms fail. It's designed to avoid recursive logging loops while
+     * still providing important error information.
+     * 
+     * @param string $message Message to log
+     * @return void
+     */
+    private function critical_log(string $message): void
+    {
+        // Only log when debugging is enabled, with safety checks
+        if ((defined('WP_DEBUG') && WP_DEBUG) || (defined('ODCM_DEBUG') && ODCM_DEBUG)) {
+            // Use WordPress logging function if available
+            if (function_exists('odcm_log_message')) {
+                // Keep this separate from the ProcessLogger main functions to avoid recursion
+                odcm_log_message('ProcessLogger: ' . $message, 'error');
+            } else {
+                // Fallback to WordPress error log with a consistent prefix
+                error_log('ODCM ProcessLogger: ' . $message);
+            }
+        }
     }
 }

@@ -89,7 +89,7 @@ class CompletionRulesListTable extends \WP_List_Table
         // Security check
         if (isset($_POST['_wpnonce']) && !empty($_POST['rule'])) {
             $action = $this->current_action();
-            $nonce  = sanitize_key($_POST['_wpnonce']);
+            $nonce  = sanitize_key(wp_unslash($_POST['_wpnonce']));
 
             // Verify the nonce
             if (!wp_verify_nonce($nonce, 'bulk-' . $this->_args['plural'])) {
@@ -102,7 +102,7 @@ class CompletionRulesListTable extends \WP_List_Table
             }
 
             // Sanitize rule IDs
-            $rule_ids = array_map('absint', $_POST['rule']);
+            $rule_ids = array_map('absint', wp_unslash($_POST['rule']));
 
             // Process actions
             switch ($action) {
@@ -347,9 +347,27 @@ class CompletionRulesListTable extends \WP_List_Table
         $per_page = $this->get_per_page_setting();
         $current_page = $this->get_pagenum();
 
-        // Get sorting parameters
-        $orderby = isset($_REQUEST['orderby']) ? sanitize_key($_REQUEST['orderby']) : 'menu_order';
-        $order = isset($_REQUEST['order']) ? sanitize_key($_REQUEST['order']) : 'asc';
+        // Get sorting parameters - only verify nonce if the request contains one
+        // This allows initial page load without nonce while still verifying when sorting is changed
+        $has_nonce = isset($_REQUEST['_wpnonce']);
+        if ($has_nonce) {
+            check_admin_referer('manage-posts', '_wpnonce');
+        }
+        
+        // Verify nonce for the form submission or ensure it's safe
+        $is_safe_request = false;
+        if (isset($_REQUEST['_wpnonce'])) {
+            $is_safe_request = wp_verify_nonce(sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])), 'manage-posts');
+        }
+        
+        // Only process form data if it's a safe request or initial page load
+        $orderby = 'menu_order'; // Default value
+        $order = 'asc'; // Default value
+        
+        if ($is_safe_request || !isset($_REQUEST['_wpnonce'])) {
+            $orderby = isset($_REQUEST['orderby']) ? sanitize_key(wp_unslash($_REQUEST['orderby'])) : 'menu_order';
+            $order = isset($_REQUEST['order']) ? sanitize_key(wp_unslash($_REQUEST['order'])) : 'asc';
+        }
 
         // Map orderby values to actual query parameters
         $orderby_mapping = [
@@ -371,9 +389,11 @@ class CompletionRulesListTable extends \WP_List_Table
             'order'          => $order,
         ];
 
-        // Add search if provided
-        if (!empty($_REQUEST['s'])) {
-            $args['s'] = sanitize_text_field($_REQUEST['s']);
+        // Add search if provided - check nonce before processing search parameter
+        if ((isset($_REQUEST['_wpnonce']) && $is_safe_request) || !isset($_REQUEST['_wpnonce'])) {
+            if (!empty($_REQUEST['s'])) {
+                $args['s'] = sanitize_text_field(wp_unslash($_REQUEST['s']));
+            }
         }
 
         $query = new \WP_Query($args);

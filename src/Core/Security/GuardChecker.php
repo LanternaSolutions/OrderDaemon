@@ -158,10 +158,10 @@ class GuardChecker {
      */
     private function getRequestContext(): array {
         return [
-            'method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
-            'user_agent' => sanitize_text_field($_SERVER['HTTP_USER_AGENT'] ?? ''),
-            'referer' => esc_url_raw($_SERVER['HTTP_REFERER'] ?? ''),
-            'request_uri' => esc_url_raw($_SERVER['REQUEST_URI'] ?? '')
+            'method' => isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) : 'unknown',
+            'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : '',
+            'referer' => isset($_SERVER['HTTP_REFERER']) ? esc_url_raw(wp_unslash($_SERVER['HTTP_REFERER'])) : '',
+            'request_uri' => isset($_SERVER['REQUEST_URI']) ? esc_url_raw(wp_unslash($_SERVER['REQUEST_URI'])) : ''
         ];
     }
 }

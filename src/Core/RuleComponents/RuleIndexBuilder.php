@@ -270,7 +270,10 @@ final class RuleIndexBuilder
                 try {
                     $builder->build_and_save((int)$pid, $rule);
                 } catch (\Throwable $e) {
-                    error_log('ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage());
+                    // Only log errors in debug mode
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        error_log('ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage());
+                    }
                 }
             } else {
                 try {

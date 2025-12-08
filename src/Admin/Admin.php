@@ -143,6 +143,14 @@ class Admin
             <?php
         });
         
+        // Verify nonce if this is a form submission
+        if (!empty($_REQUEST) && isset($_REQUEST['_wpnonce'])) {
+            $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
+            if (!wp_verify_nonce($nonce, 'bulk-posts')) {
+                return;
+            }
+        }
+        
         // Add custom row attributes to enable drag-and-drop
         add_filter('post_class', function($classes, $class, $post_id) {
             if (get_post_type($post_id) === 'odcm_order_rule') {
@@ -193,7 +201,31 @@ class Admin
         }
         
         // Get the rule order data
-        $rule_ids_raw = isset($_POST['rule_ids']) ? (array) wp_unslash($_POST['rule_ids']) : [];
+        $rule_ids_raw = isset($_POST['rule_ids']) ? $_POST['rule_ids'] : [];
+        
+        // Sanitize the rule IDs
+        if (is_string($rule_ids_raw)) {
+            // If it's a string (like a JSON string), unslash it first
+            $rule_ids_raw = wp_unslash($rule_ids_raw);
+            // Try to decode JSON if it appears to be JSON
+            if (strpos($rule_ids_raw, '[') === 0) {
+                $decoded = json_decode($rule_ids_raw, true);
+                if (is_array($decoded)) {
+                    $rule_ids_raw = $decoded;
+                } else {
+                    $rule_ids_raw = [$rule_ids_raw]; // Fallback to single-item array
+                }
+            } else {
+                $rule_ids_raw = [$rule_ids_raw];
+            }
+        } elseif (!is_array($rule_ids_raw)) {
+            $rule_ids_raw = wp_unslash($rule_ids_raw); // Ensure we unslash
+            $rule_ids_raw = [$rule_ids_raw]; // Ensure it's an array
+        } else {
+            $rule_ids_raw = wp_unslash($rule_ids_raw); // Ensure we unslash the array
+        }
+        
+        // Now sanitize each ID as an integer
         $rule_ids = array_map('absint', $rule_ids_raw);
         
         if (empty($rule_ids)) {
@@ -285,7 +317,23 @@ class Admin
         // Special handling for the edit.php screen (list table)
         // We need to check if it's our post type from the URL
         if ($hook_suffix === 'edit.php') {
-            $current_post_type = isset($_GET['post_type']) ? sanitize_key($_GET['post_type']) : 'post';
+            // Check if this is a form submission
+            if (!empty($_REQUEST) && isset($_REQUEST['action']) && !isset($_REQUEST['_wpnonce'])) {
+                // If it's a form submission without a nonce, don't proceed
+                return;
+            }
+            
+            // Verify nonce for form submissions
+            if (isset($_REQUEST['action']) && isset($_REQUEST['_wpnonce'])) {
+                $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
+                if (!wp_verify_nonce($nonce, 'bulk-posts')) {
+                    return;
+                }
+            }
+            
+            // This is just determining which assets to load
+            $current_post_type = isset($_GET['post_type']) ? sanitize_key(wp_unslash($_GET['post_type'])) : 'post';
+            
             if ('odcm_order_rule' !== $current_post_type) {
                 return;
                 // It's a list page, but not for our custom post type

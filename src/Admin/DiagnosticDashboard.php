@@ -233,13 +233,12 @@ class DiagnosticDashboard
             <div class="odcm-status-banner" id="status-banner" style="display: none;">
                 <div class="odcm-status-banner-left">
                     <span class="odcm-status-icon" id="banner-status-icon">✅</span>
-                    <span class="odcm-status-text" id="banner-status-text"><?php esc_html_e('admin.diagnostics.status.system_healthy', 'order-daemon'); ?></span>
+                        <span class="odcm-status-text" id="banner-status-text"><?php esc_html_e('admin.diagnostics.status.system_healthy', 'order-daemon'); ?></span>
                 </div>
                 <div class="odcm-status-banner-center" id="banner-status-summary">
                     <?php
                     /* translators: 1: Number of tests passed, 2: Number of tests failed */
-                    /* translators: 1: Number of tests passed, 2: Number of tests failed */
-                                        printf(esc_html__('%1$d passed, %2$d failed', 'order-daemon'), 0, 0);
+                    printf(esc_html__('%1$d passed, %2$d failed', 'order-daemon'), 0, 0);
                     ?>
                 </div>
                 <div class="odcm-status-banner-right">
@@ -266,7 +265,7 @@ class DiagnosticDashboard
 
             <!-- Unified Results Container -->
             <div class="odcm-unified-results" id="unified-results" style="display: none;">
-                <div class="odcm-results-header">
+                    <div class="odcm-results-header">
                     <h2><?php esc_html_e('Diagnostics Results', 'order-daemon'); ?></h2>
                     <span class="odcm-results-timestamp" id="results-timestamp"><?php 
                                         /* translators: %s: timestamp of when diagnostics were executed */
@@ -402,9 +401,9 @@ class DiagnosticDashboard
 
         } catch (\Throwable $e) {
             wp_send_json_error([
+                /* translators: %s: The error message that occurred while generating dual-audience report */
                 'message' => sprintf(
-                    /* translators: %s: The error message that occurred while generating dual-audience report */
-                    __('Failed to generate report', 'order-daemon'),
+                    __('Failed to generate report: %s', 'order-daemon'),
                     $e->getMessage()
                 )
             ]);
@@ -424,7 +423,7 @@ class DiagnosticDashboard
         <div class="odcm-report">
             <div class="odcm-report-summary">
                 <h4><?php esc_html_e('Summary', 'order-daemon'); ?></h4>
-                <p>
+                    <p>
                     <?php
                     /* translators: 1: Number of tests run, 2: Number passed, 3: Number failed */
                     printf(esc_html__('Ran %1$d tests: %2$d passed, %3$d failed', 'order-daemon'), 
@@ -471,7 +470,6 @@ class DiagnosticDashboard
                     <h5><?php
                     /* translators: 1: Category name, 2: Number passed, 3: Total number */
                     printf(
-                           /* translators: 1: Category name, 2: Number passed, 3: Total number */
                            esc_html__('%1$s: %2$d/%3$d passed', 'order-daemon'),
                            esc_html( $this->format_category_name($category_name) ),
                            esc_html($category_data['passed']),
@@ -747,19 +745,22 @@ class DiagnosticDashboard
         
         // Header
         $output .= __('ORDER DAEMON DIAGNOSTICS REPORT', 'order-daemon') . "\n";
+        /* translators: %s: The date and time when the report was generated */
         $output .= sprintf(__('Generated: %s', 'order-daemon'), current_time('Y-m-d H:i:s T')) . "\n";
+        /* translators: %s: The Order Daemon plugin version number */
         $output .= sprintf(__('Plugin Version: %s', 'order-daemon'), defined('ODCM_VERSION') ? ODCM_VERSION : __('unknown', 'order-daemon')) . "\n";
         $output .= "\n";
 
         // Report Summary
         $output .= __('SUMMARY', 'order-daemon') . "\n";
         $output .= "-------\n";
-        $output .= sprintf(
-            __('Tests run: %1$d | Passed: %2$d | Failed: %3$d', 'order-daemon'),
-            $report['summary']['total_tests'],
-            $report['summary']['passed'],
-            $report['summary']['failed']
-        ) . "\n";
+                /* translators: 1: Total tests run, 2: Number passed, 3: Number failed */
+                $output .= sprintf(
+                    __('Tests run: %1$d | Passed: %2$d | Failed: %3$d', 'order-daemon'),
+                    $report['summary']['total_tests'],
+                    $report['summary']['passed'],
+                    $report['summary']['failed']
+                ) . "\n";
         $output .= "\n";
 
         // Critical Issues Section (if any)
@@ -804,7 +805,9 @@ class DiagnosticDashboard
                     $status_icon = $this->get_status_icon_for_text($test_result);
                     
                     $output .= sprintf("\n%s %s\n", $status_icon, $test_result['name']);
+                    /* translators: %s: The test status (e.g., Success, Error, Warning) */
                     $output .= sprintf(__('Status: %s', 'order-daemon'), ucfirst($test_result['status'])) . "\n";
+                    /* translators: %s: The diagnostic message text */
                     $output .= sprintf(__('Message: %s', 'order-daemon'), $test_result['message']) . "\n";
                     
                     // Add recommendations if any

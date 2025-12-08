@@ -80,7 +80,9 @@ final class ProcessLifecycleDiscovery
             $this->process_families = apply_filters('odcm_process_lifecycle_families', $families);
         } catch (\Throwable $e) {
             // Fail safe to a minimal default, do not break UI
-            error_log('ODCM: Process lifecycle discovery failed: ' . $e->getMessage());
+            if (function_exists('odcm_log_message')) {
+                odcm_log_message('Process lifecycle discovery failed: ' . $e->getMessage(), 'error');
+            }
             $this->process_families = $this->categorize_by_business_logic([]);
         }
 
@@ -282,20 +284,29 @@ final class ProcessLifecycleDiscovery
 
             // Use the authoritative event_type column for discovered process types.
             // This is reliable across environments and matches the values used by the UI and API.
-            $results = $wpdb->get_col(
-                $wpdb->prepare(
-                    "SELECT DISTINCT event_type
-                    FROM {$table_identifier}
-                    WHERE event_type IS NOT NULL AND event_type != %s",
-                    ''
-                )
+            // Create the SQL query with the validated table identifier
+            // We need to concatenate the SQL parts since WordPress doesn't support placeholders
+            // for table identifiers
+            $sql = $wpdb->prepare(
+                "SELECT DISTINCT event_type FROM " . $table_identifier . " WHERE event_type IS NOT NULL AND event_type != %s",
+                ''
             );
+            $results = $wpdb->get_col($sql);
             $types = is_array($results) ? $results : [];
             $types = array_values(array_unique(array_filter(array_map('strval', $types))));
 
             return $types;
         } catch (\Throwable $e) {
-            odcm_log_message('ODCM: Process type discovery failed: ' . $e->getMessage(), 'error');
+            // Log error using the plugin's logging function instead of error_log
+            if (function_exists('odcm_log_message')) {
+                odcm_log_message('ODCM: Process type discovery failed: ' . $e->getMessage(), 'error');
+            } else {
+                // Fallback to WordPress error logging if our function isn't available
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    // Only log in debug mode
+                    error_log('ODCM: Process type discovery failed: ' . $e->getMessage());
+                }
+            }
             return [];
         }
     }

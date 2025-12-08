@@ -156,64 +156,100 @@ final class RuleComponentRegistry
     private function load_components(): void
     {
         if ($this->is_loaded) {
-            error_log('ODCM: Components already loaded, skipping');
+            if (function_exists('odcm_log_message') && apply_filters('odcm_debug_enabled', defined('ODCM_DEBUG') && ODCM_DEBUG)) {
+                odcm_log_message('Components already loaded, skipping', 'debug');
+            }
             return;
         }
 
-        error_log('ODCM: Starting component loading...');
+        if (function_exists('odcm_log_message') && apply_filters('odcm_debug_enabled', defined('ODCM_DEBUG') && ODCM_DEBUG)) {
+            odcm_log_message('Starting component loading...', 'debug');
+            $base_path = dirname(__FILE__);
+            odcm_log_message('Base path: ' . $base_path, 'debug');
+        }
         $base_path = dirname(__FILE__);
-        error_log('ODCM: Base path: ' . $base_path);
         
         $component_types = ['RuleTriggers', 'RuleConditions', 'RuleActions'];
+        $debug_enabled = function_exists('odcm_log_message') && apply_filters('odcm_debug_enabled', defined('ODCM_DEBUG') && ODCM_DEBUG);
 
         foreach ($component_types as $type) {
             $path = $base_path . '/' . $type;
-            error_log("ODCM: Checking directory: {$path}");
+            if ($debug_enabled) {
+                odcm_log_message("Checking directory: {$path}", 'debug');
+            }
             
             if (!is_dir($path)) {
-                error_log("ODCM: Directory {$path} does not exist, skipping");
+                if ($debug_enabled) {
+                    odcm_log_message("Directory {$path} does not exist, skipping", 'debug');
+                }
                 continue;
             }
 
             $files = glob($path . '/*.php');
-            error_log("ODCM: Found " . count($files) . " files in {$type}");
+            if ($debug_enabled) {
+                odcm_log_message("Found " . count($files) . " files in {$type}", 'debug');
+            }
             
             foreach ($files as $file) {
-                error_log("ODCM: Processing file: {$file}");
+                if ($debug_enabled) {
+                    odcm_log_message("Processing file: {$file}", 'debug');
+                }
+                
                 try {
                     require_once $file;
                     $class = $this->get_class_from_file($file, $type);
-                    error_log("ODCM: Extracted class name: {$class}");
+                    
+                    if ($debug_enabled) {
+                        odcm_log_message("Extracted class name: {$class}", 'debug');
+                    }
 
                     if ($class && class_exists($class)) {
-                        error_log("ODCM: Class {$class} exists");
+                        if ($debug_enabled) {
+                            odcm_log_message("Class {$class} exists", 'debug');
+                        }
                         
                         if (!$this->is_abstract($class)) {
-                            error_log("ODCM: Class {$class} is not abstract, instantiating...");
+                            if ($debug_enabled) {
+                                odcm_log_message("Class {$class} is not abstract, instantiating...", 'debug');
+                            }
+                            
                             // Try to instantiate with error handling
                             $instance = new $class();
-                            error_log("ODCM: Successfully instantiated {$class}");
+                            
+                            if ($debug_enabled) {
+                                odcm_log_message("Successfully instantiated {$class}", 'debug');
+                            }
+                            
                             $this->register_component($instance);
-                            error_log("ODCM: Successfully registered {$class} with ID: " . $instance->get_id());
-                        } else {
-                            error_log("ODCM: Class {$class} is abstract, skipping");
+                            
+                            if ($debug_enabled) {
+                                odcm_log_message("Successfully registered {$class} with ID: " . $instance->get_id(), 'debug');
+                            }
+                        } else if ($debug_enabled) {
+                            odcm_log_message("Class {$class} is abstract, skipping", 'debug');
                         }
-                    } else {
-                        error_log("ODCM: Class {$class} does not exist or could not be loaded");
+                    } else if ($debug_enabled) {
+                        odcm_log_message("Class {$class} does not exist or could not be loaded", 'debug');
                     }
                 } catch (\Throwable $e) {
                     // Log the error but continue loading other components
-                    error_log("ODCM: Failed to load component from {$file}: " . $e->getMessage());
-                    error_log("ODCM: Stack trace: " . $e->getTraceAsString());
+                    if (function_exists('odcm_log_message')) {
+                        odcm_log_message("Failed to load component from {$file}: " . $e->getMessage(), 'error');
+                        if ($debug_enabled) {
+                            odcm_log_message("Stack trace: " . $e->getTraceAsString(), 'debug');
+                        }
+                    }
                     continue;
                 }
             }
         }
 
-        error_log('ODCM: Component loading complete. Loaded: ' . 
+        if ($debug_enabled) {
+            odcm_log_message('Component loading complete. Loaded: ' . 
                   count($this->triggers) . ' triggers, ' . 
                   count($this->conditions) . ' conditions, ' . 
-                  count($this->actions) . ' actions');
+                  count($this->actions) . ' actions', 'debug');
+        }
         
         $this->is_loaded = true;
     }

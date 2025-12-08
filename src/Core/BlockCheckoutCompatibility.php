@@ -673,17 +673,20 @@ final class BlockCheckoutCompatibility
         // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
         $table_identifier = ($table_name === $wpdb->prefix . 'actionscheduler_actions') ? '`' . $table_name . '`' : '`actionscheduler_actions`';
         
-        // Inline prepare() to satisfy Plugin Checker's variable tracking
-        $existing_count = (int) $wpdb->get_var(
-            $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table_identifier} 
-                 WHERE hook = %s 
-                 AND status IN ('pending', 'in-progress')
-                 AND hook_arguments LIKE %s",
-                'odcm_process_checkout_completion',
-                '%"order_id":' . intval($order_id) . '%'
-            )
+        // Create SQL query with validated table identifier
+        // We need to use string concatenation for the table identifier since WordPress doesn't
+        // support placeholders for table names
+        $sql = $wpdb->prepare(
+            "SELECT COUNT(*) FROM " . $table_identifier . " 
+             WHERE hook = %s 
+             AND status IN ('pending', 'in-progress')
+             AND hook_arguments LIKE %s",
+            'odcm_process_checkout_completion',
+            '%"order_id":' . intval($order_id) . '%'
         );
+        
+        // Execute the prepared query
+        $existing_count = (int) $wpdb->get_var($sql);
         
         if ($existing_count > 0) {
             odcm_log_message("Block checkout skipping order #{$order_id} - found {$existing_count} existing jobs via database query", 'info');

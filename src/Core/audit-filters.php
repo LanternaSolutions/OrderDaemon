@@ -158,6 +158,9 @@ function odcm_register_audit_filters(): void
  */
 function odcm_render_basic_search_filter(array $filter, bool $has_permission, string $current_value): void
 {
+    // Add nonce field for the filter form
+    wp_nonce_field('odcm_audit_filter_action', '_wpnonce');
+    
     echo '<input type="text" ';
     echo 'name="s" ';
     echo 'id="odcm-search-input" ';
@@ -186,8 +189,21 @@ function odcm_render_basic_search_filter(array $filter, bool $has_permission, st
  */
 function odcm_render_date_range_filter(array $filter, bool $has_permission, string $current_value): void
 {
-    $date_from = isset($_GET['date_start']) ? sanitize_text_field($_GET['date_start']) : '';
-    $date_to = isset($_GET['date_end']) ? sanitize_text_field($_GET['date_end']) : '';
+    // Verify nonce if this is a form submission
+    $is_valid_request = false;
+    if (isset($_REQUEST['_wpnonce'])) {
+        $is_valid_request = wp_verify_nonce(sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])), 'odcm_audit_filter_action');
+    }
+    
+    // Only process filter data if the request is valid or if it's an initial page load
+    $date_from = '';
+    $date_to = '';
+    
+    // Only process GET parameters if nonce validation passes or if we're not processing a form submission
+    if ($is_valid_request || !isset($_REQUEST['_wpnonce'])) {
+        $date_from = isset($_GET['date_start']) ? sanitize_text_field(wp_unslash($_GET['date_start'])) : '';
+        $date_to = isset($_GET['date_end']) ? sanitize_text_field(wp_unslash($_GET['date_end'])) : '';
+    }
     
     echo '<div class="odcm-date-range-container">';
     
@@ -235,6 +251,15 @@ function odcm_render_date_range_filter(array $filter, bool $has_permission, stri
  */
 function odcm_render_status_filter(array $filter, bool $has_permission, string $current_value): void
 {
+    // Verify nonce if this is a form submission
+    if (!empty($_REQUEST) && isset($_REQUEST['_wpnonce'])) {
+        $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
+        if (!wp_verify_nonce($nonce, 'odcm_audit_filter_action')) {
+            // Invalid nonce, but we'll still show the filter - just won't process values
+            $current_value = '';
+        }
+    }
+    
     $statuses = [
         ''        => __('admin.insight_dashboard.filters.status.all', 'order-daemon'),
         'success' => __('status.success', 'order-daemon'),
@@ -273,6 +298,15 @@ function odcm_render_status_filter(array $filter, bool $has_permission, string $
  */
 function odcm_render_event_type_filter(array $filter, bool $has_permission, string $current_value): void
 {
+    // Verify nonce if this is a form submission
+    if (!empty($_REQUEST) && isset($_REQUEST['_wpnonce'])) {
+        $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
+        if (!wp_verify_nonce($nonce, 'odcm_audit_filter_action')) {
+            // Invalid nonce, but we'll still show the filter - just won't process values
+            $current_value = '';
+        }
+    }
+    
     $event_types = [
         ''                    => __('admin.insight_dashboard.filters.event_type.all', 'order-daemon'),
         'rule_check'          => __('admin.insight_dashboard.filters.event_type.rule_check', 'order-daemon'),
@@ -314,6 +348,15 @@ function odcm_render_event_type_filter(array $filter, bool $has_permission, stri
  */
 function odcm_render_source_filter(array $filter, bool $has_permission, string $current_value): void
 {
+    // Verify nonce if this is a form submission
+    if (!empty($_REQUEST) && isset($_REQUEST['_wpnonce'])) {
+        $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
+        if (!wp_verify_nonce($nonce, 'odcm_audit_filter_action')) {
+            // Invalid nonce, but we'll still show the filter - just won't process values
+            $current_value = '';
+        }
+    }
+    
     $sources = [
         ''          => __('admin.insight_dashboard.filters.status.all', 'order-daemon'),
         'manual'    => __('admin.insight_dashboard.filters.source.manual', 'order-daemon'),

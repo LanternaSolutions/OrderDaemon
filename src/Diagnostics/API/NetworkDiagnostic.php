@@ -583,7 +583,7 @@ class NetworkDiagnostic extends AbstractDiagnostic
 
         // Check if the site is likely accessed by older browsers
         // This is a simplified check - in reality, you'd analyze user agent data
-        $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : '';
         
         if (strpos($user_agent, 'MSIE') !== false || 
             strpos($user_agent, 'Trident') !== false ||

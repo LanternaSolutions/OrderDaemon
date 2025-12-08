@@ -214,7 +214,7 @@ class EnvironmentDiagnostic extends AbstractDiagnostic
      */
     private function is_development_environment(): bool
     {
-        $server_name = $_SERVER['SERVER_NAME'] ?? '';
+        $server_name = isset($_SERVER['SERVER_NAME']) ? sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME'])) : '';
         $development_indicators = [
             'localhost',
             '.local',

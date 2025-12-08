@@ -129,9 +129,9 @@ final class RefundDeletionDiagnostics
         $context['actor'] = [
             'user_id'    => $user_id ?: null,
             'user_roles' => is_user_logged_in() ? array_values(array_map('sanitize_text_field', (array) wp_get_current_user()->roles)) : [],
-            'ip'         => isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field((string) $_SERVER['REMOTE_ADDR']) : null,
-            'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field((string) $_SERVER['HTTP_USER_AGENT']) : null,
-            'referer'    => isset($_SERVER['HTTP_REFERER']) ? esc_url_raw((string) $_SERVER['HTTP_REFERER']) : null,
+            'ip'         => isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR'])) : null,
+            'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_USER_AGENT'])) : null,
+            'referer'    => isset($_SERVER['HTTP_REFERER']) ? esc_url_raw(wp_unslash((string) $_SERVER['HTTP_REFERER'])) : null,
         ];
 
         // Technical context
@@ -280,6 +280,17 @@ final class RefundDeletionDiagnostics
     private function get_trimmed_backtrace(int $limit = 6): array
     {
         $trace = function_exists('wp_debug_backtrace_summary') ? [] : [];
+        
+        // Only collect backtrace for debugging
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return [];
+        }
+        
+        // Only use debug_backtrace if the function exists
+        if (!function_exists('debug_backtrace')) {
+            return [];
+        }
+        
         $frames = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, max(3, $limit));
         $out = [];
         foreach ($frames as $f) {
@@ -381,6 +392,11 @@ final class RefundDeletionDiagnostics
      */
     private function safe_error_log(string $message, ?\Throwable $e = null): void
     {
+        // Only log errors in debug mode
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+        
         static $count = 0;
         if ($count >= 10) {
             return; // throttle to avoid log flooding
@@ -1053,16 +1069,16 @@ final class RefundDeletionDiagnostics
             if ($this->is_woocommerce_available()) {
                 $order_obj = $order instanceof WC_Order ? $order : wc_get_order($order_id);
                 if ($order_obj instanceof WC_Order) {
-                    $extra = [
-                        'deletion' => [
-                            'phase'  => 'before_delete',
-                            'who'    => get_current_user_id() ?: null,
-                            'ip'     => isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field((string) $_SERVER['REMOTE_ADDR']) : null,
-                            'ua'     => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field((string) $_SERVER['HTTP_USER_AGENT']) : null,
-                            'ref'    => isset($_SERVER['HTTP_REFERER']) ? esc_url_raw((string) $_SERVER['HTTP_REFERER']) : null,
-                            'ts'     => odcm_iso8601_now(),
-                        ],
-                    ];
+                $extra = [
+                    'deletion' => [
+                        'phase'  => 'before_delete',
+                        'who'    => get_current_user_id() ?: null,
+                        'ip'     => isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR'])) : null,
+                        'ua'     => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_USER_AGENT'])) : null,
+                        'ref'    => isset($_SERVER['HTTP_REFERER']) ? esc_url_raw(wp_unslash((string) $_SERVER['HTTP_REFERER'])) : null,
+                        'ts'     => odcm_iso8601_now(),
+                    ],
+                ];
                     $snapshot = $this->capture_order_snapshot($order_obj, $extra);
                     // enrich perf with lock/concurrency
                     if (is_array($snapshot)) {
@@ -1141,11 +1157,11 @@ final class RefundDeletionDiagnostics
                         'deletion' => [
                             'phase'  => 'before_trash',
                             'who'    => get_current_user_id() ?: null,
-                            'ip'     => isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field((string) $_SERVER['REMOTE_ADDR']) : null,
-                            'ua'     => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field((string) $_SERVER['HTTP_USER_AGENT']) : null,
-                            'ref'    => isset($_SERVER['HTTP_REFERER']) ? esc_url_raw((string) $_SERVER['HTTP_REFERER']) : null,
+                            'ip'     => isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR'])) : null,
+                            'ua'     => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_USER_AGENT'])) : null,
+                            'ref'    => isset($_SERVER['HTTP_REFERER']) ? esc_url_raw(wp_unslash((string) $_SERVER['HTTP_REFERER'])) : null,
                             'ts'     => odcm_iso8601_now(),
-                        ],
+                        },
                     ];
                     $snapshot = $this->capture_order_snapshot($order_obj, $extra);
                     set_transient('odcm_pre_delete_order_' . $order_id, $snapshot, 300);
@@ -1159,6 +1175,30 @@ final class RefundDeletionDiagnostics
                 $this->release_lock($lockKey);
             }
         }
+    }
+
+    /**
+     * Safe error logging that avoids database logging paths and throttles duplicates.
+     *
+     * @param string          $message
+     * @param \Throwable|null $e
+     * @return void
+     */
+    private function safe_error_log(string $message, ?\Throwable $e = null): void
+    {
+        // Only log errors in debug mode
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+        
+        static $count = 0;
+        if ($count >= 10) {
+            return; // throttle to avoid log flooding
+        }
+        $count++;
+        $suffix = $e ? (' | ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine()) : '';
+        // Use PHP error_log to avoid triggering WP db writes or hooks
+        error_log('[ODCM RefundDeletionDiagnostics] ' . $message . $suffix);
     }
 
     /**

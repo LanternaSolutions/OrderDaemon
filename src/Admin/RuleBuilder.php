@@ -82,8 +82,8 @@ final class RuleBuilder
         }
         
         // Verify nonce
-        if (!isset($_POST['odcm_rule_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['odcm_rule_nonce'])), 'odcm_save_rule')) {
-            return;
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'odcm-rule-builder')) {
+            wp_send_json_error(['message' => __('admin.rule_builder.ajax.security_check_failed', 'order-daemon')]);
         }
         
         // Check if our hidden field is set
@@ -92,7 +92,7 @@ final class RuleBuilder
         }
         
         // Sanitize and save the rule data
-        $rule_data = wp_unslash($_POST['_odcm_rule_data']);
+        $rule_data = sanitize_text_field(wp_unslash($_POST['_odcm_rule_data']));
         
         // Validate JSON format and decode
         $decoded_data = json_decode($rule_data, true);
@@ -101,7 +101,7 @@ final class RuleBuilder
             try {
                 (new RuleIndexBuilder())->clear_indexes($post_id);
             } catch (\Throwable $e) {
-                error_log('ODCM: Failed to clear indexes on invalid JSON for post ' . $post_id . ': ' . $e->getMessage());
+                $this->log_error('Failed to clear indexes on invalid JSON for post ' . $post_id . ': ' . $e->getMessage());
             }
             return;
         }
@@ -113,12 +113,39 @@ final class RuleBuilder
         try {
             (new RuleIndexBuilder())->build_and_save($post_id, $decoded_data);
         } catch (\Throwable $e) {
-            error_log('ODCM: Failed to build/save rule indexes for post ' . $post_id . ': ' . $e->getMessage());
+            $this->log_error('Failed to build/save rule indexes for post ' . $post_id . ': ' . $e->getMessage());
             // Clear indexes on failure to prevent stale data
             try {
                 (new RuleIndexBuilder())->clear_indexes($post_id);
             } catch (\Throwable $clear_error) {
-                error_log('ODCM: Failed to clear indexes after build failure for post ' . $post_id . ': ' . $clear_error->getMessage());
+                $this->log_error('Failed to clear indexes after build failure for post ' . $post_id . ': ' . $clear_error->getMessage());
+            }
+        }
+    }
+    
+    /**
+     * Safe logging that respects WordPress debugging settings
+     * 
+     * @param string $message Message to log
+     * @return void
+     */
+    private function log_error(string $message): void
+    {
+        // Only log when debugging is enabled
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            // Use WordPress logging function if available
+            if (function_exists('odcm_log_message')) {
+                odcm_log_message('Rule Builder: ' . $message, 'error');
+            } else {
+                // Use WordPress debugging log function to ensure compatibility
+                if (function_exists('wp_debug_log')) {
+                    wp_debug_log('ODCM Rule Builder: ' . $message);
+                }
+                // Only if wp_debug_log doesn't exist, fall back to error_log as last resort
+                // This is a rare case as wp_debug_log exists in WordPress core
+                else {
+                    error_log('ODCM Rule Builder: ' . $message);
+                }
             }
         }
     }

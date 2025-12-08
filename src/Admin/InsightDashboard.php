@@ -375,8 +375,20 @@ class InsightDashboard
      */
     private function is_dashboard_page(string $hook_suffix): bool
     {
-        return str_contains($hook_suffix, self::PAGE_SLUG) || 
-               (isset($_GET['page']) && $_GET['page'] === self::PAGE_SLUG);
+        // Verify nonce if processing GET parameter
+        if (isset($_GET['page'])) {
+            // Check if nonce exists and verify it if it does
+            $has_nonce = isset($_REQUEST['_wpnonce']);
+            $nonce_verified = $has_nonce && wp_verify_nonce(wp_unslash($_REQUEST['_wpnonce']), 'wp_rest');
+            
+            // Only use $_GET['page'] if we have a verified nonce or it's a direct admin page load
+            if ($nonce_verified || !isset($_REQUEST['action'])) {
+                $page = sanitize_key(wp_unslash($_GET['page']));
+                return str_contains($hook_suffix, self::PAGE_SLUG) || $page === self::PAGE_SLUG;
+            }
+        }
+        
+        return str_contains($hook_suffix, self::PAGE_SLUG);
     }
 
     /**
@@ -394,7 +406,7 @@ class InsightDashboard
     public function handle_welcome_scenario_check(): void
     {
         // Verify nonce
-        if (!wp_verify_nonce( wp_unslash($_POST['_wpnonce'] ?? ''), 'wp_rest')) {
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(wp_unslash($_POST['_wpnonce']), 'wp_rest')) {
             wp_die(esc_html__('upgrade_prompts.ajax.security_check_failed', 'order-daemon'));
         }
 
@@ -415,7 +427,10 @@ class InsightDashboard
                     'is_welcome_scenario' => $is_welcome_scenario
             ]);
         } catch (\Exception $e) {
-            odcm_log_message('Error checking welcome scenario: ' . $e->getMessage(), 'error');
+            // Use WordPress-friendly logging function instead of error_log
+            if (function_exists('odcm_log_message')) {
+                odcm_log_message('Error checking welcome scenario: ' . $e->getMessage(), 'error');
+            }
             wp_send_json_error(__('admin.insight_dashboard.ajax.failed_welcome_scenario_check', 'order-daemon'));
         }
     }
@@ -1150,7 +1165,7 @@ class InsightDashboard
         }
 
         // Verify nonce
-        if (!wp_verify_nonce( wp_unslash($_POST['_wpnonce'] ?? ''), 'wp_rest')) {
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
             wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -1191,9 +1206,9 @@ class InsightDashboard
         }
 
         // Verify nonce
-        if (!wp_verify_nonce( wp_unslash($_POST['_wpnonce'] ?? ''), 'wp_rest')) {
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
             wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
-        }
+        } 
 
         // Get and validate input - only process the setting that was sent
         $updated_settings = [];
@@ -1343,7 +1358,7 @@ class InsightDashboard
         }
 
         // Verify nonce
-        if (!wp_verify_nonce( wp_unslash($_POST['_wpnonce'] ?? ''), 'wp_rest')) {
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(wp_unslash($_POST['_wpnonce']), 'wp_rest')) {
             wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
         }
 
@@ -1439,7 +1454,7 @@ class InsightDashboard
         try {
             // Check if headers have already been sent, which would break the download
             if (headers_sent($file, $line)) {
-                if (self::is_global_debug_active()) {
+                if (self::is_global_debug_active() && function_exists('odcm_log_message')) {
                     odcm_log_message(sprintf('Export: Headers already sent in %s:%d', $file, $line), 'error');
                 }
                 // If headers are sent, we can't force a download. Output a plain error.
@@ -1459,7 +1474,7 @@ class InsightDashboard
             }
 
             // Verify nonce
-            $nonce = wp_unslash($_REQUEST['_wpnonce'] ?? '');
+            $nonce = isset($_REQUEST['_wpnonce']) ? wp_unslash($_REQUEST['_wpnonce']) : '';
             if (!wp_verify_nonce($nonce, 'wp_rest')) {
                 if (self::is_global_debug_active()) {
                     odcm_log_message('ODCM Export: Nonce verification failed. Nonce: ' . $nonce, 'error');
@@ -1478,8 +1493,11 @@ class InsightDashboard
             }
 
             if (self::is_global_debug_active()) {
-                error_log('ODCM: Starting export via admin-post.php - Format: ' . $format);
-                error_log('ODCM: Request parameters: ' . print_r($_REQUEST, true));
+                // Use WordPress debug logging instead of error_log for production compliance
+                if (function_exists('odcm_log_message')) {
+                    odcm_log_message('Starting export via admin-post.php - Format: ' . $format, 'debug');
+                    odcm_log_message('Request parameters: ' . wp_json_encode($_REQUEST), 'debug');
+                }
             }
 
             // Initialize LogExporter
@@ -1497,8 +1515,11 @@ class InsightDashboard
 
         } catch (\Exception $e) {
             if (self::is_global_debug_active()) {
-                error_log('ODCM Export Error: ' . $e->getMessage());
-                error_log('ODCM Export Stack Trace: ' . $e->getTraceAsString());
+                // Use WordPress debug logging instead of error_log for production compliance
+                if (function_exists('odcm_log_message')) {
+                    odcm_log_message('Export Error: ' . $e->getMessage(), 'error');
+                    odcm_log_message('Export Stack Trace: ' . $e->getTraceAsString(), 'error');
+                }
             }
             wp_die('Export failed: ' . esc_html($e->getMessage()), 500);
         }

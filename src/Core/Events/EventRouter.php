@@ -348,10 +348,40 @@ class EventRouter
             );
         }
 
-        error_log(sprintf(
-            'ODCM Event Router Error: %s%s',
-            $message,
-            $gateway ? " (Gateway: {$gateway})" : ''
-        ));
+        // Only log to debug log when debugging is enabled
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage(sprintf(
+                'Event Router Error: %s%s',
+                $message,
+                $gateway ? " (Gateway: {$gateway})" : ''
+            ));
+        }
+    }
+
+    /**
+     * Log debug messages using WordPress-friendly logging methods
+     *
+     * @param string $message The message to log
+     * @return void
+     */
+    private function logDebugMessage(string $message): void
+    {
+        // Prefix for all debug messages from this class
+        $prefix = "ODCM_DEBUG: ";
+        
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($prefix . $message, 'debug');
+            return;
+        }
+        
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($prefix . $message);
+            return;
+        }
+        
+        // Fallback to error_log only if neither of the above are available
+        error_log($prefix . $message);
     }
 }

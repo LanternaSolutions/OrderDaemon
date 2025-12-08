@@ -285,32 +285,51 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         try {
             // Execute the same queries that the filter-options endpoint runs, using prepare for values.
-            $defs = [
-                'statuses' => [
-                    "SELECT DISTINCT status FROM {$table_identifier} WHERE status IS NOT NULL AND status != %s ORDER BY status ASC",
-                    ''
-                ],
-                'event_types' => [
-                    "SELECT DISTINCT event_type FROM {$table_identifier} WHERE event_type IS NOT NULL AND event_type != %s ORDER BY event_type ASC",
-                    ''
-                ],
-                'sources' => [
-                    "SELECT DISTINCT source FROM {$table_identifier} WHERE source IS NOT NULL AND source != %s ORDER BY source ASC",
-                    ''
-                ],
+            // Run three queries using a strict whitelist of column names to avoid dynamic SQL templates.
+            $columns = [
+                'statuses' => 'status',
+                'event_types' => 'event_type',
+                'sources' => 'source',
             ];
 
-            foreach ($defs as $type => $parts) {
-                [$sql_tpl, $val] = $parts;
+            foreach ($columns as $type => $column) {
                 $query_start = microtime(true);
-                $results = $wpdb->get_col($wpdb->prepare($sql_tpl, $val));
+                // Use prepared statement with explicit column validation for security
+                $valid_columns = ['status', 'event_type', 'source'];
+                if (!in_array($column, $valid_columns, true)) {
+                    continue; // Skip invalid columns
+                }
+                
+                // Build query with validated column names (cannot use placeholders for column names)
+                // This is secure because:
+                // 1. $column is explicitly validated against a whitelist of valid columns
+                // 2. $table_identifier is properly validated and backticked earlier
+                
+                // First prepare a safe SQL statement with the known value placeholder
+                $val = '';
+                
+                // Construct query with column names explicitly validated against whitelist
+                // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- Column names can't use placeholders but are pre-validated
+                if ($column === 'status') {
+                    $sql_tpl = "SELECT DISTINCT status FROM {$table_identifier} WHERE status IS NOT NULL AND status != %s ORDER BY status ASC";
+                    $sql = $wpdb->prepare($sql_tpl, $val);
+                } elseif ($column === 'event_type') {
+                    $sql_tpl = "SELECT DISTINCT event_type FROM {$table_identifier} WHERE event_type IS NOT NULL AND event_type != %s ORDER BY event_type ASC";
+                    $sql = $wpdb->prepare($sql_tpl, $val);
+                } elseif ($column === 'source') {
+                    $sql_tpl = "SELECT DISTINCT source FROM {$table_identifier} WHERE source IS NOT NULL AND source != %s ORDER BY source ASC";
+                    $sql = $wpdb->prepare($sql_tpl, $val);
+                }
+                // phpcs:enable
+                
+                $results = $wpdb->get_col($sql);
                 $query_time = (microtime(true) - $query_start) * 1000;
 
                 $result['queries_executed'][] = [
                     'type' => $type,
                     'execution_time_ms' => round($query_time, 2),
                     'result_count' => count($results ?? []),
-                    'query' => $sql_tpl
+                    'query' => $sql
                 ];
 
                 $result['results_count'][$type] = count($results ?? []);
@@ -347,12 +366,16 @@ class QueryDiagnostic extends AbstractDiagnostic
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
         $payload_exists = $this->table_exists('odcm_audit_log_payloads');
 
+        // Create backticked, safe table identifiers for use in queries
+        $table_identifier = '`' . $table_name . '`';
+        $payload_table_identifier = '`' . $payload_table . '`';
+        
         // Test scenarios that match the insight dashboard usage
         $test_scenarios = [
-            'basic_select' => "SELECT COUNT(*) FROM $table_name",
-            'recent_logs' => "SELECT * FROM $table_name ORDER BY timestamp DESC LIMIT 20",
-            'with_filters' => "SELECT * FROM $table_name WHERE status = 'success' ORDER BY timestamp DESC LIMIT 20",
-            'date_range' => "SELECT * FROM $table_name WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY timestamp DESC LIMIT 20"
+            'basic_select' => "SELECT COUNT(*) FROM {$table_identifier}",
+            'recent_logs' => "SELECT * FROM {$table_identifier} ORDER BY timestamp DESC LIMIT 20",
+            'with_filters' => "SELECT * FROM {$table_identifier} WHERE status = 'success' ORDER BY timestamp DESC LIMIT 20",
+            'date_range' => "SELECT * FROM {$table_identifier} WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR) ORDER BY timestamp DESC LIMIT 20"
         ];
 
         // Add payload join test if payload table exists
@@ -360,8 +383,8 @@ class QueryDiagnostic extends AbstractDiagnostic
             $test_scenarios['with_payload'] =
                 "SELECT l.*,
                     COALESCE(p.payload, l.details, '') as payload
-                FROM $table_name l
-                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
+                FROM {$table_identifier} l
+                    LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id
                 ORDER BY l.timestamp DESC
                 LIMIT 20";
         }
@@ -422,8 +445,11 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         try {
             // Get existing indexes
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Validated and backticked identifier; values are not interpolated.
-            $indexes = $wpdb->get_results("SHOW INDEX FROM {$table_identifier}", 'ARRAY_A');
+            // We can't use $wpdb->prepare() for "SHOW INDEX" with a table name as there's no 
+            // placeholder for identifiers, but table_identifier is already validated and backticked
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $query = "SHOW INDEX FROM {$table_identifier}";
+            $indexes = $wpdb->get_results($query, 'ARRAY_A');
             
             foreach ($indexes as $index) {
                 $key_name = $index['Key_name'];
@@ -548,9 +574,11 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
+        // Create backticked, safe table identifier
+        $table_identifier = '`' . $table_name . '`';
         $test_query =
             "SELECT COUNT(*)
-            FROM $table_name
+            FROM {$table_identifier}
             WHERE timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)";
 
         try {
