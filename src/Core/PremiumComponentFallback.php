@@ -206,71 +206,100 @@ class PremiumComponentFallback
      */
     private static function get_orphaned_rules(): array
     {
-        global $wpdb;
+        // Use static cache to prevent duplicate computation in the same request
+        static $cached_orphaned_rules = null;
+        if ($cached_orphaned_rules !== null) {
+            return $cached_orphaned_rules;
+        }
+        
+        // Check persistent cache first
+        $cache_key = 'odcm_orphaned_rules_' . md5(serialize(self::$migrated_components));
+        $orphaned_rules = wp_cache_get($cache_key);
+        if (false !== $orphaned_rules) {
+            // Store in static cache and return
+            $cached_orphaned_rules = $orphaned_rules;
+            return $orphaned_rules;
+        }
         
         $orphaned_rules = [];
         
-        // Query all completion rules
+        // Instead of using meta_query with REGEXP (which is slow), we'll
+        // query all rules and then check the meta values directly
         $rules = get_posts([
             'post_type' => 'odcm_order_rule',
             'post_status' => 'publish',
             'numberposts' => -1,
-            'meta_query' => [
-                'relation' => 'OR',
-                [
-                    'key' => '_odcm_trigger',
-                    'value' => array_keys(self::$migrated_components['triggers']),
-                    'compare' => 'IN'
-                ],
-                [
-                    'key' => '_odcm_conditions',
-                    'value' => array_keys(self::$migrated_components['conditions']),
-                    'compare' => 'REGEXP'
-                ],
-                [
-                    'key' => '_odcm_actions',
-                    'value' => array_keys(self::$migrated_components['actions']),
-                    'compare' => 'REGEXP'
-                ]
-            ]
+            'fields' => 'ids', // Only get IDs for better performance
         ]);
         
-        foreach ($rules as $rule) {
+        // Fetch meta data for all rules efficiently
+        $all_meta = [];
+        if (!empty($rules)) {
+            // Use odcm_get_post_meta_by_ids if available for better performance
+            if (function_exists('odcm_get_post_meta_by_ids')) {
+                $all_meta = odcm_get_post_meta_by_ids($rules);
+            } else {
+                // Get meta for all rules at once to reduce DB queries
+                update_meta_cache('post', $rules);
+                foreach ($rules as $rule_id) {
+                    $all_meta[$rule_id] = get_post_meta($rule_id);
+                }
+            }
+        }
+        
+        // Now check each rule's meta for migrated components
+        foreach ($rules as $rule_id) {
+            if (!isset($all_meta[$rule_id])) {
+                continue;
+            }
+            
+            $rule_meta = $all_meta[$rule_id];
             $has_orphaned_components = false;
             
-            // Check trigger
-            $trigger = get_post_meta($rule->ID, '_odcm_trigger', true);
-            if ($trigger && self::is_migrated_component('triggers', $trigger)) {
-                $has_orphaned_components = true;
+            // Check trigger (simpler than other components as it's a direct value)
+            if (isset($rule_meta['_odcm_trigger']) && is_array($rule_meta['_odcm_trigger']) && count($rule_meta['_odcm_trigger']) > 0) {
+                $trigger = $rule_meta['_odcm_trigger'][0];
+                if ($trigger && self::is_migrated_component('triggers', $trigger)) {
+                    $has_orphaned_components = true;
+                }
             }
             
             // Check conditions
-            $conditions = get_post_meta($rule->ID, '_odcm_conditions', true);
-            if (is_array($conditions)) {
-                foreach ($conditions as $condition) {
-                    if (isset($condition['type']) && self::is_migrated_component('conditions', $condition['type'])) {
-                        $has_orphaned_components = true;
-                        break;
+            if (!$has_orphaned_components && isset($rule_meta['_odcm_conditions']) && is_array($rule_meta['_odcm_conditions']) && count($rule_meta['_odcm_conditions']) > 0) {
+                $conditions = maybe_unserialize($rule_meta['_odcm_conditions'][0]);
+                if (is_array($conditions)) {
+                    foreach ($conditions as $condition) {
+                        if (isset($condition['type']) && self::is_migrated_component('conditions', $condition['type'])) {
+                            $has_orphaned_components = true;
+                            break;
+                        }
                     }
                 }
             }
             
             // Check actions
-            $actions = get_post_meta($rule->ID, '_odcm_actions', true);
-            if (is_array($actions)) {
-                foreach ($actions as $action) {
-                    if (isset($action['type']) && self::is_migrated_component('actions', $action['type'])) {
-                        $has_orphaned_components = true;
-                        break;
+            if (!$has_orphaned_components && isset($rule_meta['_odcm_actions']) && is_array($rule_meta['_odcm_actions']) && count($rule_meta['_odcm_actions']) > 0) {
+                $actions = maybe_unserialize($rule_meta['_odcm_actions'][0]);
+                if (is_array($actions)) {
+                    foreach ($actions as $action) {
+                        if (isset($action['type']) && self::is_migrated_component('actions', $action['type'])) {
+                            $has_orphaned_components = true;
+                            break;
+                        }
                     }
                 }
             }
             
             if ($has_orphaned_components) {
-                $orphaned_rules[] = $rule->ID;
+                $orphaned_rules[] = $rule_id;
             }
         }
         
+        // Cache the result for future requests
+        wp_cache_set($cache_key, $orphaned_rules, '', 30 * MINUTE_IN_SECONDS);
+        
+        // Store in static cache and return
+        $cached_orphaned_rules = $orphaned_rules;
         return $orphaned_rules;
     }
 }

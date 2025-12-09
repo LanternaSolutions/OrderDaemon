@@ -1377,8 +1377,21 @@ label.odcm-retention-option {
 .odcm-stream-controls {
     display: flex;
     align-items: center;
-    gap: var(--odcm-theme-spacing-md);
+    gap: var(--odcm-theme-spacing-lg);
     flex-wrap: nowrap;
+}
+
+/* Vertical divider between view toggle and refresh controls */
+.odcm-controls-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--odcm-theme-grey-300, #d1d5db);
+    align-self: center;
+    margin-inline: var(--odcm-theme-spacing-xs, 4px);
+}
+
+@media (max-width: 520px) {
+    .odcm-controls-divider { display: none; }
 }
 
 /* ==========================================================================
@@ -1585,7 +1598,7 @@ label.odcm-retention-option {
     display: inline-block;
     width: 36px;
     height: 20px;
-    background-color: var(--odcm-theme-grey-400);
+    background-color: var(--odcm-theme-blue-700);
     border-radius: 12px;
     transition: background-color 0.3s ease;
     cursor: pointer;
@@ -1622,6 +1635,10 @@ label.odcm-retention-option {
     color: var(--odcm-theme-grey-700);
     font-weight: 500;
     padding-left: 4px;
+}
+
+.odcm-toggle-label.is-active {
+    background-color: var(--odcm-theme-blue-400);
 }
 
 /* Spinning animation for refresh icon and other loading states */
@@ -2805,37 +2822,73 @@ label.odcm-retention-option {
     margin: 0 auto;
 }
 
-/*** ODCM STREAM VIEW TOGGLE LAYOUT ************************************************/
-/* Ensure the Consolidated / [switch] / Flat Stream labels render in one row */
+/*** ODCM STREAM VIEW TOGGLE — SEGMENTED SLIDER ************************************/
+/* Container fits nicely inside stream controls */
 .odcm-stream-view-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center; /* middle switch stays centered due to side labels flexing */
-    gap: var(--odcm-theme-spacing-sm);
-    flex-wrap: nowrap;
-    flex: 1 1 auto; /* allow it to take available space within .odcm-stream-controls */
-    min-width: 0;   /* prevent overflow in tight spaces */
+    flex: 1 1 auto;
 }
 
-/* Left label */
-.odcm-stream-view-toggle .odcm-toggle-label:first-of-type {
-    flex: 1 1 0;
-    text-align: left;
+/* Segmented control track */
+.odcm-segmented .odcm-segmented-track {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+    gap: 0;
+    border: 1px solid var(--odcm-theme-grey-300);
+    background: var(--odcm-theme-grey-100);
+    border-radius: var(--odcm-theme-border-radius, 6px);
+    overflow: hidden;
+}
+
+/* Sliding thumb */
+.odcm-segmented .odcm-segmented-thumb {
+    position: absolute;
+    margin: 2px;
+    width: calc(50% - 4px);
+    height: calc(100% - 6px);
+    background: var(--odcm-theme-grey-100);
+    border: 1px solid var(--odcm-theme-blue-700);
+    border-radius: calc(var(--odcm-theme-border-radius, 6px) - 2px);
+    transition: transform 160ms ease;
+    will-change: transform;
+}
+
+.odcm-segmented .odcm-segmented-thumb.is-right {
+    transform: translateX(100%);
+}
+
+.odcm-segmented .odcm-segmented-thumb.is-left {
+    transform: translateX(0%);
+}
+
+/* Options */
+.odcm-segmented .odcm-segmented-option {
+    position: relative;
+    z-index: 1; /* above the thumb */
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: transparent;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: var(--odcm-theme-font-size-sm);
+    color: var(--odcm-theme-grey-700);
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
     white-space: nowrap;
 }
 
-/* Center switch */
-.odcm-stream-view-toggle .odcm-toggle-switch {
-    flex: 0 0 auto; /* do not stretch */
+.odcm-segmented .odcm-segmented-option.is-active {
+    color: var(--odcm-theme-blue-700);
 }
 
-/* Right label */
-.odcm-stream-view-toggle .odcm-toggle-label:last-of-type {
-    flex: 1 1 0;
-    text-align: right;
-    white-space: nowrap;
+/* Compact on small widths */
+@media (max-width: 480px) {
+    .odcm-stream-view-toggle { min-width: 0; }
+    .odcm-segmented .odcm-segmented-option { padding: 6px 8px; font-size: 12px; }
 }
-
 
 /* Data Management: Export controls and retention controls tweaks (Pro UX fixes) */
 .odcm-export-controls .button,

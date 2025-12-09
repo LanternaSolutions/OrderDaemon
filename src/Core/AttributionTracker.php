@@ -109,9 +109,9 @@ final class AttributionTracker
         ];
 
         $http = [
-            'method'  => isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field((string) $_SERVER['REQUEST_METHOD']) : null,
-            'uri'     => isset($_SERVER['REQUEST_URI']) ? esc_url_raw((string) $_SERVER['REQUEST_URI']) : null,
-            'query'   => isset($_SERVER['QUERY_STRING']) ? sanitize_text_field((string) $_SERVER['QUERY_STRING']) : null,
+            'method'  => isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash((string) $_SERVER['REQUEST_METHOD'])) : null,
+            'uri'     => isset($_SERVER['REQUEST_URI']) ? esc_url_raw(wp_unslash((string) $_SERVER['REQUEST_URI'])) : null,
+            'query'   => isset($_SERVER['QUERY_STRING']) ? sanitize_text_field(wp_unslash((string) $_SERVER['QUERY_STRING'])) : null,
             'headers' => $headers,
         ];
 
@@ -200,7 +200,7 @@ final class AttributionTracker
 
     /**
      * Perform call stack analysis to attribute likely source plugin/theme/vendor.
-     * Uses debug_backtrace with limited frames and a small time budget.
+     * Uses WordPress-compatible backtrace approach with limited frames and a small time budget.
      *
      * @return array<string,mixed> ['type'=>..., 'slug'=>..., 'file'=>..., 'frame'=>int, 'confidence'=>float]
      */
@@ -218,12 +218,33 @@ final class AttributionTracker
             'confidence' => 0.0,
         ];
 
-        if (!$allowed || !function_exists('debug_backtrace')) {
+        if (!$allowed) {
             return $result;
         }
 
-        $t0    = microtime(true);
-        $trace = @debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS, max(1, $limit));
+        // Get backtrace using WordPress functions if available
+        $trace = [];
+        $t0 = microtime(true);
+        
+        if (function_exists('wp_debug_backtrace_summary')) {
+            $backtrace_summary = wp_debug_backtrace_summary('', 0, $limit);
+            if (is_string($backtrace_summary)) {
+                $frames = explode(', ', $backtrace_summary);
+                foreach ($frames as $i => $frame_str) {
+                    if (preg_match('/^(.+?)\((\d+)\)(?:\s+(.+))?$/', $frame_str, $matches)) {
+                        $trace[] = [
+                            'file' => $matches[1] ?? '',
+                            'line' => isset($matches[2]) ? (int)$matches[2] : 0,
+                            'function' => $matches[3] ?? ''
+                        ];
+                    }
+                }
+            }
+        } elseif (function_exists('debug_backtrace')) {
+            // Fallback with restrictions
+            $trace = @debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS, max(1, $limit));
+        }
+        
         if (!is_array($trace) || empty($trace)) {
             return $result;
         }
@@ -338,8 +359,8 @@ final class AttributionTracker
         // IP address detection with sanitization
         $ip = $this->detect_ip();
 
-        $user_agent = isset($headers['user-agent']) ? sanitize_text_field($headers['user-agent']) : (isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field((string) $_SERVER['HTTP_USER_AGENT']) : null);
-        $referer    = isset($headers['referer']) ? esc_url_raw($headers['referer']) : (isset($_SERVER['HTTP_REFERER']) ? esc_url_raw((string) $_SERVER['HTTP_REFERER']) : null);
+        $user_agent = isset($headers['user-agent']) ? sanitize_text_field($headers['user-agent']) : (isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_USER_AGENT'])) : null);
+        $referer    = isset($headers['referer']) ? esc_url_raw($headers['referer']) : (isset($_SERVER['HTTP_REFERER']) ? esc_url_raw(wp_unslash((string) $_SERVER['HTTP_REFERER'])) : null);
 
         // Session indicators
         $session = [
@@ -454,7 +475,7 @@ final class AttributionTracker
     {
         $ua = isset($headers['user-agent']) ? strtolower($headers['user-agent']) : '';
         $ct = isset($headers['content-type']) ? strtolower($headers['content-type']) : '';
-        $uri = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
+        $uri = isset($_SERVER['REQUEST_URI']) ? sanitize_text_field(wp_unslash((string) $_SERVER['REQUEST_URI'])) : '';
         $uri = strtolower($uri);
 
         if (strpos($ua, 'webhook') !== false) {
@@ -489,24 +510,22 @@ final class AttributionTracker
                 return true;
             }
         }
-        // Basic backtrace probe under strict budget
-        $allowed = (bool) apply_filters('odcm_enable_deep_attribution', true);
-        if ($allowed && function_exists('debug_backtrace')) {
-            $t0    = microtime(true);
-            $trace = @debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS, 8);
-            foreach ((array) $trace as $frame) {
-                if (!empty($frame['file'])) {
-                    $file = strtolower((string) $frame['file']);
-                    if (strpos($file, 'action-scheduler') !== false) {
-                        return true;
-                    }
-                }
-                if (((microtime(true) - $t0) * 1000.0) > 5.0) {
-                    break;
-                }
+        
+        // Use a safer approach to detect action scheduler
+        $action_scheduler_detected = false;
+        
+        // Try to detect if we're running in an action scheduler context
+        if (function_exists('wp_debug_backtrace_summary')) {
+            $backtrace = wp_debug_backtrace_summary('', 0, 8);
+            if (is_string($backtrace) && strpos($backtrace, 'action-scheduler') !== false) {
+                $action_scheduler_detected = true;
             }
+        } elseif (function_exists('wp_get_current_user') && !is_admin() && !wp_doing_ajax() && wp_doing_cron()) {
+            // If we're in cron context but not admin or ajax, it might be action scheduler
+            $action_scheduler_detected = true;
         }
-        return false;
+        
+        return $action_scheduler_detected;
     }
 
     /**
@@ -531,11 +550,11 @@ final class AttributionTracker
         foreach ($_SERVER as $key => $value) {
             if (strpos($key, 'HTTP_') === 0) {
                 $name = strtolower(str_replace('_', '-', substr((string) $key, 5)));
-                $headers[$name] = is_string($value) ? sanitize_text_field($value) : '';
+                $headers[$name] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
             } elseif ($key === 'CONTENT_TYPE') {
-                $headers['content-type'] = is_string($value) ? sanitize_text_field($value) : '';
+                $headers['content-type'] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
             } elseif ($key === 'CONTENT_LENGTH') {
-                $headers['content-length'] = is_string($value) ? sanitize_text_field($value) : '';
+                $headers['content-length'] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
             }
         }
         return $headers;
@@ -584,17 +603,17 @@ final class AttributionTracker
     {
         $candidates = [];
         if (isset($_SERVER['HTTP_CLIENT_IP'])) {
-            $candidates[] = (string) $_SERVER['HTTP_CLIENT_IP'];
+            $candidates[] = sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_CLIENT_IP']));
         }
         if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
             // First IP from list
-            $parts = explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR']);
+            $parts = explode(',', sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_X_FORWARDED_FOR'])));
             if (!empty($parts)) {
                 $candidates[] = trim((string) $parts[0]);
             }
         }
         if (isset($_SERVER['REMOTE_ADDR'])) {
-            $candidates[] = (string) $_SERVER['REMOTE_ADDR'];
+            $candidates[] = sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR']));
         }
         foreach ($candidates as $ip) {
             $ip = trim($ip);

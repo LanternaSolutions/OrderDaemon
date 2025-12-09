@@ -197,7 +197,10 @@
 }
 
 .odcm-status-banner-right .button {
-    margin: 0;
+    padding: var(--odcm-theme-spacing-sm) var(--odcm-theme-spacing-md);
+}
+.dashicons-clipboard {
+    vertical-align: middle;
 }
 
 .odcm-status-icon {

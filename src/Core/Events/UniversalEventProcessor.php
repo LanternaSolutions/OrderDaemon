@@ -111,7 +111,7 @@ class UniversalEventProcessor
             
             // DEBUG: Log successful shared process_id assignment
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_PROCESS_ID_DEBUG: Using SHARED process_id for order #{$order_id}: $process_id");
+                odcm_log_message("ODCM_PROCESS_ID_DEBUG: Using SHARED process_id for order #{$order_id}: $process_id", 'debug');
             }
         } else {
             // Use unique process_id for non-order events
@@ -119,8 +119,8 @@ class UniversalEventProcessor
             
             // DEBUG: Log unique process_id assignment (this is the problem case)
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_PROCESS_ID_DEBUG: Using UNIQUE process_id (NOT CONSOLIDATED): $process_id");
-                error_log("ODCM_PROCESS_ID_DEBUG: This event will appear OUTSIDE the consolidated timeline!");
+                odcm_log_message("ODCM_PROCESS_ID_DEBUG: Using UNIQUE process_id (NOT CONSOLIDATED): $process_id", 'debug');
+                odcm_log_message("ODCM_PROCESS_ID_DEBUG: This event will appear OUTSIDE the consolidated timeline!", 'debug');
             }
         }
 
@@ -258,7 +258,18 @@ class UniversalEventProcessor
     {
         global $wpdb;
 
-        // Check for existing log entries with the same idempotency key
+        // Create a unique cache key for this idempotency check
+        $cache_key = 'odcm_idempotency_' . md5($event->idempotencyKey);
+        
+        // Check if we have this result cached
+        $cached_result = wp_cache_get($cache_key);
+        
+        if (false !== $cached_result) {
+            // Cache hit - return cached result
+            return (bool)$cached_result;
+        }
+        
+        // Cache miss - perform database query
         $existing = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
              WHERE event_type = 'universal_event_processing' 
@@ -266,8 +277,14 @@ class UniversalEventProcessor
              AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)",
             $event->idempotencyKey
         ));
-
-        return (int) $existing > 0;
+        
+        $is_duplicate = (int)$existing > 0;
+        
+        // Cache the result for 1 hour - idempotency checks are good candidates for caching
+        // as they prevent duplicate processing even with cache race conditions
+        wp_cache_set($cache_key, (int)$is_duplicate, '', HOUR_IN_SECONDS);
+        
+        return $is_duplicate;
     }
 
     /**
@@ -557,57 +574,129 @@ class UniversalEventProcessor
      * @param int $hours Number of hours to look back (default: 24)
      * @return array Processing statistics
      */
+    /**
+     * Cache of processing statistics to prevent redundant queries
+     * 
+     * @var array
+     */
+    private static $processing_stats_cache = [];
+    
+    /**
+     * Get processing statistics with caching
+     * 
+     * @param int $hours Number of hours to look back (default: 24)
+     * @return array Processing statistics
+     */
     public function getProcessingStats(int $hours = 24): array
     {
         global $wpdb;
-
+        
+        // Check static in-memory cache first (for multiple calls within the same request)
+        if (isset(self::$processing_stats_cache[$hours])) {
+            return self::$processing_stats_cache[$hours];
+        }
+        
+        // Create cache key for this specific hours parameter
+        $cache_key = 'odcm_processing_stats_' . $hours;
+        
+        // Try to get from persistent cache
+        $cached_stats = wp_cache_get($cache_key);
+        
+        if (false !== $cached_stats) {
+            // Store in static cache for this request
+            self::$processing_stats_cache[$hours] = $cached_stats;
+            return $cached_stats;
+        }
+        
+        // Cache miss - calculate statistics from database
         $since = gmdate('Y-m-d H:i:s', strtotime("-{$hours} hours"));
-
-        // Get total events processed
-        $total_events = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
-             WHERE event_type = 'universal_event_processing' 
-             AND timestamp >= %s",
-            $since
-        ));
-
-        // Get successful events
-        $successful_events = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
-             WHERE event_type = 'universal_event_processing' 
-             AND status = 'success'
-             AND timestamp >= %s",
-            $since
-        ));
-
-        // Get failed events
-        $failed_events = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
-             WHERE event_type IN ('universal_event_processing_error', 'universal_event_processor_error')
-             AND timestamp >= %s",
-            $since
-        ));
-
-        // Get duplicate events
-        $duplicate_events = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
-             WHERE event_type = 'universal_event_duplicate'
-             AND timestamp >= %s",
-            $since
-        ));
-
-        // Get events by gateway
-        $events_by_gateway = $wpdb->get_results($wpdb->prepare(
-            "SELECT JSON_EXTRACT(payload, '$.source_gateway') as gateway, COUNT(*) as count
-             FROM {$wpdb->prefix}odcm_audit_log 
-             WHERE event_type = 'universal_event_processing'
-             AND timestamp >= %s
-             GROUP BY gateway
-             ORDER BY count DESC",
-            $since
-        ), 'ARRAY_A');
-
-        return [
+        
+        // Get total events processed with caching
+        $total_cache_key = 'odcm_events_total_' . $hours;
+        $total_events = wp_cache_get($total_cache_key);
+        
+        if (false === $total_events) {
+            $total_events = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
+                 WHERE event_type = 'universal_event_processing' 
+                 AND timestamp >= %s",
+                $since
+            ));
+            
+            // Cache this count for 5 minutes
+            wp_cache_set($total_cache_key, $total_events, '', 5 * MINUTE_IN_SECONDS);
+        }
+        
+        // Get successful events with caching
+        $success_cache_key = 'odcm_events_success_' . $hours;
+        $successful_events = wp_cache_get($success_cache_key);
+        
+        if (false === $successful_events) {
+            $successful_events = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
+                 WHERE event_type = 'universal_event_processing' 
+                 AND status = 'success'
+                 AND timestamp >= %s",
+                $since
+            ));
+            
+            // Cache this count for 5 minutes
+            wp_cache_set($success_cache_key, $successful_events, '', 5 * MINUTE_IN_SECONDS);
+        }
+        
+        // Get failed events with caching
+        $failed_cache_key = 'odcm_events_failed_' . $hours;
+        $failed_events = wp_cache_get($failed_cache_key);
+        
+        if (false === $failed_events) {
+            $failed_events = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
+                 WHERE event_type IN ('universal_event_processing_error', 'universal_event_processor_error')
+                 AND timestamp >= %s",
+                $since
+            ));
+            
+            // Cache this count for 5 minutes
+            wp_cache_set($failed_cache_key, $failed_events, '', 5 * MINUTE_IN_SECONDS);
+        }
+        
+        // Get duplicate events with caching
+        $duplicate_cache_key = 'odcm_events_duplicate_' . $hours;
+        $duplicate_events = wp_cache_get($duplicate_cache_key);
+        
+        if (false === $duplicate_events) {
+            $duplicate_events = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
+                 WHERE event_type = 'universal_event_duplicate'
+                 AND timestamp >= %s",
+                $since
+            ));
+            
+            // Cache this count for 5 minutes
+            wp_cache_set($duplicate_cache_key, $duplicate_events, '', 5 * MINUTE_IN_SECONDS);
+        }
+        
+        // Get events by gateway with caching
+        $gateway_cache_key = 'odcm_events_by_gateway_' . $hours;
+        $events_by_gateway = wp_cache_get($gateway_cache_key);
+        
+        if (false === $events_by_gateway) {
+            $events_by_gateway = $wpdb->get_results($wpdb->prepare(
+                "SELECT JSON_EXTRACT(payload, '$.source_gateway') as gateway, COUNT(*) as count
+                 FROM {$wpdb->prefix}odcm_audit_log 
+                 WHERE event_type = 'universal_event_processing'
+                 AND timestamp >= %s
+                 GROUP BY gateway
+                 ORDER BY count DESC",
+                $since
+            ), 'ARRAY_A');
+            
+            // Cache this result for 5 minutes
+            wp_cache_set($gateway_cache_key, $events_by_gateway, '', 5 * MINUTE_IN_SECONDS);
+        }
+        
+        // Compile the full stats array
+        $stats = [
             'period_hours' => $hours,
             'total_events' => (int) $total_events,
             'successful_events' => (int) $successful_events,
@@ -615,7 +704,17 @@ class UniversalEventProcessor
             'duplicate_events' => (int) $duplicate_events,
             'success_rate' => $total_events > 0 ? round(($successful_events / $total_events) * 100, 2) : 0,
             'events_by_gateway' => $events_by_gateway ?: [],
+            'cached' => true,
+            'cache_time' => current_time('mysql'),
         ];
+        
+        // Cache the compiled statistics
+        wp_cache_set($cache_key, $stats, '', 5 * MINUTE_IN_SECONDS);
+        
+        // Store in static cache for this request
+        self::$processing_stats_cache[$hours] = $stats;
+        
+        return $stats;
     }
 
     /**
@@ -634,13 +733,13 @@ class UniversalEventProcessor
         
         // Log entry to universal event rule processing
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Processing rules for Order #{$order_id}");
+            odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Processing rules for Order #{$order_id}", 'debug');
         }
         
         // Check if post type exists
         if (!post_type_exists('odcm_order_rule')) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Order rule post type does not exist!");
+                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Order rule post type does not exist!", 'debug');
             }
             return false;
         }
@@ -655,12 +754,12 @@ class UniversalEventProcessor
         ]);
 
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Found " . $rules_query->found_posts . " published rules");
+            odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Found " . $rules_query->found_posts . " published rules", 'debug');
         }
 
         if (!$rules_query->have_posts()) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - No rules found, returning false");
+                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - No rules found, returning false", 'debug');
             }
             return false;
         }
@@ -687,11 +786,11 @@ class UniversalEventProcessor
             ]);
             
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Created ProcessLogger for CANONICAL event: {$context->event->eventType}");
+                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Created ProcessLogger for CANONICAL event: {$context->event->eventType}", 'debug');
             }
         } else {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Skipping ProcessLogger for non-canonical event: {$context->event->eventType}");
+                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Skipping ProcessLogger for non-canonical event: {$context->event->eventType}", 'debug');
             }
         }
 
@@ -708,7 +807,7 @@ class UniversalEventProcessor
             // Evaluate rule against universal event context 
             // Debug log the evaluation for troubleshooting purposes
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Evaluating rule '{$rule->post_title}' (ID: {$rule->ID}) for event type: {$context->event->eventType}");
+                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Evaluating rule '{$rule->post_title}' (ID: {$rule->ID}) for event type: {$context->event->eventType}", 'debug');
             }
             
             $trace = $this->evaluator->evaluateRuleAgainstUniversalEvent($context, $rule_data, $this->registry);
@@ -775,7 +874,7 @@ class UniversalEventProcessor
                     \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger::set_universal_event_context(false);
                     
                     if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                        error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Reset universal_event_context flag after successful rule execution");
+                        odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Reset universal_event_context flag after successful rule execution", 'debug');
                     }
                 }
 
@@ -799,8 +898,7 @@ class UniversalEventProcessor
                     }
                     
                     // Enhanced debug logging with detailed condition information
-                    error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Rule '{$rule->post_title}' didn't match - " . 
-                              "Event type: {$context->event->eventType}, Order ID: {$context->getOrderId()}");
+                    odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Rule '{$rule->post_title}' didn't match - Event type: {$context->event->eventType}, Order ID: {$context->getOrderId()}", 'debug');
                     
                     // Log non-match at debug level directly to the audit log
                     \odcm_log_event(
@@ -837,7 +935,7 @@ class UniversalEventProcessor
             \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger::set_universal_event_context(false);
             
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM_DEBUG_TRACE: UniversalEventProcessor - Reset universal_event_context flag after rule processing");
+                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Reset universal_event_context flag after rule processing", 'debug');
             }
         }
 

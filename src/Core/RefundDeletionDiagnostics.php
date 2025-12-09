@@ -279,28 +279,81 @@ final class RefundDeletionDiagnostics
      */
     private function get_trimmed_backtrace(int $limit = 6): array
     {
-        $trace = function_exists('wp_debug_backtrace_summary') ? [] : [];
-        
         // Only collect backtrace for debugging
         if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
             return [];
         }
         
-        // Only use debug_backtrace if the function exists
-        if (!function_exists('debug_backtrace')) {
+        // Use WordPress native function if available
+        if (function_exists('wp_debug_backtrace_summary')) {
+            $trace_summary = wp_debug_backtrace_summary('', 0, $limit);
+            if (is_string($trace_summary)) {
+                $parts = explode(', ', $trace_summary);
+                $out = [];
+                foreach ($parts as $index => $part) {
+                    if ($index >= $limit) {
+                        break;
+                    }
+                    // Extract file, line, function from WP's format
+                    if (preg_match('/^(.+)\((\d+)\)(?:\s+(.+))?$/', $part, $matches)) {
+                        $out[] = [
+                            'file' => isset($matches[1]) ? sanitize_text_field($matches[1]) : null,
+                            'line' => isset($matches[2]) ? (int)$matches[2] : null,
+                            'func' => isset($matches[3]) ? sanitize_text_field($matches[3]) : null,
+                        ];
+                    } else {
+                        $out[] = [
+                            'file' => null,
+                            'line' => null,
+                            'func' => sanitize_text_field($part),
+                        ];
+                    }
+                }
+                return $out;
+            }
             return [];
         }
         
-        $frames = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, max(3, $limit));
-        $out = [];
-        foreach ($frames as $f) {
-            $out[] = [
-                'file' => isset($f['file']) ? sanitize_text_field((string) $f['file']) : null,
-                'line' => isset($f['line']) ? (int) $f['line'] : null,
-                'func' => isset($f['function']) ? sanitize_text_field((string) $f['function']) : null,
+        // Use lightweight function name approach without full backtrace
+        $caller_function = $this->get_safe_caller_function();
+        if (!empty($caller_function)) {
+            return [
+                [
+                    'file' => null,
+                    'line' => null,
+                    'func' => sanitize_text_field($caller_function),
+                ]
             ];
         }
-        return $out;
+        
+        return [];
+    }
+    
+    /**
+     * Get caller function safely without using debug_backtrace
+     *
+     * @return string|null
+     */
+    private function get_safe_caller_function(): ?string
+    {
+        // Try to use WordPress function if available
+        if (function_exists('wp_get_caller_function')) {
+            return wp_get_caller_function();
+        }
+        
+        // If WP function isn't available and we're running PHP 7.3+
+        if (function_exists('get_defined_functions')) {
+            $all_funcs = get_defined_functions();
+            if (isset($all_funcs['user']) && is_array($all_funcs['user'])) {
+                foreach ($all_funcs['user'] as $func) {
+                    if (strpos($func, 'handle_') === 0) {
+                        return $func;
+                    }
+                }
+            }
+        }
+        
+        return null;
     }
 
     /**
@@ -403,8 +456,36 @@ final class RefundDeletionDiagnostics
         }
         $count++;
         $suffix = $e ? (' | ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine()) : '';
-        // Use PHP error_log to avoid triggering WP db writes or hooks
-        error_log('[ODCM RefundDeletionDiagnostics] ' . $message . $suffix);
+        $log_message = '[ODCM RefundDeletionDiagnostics] ' . $message . $suffix;
+        
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($log_message, 'error');
+            return;
+        }
+        
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($log_message);
+            return;
+        }
+        
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_error', $log_message);
+            return;
+        }
+        
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . date('Y-m-d H:i:s') . '] ' . $log_message . PHP_EOL,
+                FILE_APPEND
+            );
+            return;
+        }
     }
 
     /**
@@ -1161,7 +1242,7 @@ final class RefundDeletionDiagnostics
                             'ua'     => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_USER_AGENT'])) : null,
                             'ref'    => isset($_SERVER['HTTP_REFERER']) ? esc_url_raw(wp_unslash((string) $_SERVER['HTTP_REFERER'])) : null,
                             'ts'     => odcm_iso8601_now(),
-                        },
+                        ],
                     ];
                     $snapshot = $this->capture_order_snapshot($order_obj, $extra);
                     set_transient('odcm_pre_delete_order_' . $order_id, $snapshot, 300);
@@ -1175,30 +1256,6 @@ final class RefundDeletionDiagnostics
                 $this->release_lock($lockKey);
             }
         }
-    }
-
-    /**
-     * Safe error logging that avoids database logging paths and throttles duplicates.
-     *
-     * @param string          $message
-     * @param \Throwable|null $e
-     * @return void
-     */
-    private function safe_error_log(string $message, ?\Throwable $e = null): void
-    {
-        // Only log errors in debug mode
-        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
-            return;
-        }
-        
-        static $count = 0;
-        if ($count >= 10) {
-            return; // throttle to avoid log flooding
-        }
-        $count++;
-        $suffix = $e ? (' | ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine()) : '';
-        // Use PHP error_log to avoid triggering WP db writes or hooks
-        error_log('[ODCM RefundDeletionDiagnostics] ' . $message . $suffix);
     }
 
     /**

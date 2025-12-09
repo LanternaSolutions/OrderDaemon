@@ -669,7 +669,7 @@ msgstr "Search Order ID or free text..."
 
 #: src/Admin/InsightDashboard.php:664
 msgid "admin.insight_dashboard.premium.badge"
-msgstr "PREMIUM"
+msgstr "PRO"
 
 #: src/Admin/InsightDashboard.php:669 src/Core/audit-filters.php:107
 msgid "admin.insight_dashboard.filters.status.label"

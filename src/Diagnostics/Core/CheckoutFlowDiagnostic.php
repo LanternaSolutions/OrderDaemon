@@ -270,17 +270,44 @@ class CheckoutFlowDiagnostic extends AbstractDiagnostic
         try {
             global $wpdb;
             
-            $start_time = microtime(true);
+            // Check cache first for previous test results
+            $cache_key = 'odcm_db_connectivity_test';
+            $cached_result = wp_cache_get($cache_key);
             
-            // Test basic database connectivity
-            $test_query = $wpdb->get_var("SELECT 1");
-            $db_time = microtime(true) - $start_time;
-            
-            $result->addDetail('database_response_time', round($db_time * 1000, 2) . 'ms');
-            $result->addDetail('database_connection', $test_query === '1' ? 'success' : 'failed');
-            
-            if ($db_time > 0.1) { // 100ms threshold
-                $result->addRecommendation('Database response time is slow: ' . round($db_time * 1000, 2) . 'ms');
+            if (false !== $cached_result) {
+                // Use cached results
+                $result->addDetail('database_response_time', $cached_result['response_time']);
+                $result->addDetail('database_connection', $cached_result['connection_status']);
+                $result->addDetail('using_cached_result', true);
+                
+                // Add recommendation for slow database if cached result indicates it
+                $response_time_value = (float) str_replace('ms', '', $cached_result['response_time']);
+                if ($response_time_value > 100) { // 100ms threshold
+                    $result->addRecommendation('Database response time is slow: ' . $cached_result['response_time']);
+                }
+            } else {
+                $start_time = microtime(true);
+                
+                // Test basic database connectivity using prepared statement
+                $test_query = $wpdb->get_var($wpdb->prepare("SELECT %s", '1'));
+                $db_time = microtime(true) - $start_time;
+                
+                $response_time = round($db_time * 1000, 2) . 'ms';
+                $connection_status = $test_query === '1' ? 'success' : 'failed';
+                
+                $result->addDetail('database_response_time', $response_time);
+                $result->addDetail('database_connection', $connection_status);
+                
+                // Add recommendation for slow database if needed
+                if ($db_time > 0.1) { // 100ms threshold
+                    $result->addRecommendation('Database response time is slow: ' . $response_time);
+                }
+                
+                // Cache the result for 5 minutes - database performance tests shouldn't run too frequently
+                wp_cache_set($cache_key, [
+                    'response_time' => $response_time,
+                    'connection_status' => $connection_status
+                ], '', 5 * MINUTE_IN_SECONDS);
             }
             
             // Test transient operations (used by circuit breaker)

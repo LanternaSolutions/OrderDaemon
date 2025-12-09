@@ -16,6 +16,34 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 
+// Defensive requires for environments without Composer/autoloaders
+// Ensure timeline classes are available when REST endpoint is invoked
+// Load interfaces and value objects first (to satisfy implements/typing)
+if (!interface_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\TimelineBuilderInterface')) {
+    require_once dirname(__DIR__) . '/API/Timeline/TimelineBuilderInterface.php';
+}
+if (!interface_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\TimelineRendererInterface')) {
+    require_once dirname(__DIR__) . '/API/Timeline/TimelineRendererInterface.php';
+}
+if (!interface_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\ComponentExtractorInterface')) {
+    require_once dirname(__DIR__) . '/API/Timeline/ComponentExtractorInterface.php';
+}
+if (!class_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\TimelineData')) {
+    require_once dirname(__DIR__) . '/API/Timeline/TimelineData.php';
+}
+if (!class_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\TimelineRequest')) {
+    require_once dirname(__DIR__) . '/API/Timeline/TimelineRequest.php';
+}
+if (!class_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\DatabaseTimelineBuilder')) {
+    require_once dirname(__DIR__) . '/API/Timeline/DatabaseTimelineBuilder.php';
+}
+if (!class_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\ProcessLoggerComponentExtractor')) {
+    require_once dirname(__DIR__) . '/API/Timeline/ProcessLoggerComponentExtractor.php';
+}
+if (!class_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\RegistryTimelineRenderer')) {
+    require_once dirname(__DIR__) . '/API/Timeline/RegistryTimelineRenderer.php';
+}
+
 /**
  * REST API Endpoints for Insight Dashboard
  *
@@ -41,8 +69,8 @@ class AuditLogEndpoint extends WP_REST_Controller
      */
     const BASE_ROUTE = 'audit-log';
     
-    private TimelineBuilderInterface $timelineBuilder;
-    private TimelineRendererInterface $timelineRenderer;
+    private ?TimelineBuilderInterface $timelineBuilder = null;
+    private ?TimelineRendererInterface $timelineRenderer = null;
     
     /**
      * Constructor with dependency injection
@@ -51,11 +79,66 @@ class AuditLogEndpoint extends WP_REST_Controller
         TimelineBuilderInterface $timelineBuilder = null,
         TimelineRendererInterface $timelineRenderer = null
     ) {
-        // Dependency injection with sensible defaults
-        $this->timelineBuilder = $timelineBuilder ?? new DatabaseTimelineBuilder(
-            new ProcessLoggerComponentExtractor()
-        );
-        $this->timelineRenderer = $timelineRenderer ?? new RegistryTimelineRenderer();
+        // Dependency injection with sensible defaults, but be defensive about class availability
+        try {
+            $this->timelineBuilder = $timelineBuilder ?: new DatabaseTimelineBuilder(
+                new ProcessLoggerComponentExtractor()
+            );
+        } catch (\Throwable $e) {
+            // Defer initialization to runtime in render_components()
+            $this->timelineBuilder = $timelineBuilder ?: null;
+        }
+
+        try {
+            $this->timelineRenderer = $timelineRenderer ?: new RegistryTimelineRenderer();
+        } catch (\Throwable $e) {
+            // Defer initialization to runtime in render_components()
+            $this->timelineRenderer = $timelineRenderer ?: null;
+        }
+    }
+
+    /**
+     * Log a debug message using WordPress-compatible logging methods
+     *
+     * @param string $message The message to log
+     * @param string $level The log level (debug, info, warning, error)
+     * @return void
+     */
+    private function logDebugMessage(string $message, string $level = 'debug'): void
+    {
+        // Only log if debug mode is enabled
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+        
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($message, $level);
+            return;
+        }
+        
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($message);
+            return;
+        }
+        
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_' . $level, $message);
+            return;
+        }
+        
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                FILE_APPEND
+            );
+            return;
+        }
     }
 
     /**
@@ -87,6 +170,18 @@ class AuditLogEndpoint extends WP_REST_Controller
                         'sanitize_callback' => 'absint',
                         'validate_callback' => function($value) {
                             return is_numeric($value) && $value > 0;
+                        },
+                    ],
+                    'include_debug' => [
+                        'type'              => 'boolean',
+                        'default'           => false,
+                        'sanitize_callback' => function($value) {
+                            if (is_bool($value)) { return $value; }
+                            if (is_string($value)) { return in_array(strtolower($value), ['1','true','yes'], true); }
+                            return (bool)$value;
+                        },
+                        'validate_callback' => function($value) {
+                            return is_bool($value) || is_string($value) || is_numeric($value);
                         },
                     ],
                 ],
@@ -202,6 +297,47 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
+     * Define the arguments schema for the logs endpoint
+     *
+     * @return array The arguments schema
+     */
+    public function get_logs_args(): array
+    {
+        return [
+            'page' => [
+                'description' => 'Current page of results',
+                'type'        => 'integer',
+                'default'     => 1,
+                'minimum'     => 1,
+                'maximum'     => 1000,
+            ],
+            'per_page' => [
+                'description' => 'Number of results per page',
+                'type'        => 'integer',
+                'default'     => 20,
+                'minimum'     => 1,
+                'maximum'     => 200,
+            ],
+            'view' => [
+                'description' => 'View mode (consolidated or flat)',
+                'type'        => 'string',
+                'enum'        => ['consolidated', 'flat'],
+                'default'     => 'consolidated',
+            ],
+            'include_debug' => [
+                'description' => 'Whether to include debug events',
+                'type'        => 'boolean',
+                'default'     => false,
+            ],
+            'include_test' => [
+                'description' => 'Whether to include test events',
+                'type'        => 'boolean',
+                'default'     => false,
+            ],
+        ];
+    }
+
+    /**
      * Check API permissions (Core policy)
      *
      * - GET routes: require view_woocommerce_reports capability (aligned with WooCommerce reports).
@@ -217,24 +353,38 @@ class AuditLogEndpoint extends WP_REST_Controller
     {
         // Enhanced permission debugging for 403 troubleshooting
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM API Permission Check (Free):');
-            error_log('- User ID: ' . get_current_user_id());
-            error_log('- User roles: ' . implode(', ', wp_get_current_user()->roles ?? []));
-            error_log('- view_woocommerce_reports: ' . (current_user_can('view_woocommerce_reports') ? 'YES' : 'NO'));
-            error_log('- manage_woocommerce (fallback): ' . (current_user_can('manage_woocommerce') ? 'YES' : 'NO'));
-            error_log('- Request method: ' . $request->get_method());
-            error_log('- Request URL: ' . $request->get_route());
-            error_log('- User agent: ' . ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown'));
-            error_log('- Referer: ' . ($_SERVER['HTTP_REFERER'] ?? 'unknown'));
+            $this->logDebugMessage('ODCM API Permission Check (Free):');
+            $this->logDebugMessage('- User ID: ' . get_current_user_id());
+            $this->logDebugMessage('- User roles: ' . implode(', ', wp_get_current_user()->roles ?? []));
+            $this->logDebugMessage('- view_woocommerce_reports: ' . (current_user_can('view_woocommerce_reports') ? 'YES' : 'NO'));
+            $this->logDebugMessage('- manage_woocommerce (fallback): ' . (current_user_can('manage_woocommerce') ? 'YES' : 'NO'));
+            $this->logDebugMessage('- manage_options (admin): ' . (current_user_can('manage_options') ? 'YES' : 'NO'));
+            $this->logDebugMessage('- is_user_logged_in: ' . (is_user_logged_in() ? 'YES' : 'NO'));
+            $this->logDebugMessage('- Request method: ' . $request->get_method());
+            $this->logDebugMessage('- Request URL: ' . $request->get_route());
+            $this->logDebugMessage('- User agent: ' . (isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : 'unknown'));
+            $this->logDebugMessage('- Referer: ' . (isset($_SERVER['HTTP_REFERER']) ? esc_url_raw(wp_unslash($_SERVER['HTTP_REFERER'])) : 'unknown'));
+        }
+
+        // TEMPORARY DEBUG: Allow any logged-in user to access API for troubleshooting
+        // This helps us identify if it's a capability issue vs other auth problems
+        if (!is_user_logged_in()) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM API: Permission denied - user not logged in');
+            }
+            return false;
         }
 
         // Use WooCommerce standard capability for reports (allows Shop Manager access)
         // Fall back to manage_woocommerce for sites where view_woocommerce_reports isn't available
-        $has_permission = current_user_can('view_woocommerce_reports') || current_user_can('manage_woocommerce');
+        // Add manage_options as additional fallback for WordPress admins
+        $has_permission = current_user_can('view_woocommerce_reports') || 
+                         current_user_can('manage_woocommerce') || 
+                         current_user_can('manage_options');
         
         if (!$has_permission) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM API: Permission denied - user lacks view_woocommerce_reports or manage_woocommerce capability');
+                $this->logDebugMessage('ODCM API: Permission denied - user lacks required capabilities');
             }
             return false;
         }
@@ -244,16 +394,16 @@ class AuditLogEndpoint extends WP_REST_Controller
             $nonce = $request->get_header('X-WP-Nonce');
             if (!$nonce || !wp_verify_nonce($nonce, 'wp_rest')) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log('ODCM API: Permission denied - invalid or missing nonce for POST request');
-                    error_log('- Nonce provided: ' . ($nonce ? 'YES' : 'NO'));
-                    error_log('- Nonce value: ' . ($nonce ?: 'none'));
+                    $this->logDebugMessage('ODCM API: Permission denied - invalid or missing nonce for POST request');
+                    $this->logDebugMessage('- Nonce provided: ' . ($nonce ? 'YES' : 'NO'));
+                    $this->logDebugMessage('- Nonce value: ' . ($nonce ?: 'none'));
                 }
                 return false;
             }
         }
 
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM API: Permission check passed');
+            $this->logDebugMessage('ODCM API: Permission check passed');
         }
 
         return true;
@@ -436,7 +586,16 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Consolidated view (default): fetch all filtered, consolidate by process, then paginate
             $all_logs = $this->get_all_filtered_logs($request);
+            
+            // DETAILED DEBUG: Track every step
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM: DEBUG - Result from get_all_filtered_logs: ' . (is_wp_error($all_logs) ? 'WP_Error: ' . $all_logs->get_error_message() : 'Array with ' . count($all_logs) . ' items'), 'debug');
+            }
+            
             if (is_wp_error($all_logs)) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage('ODCM: DEBUG - Converting WP_Error to empty array', 'debug');
+                }
                 // Normalize erroneous 404/other errors into empty data so UI can render empty state
                 $all_logs = [];
             }
@@ -445,9 +604,10 @@ class AuditLogEndpoint extends WP_REST_Controller
             try {
                 $include_debug = (bool) $request->get_param('include_debug');
                 $all_logs = $this->apply_process_id_consolidation($all_logs, $include_debug);
+                
             } catch (\Throwable $e) {
                 // Fail-safe: keep original logs ungrouped
-                error_log('ODCM: Process ID consolidation failed: ' . $e->getMessage());
+                $this->logDebugMessage('ODCM: Process ID consolidation failed: ' . $e->getMessage(), 'error');
             }
 
             // Compute consolidated totals and slice current page
@@ -514,6 +674,15 @@ class AuditLogEndpoint extends WP_REST_Controller
     public function render_components(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         try {
+            // Ensure services are initialized (lazy init to avoid early fatals)
+            if (!$this->timelineBuilder instanceof TimelineBuilderInterface) {
+                $this->timelineBuilder = new DatabaseTimelineBuilder(new ProcessLoggerComponentExtractor());
+            }
+            if (!$this->timelineRenderer instanceof TimelineRendererInterface) {
+                $this->timelineRenderer = new RegistryTimelineRenderer();
+            }
+            // Registry loading is handled internally by RegistryTimelineRenderer::ensureRegistryLoaded()
+            
             // Start performance monitoring
             $start_time = microtime(true);
             
@@ -551,9 +720,10 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ]),
             ], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log("ODCM: Exception in render_components: " . $e->getMessage());
+                $this->logDebugMessage("ODCM: Exception in render_components: " . $e->getMessage(), 'error');
+                $this->logDebugMessage("ODCM: Stack trace: " . $e->getTraceAsString(), 'error');
             }
             
             $this->log_api_error('render_components', $e, [
@@ -561,9 +731,167 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'include_debug' => $request->get_param('include_debug')
             ]);
 
+            // IMPORTANT: Return a structured 200 response to avoid frontend "Failed to load details"
+            // We provide an empty HTML with error context; UI will render a graceful state.
+            $response_body = [
+                'html' => '',
+                'error' => 'odcm_render_error',
+                'meta' => [
+                    'timestamp' => function_exists('current_time') ? current_time('mysql') : date('Y-m-d H:i:s'),
+                    'debug_mode' => defined('ODCM_DEBUG') && ODCM_DEBUG,
+                ],
+            ];
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $response_body['developer_message'] = $e->getMessage();
+            }
+            return new WP_REST_Response($response_body, 200);
+        }
+    }
+
+    /**
+     * Batch render components for multiple log entries
+     *
+     * @param WP_REST_Request $request The REST request
+     * @return WP_REST_Response|WP_Error Response with rendered HTML for multiple logs
+     */
+    public function render_components_batch(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        try {
+            $start_time = microtime(true);
+            $log_ids = $request->get_param('log_ids');
+            $include_debug = (bool) $request->get_param('include_debug');
+            
+            if (empty($log_ids) || !is_array($log_ids)) {
+                return new WP_Error(
+                    'odcm_invalid_log_ids',
+                    __('audit.logs.render.error.invalid_log_ids_provided', 'order-daemon'),
+                    ['status' => 400]
+                );
+            }
+            
+            $results = [];
+            foreach ($log_ids as $log_id) {
+                try {
+                    $timelineRequest = new TimelineRequest((int) $log_id, $include_debug);
+                    $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
+                    
+                    if (!$include_debug) {
+                        $timelineData = $this->filter_debug_components($timelineData);
+                    }
+                    
+                    $html = $this->timelineRenderer->renderTimeline($timelineData);
+                    
+                    $results[$log_id] = [
+                        'success' => true,
+                        'html' => $html,
+                        'meta' => $timelineData->metadata,
+                    ];
+                } catch (\Throwable $e) {
+                    $results[$log_id] = [
+                        'success' => false,
+                        'error' => $e->getMessage(),
+                    ];
+                }
+            }
+            
+            $execution_time = microtime(true) - $start_time;
+            
+            return new WP_REST_Response([
+                'results' => $results,
+                'meta' => [
+                    'execution_time' => $execution_time,
+                    'timestamp' => current_time('mysql'),
+                    'total_requested' => count($log_ids),
+                    'successful' => count(array_filter($results, fn($r) => $r['success'])),
+                ],
+            ], 200);
+            
+        } catch (\Throwable $e) {
+            $this->log_api_error('render_components_batch', $e, [
+                'log_ids' => $request->get_param('log_ids'),
+            ]);
+            
             return new WP_Error(
-                'odcm_render_error',
-                __('audit.logs.render.failure.log_components', 'order-daemon'),
+                'odcm_batch_render_error',
+                __('audit.logs.render.failure.batch', 'order-daemon'),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
+     * Get logs by process ID
+     *
+     * @param WP_REST_Request $request The REST request
+     * @return WP_REST_Response|WP_Error Response with logs for the process
+     */
+    public function get_logs_by_process(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        try {
+            global $wpdb;
+            $start_time = microtime(true);
+            
+            $process_id = $request->get_param('process_id');
+            
+            if (empty($process_id)) {
+                return new WP_Error(
+                    'odcm_invalid_process_id',
+                    __('audit.logs.process.error.invalid_process_id', 'order-daemon'),
+                    ['status' => 400]
+                );
+            }
+            
+            // Secure table identifiers
+            $logTableName = '`' . esc_sql($wpdb->prefix . 'odcm_audit_log') . '`';
+            $payloadTableName = '`' . esc_sql($wpdb->prefix . 'odcm_audit_log_payloads') . '`';
+            
+            $query = $wpdb->prepare(
+                "SELECT l.log_id,
+                    l.timestamp,
+                    l.status,
+                    l.summary,
+                    l.order_id,
+                    l.event_type,
+                    l.source,
+                    l.payload_id,
+                    l.is_test,
+                    l.process_id,
+                    COALESCE(p.payload, l.details, %s) as payload
+                FROM " . $logTableName . " l
+                    LEFT JOIN " . $payloadTableName . " p ON l.payload_id = p.payload_id
+                WHERE l.process_id = %s
+                ORDER BY l.timestamp ASC",
+                '',
+                $process_id
+            );
+            
+            $logs = $wpdb->get_results($query, ARRAY_A);
+            
+            if ($logs === false) {
+                throw new \Exception('Database query failed: ' . ($wpdb->last_error ?: 'Unknown error'));
+            }
+            
+            $logs = $logs ?: [];
+            $execution_time = microtime(true) - $start_time;
+            
+            return new WP_REST_Response([
+                'logs' => $this->format_logs_for_api($logs),
+                'meta' => [
+                    'process_id' => $process_id,
+                    'total_logs' => count($logs),
+                    'execution_time' => $execution_time,
+                    'timestamp' => current_time('mysql'),
+                ],
+            ], 200);
+            
+        } catch (\Throwable $e) {
+            $this->log_api_error('get_logs_by_process', $e, [
+                'process_id' => $request->get_param('process_id'),
+            ]);
+            
+            return new WP_Error(
+                'odcm_process_logs_error',
+                __('audit.logs.process.error.fetch_failed', 'order-daemon'),
                 ['status' => 500]
             );
         }
@@ -678,6 +1006,39 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
+     * Extract components from payload data
+     * 
+     * @param array $payload Decoded payload
+     * @param bool $include_debug Whether to include debug components
+     * @return array Array of components
+     */
+    private function extract_components_from_payload(array $payload, bool $include_debug): array
+    {
+        // ProcessLogger format (preferred)
+        if (isset($payload['components']) && is_array($payload['components'])) {
+            $components = $payload['components'];
+            
+            // Filter debug components if needed
+            if (!$include_debug) {
+                $components = array_filter($components, function($c) {
+                    return is_array($c) && !$this->is_debug_component($c);
+                });
+            }
+            
+            return array_values($components);
+        }
+        
+        // Legacy/unknown format: create generic component
+        return [[
+            'event_type' => 'info',
+            'label' => 'Event Data',
+            'ts' => current_time('mysql'),
+            'level' => 'info',
+            'data' => $payload,
+        ]];
+    }
+
+    /**
      * Extract components from a single event
      * UNIFIED HELPER: Works for both process and individual entries
      * 
@@ -712,2642 +1073,1070 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
-     * Extract components from payload data
-     * CORE EXTRACTION LOGIC: Works with ProcessLogger and legacy formats
+     * Get all filtered logs based on request parameters
      * 
-     * @param array $payload Decoded payload
-     * @param bool $include_debug Whether to include debug components
-     * @return array Array of components
+     * @param WP_REST_Request $request The REST request with filter parameters
+     * @return array|WP_Error Array of log entries or WP_Error
      */
-    private function extract_components_from_payload(array $payload, bool $include_debug): array
+    private function get_all_filtered_logs(WP_REST_Request $request): array|WP_Error
     {
-        // ProcessLogger format (preferred)
-        if (isset($payload['components']) && is_array($payload['components'])) {
-            $components = $payload['components'];
-            
-            // Filter debug components if needed
-            if (!$include_debug) {
-                $components = array_filter($components, function($c) {
-                    return is_array($c) && !$this->is_debug_component($c);
-                });
-            }
-            
-            return array_values($components);
-        }
+        global $wpdb;
         
-        // Legacy/unknown format: create generic component
-        return [[
-            'event_type' => 'info',
-            'label' => 'Event Data',
-            'ts' => current_time('mysql'),
-            'level' => 'info',
-            'data' => $payload,
-        ]];
-    }
-
-    /**
-     * Render component timeline using registry-driven renderers
-     * CORE RENDERING: Uses PayloadComponentRegistry for specialized rendering
-     * 
-     * @param array $components Array of components to render
-     * @return string HTML output
-     */
-    private function render_component_timeline(array $components): string
-    {
-        if (empty($components)) {
-            return '<div class="odcm-empty-data">' . esc_html__('audit.logs.timeline.no_data', 'order-daemon') . '</div>';
-        }
-        
-        // Sort chronologically
-        usort($components, function($a, $b) {
-            return strcmp($a['ts'] ?? '', $b['ts'] ?? '');
-        });
-        
-        // Load registry
-        if (!function_exists('odcm_get_payload_component_type')) {
-            require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
-        }
-        
-        $html = '<div class="odcm-narrative-timeline">';
-        
-        foreach ($components as $component) {
-            $event_type = sanitize_key($component['event_type'] ?? 'info');
-            $label = (string) ($component['label'] ?? ucfirst($event_type));
-            $ts = (string) ($component['ts'] ?? '');
-            $level = sanitize_key($component['level'] ?? 'info');
-            $data = is_array($component['data'] ?? null) ? $component['data'] : [];
-            
-            if (empty($data)) {
-                continue; // Skip empty components
-            }
-            
-            // Smart renderer lookup with capability detection
-            $def = odcm_find_best_renderer_for_data($event_type, $data);
-            $renderer_html = '';
-            
-            if (is_array($def) && isset($def['renderer_class'])) {
-                $renderer_class = $def['renderer_class'];
-                if (strpos($renderer_class, '\\') === false) {
-                    $renderer_class = 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\' . $renderer_class;
-                }
-                
-                if (class_exists($renderer_class)) {
-                    try {
-                        $renderer = new $renderer_class();
-                        
-                        if (method_exists($renderer, 'renderTimelineItem')) {
-                            $renderer_html = $renderer->renderTimelineItem($event_type, $label, $ts ?: null, $level, $data);
-                        } elseif (method_exists($renderer, 'render')) {
-                            $renderer_html = $renderer->render($data);
-                        }
-                    } catch (\Throwable $e) {
-                        error_log('ODCM: Renderer error for ' . $renderer_class . ': ' . $e->getMessage());
-                    }
-                }
-            }
-            
-            // Use rendered content or fallback
-            if (!empty($renderer_html)) {
-                $html .= $renderer_html;
-            } else {
-                $html .= $this->render_fallback_component($event_type, $label, $data);
-            }
-        }
-        
-        $html .= '</div>';
-        return $html;
-    }
-
-    /**
-     * Render fallback for empty log entries
-     * 
-     * @param array $log Log entry data
-     * @return string HTML output
-     */
-    private function render_empty_entry_fallback(array $log): string
-    {
-        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
-            require_once dirname(__DIR__) . '/View/PayloadRenderer/PayloadComponentUIToolkit.php';
-        }
-        $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
-        
-        $content = '<div class="odcm-fallback-content">';
-        $content .= '<p><strong>Summary:</strong> ' . esc_html($log['summary'] ?? 'No summary') . '</p>';
-        $content .= '<p><strong>Status:</strong> ' . esc_html($log['status'] ?? 'Unknown') . '</p>';
-        $content .= '<p><strong>Timestamp:</strong> ' . esc_html($log['timestamp'] ?? 'Unknown') . '</p>';
-        if (!empty($log['order_id'])) {
-            $content .= '<p><strong>Order:</strong> #' . esc_html($log['order_id']) . '</p>';
-        }
-        $content .= '<p><em>No payload data available</em></p>';
-        $content .= '</div>';
-        
-        return $toolkit->render_component_shell(
-            'Log Entry',
-            'fallback',
-            $content,
-            ['status' => $log['status'] ?? 'info']
-        );
-    }
-
-    /**
-     * Render fallback component when renderer fails
-     * 
-     * @param string $event_type Component event type
-     * @param string $label Component label
-     * @param array $data Component data
-     * @return string HTML output
-     */
-    private function render_fallback_component(string $event_type, string $label, array $data): string
-    {
-        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
-            require_once dirname(__DIR__) . '/View/PayloadRenderer/PayloadComponentUIToolkit.php';
-        }
-        $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
-        
-        $content = '<div class="odcm-fallback-component">';
-        foreach ($data as $key => $value) {
-            if (is_scalar($value)) {
-                $formatted_key = ucfirst(str_replace('_', ' ', $key));
-                $content .= '<p><strong>' . esc_html($formatted_key) . ':</strong> ' . esc_html((string)$value) . '</p>';
-            }
-        }
-        $content .= '</div>';
-        
-        return $toolkit->render_component_shell(
-            $label,
-            'fallback',
-            $content,
-            []
-        );
-    }
-
-    /**
-     * Batch render log components for multiple log IDs.
-     *
-     * Accepts up to 50 IDs and returns an array of per-item results,
-     * using the same timeline system as render_components().
-     *
-     * @param WP_REST_Request $request
-     * @return WP_REST_Response
-     */
-    public function render_components_batch(WP_REST_Request $request): WP_REST_Response
-    {
         try {
-            $log_ids = $request->get_param('log_ids');
-            if (!is_array($log_ids) || empty($log_ids)) {
-                return new WP_Error('odcm_invalid_log_ids', __('audit.logs.render.error.invalid_log_ids', 'order-daemon'), ['status' => 400]);
+            // Build a cache key based on the filter parameters and current cache version
+            $filter_params = array_filter($request->get_params());
+            unset($filter_params['page']); // Exclude pagination from cache key
+            unset($filter_params['per_page']); // Exclude pagination from cache key
+            $cache_version = wp_cache_get('odcm_logs_cache_version');
+            if ($cache_version === false) {
+                $cache_version = 1; // default version
+            }
+            $cache_key = 'odcm_v' . $cache_version . '_filtered_logs_' . md5(json_encode($filter_params));
+            
+            // Check if we have a cached result
+            $cached_logs = wp_cache_get($cache_key);
+            if (false !== $cached_logs) {
+                $this->logDebugMessage("Cache hit for all filtered logs: " . $cache_key, 'debug');
+                return $cached_logs;
             }
             
-            // Normalize IDs (absint, unique, cap to 50)
-            $ids = array_values(array_unique(array_map('absint', array_filter($log_ids, function($v){ 
-                return is_numeric($v) && (int)$v > 0; 
-            }))));
+            // Build query conditions from request parameters
+            $where_clauses = $this->build_filter_where_clauses($request);
+            $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
             
-            if (empty($ids)) {
-                return new WP_Error('odcm_no_valid_ids', __('audit.logs.render.error.no_valid_log_ids_provided', 'order-daemon'), ['status' => 400]);
+            // Get all filtered logs with no pagination
+            $sql = "
+                SELECT l.*, p.payload 
+                FROM {$wpdb->prefix}odcm_audit_log l
+                LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
+                {$where_sql}
+                ORDER BY l.timestamp DESC
+            ";
+            
+            $logs = $wpdb->get_results($sql, ARRAY_A);
+            
+            if ($logs === false) {
+                throw new \Exception($wpdb->last_error ?: 'Database query failed');
             }
             
-            if (count($ids) > 50) {
-                $ids = array_slice($ids, 0, 50);
-            }
-
-            $t0 = microtime(true);
-            $items = [];
-
-            // Process each ID using the same timeline system as render_components()
-            foreach ($ids as $id) {
-                try {
-                    // Create a mock request for each individual log ID
-                    $mockRequest = new class($id, $request->get_param('include_debug')) implements WP_REST_Request {
-                        private $log_id;
-                        private $include_debug;
-                        
-                        public function __construct($log_id, $include_debug) {
-                            $this->log_id = $log_id;
-                            $this->include_debug = $include_debug;
-                        }
-                        
-                        public function get_param($key) {
-                            if ($key === 'log_id') return $this->log_id;
-                            if ($key === 'include_debug') return $this->include_debug;
-                            return null;
-                        }
-                        
-                        // Implement required interface methods as no-ops since we only need get_param()
-                        public function get_params() { return []; }
-                        public function set_param($key, $value) {}
-                        public function get_attributes() { return []; }
-                        public function set_attributes($attributes) {}
-                        public function get_headers() { return []; }
-                        public function get_content_type() { return []; }
-                        public function get_method() { return 'POST'; }
-                        public function get_route() { return ''; }
-                        public function set_route($route) {}
-                        public function get_url_params() { return []; }
-                        public function set_url_params($params) {}
-                        public function get_file_params() { return []; }
-                        public function set_file_params($params) {}
-                        public function get_body() { return null; }
-                        public function set_body($data) {}
-                        public function get_json_params() { return []; }
-                        public function set_headers($headers) {}
-                        public function get_header($key) { return null; }
-                        public function get_header_as_array($key) { return []; }
-                        public function has_valid_params() { return true; }
-                        public function sanitize_params() { return true; }
-                        public function has_param($key) { return in_array($key, ['log_id', 'include_debug']); }
-                        public function set_default_params($defaults) {}
-                        public function get_default_params() { return []; }
-                    };
-
-                    // Use the timeline system (same as render_components)
-                    $timelineRequest = TimelineRequest::fromRestRequest($mockRequest);
-                    $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
-                    $html = $this->timelineRenderer->renderTimeline($timelineData);
-                    
-                    $items[] = [
-                        'log_id' => (int) $id,
-                        'success' => true,
-                        'html' => $html
-                    ];
-                    
-                } catch (\Throwable $e) {
-                    $items[] = [
-                        'log_id' => (int) $id,
-                        'success' => false,
-                        'error' => [
-                            'code' => 'render_error',
-                            'message' => __('audit.logs.render.failure.components', 'order-daemon')
-                        ]
-                    ];
-                }
-            }
-
-            $exec = microtime(true) - $t0;
-            return new WP_REST_Response([
-                'items' => $items,
-                'meta' => [
-                    'count' => count($items),
-                    'execution_time' => $exec,
-                    'timestamp' => current_time('mysql'),
-                ],
-            ], 200);
+            $result = $logs ?: [];
             
-        } catch (\Throwable $e) {
-            $this->log_api_error('render_components_batch', $e, ['ids' => $request->get_param('log_ids')]);
-            return new WP_Error('odcm_render_batch_error', __('audit.logs.render.failure.batch_components', 'order-daemon'), ['status' => 500]);
-        }
-    }
-
-    /**
-     * Get filter options for dynamic filter population
-     *
-     * Queries the audit log table for distinct values and returns
-     * structured, UX-friendly value/label pairs with performance meta.
-     *
-     * @param WP_REST_Request $request Request object (nonce and auth already checked)
-     * @return WP_REST_Response
-     */
-    public function get_filter_options(WP_REST_Request $request): WP_REST_Response
-    {
-        $start_time = microtime(true);
-
-        try {
-            global $wpdb;
-            $table_name = $wpdb->prefix . 'odcm_audit_log';
-            // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
-            $table_identifier = ($table_name === $wpdb->prefix . 'odcm_audit_log') ? '`' . $table_name . '`' : '`odcm_audit_log`';
-
-            // Build queries with proper NULL/empty handling and ordering.
-
-            // Execute queries. We use prepared statements for any values (here: empty string filter),
-            // even though there is no user input, to adhere to security guidelines.
-            $statuses_raw = $wpdb->get_col(
-                $wpdb->prepare(
-                    "SELECT DISTINCT status
-                    FROM {$table_identifier}
-                    WHERE status IS NOT NULL
-                        AND status != %s
-                    ORDER BY status ASC",
-                    ''
-                )
-            ) ?: [];
-            $event_types_raw = $wpdb->get_col(
-                $wpdb->prepare(
-                    "SELECT DISTINCT event_type
-                    FROM {$table_identifier}
-                    WHERE event_type IS NOT NULL
-                        AND event_type != %s
-                    ORDER BY event_type ASC",
-                    ''
-                )
-            ) ?: [];
-            $sources_raw = $wpdb->get_col(
-                $wpdb->prepare(
-                    "SELECT DISTINCT source
-                    FROM {$table_identifier}
-                    WHERE source IS NOT NULL
-                        AND source != %s
-                    ORDER BY source ASC",
-                    ''
-                )
-            ) ?: [];
-
-            // Normalize to strings and unique trim (defensive)
-            $statuses_raw = array_values(array_unique(array_filter(array_map(function($v){ return is_string($v) ? trim($v) : ''; }, $statuses_raw))));
-            $event_types_raw = array_values(array_unique(array_filter(array_map(function($v){ return is_string($v) ? trim($v) : ''; }, $event_types_raw))));
-            $sources_raw = array_values(array_unique(array_filter(array_map(function($v){ return is_string($v) ? trim($v) : ''; }, $sources_raw))));
-
-            // Transform into value/label pairs with UX-friendly labels
-            $statuses = array_map(function(string $status){
-                return [
-                    'value' => $status,
-                    'label' => $this->format_status_label($status),
-                ];
-            }, $statuses_raw);
-
-            $event_types = array_map(function(string $value){
-                return [
-                    'value' => $value,
-                    'label' => $this->format_filter_label($value),
-                ];
-            }, $event_types_raw);
-
-            $sources = array_map(function(string $value){
-                return [
-                    'value' => $value,
-                    'label' => $this->format_filter_label($value),
-                ];
-            }, $sources_raw);
-
-            // Premium access check (feature-gated advanced filters)
-            $can_use_premium = function_exists('odcm_can_use') ? odcm_can_use('audit_log_filter_advanced') : false;
-
-            $execution_time = microtime(true) - $start_time;
-
-            // Performance monitoring and slow-query logging
-            if ($execution_time > 0.5) {
-                $this->log_api_performance('get_filter_options', $execution_time, [
-                    'status_count' => count($statuses),
-                    'event_type_count' => count($event_types),
-                    'source_count' => count($sources),
-                    'slow' => true,
-                ]);
-            } else {
-                $this->log_api_performance('get_filter_options', $execution_time, [
-                    'status_count' => count($statuses),
-                    'event_type_count' => count($event_types),
-                    'source_count' => count($sources),
-                ]);
-            }
-
-            // Cache hint: Clients can cache for 5 minutes (configurable later)
-            $cache_ttl = 300; // seconds
-            $cache_expires = time() + $cache_ttl;
-
-            $response = [
-                'success' => true,
-                'filter_options' => [
-                    'sources' => $sources,
-                    'event_types' => $event_types,
-                    'statuses' => $statuses,
-                ],
-                'premium_access' => $can_use_premium,
-                'meta' => [
-                    'execution_time' => $execution_time,
-                    'result_counts' => [
-                        'sources' => count($sources),
-                        'event_types' => count($event_types),
-                        'statuses' => count($statuses),
-                    ],
-                    'timestamp' => current_time('mysql'),
-                    'cache_ttl' => $cache_ttl,
-                    'cache_expires' => $cache_expires,
-                ],
-            ];
-
-            return new WP_REST_Response($response, 200);
-
+            // Cache the result for 2 minutes (filtered lists change often)
+            wp_cache_set($cache_key, $result, '', 2 * MINUTE_IN_SECONDS);
+            
+            return $result;
+            
         } catch (\Exception $e) {
-            // Enhanced error logging with context and timing
-            $context = [ 'execution_time' => isset($start_time) ? (microtime(true) - $start_time) : null ];
-            $this->log_api_error('get_filter_options', $e, $context);
-
-            // Graceful degradation: return empty options but preserve premium_access flag
-            $fallback = [
-                'success' => false,
-                'filter_options' => [
-                    'sources' => [],
-                    'event_types' => [],
-                    'statuses' => [],
-                ],
-                'premium_access' => function_exists('odcm_can_use') ? odcm_can_use('audit_log_filter_advanced') : false,
-                'meta' => [
-                    'execution_time' => isset($start_time) ? (microtime(true) - $start_time) : null,
-                    'timestamp' => current_time('mysql'),
-                    'cache_ttl' => 300,
-                    'cache_expires' => time() + 300,
-                    'error' => 'Failed to fetch filter options',
-                ],
-            ];
-
-            return new WP_REST_Response($fallback, 200);
+            $this->logDebugMessage("ODCM: Failed to get all filtered logs: " . $e->getMessage(), 'error');
+            return new WP_Error('audit_log_query_failed', $e->getMessage());
         }
     }
 
     /**
-     * Convert snake_case or kebab-case to Title Case for better UX labels.
-     *
-     * @param string $value Raw value from database
-     * @return string Title-cased label
-     */
-    private function format_filter_label(string $value): string
-    {
-        $value = trim($value);
-        if ($value === '') {
-            return '';
-        }
-        // Replace underscores/dashes with spaces, collapse whitespace, and ucwords
-        $normalized = preg_replace('/[_-]+/', ' ', strtolower($value));
-        $normalized = trim(preg_replace('/\s+/', ' ', (string) $normalized));
-        return ucwords($normalized);
-    }
-
-    /**
-     * Special formatting for status labels with predefined mappings
-     * (e.g., 'error' => 'Error'). Falls back to generic formatter.
-     *
-     * @param string $status Status string
-     * @return string Human-friendly label
-     */
-    private function format_status_label(string $status): string
-    {
-        $map = [
-            'success' => __('status.success', 'order-daemon'),
-            'error'   => __('status.error', 'order-daemon'),
-            'warning' => __('status.warning', 'order-daemon'),
-            'info'    => __('status.info', 'order-daemon'),
-        ];
-        $key = strtolower(trim($status));
-        if (isset($map[$key])) {
-            return $map[$key];
-        }
-        return $this->format_filter_label($status);
-    }
-
-    /**
-     * Get argument schema for logs endpoint
-     */
-    private function get_logs_args(): array
-    {
-        return [
-            'page' => [
-                'type'              => 'integer',
-                'minimum'           => 1,
-                'default'           => 1,
-                'sanitize_callback' => 'absint',
-            ],
-            'per_page' => [
-                'type'              => 'integer',
-                'minimum'           => 1,
-                'maximum'           => 200,
-                'default'           => 20,
-                'sanitize_callback' => 'absint',
-            ],
-            's' => [
-                'type'              => 'string',
-                'sanitize_callback' => 'sanitize_text_field',
-            ],
-            'status' => [
-                'type'              => 'string',
-                'enum'              => ['success', 'error', 'warning', 'info'],
-                'sanitize_callback' => 'sanitize_key',
-            ],
-            'event_type' => [
-                'type'              => 'string',
-                'sanitize_callback' => 'sanitize_key',
-            ],
-            'source' => [
-                'type'              => 'string',
-                'sanitize_callback' => 'sanitize_text_field',
-            ],
-            'order_id' => [
-                'type'              => 'integer',
-                'minimum'           => 1,
-                'sanitize_callback' => 'absint',
-            ],
-            'date_start' => [
-                'type'              => 'string',
-                'format'            => 'date',
-                'sanitize_callback' => 'sanitize_text_field',
-            ],
-            'date_end' => [
-                'type'              => 'string',
-                'format'            => 'date',
-                'sanitize_callback' => 'sanitize_text_field',
-            ],
-            'include_tests' => [
-                'type'              => 'boolean',
-                'default'           => false,
-                'sanitize_callback' => function($value) {
-                    // Handle both boolean and string inputs gracefully
-                    if (is_bool($value)) {
-                        return $value;
-                    }
-                    if (is_string($value)) {
-                        return in_array(strtolower($value), ['1', 'true', 'yes'], true);
-                    }
-                    return (bool) $value;
-                },
-                'validate_callback' => function($value) {
-                    return is_bool($value) || is_string($value) || is_numeric($value);
-                },
-            ],
-            'include_debug' => [
-                'type'              => 'boolean',
-                'default'           => false,
-                'sanitize_callback' => function($value) {
-                    // Handle both boolean and string inputs gracefully
-                    if (is_bool($value)) {
-                        return $value;
-                    }
-                    if (is_string($value)) {
-                        return in_array(strtolower($value), ['1', 'true', 'yes'], true);
-                    }
-                    return (bool) $value;
-                },
-                'validate_callback' => function($value) {
-                    return is_bool($value) || is_string($value) || is_numeric($value);
-                },
-            ],
-            'include_consolidation_diag' => [
-                'type'              => 'boolean',
-                'default'           => false,
-                'sanitize_callback' => function($value) {
-                    if (is_bool($value)) {
-                        return $value;
-                    }
-                    if (is_string($value)) {
-                        return in_array(strtolower($value), ['1', 'true', 'yes'], true);
-                    }
-                    return (bool) $value;
-                },
-                'validate_callback' => function($value) {
-                    return is_bool($value) || is_string($value) || is_numeric($value);
-                },
-            ],
-            'since' => [
-                'type'              => 'string',
-                'format'            => 'date-time',
-                'sanitize_callback' => 'sanitize_text_field',
-            ],
-            'orderby' => [
-                'type'              => 'string',
-                'enum'              => ['timestamp', 'status', 'order_id', 'event_type', 'source'],
-                'default'           => 'timestamp',
-                'sanitize_callback' => 'sanitize_key',
-            ],
-            'order' => [
-                'type'              => 'string',
-                'enum'              => ['asc', 'desc'],
-                'default'           => 'desc',
-                'sanitize_callback' => function($value) {
-                    return in_array(strtolower($value), ['asc', 'desc']) ? strtolower($value) : 'desc';
-                },
-            ],
-            'view' => [
-                'type'              => 'string',
-                'enum'              => ['consolidated', 'flat'],
-                'default'           => 'consolidated',
-                'sanitize_callback' => function($value) {
-                    $v = is_string($value) ? strtolower($value) : '';
-                    return in_array($v, ['consolidated','flat'], true) ? $v : 'consolidated';
-                },
-            ],
-        ];
-    }
-
-
-    /**
-     * Format logs for API response with user-friendly metadata
-     */
-    private function format_logs_for_api(array $logs): array
-    {
-        return array_map(function($log) {
-            $is_consolidated = !empty($log['is_process_representative']);
-            
-            // Transform event_type for more human-readable display
-            $event_type_display = $log['event_type'] ?? '';
-            if ($is_consolidated) {
-                $event_type_display = $this->format_filter_label($log['status'] ?? 'info');
-            } else {
-                $event_type_display = $this->format_filter_label($event_type_display);
-            }
-            
-            $formatted = [
-                'id' => (int) $log['id'],
-                'timestamp' => $log['timestamp'],
-                'status' => $log['status'],
-                'summary' => $log['summary'],
-                'order_id' => !empty($log['order_id']) ? (int) $log['order_id'] : null,
-                'event_type' => $event_type_display, // User-friendly display version
-                'raw_event_type' => $log['event_type'], // Keep original for filtering
-                'is_test' => !empty($log['is_test']) && (int) $log['is_test'] === 1,
-                'has_payload' => !empty($log['payload']),
-            ];
-
-            // Pass through process identifiers if present
-            if (!empty($log['process_id'])) {
-                $formatted['process_id'] = (string) $log['process_id'];
-            }
-            if (!empty($log['process_id_display'])) {
-                $formatted['process_id_display'] = (string) $log['process_id_display'];
-            }
-
-            // Include consolidation data for UI rendering when available
-            if (!empty($log['consolidation_data']) && is_array($log['consolidation_data'])) {
-                $formatted['consolidation_data'] = $log['consolidation_data'];
-            }
-
-            // Include constituent log IDs for bulk deletion support
-            if (!empty($log['constituent_log_ids']) && is_array($log['constituent_log_ids'])) {
-                $formatted['constituent_log_ids'] = $log['constituent_log_ids'];
-                $formatted['is_process_representative'] = true;
-            }
-
-            return $formatted;
-        }, $logs);
-    }
-
-    /**
-     * Get applied filters from request
-     */
-    private function get_applied_filters(WP_REST_Request $request): array
-    {
-        $filters = [];
-        $filter_params = ['s', 'status', 'event_type', 'source', 'order_id', 'date_start', 'date_end', 'include_tests', 'include_debug', 'include_consolidation_diag'];
-
-        foreach ($filter_params as $param) {
-            $value = $request->get_param($param);
-            if (!empty($value)) {
-                $filters[$param] = $value;
-            }
-        }
-
-        return $filters;
-    }
-
-    /**
-     * Get cache status for debugging
-     */
-    private function get_cache_status(WP_REST_Request $request): string
-    {
-        $cache_key = 'odcm_audit_logs_' . md5(serialize($request->get_params()));
-        return get_transient($cache_key) !== false ? 'HIT' : 'MISS';
-    }
-
-    /**
-     * Get log entry by ID
-     */
-    private function get_log_by_id(int $log_id): ?array
-    {
-        global $wpdb;
-        $log_table = $wpdb->prefix . 'odcm_audit_log';
-        $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-        // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
-        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
-        $payload_table_identifier = ($payload_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payload_table . '`' : '`odcm_audit_log_payloads`';
-
-        $result = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT l.log_id as id,
-                    l.timestamp,
-                    l.status,
-                    l.summary,
-                    l.order_id,
-                    l.event_type,
-                    l.source,
-                    l.payload_id,
-                    l.is_test,
-                    COALESCE(p.payload, l.details, '') as payload
-                FROM {$log_table_identifier} l
-                    LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id
-                WHERE l.log_id = %d",
-                $log_id
-            ),
-            'ARRAY_A'
-        );
-        return $result ?: null;
-    }
-
-    /**
-     * Fetch multiple logs by IDs in a single query (payload-aware)
-     *
-     * @param int[] $ids
-     * @return array<int,array> keyed by log id
-     */
-    private function fetch_logs_by_ids(array $ids): array
-    {
-        if (empty($ids)) { return []; }
-        global $wpdb;
-        $log_table = $wpdb->prefix . 'odcm_audit_log';
-        $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-        // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
-        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
-        $payload_table_identifier = ($payload_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payload_table . '`' : '`odcm_audit_log_payloads`';
-
-        // Build placeholders for IN clause
-        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
-        // Prepare with dynamic placeholders
-        $rows = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT l.log_id as id,
-                    l.timestamp,
-                    l.status,
-                    l.summary,
-                    l.order_id,
-                    l.event_type,
-                    l.source,
-                    l.payload_id,
-                    l.is_test,
-                    COALESCE(p.payload, l.details, '') as payload
-                FROM {$log_table_identifier} l
-                    LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id
-                WHERE l.log_id IN ($placeholders)",
-                $ids
-            ),
-            'ARRAY_A'
-        );
-        if (!is_array($rows) || empty($rows)) { return []; }
-        $map = [];
-        foreach ($rows as $r) {
-            if (isset($r['id'])) {
-                $map[(int) $r['id']] = $r;
-            }
-        }
-        return $map;
-    }
-
-    /**
-     * Render log components using clean timeline system
-     */
-    private function render_log_components(array $log): string
-    {
-        try {
-            // Create a mock request for the log ID
-            $mockRequest = new class($log['id'] ?? 0, false) implements WP_REST_Request {
-                private $log_id;
-                private $include_debug;
-                
-                public function __construct($log_id, $include_debug) {
-                    $this->log_id = $log_id;
-                    $this->include_debug = $include_debug;
-                }
-                
-                public function get_param($key) {
-                    if ($key === 'log_id') return $this->log_id;
-                    if ($key === 'include_debug') return $this->include_debug;
-                    return null;
-                }
-                
-                // Implement required interface methods as no-ops since we only need get_param()
-                public function get_params() { return []; }
-                public function set_param($key, $value) {}
-                public function get_attributes() { return []; }
-                public function set_attributes($attributes) {}
-                public function get_headers() { return []; }
-                public function get_content_type() { return []; }
-                public function get_method() { return 'POST'; }
-                public function get_route() { return ''; }
-                public function set_route($route) {}
-                public function get_url_params() { return []; }
-                public function set_url_params($params) {}
-                public function get_file_params() { return []; }
-                public function set_file_params($params) {}
-                public function get_body() { return null; }
-                public function set_body($data) {}
-                public function get_json_params() { return []; }
-                public function set_headers($headers) {}
-                public function get_header($key) { return null; }
-                public function get_header_as_array($key) { return []; }
-                public function has_valid_params() { return true; }
-                public function sanitize_params() { return true; }
-                public function has_param($key) { return in_array($key, ['log_id', 'include_debug']); }
-                public function set_default_params($defaults) {}
-                public function get_default_params() { return []; }
-            };
-
-            // Use the clean timeline system
-            $timelineRequest = TimelineRequest::fromRestRequest($mockRequest);
-            $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
-            return $this->timelineRenderer->renderTimeline($timelineData);
-            
-        } catch (\Throwable $e) {
-            // Fallback for completely broken entries
-            odcm_log_message('ODCM: render_log_components failed: ' . $e->getMessage(), 'error');
-            return '<div class="odcm-empty-data">' . esc_html__('audit.logs.timeline.empty', 'order-daemon') . '</div>';
-        }
-    }
-
-    /**
-     * LEGACY METHOD REMOVED - Use clean timeline system instead
-     */
-    private function render_narrative_timeline(array $envelope, bool $include_debug = false): string
-    {
-        odcm_log_message('ODCM: Legacy render_narrative_timeline called - this should use clean timeline system', 'error');
-        return '<div class="odcm-error">Legacy rendering method called. Please use clean timeline system.</div>';
-    }
-
-    /**
-     * Render fallback timeline when normal rendering fails
-     *
-     * @param array $envelope The payload envelope
-     * @return string HTML fallback timeline
-     */
-    private function render_fallback_timeline(array $envelope): string
-    {
-        odcm_log_message("ODCM FALLBACK: render_fallback_timeline called", 'error');
-        
-        // Load UI toolkit for consistent rendering
-        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
-            require_once dirname(__DIR__) . '/View/PayloadRenderer/PayloadComponentUIToolkit.php';
-        }
-        $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
-
-        $html = '<div class="odcm-narrative-timeline">';
-        
-        // Show basic envelope information
-        $content = '<div class="odcm-fallback-envelope">';
-        $content .= '<h4>Envelope Information</h4>';
-        
-        if (isset($envelope['type'])) {
-            $content .= '<p><strong>Type:</strong> ' . esc_html($envelope['type']) . '</p>';
-        }
-        if (isset($envelope['oid'])) {
-            $content .= '<p><strong>Order ID:</strong> #' . esc_html($envelope['oid']) . '</p>';
-        }
-        if (isset($envelope['ts'])) {
-            // Handle Unix timestamp display
-            $timestamp_display = is_numeric($envelope['ts']) 
-                ? gmdate('Y-m-d H:i:s', (int)$envelope['ts']) 
-                : (string)$envelope['ts'];
-            $content .= '<p><strong>Started At:</strong> ' . esc_html($timestamp_display) . '</p>';
-        }
-        if (isset($envelope['cid'])) {
-            $content .= '<p><strong>Correlation ID:</strong> ' . esc_html($envelope['cid']) . '</p>';
-        }
-        
-        // Show components summary if they exist
-        if (isset($envelope['components']) && is_array($envelope['components'])) {
-            $component_count = count($envelope['components']);
-            $content .= '<p><strong>Components:</strong> ' . $component_count . ' components</p>';
-            
-            // Show component types
-            $component_event_types = [];
-            foreach ($envelope['components'] as $component) {
-                if (is_array($component) && isset($component['event_type'])) {
-                    $component_event_types[] = $component['event_type'];
-                }
-            }
-            if (!empty($component_event_types)) {
-                $unique_event_types = array_unique($component_event_types);
-                $content .= '<p><strong>Component Types:</strong> ' . esc_html(implode(', ', $unique_event_types)) . '</p>';
-            }
-        } else {
-            $content .= '<p><em>No components found in envelope.</em></p>';
-        }
-        
-        $content .= '</div>';
-        
-        $html .= $toolkit->render_component_shell(
-            'Event Data (Fallback)',
-            'fallback_envelope',
-            $content,
-            ['status' => 'info']
-        );
-        
-        $html .= '</div>';
-        
-        odcm_log_message("ODCM FALLBACK: Generated " . strlen($html) . " characters of fallback HTML", 'error');
-        
-        return $html;
-    }
-
-    /**
-     * Find logs by process_id
-     * Returns a chronologically ordered list of logs for a given process_id.
-     * process_id is backend-only; no new filters are added elsewhere.
-     */
-    public function get_logs_by_process(WP_REST_Request $request): WP_REST_Response
-    {
-        try {
-            global $wpdb;
-            $process_id = sanitize_text_field((string)$request->get_param('process_id'));
-            if ($process_id === '') {
-                return new WP_Error('odcm_invalid_process_id', __('audit.logs.process.invalid_id', 'order-daemon'), ['status' => 400]);
-            }
-
-            $log_table = $wpdb->prefix . 'odcm_audit_log';
-            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-            // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
-            $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
-            $payload_table_identifier = ($payload_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payload_table . '`' : '`odcm_audit_log_payloads`';
-
-            $rows = $wpdb->get_results(
-                $wpdb->prepare(
-                    "SELECT l.log_id as id,
-                        l.timestamp,
-                        l.status,
-                        l.summary,
-                        l.order_id,
-                        l.event_type,
-                        l.source,
-                        l.payload_id,
-                        l.is_test,
-                        l.process_id,
-                        COALESCE(p.payload, l.details, '') as payload
-                    FROM {$log_table_identifier} l
-                        LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id
-                    WHERE l.process_id = %s
-                    ORDER BY l.timestamp ASC",
-                    $process_id
-                ),
-                'ARRAY_A'
-            );
-            if (!$rows) {
-                return new WP_REST_Response([
-                    'process_id' => $process_id,
-                    'count' => 0,
-                    'logs' => [],
-                    'meta' => ['timestamp' => current_time('mysql')],
-                ], 200);
-            }
-
-            // Return concise list with payload length to avoid heavy payload transfer if UI doesn’t need full HTML
-            $logs = array_map(function($r) {
-                $payload_len = isset($r['payload']) ? strlen((string)$r['payload']) : 0;
-                return [
-                    'id'         => (int) $r['id'],
-                    'timestamp'  => $r['timestamp'],
-                    'status'     => $r['status'],
-                    'summary'    => $r['summary'],
-                    'order_id'   => isset($r['order_id']) ? (int)$r['order_id'] : null,
-                    'event_type' => $r['event_type'],
-                    'source'     => $r['source'] ?? null,
-                    'is_test'    => isset($r['is_test']) ? (bool)$r['is_test'] : false,
-                    'payload'    => $r['payload'],
-                    'payload_len'=> $payload_len,
-                ];
-            }, $rows);
-
-            return new WP_REST_Response([
-                'process_id' => $process_id,
-                'count'      => count($logs),
-                'logs'       => $logs,
-                'meta'       => [ 'timestamp' => current_time('mysql') ],
-            ], 200);
-        } catch (\Throwable $e) {
-            $this->log_api_error('get_logs_by_process', $e, [ 'process_id' => $request->get_param('process_id') ]);
-            return new WP_Error('odcm_process_fetch_error', __('audit.logs.process.fetch_failure', 'order-daemon'), ['status' => 500]);
-        }
-    }
-
-    /**
-     * Log API performance metrics
-     */
-    private function log_api_performance(string $endpoint, float $execution_time, array $context): void
-    {
-        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
-            return;
-        }
-
-        // Log slow API calls (>1 second)
-        if ($execution_time > 1.0) {
-            error_log(sprintf(
-                'ODCM API Slow Call: %s took %.3fs - Context: %s',
-                $endpoint,
-                $execution_time,
-                json_encode($context)
-            ));
-        }
-
-        // Store performance metrics for analysis
-        $performance_log = get_option('odcm_api_performance_log', []);
-        $performance_log[] = [
-            'endpoint' => $endpoint,
-            'execution_time' => $execution_time,
-            'context' => $context,
-            'timestamp' => current_time('mysql'),
-        ];
-
-        // Keep only last 100 entries
-        if (count($performance_log) > 100) {
-            $performance_log = array_slice($performance_log, -100);
-        }
-
-        update_option('odcm_api_performance_log', $performance_log, false);
-    }
-
-    /**
-     * Get filtered logs with custom insight dashboard filtering
+     * Get filtered logs with pagination
+     * 
+     * @param WP_REST_Request $request The REST request
+     * @param int $per_page Items per page
+     * @param int $page Current page
+     * @return array Array of log entries
      */
     private function get_filtered_logs(WP_REST_Request $request, int $per_page, int $page): array
     {
         global $wpdb;
-        $log_table = $wpdb->prefix . 'odcm_audit_log';
-        $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-        // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
-        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
-        $payload_table_identifier = ($payload_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payload_table . '`' : '`odcm_audit_log_payloads`';
-
-        // Build base query
-        $sql =
-            "SELECT l.log_id as id,
-                l.timestamp,
-                l.status,
-                l.summary,
-                l.order_id,
-                l.event_type,
-                l.source,
-                l.payload_id,
-                l.is_test,
-                l.process_id,
-                COALESCE(p.payload, l.details, '') as payload
-            FROM {$log_table_identifier} l
-                LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id";
-
-        // Build WHERE clause
-        $where_conditions = [];
-        $where_values = [];
-
-        // Apply filters
-        $this->apply_filters_to_query($request, $where_conditions, $where_values);
-
-        // Add WHERE clause if we have conditions
-        if (!empty($where_conditions)) {
-            $sql .= ' WHERE ' . implode(' AND ', $where_conditions);
-        }
-
-        // Add ordering with strict whitelist
-        $allowed_orderby = ['timestamp', 'status', 'event_type', 'source', 'order_id'];
-        $requested_orderby = (string) ($request->get_param('orderby') ?: 'timestamp');
-        $orderby = in_array($requested_orderby, $allowed_orderby, true) ? $requested_orderby : 'timestamp';
-        $requested_order = strtoupper((string) ($request->get_param('order') ?: 'DESC'));
-        $order = in_array($requested_order, ['ASC', 'DESC'], true) ? $requested_order : 'DESC';
-        $sql .= " ORDER BY l.{$orderby} {$order}";
-
-        // Add pagination
-        $offset = ($page - 1) * $per_page;
-        $sql .= " LIMIT %d OFFSET %d";
-        $where_values[] = $per_page;
-        $where_values[] = $offset;
-
-        // Execute query
-        if (!empty($where_values)) {
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Dynamic query with validated identifiers and whitelisted ORDER BY.
-            $results = $wpdb->get_results($wpdb->prepare($sql, $where_values), 'ARRAY_A');
-        } else {
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Dynamic query with validated identifiers and whitelisted ORDER BY.
-            $results = $wpdb->get_results($sql, 'ARRAY_A');
-        }
-
-        return $results ?: [];
-    }
-
-    /**
-     * Build and execute a query for all filtered logs without pagination.
-     * Always returns a list (possibly empty). Never throws or returns WP_Error.
-     *
-     * @param WP_REST_Request $request The REST request with filter params.
-     * @return array A list of logs (empty array when no matching data).
-     */
-    private function get_all_filtered_logs(WP_REST_Request $request): array
-    {
+        
         try {
-            global $wpdb;
-            $log_table = $wpdb->prefix . 'odcm_audit_log';
-            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-            // Validate identifiers and wrap in backticks (placeholders cannot be used for identifiers)
-            $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
-            $payload_table_identifier = ($payload_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payload_table . '`' : '`odcm_audit_log_payloads`';
-
-            // Build base query
-            $sql =
-                "SELECT l.log_id as id,
-                    l.timestamp,
-                    l.status,
-                    l.summary,
-                    l.order_id,
-                    l.event_type,
-                    l.source,
-                    l.payload_id,
-                    l.is_test,
-                    l.process_id,
-                    COALESCE(p.payload, l.details, '') as payload
-                FROM {$log_table_identifier} l
-                    LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id";
-
-            // Build WHERE clause
-            $where_conditions = [];
-            $where_values = [];
-
-            // Apply filters
-            $this->apply_filters_to_query($request, $where_conditions, $where_values);
-
-            // Add WHERE clause if we have conditions
-            if (!empty($where_conditions)) {
-                $sql .= ' WHERE ' . implode(' AND ', $where_conditions);
+            // Build a cache key based on the filter parameters and pagination, with cache version
+            $filter_params = $request->get_params();
+            $cache_version = wp_cache_get('odcm_logs_cache_version');
+            if ($cache_version === false) {
+                $cache_version = 1; // default version
             }
-
-            // Add ordering with strict whitelist to prevent SQL injection
-            $allowed_orderby = ['timestamp', 'status', 'event_type', 'source', 'order_id'];
-            $requested_orderby = (string) ($request->get_param('orderby') ?: 'timestamp');
-            $orderby = in_array($requested_orderby, $allowed_orderby, true) ? $requested_orderby : 'timestamp';
-
-            $requested_order = strtoupper((string) ($request->get_param('order') ?: 'DESC'));
-            $order = in_array($requested_order, ['ASC', 'DESC'], true) ? $requested_order : 'DESC';
-
-            $sql .= " ORDER BY l.{$orderby} {$order}";
-
-            // Execute query
-            if (!empty($where_values)) {
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
-                $results = $wpdb->get_results($wpdb->prepare($sql, $where_values), 'ARRAY_A');
-            } else {
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
-                $results = $wpdb->get_results($sql, 'ARRAY_A');
+            $cache_key = 'odcm_v' . $cache_version . '_filtered_logs_page_' . md5(json_encode($filter_params) . "_p{$page}_pp{$per_page}");
+            
+            // Check if we have a cached result
+            $cached_logs = wp_cache_get($cache_key);
+            if (false !== $cached_logs) {
+                $this->logDebugMessage("Cache hit for filtered logs page: " . $cache_key, 'debug');
+                return $cached_logs;
             }
-
-            // Normalize to an array (empty when no rows)
-            return is_array($results) ? $results : [];
-        } catch (\Throwable $e) {
-            // Log and return empty result to allow frontend empty state rendering
-            odcm_log_message('ODCM API: get_all_filtered_logs failed: ' . $e->getMessage(), 'error');
+        
+            // Build query conditions from request parameters
+            $where_clauses = $this->build_filter_where_clauses($request);
+            $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
+            
+            // Calculate offset based on pagination
+            $offset = ($page - 1) * $per_page;
+            
+            // Get paginated filtered logs
+            $sql = $wpdb->prepare("
+                SELECT l.*, p.payload 
+                FROM {$wpdb->prefix}odcm_audit_log l
+                LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
+                {$where_sql}
+                ORDER BY l.timestamp DESC
+                LIMIT %d OFFSET %d
+            ", $per_page, $offset);
+            
+            $logs = $wpdb->get_results($sql, ARRAY_A);
+            
+            if ($logs === false) {
+                throw new \Exception($wpdb->last_error ?: 'Database query failed');
+            }
+            
+            $result = $logs ?: [];
+            
+            // Cache the result for 2 minutes (filtered lists change often)
+            wp_cache_set($cache_key, $result, '', 2 * MINUTE_IN_SECONDS);
+            
+            return $result;
+            
+        } catch (\Exception $e) {
+            $this->logDebugMessage("ODCM: Failed to get filtered logs: " . $e->getMessage(), 'error');
             return [];
         }
     }
 
     /**
-     * Get filtered log count for pagination
+     * Get count of filtered logs
+     * 
+     * @param WP_REST_Request $request The REST request
+     * @return int Count of filtered logs
      */
     private function get_filtered_log_count(WP_REST_Request $request): int
     {
         global $wpdb;
-        $log_table = $wpdb->prefix . 'odcm_audit_log';
-        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
-        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
-
-        // Build count query
-        $sql =
-            "SELECT COUNT(*)
-            FROM {$log_table_identifier} l";
-
-        // Build WHERE clause
-        $where_conditions = [];
-        $where_values = [];
-
-        // Apply filters
-        $this->apply_filters_to_query($request, $where_conditions, $where_values);
-
-        // Add WHERE clause if we have conditions
-        if (!empty($where_conditions)) {
-            $sql .= ' WHERE ' . implode(' AND ', $where_conditions);
-        }
-
-        // Execute query
-        if (!empty($where_values)) {
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
-            $count = $wpdb->get_var($wpdb->prepare($sql, $where_values));
-        } else {
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs here and in apply_filters_to_query.
+        
+        try {
+            // Build a cache key based on the filter parameters and cache version
+            $filter_params = array_filter($request->get_params());
+            unset($filter_params['page']); // Exclude pagination from cache key
+            unset($filter_params['per_page']); // Exclude pagination from cache key
+            $cache_version = wp_cache_get('odcm_logs_cache_version');
+            if ($cache_version === false) {
+                $cache_version = 1; // default version
+            }
+            $cache_key = 'odcm_v' . $cache_version . '_filtered_log_count_' . md5(json_encode($filter_params));
+            
+            // Check if we have a cached result
+            $cached_count = wp_cache_get($cache_key);
+            if (false !== $cached_count) {
+                $this->logDebugMessage("Cache hit for filtered log count: " . $cache_key, 'debug');
+                return (int) $cached_count;
+            }
+            
+            // Build query conditions from request parameters
+            $where_clauses = $this->build_filter_where_clauses($request);
+            $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
+            
+            // Get count of filtered logs
+            $sql = "
+                SELECT COUNT(*) 
+                FROM {$wpdb->prefix}odcm_audit_log l
+                {$where_sql}
+            ";
+            
             $count = $wpdb->get_var($sql);
+            
+            if ($count === false) {
+                throw new \Exception($wpdb->last_error ?: 'Database query failed');
+            }
+            
+            $result = (int) $count;
+            
+            // Cache the result for 2 minutes (filtered counts change often)
+            wp_cache_set($cache_key, $result, '', 2 * MINUTE_IN_SECONDS);
+            
+            return $result;
+            
+        } catch (\Exception $e) {
+            $this->logDebugMessage("ODCM: Failed to get filtered log count: " . $e->getMessage(), 'error');
+            return 0;
         }
-
-        return (int) $count;
     }
 
     /**
-     * Apply filters to SQL query
+     * Build WHERE clauses for filtering logs
+     * 
+     * @param WP_REST_Request $request The REST request
+     * @return array Array of WHERE clauses
      */
-    public static function apply_filters_to_query(WP_REST_Request $request, array &$where_conditions, array &$where_values): void
+    private function build_filter_where_clauses(WP_REST_Request $request): array
     {
         global $wpdb;
+        $where_clauses = [];
+        
+        // Resolve default flags for debug/test inclusion
+        // If the param is not explicitly provided, allow a site option to set a default for troubleshooting
+        $include_debug_param = $request->get_param('include_debug');
+        $include_test_param  = $request->get_param('include_test');
 
-        $odcm_can_use_audit_log_filter_advanced = function_exists('odcm_can_use') && odcm_can_use('audit_log_filter_advanced');
+        $include_debug_default = function_exists('get_option') ? (bool) get_option('odcm_dashboard_include_debug_by_default', false) : false;
+        $include_test_default  = function_exists('get_option') ? (bool) get_option('odcm_dashboard_include_test_by_default', false) : false;
 
-        // Search filter
-        $search = $request->get_param('s');
-        if (!empty($search)) {
-            $where_conditions[] = "(l.summary LIKE %s OR l.order_id = %s)";
-            $where_values[] = '%' . $wpdb->esc_like($search) . '%';
-            $where_values[] = is_numeric($search) ? (int) $search : 0;
+        $include_debug = ($include_debug_param === null) ? $include_debug_default : (bool) $include_debug_param;
+        $include_test  = ($include_test_param === null)  ? $include_test_default  : (bool) $include_test_param;
+
+        // Include debug events
+        if (!$include_debug) {
+            $where_clauses[] = "l.event_type NOT LIKE 'debug_%'";
+            $where_clauses[] = "l.status != 'debug'";
         }
-
-        // Status filter (premium)
-        $status = $request->get_param('status');
-        if (!empty($status) && $odcm_can_use_audit_log_filter_advanced) {
-            $where_conditions[] = "l.status = %s";
-            $where_values[] = $status;
+        
+        // Include test events
+        if (!$include_test) {
+            $where_clauses[] = "l.is_test = 0";
         }
-
-        // Event type filter (premium)
-        $event_type = $request->get_param('event_type');
-        if (!empty($event_type) && $odcm_can_use_audit_log_filter_advanced) {
-            $where_conditions[] = "l.event_type = %s";
-            $where_values[] = $event_type;
-        }
-
-        // Source filter (premium)
-        $source = $request->get_param('source');
-        if (!empty($source) && $odcm_can_use_audit_log_filter_advanced) {
-            $where_conditions[] = "l.source = %s";
-            $where_values[] = $source;
-        }
-
-        // Order ID filter (premium)
+        
+        // Order ID filter
         $order_id = $request->get_param('order_id');
-        if (!empty($order_id) && $odcm_can_use_audit_log_filter_advanced) {
-            $where_conditions[] = "l.order_id = %d";
-            $where_values[] = (int) $order_id;
+        if (!empty($order_id) && is_numeric($order_id)) {
+            $where_clauses[] = $wpdb->prepare("l.order_id = %d", (int) $order_id);
+        }
+        
+        // Status filter
+        $status = $request->get_param('status');
+        if (!empty($status)) {
+            $where_clauses[] = $wpdb->prepare("l.status = %s", sanitize_key($status));
+        }
+        
+        // Event type filter
+        $event_type = $request->get_param('event_type');
+        if (!empty($event_type)) {
+            $where_clauses[] = $wpdb->prepare("l.event_type = %s", sanitize_key($event_type));
+        }
+        
+        // Date range filters
+        $date_from = $request->get_param('date_from');
+        if (!empty($date_from)) {
+            $where_clauses[] = $wpdb->prepare("l.timestamp >= %s", sanitize_text_field($date_from));
+        }
+        
+        $date_to = $request->get_param('date_to');
+        if (!empty($date_to)) {
+            $where_clauses[] = $wpdb->prepare("l.timestamp <= %s", sanitize_text_field($date_to));
+        }
+        
+        // Search filter
+        $search = $request->get_param('search');
+        if (!empty($search)) {
+            $where_clauses[] = $wpdb->prepare("l.summary LIKE %s", '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%');
+        }
+        
+        // Debug logging of where clauses to help diagnose empty dashboards
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            try {
+                $this->logDebugMessage('ODCM: build_filter_where_clauses => ' . implode(' AND ', $where_clauses));
+            } catch (\Throwable $e) {
+                // noop
+            }
         }
 
-        // Date range filters (premium)
-        $date_start = $request->get_param('date_start');
-        $date_end = $request->get_param('date_end');
-        if (!empty($date_start) && $odcm_can_use_audit_log_filter_advanced) {
-            $where_conditions[] = "l.timestamp >= %s";
-            $where_values[] = $date_start . ' 00:00:00';
-        }
-        if (!empty($date_end) && $odcm_can_use_audit_log_filter_advanced) {
-            $where_conditions[] = "l.timestamp <= %s";
-            $where_values[] = $date_end . ' 23:59:59';
-        }
-
-        // Test and debug filters (always available)
-        if (!$request->get_param('include_tests')) {
-            $where_conditions[] = "(l.is_test IS NULL OR l.is_test = 0)";
-        }
-
-        // Simplified debug log filtering - only filter by status
-        if (!$request->get_param('include_debug')) {
-            $where_conditions[] = "l.status != 'debug'";
-        }
-
-        // Exclude consolidation diagnostics by default unless explicitly opted-in and in debug
-        $include_consolidation_diag = (bool) $request->get_param('include_consolidation_diag');
-        $debug_on = (defined('ODCM_DEBUG') && ODCM_DEBUG);
-        if (!($include_consolidation_diag && $debug_on)) {
-            $where_conditions[] = "(l.event_type IS NULL OR l.event_type <> %s)";
-            $where_values[] = 'consolidation_diag';
-        }
-
-        // Since filter for incremental updates
-        $since = $request->get_param('since');
-        if (!empty($since)) {
-            $where_conditions[] = "l.timestamp > %s";
-            $where_values[] = $since;
-        }
+        return $where_clauses;
     }
 
+    /**
+     * Apply process ID consolidation for lifecycle events
+     * 
+     * @param array $logs Array of log entries
+     * @param bool $include_debug Whether to include debug events
+     * @return array Consolidated log entries
+     */
+    private function apply_process_id_consolidation(array $logs, bool $include_debug): array
+    {
+        if (empty($logs)) {
+            return [];
+        }
+        
+        // Group logs by process_id if available
+        $grouped_logs = [];
+        $ungrouped_logs = [];
+        
+        foreach ($logs as $log) {
+            // Note: Debug filtering is already handled at the database level in build_filter_where_clauses()
+            // No need to filter again here as it causes count vs logs discrepancy
+            
+            if (!empty($log['process_id'])) {
+                $process_id = $log['process_id'];
+                $grouped_logs[$process_id][] = $log;
+            } else {
+                $ungrouped_logs[] = $log;
+            }
+        }
+        
+        // Merge grouped and ungrouped logs
+        $consolidated_logs = [];
+        
+        // Process grouped logs
+        foreach ($grouped_logs as $process_id => $process_logs) {
+            // Sort process logs by timestamp (descending)
+            usort($process_logs, function($a, $b) {
+                return strtotime($b['timestamp']) - strtotime($a['timestamp']);
+            });
+            
+            // Use the most recent log as the representative entry
+            $primary_log = reset($process_logs);
+            $primary_log['_is_process_group'] = true;
+            $primary_log['_process_count'] = count($process_logs);
+            $primary_log['_process_logs'] = $process_logs;
+            
+            $consolidated_logs[] = $primary_log;
+        }
+        
+        // Add ungrouped logs
+        foreach ($ungrouped_logs as $log) {
+            $log['_is_process_group'] = false;
+            $log['_process_count'] = 1;
+            $consolidated_logs[] = $log;
+        }
+        
+        // Sort all logs by timestamp (descending)
+        usort($consolidated_logs, function($a, $b) {
+            return strtotime($b['timestamp']) - strtotime($a['timestamp']);
+        });
+        
+        return $consolidated_logs;
+    }
 
     /**
-     * Log API errors for debugging
+     * Get cache status for the request
+     * 
+     * @param WP_REST_Request $request The REST request
+     * @return array Cache status information
      */
-    private function log_api_error(string $endpoint, \Exception $e, array $context): void
+    private function get_cache_status(WP_REST_Request $request): array
     {
-        // Log to WordPress error log via debug-gated helper
-        odcm_log_message(sprintf(
-            'ODCM API Error in %s: %s - Context: %s',
-            $endpoint,
-            $e->getMessage(),
-            json_encode($context)
-        ), 'error');
-
-        // Log to plugin's audit trail if available
-        if (function_exists('odcm_log_event')) {
-            odcm_log_event(
-                "API Error in {$endpoint}: " . $e->getMessage(),
-                array_merge($context, [
-                    'error_file' => $e->getFile(),
-                    'error_line' => $e->getLine(),
-                    'stack_trace' => $e->getTraceAsString(),
-                ]),
-                null,
-                'error',
-                'api_error',
-                true
-            );
+        // Determine cache status
+        $cache_enabled = defined('ODCM_API_CACHE_ENABLED') && ODCM_API_CACHE_ENABLED;
+        
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG && $cache_enabled) {
+            $request_params = array_filter($request->get_params());
+            unset($request_params['page']); // Exclude pagination from cache key
+            
+            // Cache is based on the filtered request parameters
+            $cache_key = 'odcm_logs_' . md5(json_encode($request_params));
+            $transient_exists = (bool) get_transient($cache_key);
+            
+            return [
+                'enabled' => true,
+                'hit' => $transient_exists,
+                'key' => $cache_key,
+                'ttl' => defined('ODCM_API_CACHE_TTL') ? ODCM_API_CACHE_TTL : 300, // 5 minutes default
+            ];
         }
+        
+        return [
+            'enabled' => $cache_enabled,
+            'hit' => false,
+        ];
+    }
+
+    /**
+     * Get applied filters from request
+     * 
+     * @param WP_REST_Request $request The REST request
+     * @return array Applied filters
+     */
+    private function get_applied_filters(WP_REST_Request $request): array
+    {
+        $filters = [];
+        $params = $request->get_params();
+        
+        // Map request parameters to filter names
+        $filter_map = [
+            'include_debug' => 'include_debug_events',
+            'include_test' => 'include_test_events',
+            'order_id' => 'order_id',
+            'status' => 'status',
+            'event_type' => 'event_type',
+            'date_from' => 'date_from',
+            'date_to' => 'date_to',
+            'search' => 'search',
+        ];
+        
+        // Build filter list
+        foreach ($filter_map as $param => $filter_name) {
+            if (isset($params[$param]) && !empty($params[$param])) {
+                $filters[$filter_name] = $params[$param];
+            }
+        }
+        
+        return $filters;
+    }
+
+    /**
+     * Format logs for API response
+     * 
+     * @param array $logs Array of log entries
+     * @return array Formatted logs
+     */
+    private function format_logs_for_api(array $logs): array
+    {
+        $formatted_logs = [];
+        
+        foreach ($logs as $log) {
+            $formatted_log = [
+                'id' => (int) $log['log_id'],
+                'timestamp' => $log['timestamp'],
+                'status' => $log['status'],
+                'summary' => $log['summary'],
+                'event_type' => $log['event_type'],
+            ];
+            
+            // Add order_id if present
+            if (!empty($log['order_id'])) {
+                $formatted_log['order_id'] = (int) $log['order_id'];
+            }
+            
+            // Add process group info if available
+            if (isset($log['_is_process_group']) && $log['_is_process_group']) {
+                $formatted_log['is_process_group'] = true;
+                $formatted_log['process_id'] = $log['process_id'];
+                $formatted_log['process_count'] = $log['_process_count'];
+            }
+            
+            // Add payload_id if available (for rendering components)
+            if (!empty($log['payload_id'])) {
+                $formatted_log['payload_id'] = (int) $log['payload_id'];
+            }
+            
+            $formatted_logs[] = $formatted_log;
+        }
+        
+        return $formatted_logs;
     }
 
     /**
      * Validate log IDs for deletion
-     *
-     * Ensures log IDs exist and user has permission to delete them
+     * 
+     * @param array $log_ids Array of log IDs
+     * @return array Array of valid log IDs
      */
     private function validate_log_ids_for_deletion(array $log_ids): array
     {
         global $wpdb;
-        $log_table = $wpdb->prefix . 'odcm_audit_log';
-
-        // Sanitize and validate log IDs
-        $sanitized_ids = array_map('absint', array_filter($log_ids, function($id) {
-            return is_numeric($id) && $id > 0;
-        }));
-
-        if (empty($sanitized_ids)) {
+        
+        if (empty($log_ids)) {
             return [];
         }
-
-        // Create placeholders for IN clause
-        $placeholders = implode(',', array_fill(0, count($sanitized_ids), '%d'));
-
-        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
-        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
-
-        // Check which log IDs actually exist
-        $existing_ids = $wpdb->get_col(
-            $wpdb->prepare(
-                "SELECT log_id
-                FROM {$log_table_identifier}
-                WHERE log_id IN ({$placeholders})",
-                $sanitized_ids
-            )
-        );
-
-        return array_map('intval', $existing_ids);
+        
+        // Convert to integers and get unique values
+        $log_ids = array_unique(array_map('intval', $log_ids));
+        
+        // Check cache for recently validated IDs
+        static $validation_cache = [];
+        $cache_key = 'odcm_valid_log_ids_' . md5(implode(',', $log_ids));
+        
+        if (isset($validation_cache[$cache_key])) {
+            return $validation_cache[$cache_key];
+        }
+        
+        // Also check persistent cache
+        $cached_valid_ids = wp_cache_get($cache_key);
+        if (false !== $cached_valid_ids) {
+            // Store in static cache and return
+            $validation_cache[$cache_key] = $cached_valid_ids;
+            return $cached_valid_ids;
+        }
+        
+        // Get comma-separated list for SQL
+        $ids_list = implode(',', $log_ids);
+        
+        // Validate log IDs exist
+        $sql = "
+            SELECT log_id 
+            FROM {$wpdb->prefix}odcm_audit_log 
+            WHERE log_id IN ({$ids_list})
+        ";
+        
+        $valid_ids = $wpdb->get_col($sql);
+        $result = array_map('intval', $valid_ids);
+        
+        // Cache the result for future use (5 minutes)
+        $validation_cache[$cache_key] = $result;
+        wp_cache_set($cache_key, $result, '', 5 * MINUTE_IN_SECONDS);
+        
+        return $result;
     }
 
     /**
-     * Perform batch deletion with transaction support
-     *
-     * Deletes logs and associated payload data in a database transaction
+     * Perform batch deletion of logs
+     * 
+     * @param array $log_ids Array of log IDs
+     * @return int Number of deleted logs
      */
     private function perform_batch_deletion(array $log_ids): int
     {
         global $wpdb;
-        $log_table = $wpdb->prefix . 'odcm_audit_log';
-        $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-
+        
+        if (empty($log_ids)) {
+            return 0;
+        }
+        
+        // Get comma-separated list for SQL
+        $ids_list = implode(',', $log_ids);
+        
         // Start transaction
         $wpdb->query('START TRANSACTION');
-
+        
         try {
-            $deleted_count = 0;
-
-            // Create placeholders for IN clause
-            $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
-
-            // Get payload IDs to delete
-            $payload_ids = $wpdb->get_col(
-                $wpdb->prepare(
-                    "SELECT DISTINCT payload_id
-                    FROM $log_table
-                    WHERE log_id IN ({$placeholders})
-                        AND payload_id IS NOT NULL",
-                    $log_ids
-                )
-            );
-
-            // Delete associated payload data first
-            if (!empty($payload_ids)) {
-                $payload_placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
-                $wpdb->query(
-                    $wpdb->prepare(
-                        "DELETE FROM $payload_table
-                        WHERE payload_id IN ({$payload_placeholders})",
-                        $payload_ids
-                    )
-                );
+            // Calculate associated cache keys to invalidate later
+            $cache_keys_to_invalidate = [];
+            foreach ($log_ids as $log_id) {
+                $cache_keys_to_invalidate[] = 'odcm_log_' . $log_id;
+                $cache_keys_to_invalidate[] = 'odcm_log_components_' . $log_id;
             }
-
-            // Delete log entries
-            $deleted_count = $wpdb->query(
-                $wpdb->prepare(
-                    "DELETE FROM $log_table
-                    WHERE log_id IN ({$placeholders})",
-                    $log_ids
-                )
-            );
-
+            
+            // Check cache for payload IDs
+            $payload_ids_cache_key = 'odcm_payload_ids_' . md5($ids_list);
+            $payload_ids = wp_cache_get($payload_ids_cache_key);
+            
+            if (false === $payload_ids) {
+                // Get payload IDs to delete
+                $payload_ids = $wpdb->get_col("
+                    SELECT DISTINCT payload_id 
+                    FROM {$wpdb->prefix}odcm_audit_log 
+                    WHERE log_id IN ({$ids_list}) AND payload_id IS NOT NULL
+                ");
+                
+                // Cache payload IDs for 1 minute
+                wp_cache_set($payload_ids_cache_key, $payload_ids, '', MINUTE_IN_SECONDS);
+            }
+            
+            // Delete logs
+            $deleted = $wpdb->query("
+                DELETE FROM {$wpdb->prefix}odcm_audit_log 
+                WHERE log_id IN ({$ids_list})
+            ");
+            
+            // Delete orphaned payloads
+            if (!empty($payload_ids)) {
+                $payload_ids_list = implode(',', $payload_ids);
+                
+                // Get payloads still in use
+                $used_payloads = $wpdb->get_col("
+                    SELECT DISTINCT payload_id 
+                    FROM {$wpdb->prefix}odcm_audit_log 
+                    WHERE payload_id IN ({$payload_ids_list})
+                ");
+                
+                // Calculate orphaned payloads
+                $orphaned_payloads = array_diff($payload_ids, $used_payloads);
+                
+                // Delete orphaned payloads
+                if (!empty($orphaned_payloads)) {
+                    $orphaned_ids_list = implode(',', $orphaned_payloads);
+                    $wpdb->query("
+                        DELETE FROM {$wpdb->prefix}odcm_audit_log_payloads 
+                        WHERE id IN ({$orphaned_ids_list})
+                    ");
+                }
+            }
+            
             // Commit transaction
             $wpdb->query('COMMIT');
 
-            return (int) $deleted_count;
+            // Invalidate dashboard logs cache by bumping a global cache version
+            $this->invalidate_logs_cache();
 
+            return $deleted;
         } catch (\Exception $e) {
-            // Rollback transaction on error
+            // Rollback transaction
             $wpdb->query('ROLLBACK');
             throw $e;
         }
     }
 
     /**
-     * Log batch deletion operation for audit trail
+     * Log batch deletion operation
+     * 
+     * @param array $log_ids Array of deleted log IDs
+     * @param int $count Number of deleted logs
+     * @return void
      */
-    private function log_batch_deletion(array $log_ids, int $deleted_count): void
+    private function log_batch_deletion(array $log_ids, int $count): void
     {
-        // Only log this admin UX operation when ODCM_DEBUG is explicitly true
-        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+        // Log deletion event
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
+                sprintf(
+                    /* translators: %d: number of logs deleted */
+                    _n(
+                        '%d audit log entry was deleted',
+                        '%d audit log entries were deleted',
+                        $count,
+                        'order-daemon'
+                    ),
+                    $count
+                ),
+                [
+                    'deleted_count' => $count,
+                    'deleted_ids' => $log_ids,
+                    'deleted_by' => get_current_user_id(),
+                ],
+                null,
+                'info',
+                'audit_log_deletion'
+            );
+        }
+    }
+
+    /**
+     * Log API performance metrics for monitoring
+     * 
+     * @param string $endpoint API endpoint name
+     * @param float $execution_time Execution time in seconds
+     * @param array $context Additional context data
+     * @return void
+     */
+    private function log_api_performance(string $endpoint, float $execution_time, array $context = []): void
+    {
+        // Only log if debug or performance monitoring is enabled
+        if (!(defined('ODCM_DEBUG') && ODCM_DEBUG) && !(defined('ODCM_PERFORMANCE_MONITORING') && ODCM_PERFORMANCE_MONITORING)) {
             return;
         }
-
-        // Log the batch deletion operation if audit logging is available
+        
+        // Format execution time with precision
+        $time_ms = round($execution_time * 1000, 2);
+        
+        // Log using structured logging
+        $this->logDebugMessage(
+            sprintf('API Performance: %s completed in %s ms', $endpoint, $time_ms),
+            'info'
+        );
+        
+        // Log detailed performance metrics if monitoring is enabled
+        if (defined('ODCM_PERFORMANCE_MONITORING') && ODCM_PERFORMANCE_MONITORING) {
+            // Add performance data to context
+            $context['execution_time_ms'] = $time_ms;
+            $context['endpoint'] = $endpoint;
+            $context['timestamp'] = current_time('mysql');
+            $context['user_id'] = get_current_user_id();
+            
+            // Log to performance monitoring system
             if (function_exists('odcm_log_event')) {
-                $user = wp_get_current_user();
-
                 odcm_log_event(
-                    sprintf(
-                        'Batch deleted %d log entries via Insight Dashboard',
-                        $deleted_count
-                    ),
-                    [
-                        'deleted_log_ids' => $log_ids,
-                        'deleted_count' => $deleted_count,
-                        'requested_count' => count($log_ids),
-                        'user_id' => $user->ID,
-                        'user_login' => $user->user_login,
-                        'user_ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-                        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-                    ],
+                    sprintf('API: %s completed in %s ms', $endpoint, $time_ms),
+                    $context,
                     null,
                     'info',
-                    'batch_delete',
-                    false // Don't include this in test logs
+                    'api_performance'
                 );
             }
-    }
-
-    /**
-     * Check if component data contains embedded context that should be rendered inline
-     *
-     * @param array $data Component data array
-     * @return bool True if embedded context is present
-     */
-    private function hasEmbeddedContext(array $data): bool
-    {
-        return isset($data['attribution']) ||
-            isset($data['attribution_context']) ||
-            isset($data['performance']) ||
-            isset($data['user_context']);
-    }
-
-    /**
-     * Render embedded context using dual-mode rendering strategy.
-     * This method will assemble compact, inline HTML fragments for supported
-     * context blocks such as attribution badges and performance metrics.
-     *
-     * @param array $data      Component data (may contain nested context arrays)
-     * @param mixed $renderer  Primary renderer instance for the component (optional)
-     * @return string          HTML to be inlined within the primary timeline item
-     */
-    private function renderEmbeddedContext(array $data, $renderer): string
-    {
-        $embeddedParts = [];
-
-        // Attribution context (badges, actors). Prefer explicit attribution_context if provided.
-        if (isset($data['attribution']) || isset($data['attribution_context'])) {
-            $attrData = null;
-            if (isset($data['attribution']) && is_array($data['attribution'])) {
-                $attrData = $data['attribution'];
-            } elseif (isset($data['attribution_context']) && is_array($data['attribution_context'])) {
-                $attrData = $data['attribution_context'];
-            }
-
-            if (is_array($attrData) && !empty($attrData)) {
-                $systemRendererClass = '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\SystemRenderer';
-                if (class_exists($systemRendererClass)) {
-                    try {
-                        $systemRenderer = new $systemRendererClass();
-                        // SystemRenderer expects attribution_context key
-                        $embeddedParts[] = $systemRenderer->renderEmbeddedContent(['attribution_context' => $attrData]);
-                    } catch (\Throwable $e) {
-                        error_log('ODCM EmbeddedContext: SystemRenderer error: ' . $e->getMessage());
-                    }
-                }
-            }
         }
-
-        // Performance context (inline metrics)
-        if (isset($data['performance']) && is_array($data['performance'])) {
-            $perfRendererClass = '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PerformanceRenderer';
-            if (class_exists($perfRendererClass)) {
-                try {
-                    $perfRenderer = new $perfRendererClass();
-                    // Pass the inner metrics array to match renderer expectations
-                    $embeddedParts[] = $perfRenderer->renderEmbeddedContent($data['performance']);
-                } catch (\Throwable $e) {
-                    error_log('ODCM EmbeddedContext: PerformanceRenderer error: ' . $e->getMessage());
-                }
-            }
-        }
-
-        // In future: user_context or additional contexts can be embedded here
-
-        return implode('', array_filter(array_map(function($part){
-            return is_string($part) ? $part : '';
-        }, $embeddedParts)));
     }
 
     /**
-     * Determine if a payload component event_type is context-only and should not render as a standalone timeline item.
-     *
-     * Context-only event_types carry supplemental data that is embedded into primary events (e.g., status change)
-     * and must be skipped from standalone rendering in the consolidated timeline.
-     *
-     * @param string $event_type Component event_type slug.
-     * @return bool True when the component is context-only.
+     * Log API errors for troubleshooting
+     * 
+     * @param string $endpoint API endpoint name
+     * @param \Throwable $exception The exception/error that occurred
+     * @param array $context Additional context data
+     * @return void
      */
-    private function isContextOnlyComponent(string $event_type): bool
+    private function log_api_error(string $endpoint, \Throwable $exception, array $context = []): void
     {
-        $contextOnlyEventTypes = [
-            'attribution',      // Attribution badges - embed in parent events
-            'performance',      // Performance metrics - embed in parent events
-            'user_context',     // User context data - embed in parent events
-            'info',             // Info data - embed in parent events
-            'action_executed',  // Action execution details - embed in parent events
-            'process_started',  // Debug-only, skip entirely
-        ];
-        return in_array($event_type, $contextOnlyEventTypes, true);
-    }
-
-
-    /**
-     * Check if this is a consolidated entry
-     *
-     * @param array $log
-     * @return bool
-     */
-    private function is_consolidated_entry(array $log): bool
-    {
-        // Check if this log entry has consolidation data indicating it's a consolidated entry
-        return isset($log['consolidation_data']['is_consolidated']) && 
-               $log['consolidation_data']['is_consolidated'] === true;
-    }
-
-    /**
-     * Render timeline for all events with a specific process_id
-     *
-     * @param string $process_id The process ID to query
-     * @param bool $include_debug Whether to include debug components
-     * @return string HTML output for the process timeline
-     */
-    private function render_process_timeline_by_process_id(string $process_id, bool $include_debug = false): string
-    {
-        if (empty($process_id)) {
-            return '<div class="odcm-empty-data">' . esc_html__('audit.logs.process.invalid_id', 'order-daemon') . '</div>';
-        }
-
-        try {
-            // Query all events with this process_id
-            global $wpdb;
-            $log_table = $wpdb->prefix . 'odcm_audit_log';
-            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-
-            $process_events = $wpdb->get_results(
-                $wpdb->prepare(
-                    "SELECT l.log_id as id,
-                        l.timestamp,
-                        l.status,
-                        l.summary,
-                        l.order_id,
-                        l.event_type,
-                        l.source,
-                        l.payload_id,
-                        l.is_test,
-                        l.process_id,
-                        COALESCE(p.payload, l.details, '') as payload
-                    FROM {$log_table} l 
-                        LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id
-                    WHERE l.process_id = %s 
-                    ORDER BY l.timestamp ASC",
-                    $process_id
-                ),
-                'ARRAY_A'
+        // Get exception details
+        $error_message = $exception->getMessage();
+        $error_trace = $exception->getTraceAsString();
+        
+        // Log using structured logging
+        $this->logDebugMessage(
+            sprintf('API Error: %s - %s', $endpoint, $error_message),
+            'error'
+        );
+        
+        // Log to error tracking system
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
+                sprintf('API error in %s: %s', $endpoint, $error_message),
+                [
+                    'endpoint' => $endpoint,
+                    'error_message' => $error_message,
+                    'error_code' => $exception->getCode(),
+                    'error_file' => $exception->getFile(),
+                    'error_line' => $exception->getLine(),
+                    'error_trace' => $error_trace,
+                    'context' => $context,
+                ],
+                null,
+                'error',
+                'api_error'
             );
-
-            if (empty($process_events)) {
-                return '<div class="odcm-empty-data">' . esc_html__('audit.logs.process.no_events', 'order-daemon') . '</div>';
-            }
-
-            // Extract all payload components from the process events
-            $all_components = [];
-            $first_event = $process_events[0];
-            $envelope_meta = [
-                'type' => 'process_timeline',
-                'order_id' => $first_event['order_id'] ?? 0,
-                'ts' => $first_event['timestamp'] ?? current_time('mysql'),
-                'trigger' => 'process_lifecycle',
-                'cid' => $process_id,
-            ];
-
-            // Process each event to extract payload components
-            foreach ($process_events as $event) {
-                $payload_raw = $event['payload'] ?? '';
-                if (empty($payload_raw)) {
-                    continue;
-                }
-
-                $event_details = is_string($payload_raw) ? json_decode($payload_raw, true) : null;
-                if (!is_array($event_details)) {
-                    continue;
-                }
-
-                // Extract payload components if they exist (ProcessLogger entries)
-                if (isset($event_details['components']) && is_array($event_details['components'])) {
-                    foreach ($event_details['components'] as $component) {
-                        if (!is_array($component)) {
-                            continue;
-                        }
-
-                        // Apply debug filtering
-                        if (!$include_debug && $this->is_debug_component($component)) {
-                            continue;
-                        }
-
-                        $all_components[] = $component;
-                    }
-                } else {
-                    // Handle non-ProcessLogger entries by creating synthetic components
-                    $synthetic_component = [
-                        'event_type' => 'process_event',
-                        'label' => $event['summary'] ?? ($event['event_type'] ?? 'Event'),
-                        'ts' => $event['timestamp'] ?? current_time('mysql'),
-                        'level' => $event['status'] ?? 'info',
-                        'data' => array_merge($event_details, [
-                            'event_type' => $event['event_type'] ?? '',
-                            'source' => $event['source'] ?? '',
-                            'log_id' => $event['id'] ?? 0,
-                        ]),
-                    ];
-
-                    // Apply debug filtering for synthetic components
-                    if (!$include_debug && isset($event_details['level']) && $event_details['level'] === 'debug') {
-                        continue;
-                    }
-
-                    $all_components[] = $synthetic_component;
-                }
-            }
-
-            // If no components after filtering, show appropriate message
-            if (empty($all_components)) {
-                if (!$include_debug) {
-                    return '<div class="odcm-empty-data">' . esc_html__('audit.logs.process.events_filtered_debug', 'order-daemon') . '</div>';
-                } else {
-                    return '<div class="odcm-empty-data">' . esc_html__('audit.logs.process.no_components', 'order-daemon') . '</div>';
-                }
-            }
-
-            // Create the envelope structure for render_narrative_timeline
-            $process_envelope = array_merge($envelope_meta, [
-                'components' => $all_components,
-            ]);
-
-            // Use the existing narrative timeline rendering
-            return $this->render_narrative_timeline($process_envelope, $include_debug);
-
-        } catch (\Throwable $e) {
-            error_log('ODCM: render_process_timeline_by_process_id failed: ' . $e->getMessage());
-            return '<div class="odcm-empty-data">' . esc_html__('audit.logs.process.timeline_render_error', 'order-daemon') . '</div>';
         }
     }
 
     /**
-     * Check if this has components
-     *
-     * @param array $details
-     * @return bool
+     * Render empty entry fallback
+     * 
+     * @param array $log The log entry
+     * @return string HTML output
      */
-    private function is_process_logger_entry(array $details): bool
+    private function render_empty_entry_fallback(array $log): string
     {
-        return isset($details['components']) && is_array($details['components']) && !empty($details['components']);
+        $summary = esc_html($log['summary'] ?? 'Unknown event');
+        $status = esc_attr($log['status'] ?? 'info');
+        $event_type = esc_html($log['event_type'] ?? 'event');
+        $timestamp = esc_html($log['timestamp'] ?? current_time('mysql'));
+        
+        return "
+            <div class='odcm-timeline'>
+                <div class='odcm-timeline-component odcm-status-{$status}'>
+                    <div class='odcm-timeline-header'>
+                        <div class='odcm-timeline-timestamp'>{$timestamp}</div>
+                        <div class='odcm-timeline-title'>{$event_type}</div>
+                    </div>
+                    <div class='odcm-timeline-body'>
+                        <div class='odcm-timeline-message'>{$summary}</div>
+                    </div>
+                </div>
+            </div>
+        ";
     }
 
     /**
-     * Check if this is a debug-only process based on existing metadata
-     *
-     * @param array $details
-     * @return bool
+     * Render component timeline
+     * 
+     * @param array $components Array of components
+     * @return string HTML output
      */
-    private function is_debug_only_process(array $details): bool
+    private function render_component_timeline(array $components): string
     {
-        $source = isset($details['source']) ? (string)$details['source'] : '';
-        if ($source !== '' && strpos($source, 'debug_') === 0) {
-            return true;
+        if (empty($components)) {
+            return "<div class='odcm-timeline odcm-timeline-empty'>No components found</div>";
         }
-
-        $type = isset($details['type']) ? (string)$details['type'] : '';
-        $debug_only_types = ['debug_info_dump', 'system_diagnostics', 'performance_profiling'];
-        if ($type !== '' && in_array($type, $debug_only_types, true)) {
-            return true;
-        }
-
-        $components = isset($details['components']) && is_array($details['components'])
-            ? $details['components']
-            : [];
-        if (!empty($components)) {
-            foreach ($components as $component) {
-                if (!is_array($component)) { continue; }
-                if (!$this->is_debug_component($component)) {
-                    // Found a non-debug component -> not debug-only
-                    return false;
-                }
+        
+        // Sort components by timestamp (descending)
+        usort($components, function($a, $b) {
+            $a_ts = $a['ts'] ?? 0;
+            $b_ts = $b['ts'] ?? 0;
+            return $b_ts - $a_ts;
+        });
+        
+        $html = "<div class='odcm-timeline'>";
+        
+        foreach ($components as $component) {
+            $label = esc_html($component['label'] ?? 'Event');
+            $level = esc_attr($component['level'] ?? 'info');
+            $timestamp = is_numeric($component['ts'] ?? null) ? 
+                         date('Y-m-d H:i:s', $component['ts']) : 
+                         esc_html($component['ts'] ?? current_time('mysql'));
+            
+            $html .= "
+                <div class='odcm-timeline-component odcm-level-{$level}'>
+                    <div class='odcm-timeline-header'>
+                        <div class='odcm-timeline-timestamp'>{$timestamp}</div>
+                        <div class='odcm-timeline-title'>{$label}</div>
+                    </div>
+                    <div class='odcm-timeline-body'>
+            ";
+            
+            // Add component data if available
+            if (isset($component['data']) && is_array($component['data'])) {
+                $html .= "<div class='odcm-timeline-data'>";
+                $html .= $this->render_component_data($component['data']);
+                $html .= "</div>";
             }
-            // No non-debug components found -> debug-only
-            return true;
+            
+            $html .= "
+                    </div>
+                </div>
+            ";
         }
-
-        return false;
-    }
-
-    /**
-     * Embed context components into primary events based on temporal proximity and relevance.
-     *
-     * This method associates context-only components (info, action_executed, attribution, etc.)
-     * with their most relevant primary events (status_change, rule_evaluated, etc.) to create
-     * enriched timeline items that contain all related context data.
-     *
-     * Uses direct renderContent() calls to generate context content without wrappers.
-     *
-     * @param array $primary_events Array of primary timeline events
-     * @param array $context_components Array of context-only components to embed
-     * @return array Array of enriched events with embedded context content
-     */
-    private function embedContextIntoEvents(array $primary_events, array $context_components): array
-    {
-        if (empty($context_components)) {
-            return $primary_events;
-        }
-
-        // Load registry for renderer lookup
-        if (!function_exists('odcm_get_payload_component_type')) {
-            require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
-        }
-
-        $enriched_events = [];
-
-        foreach ($primary_events as $event) {
-            $event_ts = strtotime($event['ts'] ?? '');
-            $event_event_type = $event['event_type'] ?? '';
-
-            // Find context components that should be embedded in this event
-            $relevant_context = [];
-            $context_content = [];
-
-            foreach ($context_components as $context) {
-                $context_ts = strtotime($context['ts'] ?? '');
-                $context_event_type = $context['event_type'] ?? '';
-                $context_data = is_array($context['data'] ?? null) ? $context['data'] : [];
-
-                // Embed context based on temporal proximity and logical relevance
-                $should_embed = false;
-
-                // Always embed if timestamps are very close (within 1 second)
-                if (abs($event_ts - $context_ts) <= 1) {
-                    $should_embed = true;
-                }
-                // Embed info and action_executed into status changes
-                elseif ($event_event_type === 'status_change' && in_array($context_event_type, ['info', 'action_executed'])) {
-                    // Embed if context is within 5 seconds of the status change
-                    if (abs($event_ts - $context_ts) <= 5) {
-                        $should_embed = true;
-                    }
-                }
-                // Embed attribution data into any primary event within 10 seconds
-                elseif ($context_event_type === 'attribution' && abs($event_ts - $context_ts) <= 10) {
-                    $should_embed = true;
-                }
-                // Embed performance data into any primary event within 2 seconds
-                elseif ($context_event_type === 'performance' && abs($event_ts - $context_ts) <= 2) {
-                    $should_embed = true;
-                }
-
-                if ($should_embed) {
-                    $relevant_context[] = $context;
-
-                    // Generate context content using direct renderContent() call
-                    $context_html = $this->generateContextContent($context_event_type, $context_data);
-                    if (!empty($context_html)) {
-                        $context_content[] = $context_html;
-                    }
-                }
-            }
-
-            // Add embedded context content to the event data for the primary renderer
-            if (!empty($context_content)) {
-                $event['embedded_context_content'] = $context_content;
-            }
-
-            $enriched_events[] = $event;
-        }
-
-        return $enriched_events;
-    }
-
-    /**
-     * Generate context content using direct renderContent() calls.
-     *
-     * This method looks up the appropriate renderer for a context component
-     * and calls its renderContent() method directly to get content without wrapper.
-     *
-     * @param string $event_type The component event_type (info, action_executed, etc.)
-     * @param array $data The component data
-     * @return string HTML content for embedding within primary events
-     */
-    private function generateContextContent(string $event_type, array $data): string
-    {
-            // Load registry for renderer lookup
-            if (!function_exists('odcm_find_best_renderer_for_data')) {
-                require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
-            }
-
-            $def = function_exists('odcm_find_best_renderer_for_data') ? \odcm_find_best_renderer_for_data($event_type, $data) : null;
-
-        if (is_array($def) && isset($def['renderer_class'])) {
-            $renderer_class = $def['renderer_class'];
-            if (strpos($renderer_class, '\\') === false) {
-                $renderer_class = 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\' . $renderer_class;
-            }
-
-            if (class_exists($renderer_class)) {
-                try {
-                    $renderer = new $renderer_class();
-
-                    // Use direct renderContent() call to get content without wrapper
-                    if (method_exists($renderer, 'renderContent')) {
-                        return $renderer->renderContent($data);
-                    }
-                } catch (\Throwable $e) {
-                    error_log('ODCM generateContextContent: Renderer error for ' . $renderer_class . ': ' . $e->getMessage());
-                }
-            }
-        }
-
-        // No renderer or no renderContent method: return empty to avoid inconsistent inline rendering
-        return '';
-    }
-
-    /**
-     * Render a context component without its timeline item wrapper.
-     *
-     * This method renders context-only components (like info or action_executed)
-     * as compact HTML fragments that can be embedded within primary timeline events.
-     *
-     * @param string $event_type The component event_type (info, action_executed, etc.)
-     * @param array $data The component data
-     * @return string HTML fragment for the context component
-     */
-    private function renderContextComponent(string $event_type, array $data): string
-    {
-        // Load registry for renderer lookup
-        if (!function_exists('odcm_find_best_renderer_for_data')) {
-            require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
-        }
-
-        $def = function_exists('odcm_find_best_renderer_for_data') ? \odcm_find_best_renderer_for_data($event_type, $data) : null;
-
-        if (is_array($def) && isset($def['renderer_class'])) {
-            $renderer_class = $def['renderer_class'];
-            if (strpos($renderer_class, '\\') === false) {
-                $renderer_class = 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\' . $renderer_class;
-            }
-
-            if (class_exists($renderer_class)) {
-                try {
-                    $renderer = new $renderer_class();
-
-                    // Try to use embedded content rendering if available
-                    if (method_exists($renderer, 'renderEmbeddedContent')) {
-                        return $renderer->renderEmbeddedContent($data);
-                    }
-                    // Fall back to regular rendering
-                    elseif (method_exists($renderer, 'render')) {
-                        return $renderer->render($data);
-                    }
-                } catch (\Throwable $e) {
-                    error_log('ODCM renderContextComponent: Renderer error for ' . $renderer_class . ': ' . $e->getMessage());
-                }
-            }
-        }
-
-        // Fallback: render as simple key-value pairs
-        if (empty($data)) {
-            return '';
-        }
-
-        $html = '<div class="odcm-context-data">';
-        foreach ($data as $key => $value) {
-            if (is_scalar($value)) {
-                $html .= '<span class="odcm-context-item">';
-                $html .= '<strong>' . esc_html(ucfirst(str_replace('_', ' ', $key))) . ':</strong> ';
-                $html .= esc_html((string)$value);
-                $html .= '</span> ';
-            }
-        }
-        $html .= '</div>';
-
+        
+        $html .= "</div>";
+        
         return $html;
     }
 
     /**
-     * Diagnostic endpoint for route verification (debug mode only)
-     *
-     * Provides system information to help troubleshoot 404 errors and route registration issues.
-     * Only available when ODCM_DEBUG is enabled.
+     * Render component data
+     * 
+     * @param array $data Component data
+     * @return string HTML output
+     */
+    private function render_component_data(array $data): string
+    {
+        $html = "<dl class='odcm-data-list'>";
+        
+        foreach ($data as $key => $value) {
+            // Skip internal or complex objects
+            if ($key === 'components' || is_resource($value)) {
+                continue;
+            }
+            
+            $key_html = esc_html($key);
+            
+            if (is_array($value)) {
+                // Render nested array
+                $value_html = "<div class='odcm-data-nested'>" . $this->render_component_data($value) . "</div>";
+            } elseif (is_object($value)) {
+                // Convert object to array
+                $value_html = "<pre>" . esc_html(json_encode($value, JSON_PRETTY_PRINT)) . "</pre>";
+            } elseif (is_bool($value)) {
+                // Format boolean
+                $value_html = $value ? 'true' : 'false';
+            } else {
+                // Default rendering
+                $value_html = esc_html((string) $value);
+            }
+            
+            $html .= "<dt>{$key_html}</dt><dd>{$value_html}</dd>";
+        }
+        
+        $html .= "</dl>";
+        
+        return $html;
+    }
+
+    /**
+     * Invalidate logs cache by bumping the cache version
+     * 
+     * This is a centralized method to ensure cache invalidation works consistently
+     * across all cache-dependent operations like deletions, rule changes, etc.
+     */
+    private function invalidate_logs_cache(): void
+    {
+        $version_key = 'odcm_logs_cache_version';
+        
+        try {
+            // Try to increment the cache version atomically
+            if (function_exists('wp_cache_incr')) {
+                $new_version = wp_cache_incr($version_key);
+                if (false === $new_version) {
+                    // If increment failed, set initial version
+                    wp_cache_set($version_key, 1);
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage('ODCM Cache: Set initial cache version to 1');
+                    }
+                } else {
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage('ODCM Cache: Incremented cache version to ' . $new_version);
+                    }
+                }
+            } else {
+                // Fallback for systems without wp_cache_incr
+                $current = wp_cache_get($version_key);
+                if ($current === false) {
+                    $current = 0;
+                }
+                $new_version = ((int) $current) + 1;
+                wp_cache_set($version_key, $new_version);
+                
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage('ODCM Cache: Set cache version to ' . $new_version . ' (fallback method)');
+                }
+            }
+            
+            // Also clear any specific cache keys we know about
+            $this->clear_specific_cache_keys();
+            
+        } catch (\Exception $e) {
+            // Fallback: just clear what we can
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM Cache: Cache invalidation failed, using fallback:' . $e->getMessage());
+            }
+            $this->clear_specific_cache_keys();
+        }
+    }
+
+    /**
+     * Clear specific cache keys that we know about
+     * 
+     * This is a fallback method when the cache version bump fails
+     */
+    private function clear_specific_cache_keys(): void
+    {
+        $keys_to_clear = [
+            'odcm_filter_options',
+            'odcm_welcome_scenario',
+            // Clear some common filter combinations
+            'odcm_v1_filtered_logs_' . md5(json_encode([])), // Empty filters
+            'odcm_v1_filtered_log_count_' . md5(json_encode([])), // Empty filters count
+        ];
+        
+        foreach ($keys_to_clear as $key) {
+            wp_cache_delete($key);
+        }
+        
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage('ODCM Cache: Cleared ' . count($keys_to_clear) . ' specific cache keys');
+        }
+    }
+
+    /**
+     * Add diagnostic endpoint for debugging empty dashboards
      */
     public function diagnostic_check(WP_REST_Request $request): WP_REST_Response
     {
-        $user = wp_get_current_user();
-        $current_time = current_time('mysql');
-
-        // Basic system information
-        $diagnostic_data = [
-            'timestamp' => $current_time,
-            'plugin_version' => 'Free Version',
-            'wordpress_version' => get_bloginfo('version'),
-            'php_version' => PHP_VERSION,
-            'debug_mode' => defined('ODCM_DEBUG') && ODCM_DEBUG,
-
-            // User information
-            'user' => [
-                'id' => $user->ID,
-                'login' => $user->user_login,
-                'roles' => $user->roles ?? [],
-                'capabilities' => [
-                    'manage_woocommerce' => current_user_can('manage_woocommerce'),
-                    'delete_posts' => current_user_can('delete_posts'),
-                ],
-            ],
-
-            // Route information
-            'routes' => [
-                'namespace' => self::NAMESPACE,
-                'base_route' => self::BASE_ROUTE,
-                'full_route' => '/' . self::NAMESPACE . '/' . self::BASE_ROUTE,
-                'rest_url' => rest_url(self::NAMESPACE . '/' . self::BASE_ROUTE),
-            ],
-
-            // Database information
-            'database' => [
-                'audit_log_table' => $this->check_table_exists('odcm_audit_log'),
-                'payload_table' => $this->check_table_exists('odcm_audit_log_payloads'),
-            ],
-
-            // Function availability
-            'functions' => [
-                'odcm_can_use' => function_exists('odcm_can_use'),
-                'odcm_log_event' => function_exists('odcm_log_event'),
-                'rest_url' => function_exists('rest_url'),
-                'current_user_can' => function_exists('current_user_can'),
-            ],
-
-            // Server environment
-            'server' => [
-                'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
-                'request_uri' => $_SERVER['REQUEST_URI'] ?? 'unknown',
-                'http_host' => $_SERVER['HTTP_HOST'] ?? 'unknown',
-                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-                'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
-            ],
-        ];
-
-        // Test basic API functionality
+        global $wpdb;
+        
+        $diagnostics = [];
+        
         try {
-            $test_logs = $this->get_all_filtered_logs($request);
-            $diagnostic_data['api_test'] = [
-                'get_all_filtered_logs' => 'success',
-                'log_count' => is_array($test_logs) ? count($test_logs) : 0,
+            // Check if audit log table exists
+            $audit_table = $wpdb->prefix . 'odcm_audit_log';
+            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
+            
+            $table_check = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",
+                DB_NAME,
+                $audit_table
+            ));
+            
+            $diagnostics['tables'] = [
+                'audit_log_exists' => $table_check === '1',
+                'audit_log_table' => $audit_table,
             ];
-        } catch (\Throwable $e) {
-            $diagnostic_data['api_test'] = [
-                'get_all_filtered_logs' => 'error',
-                'error_message' => $e->getMessage(),
+            
+            if ($table_check === '1') {
+                // Get basic stats
+                $total_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table}");
+                $recent_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)");
+                $completion_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE '%completion%'");
+                $debug_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE status = 'debug' OR event_type LIKE 'debug_%'");
+                
+                $diagnostics['log_stats'] = [
+                    'total_logs' => (int) $total_logs,
+                    'recent_logs_7_days' => (int) $recent_logs,
+                    'completion_logs' => (int) $completion_logs,
+                    'debug_logs' => (int) $debug_logs,
+                ];
+                
+                // Get recent log samples
+                $sample_logs = $wpdb->get_results("
+                    SELECT id, timestamp, status, event_type, summary, order_id
+                    FROM {$audit_table}
+                    ORDER BY timestamp DESC
+                    LIMIT 10
+                ", ARRAY_A);
+                
+                $diagnostics['sample_logs'] = $sample_logs ?: [];
+                
+                // Check for filtering issues
+                $filter_test = $this->build_filter_where_clauses(new \WP_REST_Request());
+                $diagnostics['filter_test'] = [
+                    'default_where_clauses' => $filter_test,
+                    'filters_count' => count($filter_test),
+                ];
+            }
+            
+            // Check cache status
+            $cache_version = wp_cache_get('odcm_logs_cache_version');
+            $diagnostics['cache'] = [
+                'cache_version' => $cache_version,
+                'cache_version_type' => gettype($cache_version),
+            ];
+            
+            // Check WordPress and plugin versions
+            $diagnostics['environment'] = [
+                'wp_version' => get_bloginfo('version'),
+                'odcm_version' => defined('ODCM_VERSION') ? ODCM_VERSION : 'unknown',
+                'odcm_debug' => defined('ODCM_DEBUG') ? ODCM_DEBUG : false,
+                'woocommerce_version' => defined('WC_VERSION') ? WC_VERSION : 'not_installed',
+            ];
+            
+        } catch (\Exception $e) {
+            $diagnostics['error'] = [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ];
         }
-
+        
         return new WP_REST_Response([
-            'success' => true,
-            'message' => 'ODCM Free Version Diagnostic Check',
-            'data' => $diagnostic_data,
+            'diagnostics' => $diagnostics,
+            'timestamp' => current_time('mysql'),
+            'debug_mode' => defined('ODCM_DEBUG') && ODCM_DEBUG,
         ], 200);
     }
 
     /**
-     * Create synthetic component from timeline event when payload components aren't available
-     *
-     * @param array $event The timeline event
-     * @param int $event_index Event index
-     * @param array|null $event_details Parsed event details if available
-     * @return array Array containing single synthetic component
+     * Get filter options for dynamic filters 
      */
-    private function create_synthetic_event_component(array $event, int $event_index, ?array $event_details = null): array
+    public function get_filter_options(WP_REST_Request $request): WP_REST_Response
     {
-        $event_id = $event['id'] ?? "event_$event_index";
-        $summary = $event['summary'] ?? 'Timeline Event';
-        $timestamp = $event['timestamp'] ?? current_time('mysql');
-        $status = $event['status'] ?? 'info';
-        $event_type = $event['event_type'] ?? 'unknown';
-        $source = $event['source'] ?? 'system';
-        
-        // Determine appropriate component event_type based on event characteristics
-        $component_event_type = $this->determine_synthetic_component_event_type($event, $event_details);
-        
-        // Build component data from available event information
-        $data = [
-            'event_summary' => $summary,
-            'event_type' => $event_type,
-            'source' => $source,
-            'log_id' => $event_id,
-            'original_status' => $status,
-        ];
-        
-        // Include parsed details if available
-        if (is_array($event_details) && !empty($event_details)) {
-            $data['event_details'] = $event_details;
-        }
-        
-        // Add order context if available
-        if (!empty($event['order_id'])) {
-            $data['order_id'] = (int) $event['order_id'];
-        }
-        
-        $synthetic_component = [
-            'event_type' => $component_event_type,
-            'label' => $summary,
-            'ts' => $timestamp,
-            'level' => $status,
-            'data' => $data,
-            'source_event_id' => $event_id,
-            'is_synthetic' => true,
-        ];
-        
-        error_log("ODCM EXTRACT: Created synthetic component of event_type '$component_event_type' for event $event_id");
-        
-        return [$synthetic_component];
-    }
-    
-    /**
-     * Determine appropriate component event_type for synthetic components
-     *
-     * @param array $event Timeline event
-     * @param array|null $event_details Parsed event details
-     * @return string Component event_type
-     */
-    private function determine_synthetic_component_event_type(array $event, ?array $event_details): string
-    {
-        $event_type = strtolower($event['event_type'] ?? '');
-        $summary = strtolower($event['summary'] ?? '');
-        $status = strtolower($event['status'] ?? '');
-        
-        // Map event types to appropriate component event_types
-        if (strpos($event_type, 'status') !== false || strpos($summary, 'status') !== false) {
-            return 'status_change_processing';
-        }
-        
-        if (strpos($event_type, 'payment') !== false || strpos($summary, 'payment') !== false) {
-            return 'stripe_event'; // or 'paypal_event' based on details
-        }
-        
-        if (strpos($event_type, 'order') !== false || strpos($summary, 'order') !== false) {
-            return 'order_processing';
-        }
-        
-        if (strpos($event_type, 'rule') !== false || strpos($summary, 'rule') !== false) {
-            return 'rule_evaluation';
-        }
-        
-        if ($status === 'error' || strpos($summary, 'error') !== false || strpos($summary, 'failed') !== false) {
-            return 'error';
-        }
-        
-        if (strpos($event_type, 'webhook') !== false || strpos($summary, 'webhook') !== false) {
-            return 'http_webhook';
-        }
-        
-        // Default to info for unrecognized events
-        return 'info';
-    }
-    
-    /**
-     * Enrich component with metadata from source event
-     *
-     * @param array $component Original component
-     * @param array $event Source timeline event
-     * @param int $event_index Event index
-     * @return array Enriched component
-     */
-    private function enrich_component_with_event_metadata(array $component, array $event, int $event_index): array
-    {
-        // Preserve original component structure
-        $enriched = $component;
-        
-        // Add source event metadata for traceability
-        $enriched['source_event'] = [
-            'id' => $event['id'] ?? "event_$event_index",
-            'summary' => $event['summary'] ?? '',
-            'event_type' => $event['event_type'] ?? '',
-            'source' => $event['source'] ?? '',
-            'timestamp' => $event['timestamp'] ?? '',
-        ];
-        
-        // Ensure timestamp is set (prefer component timestamp, fallback to event timestamp)
-        if (empty($enriched['ts']) && !empty($event['timestamp'])) {
-            $enriched['ts'] = $event['timestamp'];
-        }
-        
-        // Add order context if available in event but not in component
-        if (empty($enriched['data']['order_id']) && !empty($event['order_id'])) {
-            if (!isset($enriched['data'])) {
-                $enriched['data'] = [];
-            }
-            $enriched['data']['order_id'] = (int) $event['order_id'];
-        }
-        
-        return $enriched;
-    }
-    
-    /**
-     * Create fallback component for failed event processing
-     *
-     * @param array $event Timeline event that failed to process
-     * @param int $event_index Event index
-     * @return array|null Fallback component or null if event data is too minimal
-     */
-    private function create_fallback_component_for_event(array $event, int $event_index): ?array
-    {
-        $event_id = $event['id'] ?? "event_$event_index";
-        $summary = $event['summary'] ?? 'Processing failed for timeline event';
-        
-        // Only create fallback if we have some meaningful data
-        if (empty($summary) && empty($event['event_type'])) {
-            error_log("ODCM FALLBACK: Event $event_id has no meaningful data, skipping fallback");
-            return null;
-        }
-        
-        $fallback_component = [
-            'event_type' => 'error',
-            'label' => 'Event Processing Error',
-            'ts' => $event['timestamp'] ?? current_time('mysql'),
-            'level' => 'warning',
-            'data' => [
-                'message' => 'Failed to process timeline event',
-                'original_summary' => $summary,
-                'event_type' => $event['event_type'] ?? 'unknown',
-                'source' => $event['source'] ?? 'unknown',
-                'event_id' => $event_id,
-                'processing_error' => 'Component extraction failed',
-            ],
-            'source_event_id' => $event_id,
-            'is_fallback' => true,
-        ];
-        
-        error_log("ODCM FALLBACK: Created fallback component for failed event $event_id");
-        
-        return $fallback_component;
-    }
-
-    /**
-     * Find the best primary component group for a context component
-     *
-     * @param array $context_component Context component to assign
-     * @param array $groups Existing component groups
-     * @return int|null Index of best group or null if no good match
-     */
-    private function find_best_group_for_context(array $context_component, array $groups): ?int
-    {
-        if (empty($groups)) {
-            return null;
-        }
-        
-        $context_ts = strtotime($context_component['ts'] ?? '');
-        $context_event_type = $context_component['event_type'] ?? '';
-        $best_score = -1;
-        $best_index = null;
-        
-        foreach ($groups as $index => $group) {
-            $primary = $group['primary'];
-            $primary_ts = strtotime($primary['ts'] ?? '');
-            $primary_event_type = $primary['event_type'] ?? '';
-            
-            $score = 0;
-            
-            // Time proximity scoring (closer is better)
-            if ($context_ts > 0 && $primary_ts > 0) {
-                $time_diff = abs($context_ts - $primary_ts);
-                if ($time_diff <= 1) {
-                    $score += 10; // Very close
-                } elseif ($time_diff <= 5) {
-                    $score += 5;  // Close
-                } elseif ($time_diff <= 30) {
-                    $score += 2;  // Somewhat close
-                }
-            }
-            
-            // Logical relevance scoring
-            if ($context_event_type === 'attribution' || $context_event_type === 'performance') {
-                $score += 3; // These are generally relevant to any primary event
-            }
-            
-            if ($context_event_type === 'info' && strpos($primary_event_type, 'status') !== false) {
-                $score += 5; // Info components are especially relevant to status changes
-            }
-            
-            if ($score > $best_score) {
-                $best_score = $score;
-                $best_index = $index;
-            }
-        }
-        
-        // Only assign if we found a reasonably good match
-        return $best_score > 0 ? $best_index : 0; // Default to first group if no good match
-    }
-    
-    /**
-     * Render embedded context components as inline content
-     *
-     * @param array $context_components Array of context components
-     * @return string HTML content for embedding
-     */
-    private function render_embedded_context_components(array $context_components): string
-    {
-        $embedded_html = '';
-        
-        foreach ($context_components as $context) {
-            $event_type = $context['event_type'] ?? '';
-            $data = is_array($context['data'] ?? null) ? $context['data'] : [];
-            
-            if (empty($data)) {
-                continue;
-            }
-            
-            // Use simplified rendering for context components
-            $context_html = $this->generateContextContent($event_type, $data);
-            if (!empty($context_html)) {
-                $embedded_html .= '<div class="odcm-embedded-context">' . $context_html . '</div>';
-            }
-        }
-        
-        return $embedded_html;
-    }
-    
-    /**
-     * Render component using UIToolkit as fallback when no specific renderer is available
-     *
-     * @param string $kind Component kind
-     * @param string $label Component label
-     * @param array $data Component data
-     * @param string $level Component level
-     * @param string $ts Component timestamp
-     * @return string HTML output
-     */
-    private function render_component_using_ui_toolkit(string $kind, string $label, array $data, string $level, string $ts): string
-    {
-        $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
-        
-        // Build content based on data structure
-        $content = '<div class="odcm-component-fallback">';
-        
-        // Show synthetic/fallback indicators
-        if (!empty($data['is_synthetic'])) {
-            $content .= '<p class="odcm-synthetic-notice"><em>Synthetic component (generated from event data)</em></p>';
-        } elseif (!empty($data['is_fallback'])) {
-            $content .= '<p class="odcm-fallback-notice"><em>Fallback component (processing error)</em></p>';
-        }
-        
-        // Render key data points
-        foreach ($data as $key => $value) {
-            // Skip metadata keys
-            if (in_array($key, ['is_synthetic', 'is_fallback', 'source_event', 'embedded_context'], true)) {
-                continue;
-            }
-            
-            if (is_scalar($value) && $value !== '') {
-                $formatted_key = ucfirst(str_replace('_', ' ', $key));
-                $content .= '<p><strong>' . esc_html($formatted_key) . ':</strong> ' . esc_html((string)$value) . '</p>';
-            } elseif (is_array($value) && !empty($value)) {
-                $formatted_key = ucfirst(str_replace('_', ' ', $key));
-                $content .= '<p><strong>' . esc_html($formatted_key) . ':</strong></p>';
-                $content .= '<pre class="odcm-json-data">' . esc_html(json_encode($value, JSON_PRETTY_PRINT)) . '</pre>';
-            }
-        }
-        
-        // Include embedded context if available
-        if (!empty($data['embedded_context'])) {
-            $content .= '<div class="odcm-context-section">';
-            $content .= '<h5>Related Context</h5>';
-            $content .= $data['embedded_context'];
-            $content .= '</div>';
-        }
-        
-        $content .= '</div>';
-        
-        // Determine appropriate theme based on component kind and level
-        $theme = $this->determine_component_theme($kind, $level);
-        
-        return $toolkit->render_component_shell(
-            $label,
-            $theme,
-            $content,
-            ['timestamp' => $ts, 'status' => $level]
-        );
-    }
-    
-    /**
-     * Determine appropriate theme for component rendering
-     *
-     * @param string $kind Component kind
-     * @param string $level Component level
-     * @return string Theme identifier
-     */
-    private function determine_component_theme(string $kind, string $level): string
-    {
-        // Level-based themes take priority for errors/warnings
-        if ($level === 'error' || $kind === 'error') {
-            return 'error';
-        }
-        
-        if ($level === 'warning') {
-            return 'warning';
-        }
-        
-        // Kind-based themes
-        $theme_map = [
-            'status_changed' => 'woocommerce',
-            'order_loaded' => 'woocommerce',
-            'stock_adjusted' => 'woocommerce',
-            'meta_updated' => 'woocommerce',
-            'rule_evaluated' => 'rule',
-            'stripe_event' => 'api',
-            'paypal_event' => 'api',
-            'http_webhook' => 'api',
-            'email_action' => 'api',
-            'database_query' => 'database',
-            'metrics' => 'performance',
-            'performance' => 'performance',
-            'system_info' => 'system',
-            'info' => 'system',
-        ];
-        
-        return $theme_map[$kind] ?? 'system';
-    }
-
-    /**
-     * Apply pure UI-only consolidation by process_id for lifecycle events
-     * 
-     * Groups events by process_id for display without storing any consolidation data.
-     * This maintains the "one event per DB row" architecture principle.
-     * Uses the latest event from each process as the representative for the list view.
-     *
-     * @param array $logs Array of log entries from database
-     * @param bool $include_debug Whether to include debug logs in consolidation
-     * @return array Array with representative entries for each process_id group
-     */
-    private function apply_process_id_consolidation(array $logs, bool $include_debug = false): array
-    {
-        error_log("ODCM CONSOLIDATION: apply_process_id_consolidation called with " . count($logs) . " logs");
-        
-        if (empty($logs)) {
-            error_log("ODCM CONSOLIDATION: No logs to consolidate");
-            return [];
-        }
-
-        // Get process families to identify lifecycle events
-        if (!class_exists('OrderDaemon\\CompletionManager\\Core\\ProcessLifecycleDiscovery')) {
-            require_once dirname(__DIR__) . '/Core/ProcessLifecycleDiscovery.php';
-        }
-
-        $discovery = \OrderDaemon\CompletionManager\Core\ProcessLifecycleDiscovery::instance();
-        $families = $discovery->get_process_families();
-        $lifecycle_family = $families['order_lifecycle'] ?? null;
-
-        error_log("ODCM CONSOLIDATION: Lifecycle family found: " . ($lifecycle_family ? 'YES' : 'NO'));
-        error_log("ODCM CONSOLIDATION: Consolidate UI enabled: " . (!empty($lifecycle_family['consolidate_ui']) ? 'YES' : 'NO'));
-
-        if (!$lifecycle_family || empty($lifecycle_family['consolidate_ui'])) {
-            // Consolidation disabled, return logs as-is
-            error_log("ODCM CONSOLIDATION: Consolidation disabled, returning logs as-is");
-            return $logs;
-        }
-
-        $lifecycle_types = array_values(array_unique(array_filter((array) ($lifecycle_family['process_types'] ?? []))));
-        error_log("ODCM CONSOLIDATION: Lifecycle types: " . json_encode($lifecycle_types));
-        
-        // Group logs by process_id
-        $by_process_id = [];
-        $individual_entries = [];
-
-        foreach ($logs as $log) {
-            $process_id = $log['process_id'] ?? '';
-
-            // Consolidate ALL events that have a process_id
-            // The process_id is the authoritative grouping mechanism - if an event has one,
-            // it should be part of that process group regardless of event_type
-            if (!empty($process_id)) {
-                $by_process_id[$process_id][] = $log;
-            } else {
-                // Keep events without process_id as individuals
-                $individual_entries[] = $log;
-            }
-        }
-        
-        error_log("ODCM CONSOLIDATION: Found " . count($by_process_id) . " unique process_ids");
-        error_log("ODCM CONSOLIDATION: Found " . count($individual_entries) . " individual entries");
-
-        // Create representative entries for each process_id group (no consolidation data stored)
-        $representative_entries = [];
-        foreach ($by_process_id as $process_id => $process_logs) {
-            if (count($process_logs) <= 1) {
-                // Single entries remain individual
-                $individual_entries = array_merge($individual_entries, $process_logs);
-                continue;
-            }
-
-            // Sort by timestamp for proper ordering
-            usort($process_logs, function($a, $b) {
-                return strtotime($a['timestamp'] ?? '') <=> strtotime($b['timestamp'] ?? '');
-            });
-
-            // Use the latest log as the representative entry with updated summary
-            $last_log = $process_logs[count($process_logs) - 1];
-            $order_id = (int) ($process_logs[0]['order_id'] ?? 0);
-
-            // Create representative entry (no consolidation_data stored!)
-            $representative_entry = $last_log; // Start with the actual log entry
-            
-            // Filter out debug logs if not including debug
-            if (!$include_debug) {
-                $filtered_process_logs = array_filter($process_logs, function($log) {
-                    return ($log['status'] ?? 'info') !== 'debug';
-                });
-                // If filtering removed all logs, skip this process group
-                if (empty($filtered_process_logs)) {
-                    continue;
-                }
-            } else {
-                $filtered_process_logs = $process_logs;
-            }
-                        
-            // Update only the summary to indicate it represents multiple events
-            $representative_entry['summary'] = $this->create_process_summary($filtered_process_logs, $order_id);
-            $representative_entry['status'] = $this->determine_process_status($filtered_process_logs);
-            $representative_entry['is_process_representative'] = true; // Simple flag for detail rendering
-            
-            // Track constituent log IDs for bulk deletion
-            $representative_entry['constituent_log_ids'] = array_map(function($log) {
-                return (int) $log['id'];
-            }, $process_logs);
-
-            $representative_entries[] = $representative_entry;
-        }
-
-        // Merge representative and individual entries
-        $all_entries = array_merge($representative_entries, $individual_entries);
-
-        // Sort by timestamp (desc for stream list)
-        usort($all_entries, function($a, $b) {
-            return strtotime($b['timestamp'] ?? '') <=> strtotime($a['timestamp'] ?? '');
-        });
-
-        return $all_entries;
-    }
-
-    /**
-     * Create a business-relevant summary for a process group
-     *
-     * @param array $process_logs Array of logs in the process
-     * @param int|string $order_id Order ID (flexible for WordPress $wpdb compatibility)
-     * @return string Process summary
-     */
-    private function create_process_summary(array $process_logs, $order_id): string
-    {
-        // Cast to int for use in summary (WordPress $wpdb returns strings)
-        $order_id = (int) $order_id;
-        $has_error = false;
-        $has_rule_evaluation = false;
-        $has_payment_event = false;
-        $final_order_status_in_timeline = null;
-
-        // Analyze logs to determine process outcome - with enhanced rule evaluation detection
-        foreach ($process_logs as $log) {
-            $summary = strtolower($log['summary'] ?? '');
-            $event_type = strtolower($log['event_type'] ?? '');
-            $status = strtolower($log['status'] ?? '');
-            $source = strtolower($log['source'] ?? '');
-            
-            // Check for errors
-            if ($status === 'error') {
-                $has_error = true;
-            }
-            
-            // Check for rule evaluations - expanded detection for better matching
-            if (strpos($event_type, 'rule') !== false || 
-                strpos($summary, 'rule') !== false ||
-                strpos($source, 'rule') !== false ||
-                strpos($event_type, 'evaluation') !== false ||
-                strpos($summary, 'evaluation') !== false) {
-                $has_rule_evaluation = true;
-            }
-            
-            // Check for payment events
-            if (strpos($event_type, 'payment') !== false || 
-                strpos($summary, 'payment') !== false || 
-                preg_match('/\b(stripe|paypal|square)\b/i', $summary)) {
-                $has_payment_event = true;
-            }
-            
-            // Track final status changes
-            if (preg_match('/status.*changed.*to\s+"([^"]+)"/', $summary, $matches)) {
-                $final_order_status_in_timeline = $matches[1];
-            }
-        }
-
-        // Build summary with new prioritization: error -> rule evaluation -> payment -> final status -> generic
-        $summary_parts = [];
-
-        if ($has_error) {
-            $summary_parts[] = "Processing errors";
-        } elseif ($has_rule_evaluation) {
-            $summary_parts[] = "Rule evaluation";
-        } elseif ($has_payment_event) {
-            $summary_parts[] = "Payment processing";
-        } elseif ($final_order_status_in_timeline) {
-            $summary_parts[] = "Status changed to \"$final_order_status_in_timeline\"";
-        } else {
-            $summary_parts[] = "Order lifecycle";
-        }
-
-        return implode(' ', $summary_parts);
-    }
-
-    /**
-     * Determine overall status for a process group
-     *
-     * @param array $process_logs Array of logs in the process
-     * @return string Overall status
-     */
-    private function determine_process_status(array $process_logs): string
-    {
-        $statuses = array_map(function($log) {
-            return $log['status'] ?? 'info';
-        }, $process_logs);
-
-        if (in_array('error', $statuses, true)) return 'error';
-        if (in_array('warning', $statuses, true)) return 'warning';
-        if (in_array('success', $statuses, true)) return 'success';
-
-        return 'info';
-    }
-
-    /**
-     * Check if any logs in the process are test entries
-     * 
-     * @param array $process_logs Array of logs in the process
-     * @return bool True if any log is marked as test
-     */
-    private function any_test_entries(array $process_logs): bool
-    {
-        foreach ($process_logs as $log) {
-            if (!empty($log['is_test']) && (int)$log['is_test'] === 1) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Check if a database table exists
-     */
-    private function check_table_exists(string $table_name): array
-    {
-        global $wpdb;
-        $full_table_name = $wpdb->prefix . $table_name;
-
         try {
-            $exists = $wpdb->get_var("SHOW TABLES LIKE '$full_table_name'");
-            $row_count = 0;
-
-            if ($exists) {
-                $row_count = (int)$wpdb->get_var(
-                    "SELECT COUNT(*)
-                    FROM $full_table_name"
+            global $wpdb;
+            
+            // Start performance monitoring
+            $start_time = microtime(true);
+            
+            // Check cache for filter options
+            $cache_key = 'odcm_filter_options';
+            $cached_options = wp_cache_get($cache_key);
+            
+            if (false !== $cached_options) {
+                return new WP_REST_Response(
+                    array_merge($cached_options, [
+                        'meta' => [
+                            'execution_time' => microtime(true) - $start_time,
+                            'timestamp' => current_time('mysql'),
+                            'max_results' => 100,
+                            'cache_hit' => true,
+                        ],
+                    ]),
+                    200
                 );
             }
-
-            return [
-                'exists' => !empty($exists),
-                'full_name' => $full_table_name,
-                'row_count' => $row_count,
-                'error' => $wpdb->last_error ?: null,
+            
+            // Get available statuses
+            $statuses = $wpdb->get_col("
+                SELECT DISTINCT status
+                FROM {$wpdb->prefix}odcm_audit_log
+                WHERE status != ''
+                ORDER BY status
+            ");
+            
+            // Get available event types
+            $event_types = $wpdb->get_col("
+                SELECT DISTINCT event_type
+                FROM {$wpdb->prefix}odcm_audit_log
+                WHERE event_type != ''
+                ORDER BY event_type
+            ");
+            
+            // Get order IDs with logs
+            $order_ids = $wpdb->get_col("
+                SELECT DISTINCT order_id
+                FROM {$wpdb->prefix}odcm_audit_log
+                WHERE order_id IS NOT NULL
+                ORDER BY order_id DESC
+                LIMIT 100
+            ");
+            
+            // Format response
+            $response_data = [
+                'statuses' => array_values(array_filter($statuses)),
+                'event_types' => array_values(array_filter($event_types)),
+                'order_ids' => array_map('intval', array_filter($order_ids)),
+                'meta' => [
+                    'execution_time' => microtime(true) - $start_time,
+                    'timestamp' => current_time('mysql'),
+                    'max_results' => 100,
+                    'cache_hit' => false,
+                ],
             ];
+            
+            // Cache the filter options for 10 minutes
+            // Excluding meta since it changes between requests
+            $cache_data = [
+                'statuses' => $response_data['statuses'],
+                'event_types' => $response_data['event_types'],
+                'order_ids' => $response_data['order_ids'],
+            ];
+            wp_cache_set($cache_key, $cache_data, '', 10 * MINUTE_IN_SECONDS);
+            
+            return new WP_REST_Response($response_data, 200);
+            
         } catch (\Throwable $e) {
-            return [
-                'exists' => false,
-                'full_name' => $full_table_name,
-                'row_count' => 0,
-                'error' => $e->getMessage(),
-            ];
+            // Log error for debugging
+            $this->log_api_error('get_filter_options', $e, []);
+            
+            return new WP_Error(
+                'odcm_api_error',
+                __('audit.logs.filter_options.failure', 'order-daemon'),
+                ['status' => 500]
+            );
         }
     }
-
 }

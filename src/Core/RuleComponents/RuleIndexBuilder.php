@@ -272,7 +272,20 @@ final class RuleIndexBuilder
                 } catch (\Throwable $e) {
                     // Only log errors in debug mode
                     if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                        error_log('ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage());
+                        if (function_exists('odcm_log_message')) {
+                            odcm_log_message('Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage(), 'error');
+                        } elseif (function_exists('wp_debug_log')) {
+                            wp_debug_log('ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage());
+                        } elseif (function_exists('do_action')) {
+                            do_action('odcm_log_error', 'ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage());
+                        } elseif (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+                            $debug_file = WP_CONTENT_DIR . '/debug.log';
+                            @file_put_contents(
+                                $debug_file,
+                                '[' . date('Y-m-d H:i:s') . '] ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage() . PHP_EOL,
+                                FILE_APPEND
+                            );
+                        }
                     }
                 }
             } else {

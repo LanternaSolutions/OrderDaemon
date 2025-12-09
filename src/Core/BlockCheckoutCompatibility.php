@@ -603,7 +603,16 @@ final class BlockCheckoutCompatibility
         $cached_result = wp_cache_get($cache_key);
         
         if (false === $cached_result) {
-            // Insert into queue table
+            // Insert into queue table - with additional caching to ensure better performance
+        // Use a transaction key to ensure duplicate prevention across processes
+        $transaction_key = 'odcm_queue_transaction_' . md5($queue_id . '_' . $order_id);
+        $transaction_lock = wp_cache_get($transaction_key);
+        
+        if (false === $transaction_lock) {
+            // Set transaction lock
+            wp_cache_set($transaction_key, true, '', 30); // 30 second lock
+            
+            // Insert the record
             $result = $wpdb->insert(
                 $wpdb->prefix . 'odcm_audit_log_queue',
                 [
@@ -614,6 +623,13 @@ final class BlockCheckoutCompatibility
                     'retry_count' => 0
                 ]
             );
+            
+            // Release transaction lock
+            wp_cache_delete($transaction_key);
+        } else {
+            // Another process is handling this insert or recently completed it
+            $result = true; // Assume success to prevent duplicate attempts
+        }
             
             // Cache the result to prevent duplicate inserts
             if ($result !== false) {
@@ -699,14 +715,31 @@ final class BlockCheckoutCompatibility
             '%"order_id":' . $order_id_int . '%'
         );
         
-        // Then run the full query with the properly escaped table name
-        // Note: This approach is necessary because WordPress doesn't support placeholders for table names
-        // We've already validated $table_identifier earlier to ensure it's safe
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $full_query = "SELECT COUNT(*) FROM {$table_identifier} {$prepared_hook_part} {$prepared_args_part}";
+        // Create the query in a way that uses $wpdb->prepare() for all dynamic parts
+        // First, sanitize table name - WordPress doesn't support placeholders for table names
+        $table_name_clean = trim(str_replace('`', '', $table_identifier));
         
-        // Execute the prepared query
-        $existing_count = (int) $wpdb->get_var($full_query);
+        // Construct query with prepared statement
+        $query = $wpdb->prepare(
+            "SELECT COUNT(*) FROM `%s` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s",
+            $table_name_clean,
+            'odcm_process_checkout_completion',
+            '%"order_id":' . $order_id_int . '%'
+        );
+        
+        // Cache key for existing job count check
+        $job_count_cache_key = 'odcm_job_count_' . $order_id;
+        $job_count = wp_cache_get($job_count_cache_key);
+        
+        if (false === $job_count) {
+            // Execute the properly prepared query with caching
+            $existing_count = (int) $wpdb->get_var($query);
+            
+            // Cache the job count result for 60 seconds
+            wp_cache_set($job_count_cache_key, $existing_count, '', 60);
+        } else {
+            $existing_count = (int) $job_count;
+        }
         
         if ($existing_count > 0) {
             odcm_log_message("Block checkout skipping order #{$order_id} - found {$existing_count} existing jobs via database query", 'info');

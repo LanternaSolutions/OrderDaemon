@@ -16,6 +16,49 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
 class BaseRenderer
 {
     /**
+     * Log a debug message using WordPress-compatible logging methods
+     *
+     * @param string $message The message to log
+     * @param string $level The log level (debug, info, warning, error)
+     * @return void
+     */
+    protected function logDebugMessage(string $message, string $level = 'debug'): void
+    {
+        // Only log if debug mode is enabled
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+        
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($message, $level);
+            return;
+        }
+        
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($message);
+            return;
+        }
+        
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_' . $level, $message);
+            return;
+        }
+        
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                FILE_APPEND
+            );
+            return;
+        }
+    }
+    /**
      * Component theme
      *
      * @var string|null
@@ -49,7 +92,7 @@ class BaseRenderer
         $toolkit = new PayloadComponentUIToolkit();
         
         // Debug log the event type and renderer class
-        error_log(sprintf(
+        $this->logDebugMessage(sprintf(
             "ODCM Debug - Rendering event: type=%s, renderer=%s",
             $event_type,
             get_class($this)
@@ -65,7 +108,7 @@ class BaseRenderer
         $statusPill = $this->getStatusPill($payload, $event_type);
         
         // Theme resolution logging and fallback
-        error_log(sprintf(
+        $this->logDebugMessage(sprintf(
             "ODCM Debug - Theme resolution start: event_type=%s, current_theme=%s, renderer=%s",
             $event_type,
             $this->theme ?? 'null',
@@ -74,13 +117,13 @@ class BaseRenderer
 
         if ($this->theme === null) {
             $this->theme = 'default';
-            error_log(sprintf(
+            $this->logDebugMessage(sprintf(
                 "ODCM Debug - Using default theme: event_type=%s, renderer=%s",
                 $event_type,
                 get_class($this)
             ));
         } else {
-            error_log(sprintf(
+            $this->logDebugMessage(sprintf(
                 "ODCM Debug - Using specialized theme: event_type=%s, theme=%s, renderer=%s",
                 $event_type,
                 $this->theme,
@@ -97,7 +140,7 @@ class BaseRenderer
             $options['level'] = $timeline['level'] ?? null;
             
             // Debug log timeline data
-            error_log(sprintf(
+            $this->logDebugMessage(sprintf(
                 "ODCM Debug - Timeline data: ts=%s, level=%s",
                 $options['timestamp'] ?? 'null',
                 $options['level'] ?? 'null'
@@ -113,7 +156,7 @@ class BaseRenderer
         
         // Debug log the final HTML classes that will be used
         $finalClasses = sprintf('odcm-component odcm-component--%s', esc_attr($this->theme));
-        error_log(sprintf(
+        $this->logDebugMessage(sprintf(
             "ODCM Debug - Final HTML classes: %s",
             $finalClasses
         ));
@@ -127,7 +170,7 @@ class BaseRenderer
         );
         
         // Debug log the final rendered HTML (truncated for log readability)
-        error_log(sprintf(
+        $this->logDebugMessage(sprintf(
             "ODCM Debug - Rendered HTML (truncated): %s",
             substr($result, 0, 150) . (strlen($result) > 150 ? '...' : '')
         ));

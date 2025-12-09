@@ -508,7 +508,8 @@ class StripeAdapter extends AbstractGatewayAdapter
                     return $order_id;
                 }
             } catch (\Throwable $e) {
-                error_log("StripeAdapter: Failed to search orders by {$meta_key}: " . $e->getMessage());
+                // Use existing class log method instead of direct error_log
+                $this->log("Failed to search orders by {$meta_key}", ['error' => $e->getMessage()]);
                 continue;
             }
         }

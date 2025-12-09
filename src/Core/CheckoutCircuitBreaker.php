@@ -53,7 +53,7 @@ class CheckoutCircuitBreaker
             return ((int) $failures >= self::FAILURE_THRESHOLD) || $emergency_disabled;
         } catch (\Throwable $e) {
             // On error, assume circuit is closed to allow processing
-            error_log('ODCM_CIRCUIT_BREAKER: Error checking circuit state: ' . $e->getMessage());
+            $this->logMessage('ODCM_CIRCUIT_BREAKER: Error checking circuit state: ' . $e->getMessage(), 'error');
             return false;
         }
     }
@@ -92,7 +92,7 @@ class CheckoutCircuitBreaker
             
         } catch (\Throwable $e) {
             // Circuit breaker operations should never throw - fail safe
-            error_log('ODCM_CIRCUIT_BREAKER: Error recording failure: ' . $e->getMessage());
+            $this->logMessage('ODCM_CIRCUIT_BREAKER: Error recording failure: ' . $e->getMessage(), 'error');
         }
     }
 
@@ -123,12 +123,12 @@ class CheckoutCircuitBreaker
             
             // Log recovery if circuit was previously open
             if ($was_open) {
-                error_log('ODCM_CIRCUIT_BREAKER: Circuit recovered - successful checkout completed');
+                $this->logMessage('ODCM_CIRCUIT_BREAKER: Circuit recovered - successful checkout completed', 'info');
             }
             
         } catch (\Throwable $e) {
             // Circuit breaker operations should never throw - fail safe
-            error_log('ODCM_CIRCUIT_BREAKER: Error recording success: ' . $e->getMessage());
+            $this->logMessage('ODCM_CIRCUIT_BREAKER: Error recording success: ' . $e->getMessage(), 'error');
         }
     }
 
@@ -210,7 +210,7 @@ class CheckoutCircuitBreaker
             delete_option(self::LAST_FAILURE_KEY);
             
             // Log manual reset
-            error_log('ODCM_CIRCUIT_BREAKER: Manual reset performed by admin');
+            $this->logMessage('ODCM_CIRCUIT_BREAKER: Manual reset performed by admin', 'info');
             
             if (function_exists('odcm_log_event')) {
                 odcm_log_event(
@@ -228,7 +228,7 @@ class CheckoutCircuitBreaker
             
             return true;
         } catch (\Throwable $e) {
-            error_log('ODCM_CIRCUIT_BREAKER: Manual reset failed: ' . $e->getMessage());
+            $this->logMessage('ODCM_CIRCUIT_BREAKER: Manual reset failed: ' . $e->getMessage(), 'error');
             return false;
         }
     }
@@ -278,11 +278,11 @@ class CheckoutCircuitBreaker
             update_option(self::EMERGENCY_DISABLE_KEY, true);
             
             // Log critical event
-            error_log(sprintf(
+            $this->logMessage(sprintf(
                 'ODCM_CIRCUIT_BREAKER: EMERGENCY DISABLE - Circuit opened after %d failures. Context: %s',
                 $failure_count,
                 $context
-            ));
+            ), 'error');
             
             // Send admin notification if possible
             $this->notifyAdminOfCircuitOpen($failure_count, $context);
@@ -303,7 +303,7 @@ class CheckoutCircuitBreaker
                 );
             }
         } catch (\Throwable $e) {
-            error_log('ODCM_CIRCUIT_BREAKER: Error opening circuit: ' . $e->getMessage());
+            $this->logMessage('ODCM_CIRCUIT_BREAKER: Error opening circuit: ' . $e->getMessage(), 'error');
         }
     }
 
@@ -318,12 +318,12 @@ class CheckoutCircuitBreaker
     private function logFailure(int $failure_count, string $context, array $metadata): void
     {
         try {
-            error_log(sprintf(
+            $this->logMessage(sprintf(
                 'ODCM_CIRCUIT_BREAKER: Checkout failure #%d/%d - %s',
                 $failure_count,
                 self::FAILURE_THRESHOLD,
                 $context
-            ));
+            ), 'warning');
             
             // Log to audit trail if available and failure is significant
             if (function_exists('odcm_log_event') && $failure_count >= 2) {
@@ -352,7 +352,7 @@ class CheckoutCircuitBreaker
     private function logRecovery(): void
     {
         try {
-            error_log('ODCM_CIRCUIT_BREAKER: Circuit recovered - plugin re-enabled after successful checkout');
+            $this->logMessage('ODCM_CIRCUIT_BREAKER: Circuit recovered - plugin re-enabled after successful checkout', 'info');
             
             if (function_exists('odcm_log_event')) {
                 odcm_log_event(
@@ -410,5 +410,44 @@ class CheckoutCircuitBreaker
             $instance = new self();
         }
         return $instance;
+    }
+    
+    /**
+     * Log messages using WordPress-friendly logging methods
+     *
+     * @param string $message The message to log
+     * @param string $level The log level (debug, info, warning, error)
+     * @return void
+     */
+    private function logMessage(string $message, string $level = 'debug'): void
+    {
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($message, $level);
+            return;
+        }
+        
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($message);
+            return;
+        }
+        
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_' . $level, $message);
+            return;
+        }
+        
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                FILE_APPEND
+            );
+            return;
+        }
     }
 }

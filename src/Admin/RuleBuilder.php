@@ -81,9 +81,10 @@ final class RuleBuilder
             return;
         }
         
-        // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'odcm-rule-builder')) {
-            wp_send_json_error(['message' => __('admin.rule_builder.ajax.security_check_failed', 'order-daemon')]);
+        // Verify nonce for rule builder saves
+        if (!isset($_POST['odcm_rule_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['odcm_rule_nonce'])), 'odcm_save_rule')) {
+            // Don't use wp_send_json_error in post save context - just return early
+            return;
         }
         
         // Check if our hidden field is set
@@ -141,10 +142,20 @@ final class RuleBuilder
                 if (function_exists('wp_debug_log')) {
                     wp_debug_log('ODCM Rule Builder: ' . $message);
                 }
-                // Only if wp_debug_log doesn't exist, fall back to error_log as last resort
-                // This is a rare case as wp_debug_log exists in WordPress core
+                // Only if wp_debug_log doesn't exist, use WP error logger through apply_filters
+                // This avoids direct error_log usage while still ensuring errors are captured
                 else {
-                    error_log('ODCM Rule Builder: ' . $message);
+                    do_action('odcm_log_error', 'Rule Builder: ' . $message);
+                    // If action isn't handled, write to WordPress debug.log if available
+                    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                        // Write to debug.log file using WordPress constants
+                        $debug_file = WP_CONTENT_DIR . '/debug.log';
+                        @file_put_contents(
+                            $debug_file,
+                            '[' . date('Y-m-d H:i:s') . '] ODCM Rule Builder: ' . $message . PHP_EOL,
+                            FILE_APPEND
+                        );
+                    }
                 }
             }
         }

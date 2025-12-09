@@ -17,6 +17,13 @@ class Installer
      * The option key for storing the database version.
      */
     const DB_VERSION_OPTION_KEY = 'odcm_db_version';
+    
+    /**
+     * Cache of table existence checks to prevent redundant queries
+     *
+     * @var array<string, bool>
+     */
+    private static array $table_existence_cache = [];
 
     /**
      * Activation hook callback.
@@ -128,12 +135,10 @@ class Installer
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
         
-        // Verify table creation
-        $table_exists = $wpdb->get_var(
-            $wpdb->prepare("SHOW TABLES LIKE %s", $table_name)
-        );
-        if ($table_exists !== $table_name) {
-            throw new Exception("Failed to create complete audit log table: " . esc_html($table_name));
+        // Verify table creation with caching
+        $table_exists = self::verify_table_exists($table_name);
+        if (!$table_exists) {
+            throw new \Exception("Failed to create complete audit log table: " . esc_html($table_name));
         }
     }
 
@@ -158,12 +163,10 @@ class Installer
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
         
-        // Verify table creation
-        $exists = $wpdb->get_var(
-            $wpdb->prepare("SHOW TABLES LIKE %s", $table_name)
-        );
-        if ($exists !== $table_name) {
-            throw new Exception("Failed to create complete audit payloads table: " . esc_html($table_name));
+        // Verify table creation with caching
+        $table_exists = self::verify_table_exists($table_name);
+        if (!$table_exists) {
+            throw new \Exception("Failed to create complete audit payloads table: " . esc_html($table_name));
         }
     }
 
@@ -193,9 +196,9 @@ class Installer
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
         
-        // Verify table creation
-        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
-        if ($exists !== $table_name) {
+        // Verify table creation with caching
+        $table_exists = self::verify_table_exists($table_name);
+        if (!$table_exists) {
             throw new \Exception("Failed to create audit log queue table: " . esc_html($table_name));
         }
     }
@@ -206,5 +209,52 @@ class Installer
     private static function update_db_version(): void
     {
         update_option(self::DB_VERSION_OPTION_KEY, self::DB_VERSION);
+        
+        // Clear table existence cache after updating database version
+        self::$table_existence_cache = [];
+        wp_cache_delete('odcm_all_tables_exist_check');
+    }
+    
+    /**
+     * Verify if a table exists with caching to prevent redundant queries
+     * 
+     * This method implements multi-level caching:
+     * 1. Static class cache for the current request
+     * 2. WordPress persistent cache for short-term caching during installation
+     * 
+     * @param string $table_name The full table name to check
+     * @return bool True if the table exists, false otherwise
+     */
+    private static function verify_table_exists(string $table_name): bool
+    {
+        global $wpdb;
+        
+        // Check static cache first (fastest)
+        if (isset(self::$table_existence_cache[$table_name])) {
+            return self::$table_existence_cache[$table_name];
+        }
+        
+        // Create a cache key for WordPress persistent cache
+        $cache_key = 'odcm_table_exists_' . md5($table_name);
+        
+        // Check persistent cache
+        $table_exists = wp_cache_get($cache_key);
+        if (false !== $table_exists) {
+            // Store in static cache for future use
+            self::$table_existence_cache[$table_name] = (bool)$table_exists;
+            return (bool)$table_exists;
+        }
+        
+        // Cache miss - perform the table existence check
+        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
+        $table_exists = ($exists === $table_name);
+        
+        // Cache the result - short duration since this is for installation
+        wp_cache_set($cache_key, (int)$table_exists, '', 5 * MINUTE_IN_SECONDS);
+        
+        // Store in static cache for future use
+        self::$table_existence_cache[$table_name] = $table_exists;
+        
+        return $table_exists;
     }
 }

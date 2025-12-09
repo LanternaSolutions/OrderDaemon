@@ -203,7 +203,8 @@ abstract class AbstractGatewayAdapter implements GatewayEventAdapter
 
         foreach ($headers as $header) {
             if (!empty($_SERVER[$header])) {
-                $ip = $_SERVER[$header];
+                // Properly sanitize and unslash the server variable
+                $ip = sanitize_text_field(wp_unslash($_SERVER[$header]));
                 
                 // Handle comma-separated list (X-Forwarded-For can contain multiple IPs)
                 if (strpos($ip, ',') !== false) {
@@ -217,7 +218,8 @@ abstract class AbstractGatewayAdapter implements GatewayEventAdapter
             }
         }
 
-        return $_SERVER['REMOTE_ADDR'] ?? null;
+        // Properly sanitize and unslash the REMOTE_ADDR
+        return isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : null;
     }
 
     /**

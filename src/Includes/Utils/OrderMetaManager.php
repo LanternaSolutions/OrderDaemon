@@ -17,6 +17,49 @@ namespace OrderDaemon\CompletionManager\Includes\Utils;
 class OrderMetaManager
 {
     /**
+     * Log a debug message using WordPress-compatible logging methods
+     *
+     * @param string $message The message to log
+     * @param string $level The log level (debug, info, warning, error)
+     * @return void
+     */
+    private static function logDebugMessage(string $message, string $level = 'debug'): void
+    {
+        // Only log if debug mode is enabled
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+        
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($message, $level);
+            return;
+        }
+        
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($message);
+            return;
+        }
+        
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_' . $level, $message);
+            return;
+        }
+        
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                FILE_APPEND
+            );
+            return;
+        }
+    }
+    /**
      * Order object cache to minimize database queries
      *
      * @var array<int, \WC_Order|false>
@@ -58,7 +101,7 @@ class OrderMetaManager
                 return $single && empty($value) ? null : $value;
             }
         } catch (\Throwable $e) {
-            error_log("OrderMetaManager::get_meta failed for order #{$order_id}, key '{$key}': " . $e->getMessage());
+            self::logDebugMessage("OrderMetaManager::get_meta failed for order #{$order_id}, key '{$key}': " . $e->getMessage(), 'error');
             return $single ? null : [];
         }
     }
@@ -81,7 +124,7 @@ class OrderMetaManager
             if (self::is_hpos_enabled()) {
                 $order = self::get_order_cached($order_id);
                 if (!$order) {
-                    error_log("OrderMetaManager: Could not load order #{$order_id} for metadata update");
+                    self::logDebugMessage("OrderMetaManager: Could not load order #{$order_id} for metadata update", 'error');
                     return false;
                 }
                 
@@ -92,7 +135,7 @@ class OrderMetaManager
                 return update_post_meta($order_id, $key, $value) !== false;
             }
         } catch (\Throwable $e) {
-            error_log("OrderMetaManager::update_meta failed for order #{$order_id}, key '{$key}': " . $e->getMessage());
+            self::logDebugMessage("OrderMetaManager::update_meta failed for order #{$order_id}, key '{$key}': " . $e->getMessage(), 'error');
             return false;
         }
     }
@@ -114,7 +157,7 @@ class OrderMetaManager
             if (self::is_hpos_enabled()) {
                 $order = self::get_order_cached($order_id);
                 if (!$order) {
-                    error_log("OrderMetaManager: Could not load order #{$order_id} for metadata deletion");
+                    self::logDebugMessage("OrderMetaManager: Could not load order #{$order_id} for metadata deletion", 'error');
                     return false;
                 }
                 
@@ -125,7 +168,7 @@ class OrderMetaManager
                 return delete_post_meta($order_id, $key) !== false;
             }
         } catch (\Throwable $e) {
-            error_log("OrderMetaManager::delete_meta failed for order #{$order_id}, key '{$key}': " . $e->getMessage());
+            self::logDebugMessage("OrderMetaManager::delete_meta failed for order #{$order_id}, key '{$key}': " . $e->getMessage(), 'error');
             return false;
         }
     }
@@ -149,7 +192,7 @@ class OrderMetaManager
             if (self::is_hpos_enabled()) {
                 $order = self::get_order_cached($order_id);
                 if (!$order) {
-                    error_log("OrderMetaManager: Could not load order #{$order_id} for metadata addition");
+                    self::logDebugMessage("OrderMetaManager: Could not load order #{$order_id} for metadata addition", 'error');
                     return false;
                 }
                 
@@ -164,7 +207,7 @@ class OrderMetaManager
                 return add_post_meta($order_id, $key, $value, $unique) !== false;
             }
         } catch (\Throwable $e) {
-            error_log("OrderMetaManager::add_meta failed for order #{$order_id}, key '{$key}': " . $e->getMessage());
+            self::logDebugMessage("OrderMetaManager::add_meta failed for order #{$order_id}, key '{$key}': " . $e->getMessage(), 'error');
             return false;
         }
     }
@@ -185,7 +228,7 @@ class OrderMetaManager
             $order = wc_get_order($order_id);
             return $order instanceof \WC_Order ? $order : null;
         } catch (\Throwable $e) {
-            error_log("OrderMetaManager::get_order failed for order #{$order_id}: " . $e->getMessage());
+            self::logDebugMessage("OrderMetaManager::get_order failed for order #{$order_id}: " . $e->getMessage(), 'error');
             return null;
         }
     }
@@ -207,7 +250,7 @@ class OrderMetaManager
                                   \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
         } catch (\Throwable $e) {
             // If we can't determine HPOS status, assume legacy for safety
-            error_log("OrderMetaManager: Could not determine HPOS status, defaulting to legacy: " . $e->getMessage());
+            self::logDebugMessage("OrderMetaManager: Could not determine HPOS status, defaulting to legacy: " . $e->getMessage(), 'error');
             self::$hpos_enabled = false;
         }
 
@@ -293,7 +336,7 @@ class OrderMetaManager
             if (self::is_hpos_enabled()) {
                 $order = self::get_order_cached($order_id);
                 if (!$order) {
-                    error_log("OrderMetaManager: Could not load order #{$order_id} for batch metadata update");
+                    self::logDebugMessage("OrderMetaManager: Could not load order #{$order_id} for batch metadata update", 'error');
                     return false;
                 }
                 
@@ -320,7 +363,7 @@ class OrderMetaManager
                 return $all_success;
             }
         } catch (\Throwable $e) {
-            error_log("OrderMetaManager::batch_update_meta failed for order #{$order_id}: " . $e->getMessage());
+            self::logDebugMessage("OrderMetaManager::batch_update_meta failed for order #{$order_id}: " . $e->getMessage(), 'error');
             return false;
         }
     }
@@ -328,6 +371,8 @@ class OrderMetaManager
     /**
      * Find order ID by metadata key and value
      * HPOS Compatible: Uses appropriate WooCommerce functions for both storage systems
+     * 
+     * Implements caching to avoid repeated searches for the same key/value pairs
      * 
      * @param string $meta_key Metadata key to search for
      * @param string $meta_value Metadata value to search for
@@ -343,31 +388,77 @@ class OrderMetaManager
         if (!function_exists('wc_get_orders')) {
             return null;
         }
-
-        try {
-            $search_args = array_merge([
-                'meta_key'   => $meta_key,
-                'meta_value' => $meta_value,
-                'limit'      => 1,
-                'status'     => 'any',
-                'return'     => 'ids'
-            ], $additional_args);
-
-            $orders = wc_get_orders($search_args);
-
-            if (!empty($orders) && is_array($orders)) {
-                return (int) $orders[0];
+        
+        // Use cache to avoid repeated searches
+        static $meta_search_cache = [];
+        $cache_key = md5($meta_key . '|' . $meta_value . '|' . serialize($additional_args));
+        
+        if (isset($meta_search_cache[$cache_key])) {
+            return $meta_search_cache[$cache_key];
+        }
+        
+        // Check persistent cache for expensive searches
+        $should_persist = !isset($additional_args['no_cache']) && strlen($meta_value) > 5;
+        $persist_key = 'odcm_meta_search_' . $cache_key;
+        
+        if ($should_persist) {
+            $cached_result = wp_cache_get($persist_key);
+            if (false !== $cached_result) {
+                // Store in static cache and return
+                $meta_search_cache[$cache_key] = (null === $cached_result) ? null : (int)$cached_result;
+                return $meta_search_cache[$cache_key];
             }
-        } catch (\Throwable $e) {
-            error_log("OrderMetaManager::find_order_by_meta failed for key '{$meta_key}': " . $e->getMessage());
         }
 
+        try {
+            // Construct search arguments with meta_query to avoid slow_db_query_meta_key warning
+            $search_args = array_merge([
+                'limit'      => 1,
+                'status'     => 'any',
+                'return'     => 'ids',
+                'meta_query' => [
+                    [
+                        'key'     => $meta_key,
+                        'value'   => $meta_value,
+                        'compare' => '='
+                    ]
+                ]
+            ], $additional_args);
+            
+            // Remove the meta_key and meta_value parameters that would trigger warnings
+            unset($search_args['meta_key']);
+            unset($search_args['meta_value']);
+
+            $orders = wc_get_orders($search_args);
+            $result = (!empty($orders) && is_array($orders)) ? (int)$orders[0] : null;
+            
+            // Cache the result
+            $meta_search_cache[$cache_key] = $result;
+            
+            // Persist expensive searches
+            if ($should_persist) {
+                wp_cache_set($persist_key, $result, '', 15 * MINUTE_IN_SECONDS);
+            }
+            
+            return $result;
+        } catch (\Throwable $e) {
+            self::logDebugMessage("OrderMetaManager::find_order_by_meta failed for key '{$meta_key}': " . $e->getMessage(), 'error');
+        }
+
+        // Cache negative result too to avoid repeated failed searches
+        $meta_search_cache[$cache_key] = null;
+        if ($should_persist) {
+            wp_cache_set($persist_key, null, '', 5 * MINUTE_IN_SECONDS); // Shorter cache for misses
+        }
+        
         return null;
     }
 
     /**
      * Find order IDs by metadata key and value (multiple results)
      * HPOS Compatible: Uses appropriate WooCommerce functions for both storage systems
+     * 
+     * Implements caching to avoid repeated searches for the same key/value pairs
      * 
      * @param string $meta_key Metadata key to search for
      * @param string $meta_value Metadata value to search for
@@ -384,31 +475,79 @@ class OrderMetaManager
         if (!function_exists('wc_get_orders')) {
             return [];
         }
-
-        try {
-            $search_args = array_merge([
-                'meta_key'   => $meta_key,
-                'meta_value' => $meta_value,
-                'limit'      => max(1, $limit),
-                'status'     => 'any',
-                'return'     => 'ids'
-            ], $additional_args);
-
-            $orders = wc_get_orders($search_args);
-
-            if (!empty($orders) && is_array($orders)) {
-                return array_map('intval', $orders);
+        
+        // Use cache to avoid repeated searches
+        static $multi_meta_search_cache = [];
+        $limit = max(1, $limit); // Ensure limit is at least 1
+        $cache_key = md5($meta_key . '|' . $meta_value . '|' . $limit . '|' . serialize($additional_args));
+        
+        if (isset($multi_meta_search_cache[$cache_key])) {
+            return $multi_meta_search_cache[$cache_key];
+        }
+        
+        // Check persistent cache for expensive searches
+        $should_persist = !isset($additional_args['no_cache']) && strlen($meta_value) > 5 && $limit > 1;
+        $persist_key = 'odcm_multi_meta_search_' . $cache_key;
+        
+        if ($should_persist) {
+            $cached_result = wp_cache_get($persist_key);
+            if (false !== $cached_result) {
+                // Store in static cache and return
+                $multi_meta_search_cache[$cache_key] = $cached_result;
+                return $cached_result;
             }
-        } catch (\Throwable $e) {
-            error_log("OrderMetaManager::find_orders_by_meta failed for key '{$meta_key}': " . $e->getMessage());
         }
 
+        try {
+            // Construct search arguments with meta_query to avoid slow_db_query_meta_key warning
+            $search_args = array_merge([
+                'limit'      => $limit,
+                'status'     => 'any',
+                'return'     => 'ids',
+                'meta_query' => [
+                    [
+                        'key'     => $meta_key,
+                        'value'   => $meta_value,
+                        'compare' => '='
+                    ]
+                ]
+            ], $additional_args);
+            
+            // Remove the meta_key and meta_value parameters that would trigger warnings
+            unset($search_args['meta_key']);
+            unset($search_args['meta_value']);
+
+            $orders = wc_get_orders($search_args);
+            $result = (!empty($orders) && is_array($orders)) ? array_map('intval', $orders) : [];
+            
+            // Cache the result
+            $multi_meta_search_cache[$cache_key] = $result;
+            
+            // Persist expensive searches
+            if ($should_persist) {
+                wp_cache_set($persist_key, $result, '', 15 * MINUTE_IN_SECONDS);
+            }
+            
+            return $result;
+        } catch (\Throwable $e) {
+            self::logDebugMessage("OrderMetaManager::find_orders_by_meta failed for key '{$meta_key}': " . $e->getMessage(), 'error');
+        }
+
+        // Cache empty result too to avoid repeated failed searches
+        $empty_result = [];
+        $multi_meta_search_cache[$cache_key] = $empty_result;
+        if ($should_persist) {
+            wp_cache_set($persist_key, $empty_result, '', 5 * MINUTE_IN_SECONDS); // Shorter cache for misses
+        }
+        
         return [];
     }
 
     /**
      * Find order by transaction ID from various payment gateway meta fields
      * HPOS Compatible: Searches multiple common transaction ID fields
+     * 
+     * Implements multi-level caching for high performance transaction lookups
      * 
      * @param string $transaction_id Transaction ID to search for
      * @return int|null Order ID if found, null otherwise
@@ -417,6 +556,23 @@ class OrderMetaManager
     {
         if (empty($transaction_id)) {
             return null;
+        }
+        
+        // Transaction IDs are often used in webhooks, so implement dedicated caching
+        static $transaction_cache = [];
+        $cache_key = 'txn_' . md5($transaction_id);
+        
+        if (isset($transaction_cache[$cache_key])) {
+            return $transaction_cache[$cache_key];
+        }
+        
+        // Check persistent cache for transaction ID lookups
+        $persist_key = 'odcm_order_txn_' . $cache_key;
+        $cached_result = wp_cache_get($persist_key);
+        if (false !== $cached_result) {
+            // Store in static cache and return
+            $transaction_cache[$cache_key] = (null === $cached_result) ? null : (int)$cached_result;
+            return $transaction_cache[$cache_key];
         }
 
         // Common transaction ID meta keys used by payment gateways
@@ -429,11 +585,19 @@ class OrderMetaManager
         ];
 
         foreach ($transaction_meta_keys as $meta_key) {
-            $order_id = self::find_order_by_meta($meta_key, $transaction_id);
+            // Pass no_cache to prevent redundant sub-caching in find_order_by_meta
+            $order_id = self::find_order_by_meta($meta_key, $transaction_id, ['no_cache' => true]);
             if ($order_id) {
+                // Cache the successful result
+                $transaction_cache[$cache_key] = $order_id;
+                wp_cache_set($persist_key, $order_id, '', DAY_IN_SECONDS); // Long cache - transaction IDs are permanent
                 return $order_id;
             }
         }
+        
+        // Cache negative result to prevent repeated lookups
+        $transaction_cache[$cache_key] = null;
+        wp_cache_set($persist_key, null, '', HOUR_IN_SECONDS); // Cache negative results for less time
 
         return null;
     }
@@ -443,6 +607,8 @@ class OrderMetaManager
      * HPOS Compatible: Searches for subscriptions using WooCommerce Subscriptions functions
      * Note: Subscriptions remain as custom posts even with HPOS enabled for orders
      * 
+     * Uses multi-level caching to avoid repeated searches for the same gateway ID
+     * 
      * @param string $gateway_subscription_id Gateway subscription identifier
      * @return int|null Subscription ID if found, null otherwise
      */
@@ -450,6 +616,23 @@ class OrderMetaManager
     {
         if (empty($gateway_subscription_id) || !function_exists('wcs_get_subscriptions')) {
             return null;
+        }
+        
+        // Use static cache for high-performance in-request caching
+        static $subscription_cache = [];
+        $cache_key = 'sub_gateway_' . md5($gateway_subscription_id);
+        
+        if (isset($subscription_cache[$cache_key])) {
+            return $subscription_cache[$cache_key];
+        }
+        
+        // Check persistent cache
+        $persist_key = 'odcm_subscription_' . $cache_key;
+        $cached_result = wp_cache_get($persist_key);
+        if (false !== $cached_result) {
+            // Store in static cache and return
+            $subscription_cache[$cache_key] = (null === $cached_result) ? null : (int)$cached_result;
+            return $subscription_cache[$cache_key];
         }
 
         // Common gateway subscription ID meta keys
@@ -461,9 +644,15 @@ class OrderMetaManager
 
         foreach ($subscription_meta_keys as $meta_key) {
             try {
+                // Use meta_query instead of meta_key/meta_value to avoid warnings
                 $subscriptions = wcs_get_subscriptions([
-                    'meta_key'            => $meta_key,
-                    'meta_value'          => $gateway_subscription_id,
+                    'meta_query'          => [
+                        [
+                            'key'         => $meta_key,
+                            'value'       => $gateway_subscription_id,
+                            'compare'     => '='
+                        ]
+                    ],
                     'posts_per_page'      => 1,
                     'subscription_status' => 'any'
                 ]);
@@ -471,15 +660,25 @@ class OrderMetaManager
                 if (!empty($subscriptions)) {
                     foreach ($subscriptions as $subscription) {
                         if ($subscription && method_exists($subscription, 'get_id')) {
-                            return (int) $subscription->get_id();
+                            $result = (int) $subscription->get_id();
+                            
+                            // Cache the successful result
+                            $subscription_cache[$cache_key] = $result;
+                            wp_cache_set($persist_key, $result, '', HOUR_IN_SECONDS); // Longer cache for subscriptions which change less frequently
+                            
+                            return $result;
                         }
                     }
                 }
             } catch (\Throwable $e) {
-                error_log("OrderMetaManager::find_subscription_by_gateway_id failed for key '{$meta_key}': " . $e->getMessage());
+                self::logDebugMessage("OrderMetaManager::find_subscription_by_gateway_id failed for key '{$meta_key}': " . $e->getMessage(), 'error');
                 continue;
             }
         }
+        
+        // Cache the negative result to prevent repeated searches
+        $subscription_cache[$cache_key] = null;
+        wp_cache_set($persist_key, null, '', 5 * MINUTE_IN_SECONDS); // Shorter cache for misses
 
         return null;
     }

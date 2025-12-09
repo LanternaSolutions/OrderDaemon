@@ -674,8 +674,8 @@ function insightDashboard() {
                     console.log('ODCM: this.filters.include_debug:', this.filters.include_debug);
                 }
 
-                // Use the correct REST API endpoint format
-                const renderEndpoint = `${this.config.apiUrl}render-components/`;
+                // Use the localized renderUrl when available to avoid path mismatches
+                const renderEndpoint = this.config.renderUrl || `${this.config.apiUrl}render-components/`;
                 const requestPayload = {
                     log_id: logId,
                     include_debug: this.filters.include_debug
@@ -714,6 +714,20 @@ function insightDashboard() {
                         console.error('ODCM: API Error Response:', responseText);
                     }
                     
+                    // Try to parse structured error to surface any helpful message
+                    try {
+                        const errData = await response.clone().json();
+                        if (errData && typeof errData === 'object') {
+                            if (errData.html) {
+                                return errData.html;
+                            }
+                            if (errData.message) {
+                                return `<div class="odcm-error">${errData.message}</div>`;
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore JSON parse errors
+                    }
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 

@@ -203,9 +203,21 @@ class NetworkDiagnostic extends AbstractDiagnostic
             // Since we're running inside WordPress, we can do a more reliable internal test
             // Test if we can access WordPress functions and database
             if (function_exists('get_bloginfo') && function_exists('home_url')) {
-                // Test database connectivity
-                global $wpdb;
-                $db_test = $wpdb->get_var("SELECT 1");
+                // Check cache first to avoid unnecessary database queries
+                $cache_key = 'odcm_db_connectivity_check';
+                $cached_result = wp_cache_get($cache_key);
+                
+                if (false !== $cached_result) {
+                    // Use cached result
+                    $db_test = $cached_result;
+                } else {
+                    // Test database connectivity with prepared statement
+                    global $wpdb;
+                    $db_test = $wpdb->get_var($wpdb->prepare("SELECT %s", '1'));
+                    
+                    // Cache the result for 5 minutes - this is a diagnostic test that shouldn't run frequently
+                    wp_cache_set($cache_key, $db_test, '', 5 * MINUTE_IN_SECONDS);
+                }
                 
                 if ($db_test === '1') {
                     $result['can_connect'] = true;

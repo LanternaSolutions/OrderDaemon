@@ -379,7 +379,7 @@ class InsightDashboard
         if (isset($_GET['page'])) {
             // Check if nonce exists and verify it if it does
             $has_nonce = isset($_REQUEST['_wpnonce']);
-            $nonce_verified = $has_nonce && wp_verify_nonce(wp_unslash($_REQUEST['_wpnonce']), 'wp_rest');
+            $nonce_verified = $has_nonce && wp_verify_nonce(sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])), 'wp_rest');
             
             // Only use $_GET['page'] if we have a verified nonce or it's a direct admin page load
             if ($nonce_verified || !isset($_REQUEST['action'])) {
@@ -440,16 +440,35 @@ class InsightDashboard
      *
      * @return bool True if no log entries exist in the system
      */
+    /**
+     * Static cache for welcome scenario data
+     *
+     * @var array|null
+     */
+    private static $welcome_scenario_cache = null;
+
+    /**
+     * Determine if this is a welcome scenario (no logs available)
+     *
+     * @return bool True if no log entries exist in the system
+     */
     private function determine_welcome_scenario(): bool
     {
         global $wpdb;
         
-        // Check cache first
+        // Use static variable for in-memory caching during this request
+        if (self::$welcome_scenario_cache !== null) {
+            return self::$welcome_scenario_cache;
+        }
+        
+        // Check persistent cache first
         $cache_key = 'odcm_welcome_scenario';
         $cached_result = wp_cache_get($cache_key);
         
         if ($cached_result !== false) {
-            return (bool)$cached_result;
+            // Store in static cache for this request
+            self::$welcome_scenario_cache = (bool)$cached_result;
+            return self::$welcome_scenario_cache;
         }
         
         // Check if audit log table exists
@@ -458,9 +477,15 @@ class InsightDashboard
         $table_exists = wp_cache_get($table_exists_cache_key);
         
         if ($table_exists === false) {
+            // We can't use WordPress schema functions here since these are custom tables
+            // Check tables using information_schema to be safer and more portable
             $table_exists = $wpdb->get_var(
-                $wpdb->prepare("SHOW TABLES LIKE %s", $audit_log_table)
-            ) === $audit_log_table;
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",
+                    DB_NAME,
+                    $audit_log_table
+                )
+            ) === '1';
             
             // Cache the result for 1 hour - table existence rarely changes
             wp_cache_set($table_exists_cache_key, $table_exists ? '1' : '0', '', HOUR_IN_SECONDS);
@@ -471,17 +496,22 @@ class InsightDashboard
         if (!$table_exists) {
             // If table doesn't exist, it's definitely a welcome scenario
             wp_cache_set($cache_key, '1', '', 5 * MINUTE_IN_SECONDS);
+            self::$welcome_scenario_cache = true;
             return true;
         }
         
         // Check if any log entries exist
-        $audit_log_table_identifier = ($audit_log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $audit_log_table . '`' : '`odcm_audit_log`';
         $log_count_cache_key = 'odcm_log_count';
         $log_count = wp_cache_get($log_count_cache_key);
         
         if ($log_count === false) {
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Validated and backticked identifier; values are not interpolated.
-            $log_count = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_log_table_identifier}");
+            // Use a properly prepared statement for the COUNT query
+            $log_count = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM `{$wpdb->prefix}%s`", 
+                    str_replace($wpdb->prefix, '', 'odcm_audit_log')
+                )
+            );
             
             // Cache the result for 5 minutes - log count may change more frequently
             wp_cache_set($log_count_cache_key, $log_count, '', 5 * MINUTE_IN_SECONDS);
@@ -491,6 +521,9 @@ class InsightDashboard
         
         // Cache the final result for 5 minutes
         wp_cache_set($cache_key, $is_welcome ? '1' : '0', '', 5 * MINUTE_IN_SECONDS);
+        
+        // Store in static cache for this request
+        self::$welcome_scenario_cache = $is_welcome;
         
         // If no logs exist, show welcome scenario
         return $is_welcome;
@@ -686,23 +719,29 @@ class InsightDashboard
                     <h3><?php echo esc_html__('admin.insight_dashboard.stream.title', 'order-daemon'); ?></h3>
                 </div>
                 <div class="odcm-stream-controls">
-                    <div class="odcm-stream-view-toggle" role="group" aria-label="Toggle view mode">
-                        <span class="odcm-toggle-label"
-                              :class="{ 'is-active': viewMode === 'consolidated' }">
-                            <?php echo esc_html__('Consolidated', 'order-daemon'); ?>
-                        </span>
-                        <label class="odcm-toggle-switch" @click.stop>
-                            <input type="checkbox"
-                                   :checked="viewMode === 'flat'"
-                                   @change="setViewMode($event.target.checked ? 'flat' : 'consolidated')">
-                            <span class="odcm-toggle-slider"></span>
-                        </label>
-                        <span class="odcm-toggle-label"
-                              :class="{ 'is-active': viewMode === 'flat' }"
-                              title="<?php echo esc_attr__('Shows all events ungrouped, in strict chronological order', 'order-daemon'); ?>">
-                            Flat Stream (VERBOSE!)
-                        </span>
+                    <div class="odcm-stream-view-toggle odcm-segmented" role="radiogroup" aria-label="Toggle view mode">
+                        <div class="odcm-segmented-track">
+                            <div class="odcm-segmented-thumb" :class="viewMode === 'flat' ? 'is-right' : 'is-left'"></div>
+                            <button type="button"
+                                    class="odcm-segmented-option"
+                                    role="radio"
+                                    :aria-checked="viewMode === 'consolidated'"
+                                    :class="{ 'is-active': viewMode === 'consolidated' }"
+                                    @click="setViewMode('consolidated')">
+                                <?php echo esc_html__('Consolidated', 'order-daemon'); ?>
+                            </button>
+                            <button type="button"
+                                    class="odcm-segmented-option"
+                                    role="radio"
+                                    :aria-checked="viewMode === 'flat'"
+                                    :class="{ 'is-active': viewMode === 'flat' }"
+                                    @click="setViewMode('flat')"
+                                    title="<?php echo esc_attr__('Shows all events ungrouped, in strict chronological order', 'order-daemon'); ?>">
+                                Individual
+                            </button>
+                        </div>
                     </div>
+                    <div class="odcm-controls-divider" aria-hidden="true"></div>
                     <div class="odcm-refresh-controls">
                         <button type="button" 
                                 class="odcm-refresh-button button"

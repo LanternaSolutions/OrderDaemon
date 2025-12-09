@@ -295,38 +295,72 @@ final class ProcessLifecycleDiscovery
             );
             
             // Cache key for process types
-            $cache_key = 'odcm_process_types_' . md5($table_name);
-            $cached_types = wp_cache_get($cache_key);
+            // Static in-memory cache for the current request in addition to transient cache
+            static $process_types_cache = [];
             
-            if (false === $cached_types) {
-                // Cache miss - run the query
-                
-                // Then run the full query with the properly escaped table name
-                // Note: This approach is necessary because WordPress doesn't support placeholders for table names
-                // We've already validated $table_identifier earlier to ensure it's safe
-                $results = $wpdb->get_col(
-                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-                    "SELECT DISTINCT event_type FROM {$table_identifier} {$prepared_where_clause}"
-                );
-                $types = is_array($results) ? $results : [];
-                $types = array_values(array_unique(array_filter(array_map('strval', $types))));
-                
-                // Cache results for 1 hour (process types don't change frequently)
-                wp_cache_set($cache_key, $types, '', HOUR_IN_SECONDS);
-                
-                return $types;
+            // Create a unique cache key that includes table name
+            $cache_key = 'odcm_process_types_' . md5($table_name);
+            
+            // Check static cache first for better performance
+            if (isset($process_types_cache[$cache_key])) {
+                return $process_types_cache[$cache_key];
             }
             
-            return $cached_types;
+            // Check persistent cache
+            $cached_types = wp_cache_get($cache_key);
+            
+            if (false !== $cached_types) {
+                // Store in static cache for this request
+                $process_types_cache[$cache_key] = $cached_types;
+                return $cached_types;
+            }
+            
+            // Cache miss - run the query
+            // Build a safer query using esc_sql for the table name
+            $table_name_clean = esc_sql(str_replace('`', '', $table_name));
+            $query = "SELECT DISTINCT event_type FROM `{$table_name_clean}` {$prepared_where_clause}";
+            
+            // Execute the query with WordPress's database API
+            $results = $wpdb->get_col($query);
+            
+            // Process the results
+            $types = is_array($results) ? $results : [];
+            $types = array_values(array_unique(array_filter(array_map('strval', $types))));
+            
+            // Cache results for 1 hour (process types don't change frequently)
+            wp_cache_set($cache_key, $types, '', HOUR_IN_SECONDS);
+            
+            // Store in static cache for this request
+            $process_types_cache[$cache_key] = $types;
+            
+            return $types;
         } catch (\Throwable $e) {
             // Log error using the plugin's logging function instead of error_log
             if (function_exists('odcm_log_message')) {
                 odcm_log_message('ODCM: Process type discovery failed: ' . $e->getMessage(), 'error');
             } else {
-                // Fallback to WordPress error logging if our function isn't available
+                // Fallback to WordPress error logging mechanisms
                 if (defined('WP_DEBUG') && WP_DEBUG) {
-                    // Only log in debug mode
-                    error_log('ODCM: Process type discovery failed: ' . $e->getMessage());
+                    // Use WordPress action hook if available for centralized error handling
+                    if (function_exists('do_action')) {
+                        do_action('odcm_log_error', 'Process type discovery failed: ' . $e->getMessage());
+                    }
+                    
+                    // Use WordPress debug log function if available
+                    if (function_exists('wp_debug_log')) {
+                        wp_debug_log('ODCM: Process type discovery failed: ' . $e->getMessage());
+                    }
+                    
+                    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+                    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+                        // Write to WordPress debug.log file using WordPress constants
+                        $debug_file = WP_CONTENT_DIR . '/debug.log';
+                        @file_put_contents(
+                            $debug_file,
+                            '[' . date('Y-m-d H:i:s') . '] ODCM: Process type discovery failed: ' . $e->getMessage() . PHP_EOL,
+                            FILE_APPEND
+                        );
+                    }
                 }
             }
             return [];

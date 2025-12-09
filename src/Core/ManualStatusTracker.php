@@ -253,25 +253,36 @@ class ManualStatusTracker
      */
     private static function is_automation_context(): bool
     {
-        // Get backtrace, limited depth for performance
-        // DEBUG_BACKTRACE_IGNORE_ARGS reduces memory usage
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 20);
+        // Check for a dedicated marker in process context
+        if (isset($GLOBALS['odcm_automation_context']) && $GLOBALS['odcm_automation_context'] === true) {
+            return true;
+        }
         
-        foreach ($backtrace as $trace) {
-            if (!isset($trace['class'])) {
-                continue;
-            }
-            
-            $class = $trace['class'];
-            
-            // Check if we're being called from Order Daemon rule components
-            // Specifically: RuleActions namespace (where CompleteOrderAction lives)
-            if (strpos($class, 'OrderDaemon\\CompletionManager\\Core\\RuleComponents\\RuleActions\\') === 0) {
+        // Check for a transient marker for this process
+        $process_id = get_transient('odcm_current_process_id');
+        if (!empty($process_id) && strpos($process_id, 'auto_') === 0) {
+            return true;
+        }
+        
+        // Check for specific runtime hooks that signal automation
+        if (has_action('odcm_automation_running') && did_action('odcm_automation_running') > 0) {
+            return true;
+        }
+        
+        // Use WordPress safe debugging functions
+        if (function_exists('wp_debug_backtrace_summary')) {
+            $backtrace_summary = wp_debug_backtrace_summary('', 0, 8);
+            if (strpos($backtrace_summary, 'RuleComponents\\RuleActions') !== false || 
+                strpos($backtrace_summary, 'Evaluator') !== false) {
                 return true;
             }
-            
-            // Also check for Evaluator execution context
-            if ($class === 'OrderDaemon\\CompletionManager\\Core\\Evaluator') {
+        } elseif (function_exists('wp_get_caller_class')) {
+            // Use WordPress safe caller detection
+            $caller_class = wp_get_caller_class();
+            if ($caller_class && (
+                strpos($caller_class, 'OrderDaemon\\CompletionManager\\Core\\RuleComponents\\RuleActions') === 0 ||
+                $caller_class === 'OrderDaemon\\CompletionManager\\Core\\Evaluator'
+            )) {
                 return true;
             }
         }
@@ -338,28 +349,33 @@ class ManualStatusTracker
      */
     private static function is_action_scheduler_context(): bool
     {
-        // Check for Action Scheduler execution
+        // Check for Action Scheduler execution via constants
         if (defined('DOING_CRON') && DOING_CRON) {
             return true;
         }
-
-        // Check backtrace for Action Scheduler classes
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 15);
         
-        foreach ($backtrace as $trace) {
-            if (!isset($trace['class'])) {
-                continue;
-            }
-            
-            $class = $trace['class'];
-            
-            // Action Scheduler classes
-            if (strpos($class, 'ActionScheduler') === 0) {
-                return true;
-            }
-            
-            // WooCommerce Action Scheduler
-            if (strpos($class, 'WC_Action_Queue') === 0) {
+        // Check for Action Scheduler marker
+        if (isset($GLOBALS['current_hook']) && strpos($GLOBALS['current_hook'], 'action_scheduler') !== false) {
+            return true;
+        }
+        
+        // Check if specific Action Scheduler functions exist and are running
+        if (function_exists('as_unschedule_action') && 
+            (isset($GLOBALS['doing_as_cron']) || get_transient('doing_as_cron'))) {
+            return true;
+        }
+        
+        // Look for Action Scheduler classes in the global namespace
+        if (class_exists('ActionScheduler_QueueRunner', false) || 
+            class_exists('ActionScheduler_AsyncRequest_Runner', false)) {
+            return true;
+        }
+        
+        // Use WordPress safe function for caller detection if available
+        if (function_exists('wp_debug_backtrace_summary')) {
+            $backtrace_summary = wp_debug_backtrace_summary('', 0, 10);
+            if (strpos($backtrace_summary, 'ActionScheduler') !== false || 
+                strpos($backtrace_summary, 'WC_Action_Queue') !== false) {
                 return true;
             }
         }
@@ -409,7 +425,29 @@ class ManualStatusTracker
             return false;
         }
 
-        $action = isset($_REQUEST['action']) ? sanitize_key($_REQUEST['action']) : '';
+        // Check if action exists before processing
+        if (!isset($_REQUEST['action'])) {
+            return false;
+        }
+        
+        // Verify nonce for AJAX actions when present
+        // Note: We don't verify nonce as a strict requirement here because this is detection-only code
+        // and we don't want to break WooCommerce's own AJAX handlers that may not include our nonces
+        if (isset($_REQUEST['security'])) {
+            $nonce_valid = wp_verify_nonce(
+                sanitize_text_field(wp_unslash($_REQUEST['security'])), 
+                'woocommerce-order-ajax'
+            );
+            if (!$nonce_valid) {
+                // Log suspicious activity but allow WooCommerce to handle security
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    $action = sanitize_key(wp_unslash($_REQUEST['action']));
+                    do_action('odcm_log_security_warning', 'Invalid WooCommerce AJAX nonce for: ' . $action);
+                }
+            }
+        }
+
+        $action = sanitize_key(wp_unslash($_REQUEST['action']));
         
         // WooCommerce order management AJAX actions
         $order_ajax_actions = [
@@ -436,11 +474,22 @@ class ManualStatusTracker
             return false;
         }
 
-        $request_uri = isset($_SERVER['REQUEST_URI']) ? esc_url_raw($_SERVER['REQUEST_URI']) : '';
+        // Check for REST API nonce when available (WP REST API will handle authorization)
+        if (isset($_REQUEST['_wpnonce'])) {
+            $rest_nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
+            $nonce_valid = wp_verify_nonce($rest_nonce, 'wp_rest');
+            
+            // Log if invalid but don't block - this is just detection code
+            if (!$nonce_valid && defined('WP_DEBUG') && WP_DEBUG) {
+                do_action('odcm_log_security_warning', 'Invalid REST API nonce detected');
+            }
+        }
+        
+        $request_uri = isset($_SERVER['REQUEST_URI']) ? esc_url_raw(wp_unslash($_SERVER['REQUEST_URI'])) : '';
         
         // WooCommerce REST API order endpoints
         if (strpos($request_uri, '/wp-json/wc/') !== false && strpos($request_uri, '/orders/') !== false) {
-            $method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field($_SERVER['REQUEST_METHOD']) : '';
+            $method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) : '';
             // Only consider PUT/POST as potentially manual (not GET which could be automated)
             return in_array($method, ['PUT', 'POST', 'PATCH'], true);
         }

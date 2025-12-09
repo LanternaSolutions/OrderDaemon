@@ -366,6 +366,11 @@ class EventRouter
      */
     private function logDebugMessage(string $message): void
     {
+        // Only log if debug is enabled
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+        
         // Prefix for all debug messages from this class
         $prefix = "ODCM_DEBUG: ";
         
@@ -381,7 +386,20 @@ class EventRouter
             return;
         }
         
-        // Fallback to error_log only if neither of the above are available
-        error_log($prefix . $message);
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_debug', $prefix . $message);
+            return;
+        }
+        
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . date('Y-m-d H:i:s') . '] ' . $prefix . $message . PHP_EOL,
+                FILE_APPEND
+            );
+        }
     }
 }

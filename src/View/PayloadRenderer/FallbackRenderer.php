@@ -37,7 +37,7 @@ class FallbackRenderer extends BaseRenderer
     protected function renderSpecificContent(array $data, string $event_type, PayloadComponentUIToolkit $toolkit): string
     {
         // Theme resolution from registry
-        error_log(sprintf(
+        $this->logDebugMessage(sprintf(
             "ODCM Debug - FallbackRenderer theme resolution start: event_type=%s",
             $event_type
         ));
@@ -46,19 +46,19 @@ class FallbackRenderer extends BaseRenderer
             $registry_theme = odcm_get_component_theme($event_type);
             if (!empty($registry_theme)) {
                 $this->theme = $registry_theme;
-                error_log(sprintf(
+                $this->logDebugMessage(sprintf(
                     "ODCM Debug - Using registry theme: event_type=%s, theme=%s",
                     $event_type,
                     $registry_theme
                 ));
             } else {
-                error_log(sprintf(
+                $this->logDebugMessage(sprintf(
                     "ODCM Debug - No registry theme found: event_type=%s",
                     $event_type
                 ));
             }
         } else {
-            error_log(sprintf(
+            $this->logDebugMessage(sprintf(
                 "ODCM Debug - Registry function not available: event_type=%s",
                 $event_type
             ));

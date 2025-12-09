@@ -55,60 +55,60 @@ class OrderRenderer extends BaseRenderer
     protected function renderSpecificContent(array $payload, string $event_type, PayloadComponentUIToolkit $toolkit): string
     {
         // DEBUG: Log event routing
-        error_log("ODCM DEBUG - OrderRenderer::renderSpecificContent called");
-        error_log("ODCM DEBUG - Event type: '$event_type'");
-        error_log("ODCM DEBUG - Payload keys: " . implode(', ', array_keys($payload)));
+        $this->logDebugMessage("ODCM DEBUG - OrderRenderer::renderSpecificContent called");
+        $this->logDebugMessage("ODCM DEBUG - Event type: '$event_type'");
+        $this->logDebugMessage("ODCM DEBUG - Payload keys: " . implode(', ', array_keys($payload)));
 
         // The actual component data is often nested.
         $data = $payload['data'] ?? $payload;
 
         // Handle subscription events
         if ($this->isSubscriptionEvent($event_type) || $this->hasSubscriptionData($data)) {
-            error_log("ODCM DEBUG - Routing to subscription renderer");
+            $this->logDebugMessage("ODCM DEBUG - Routing to subscription renderer");
             return $this->renderSubscriptionEvent($data, $event_type, $toolkit);
         }
 
         // Check for event_type in data if not provided directly
         if ($event_type === '' && isset($data['event_type']) && is_string($data['event_type'])) {
             $event_type = $data['event_type'];
-            error_log("ODCM DEBUG - Updated event_type from data: '$event_type'");
+            $this->logDebugMessage("ODCM DEBUG - Updated event_type from data: '$event_type'");
         }
 
         // Handle regular order events
-        error_log("ODCM DEBUG - Checking switch for event_type: '$event_type'");
+        $this->logDebugMessage("ODCM DEBUG - Checking switch for event_type: '$event_type'");
         switch ($event_type) {
             case 'status_changed':
-                error_log("ODCM DEBUG - Routing to renderStatusChange");
+                $this->logDebugMessage("ODCM DEBUG - Routing to renderStatusChange");
                 return $this->renderStatusChange($data, $toolkit);
 
             case 'order_loaded':
-                error_log("ODCM DEBUG - Routing to renderOrderLoaded");
+                $this->logDebugMessage("ODCM DEBUG - Routing to renderOrderLoaded");
                 return $this->renderOrderLoaded($data, $toolkit);
 
             case 'checkout_processed':
             case 'block_checkout_processed':
-                error_log("ODCM DEBUG - Routing to renderBlockCheckout for event: '$event_type'");
+                $this->logDebugMessage("ODCM DEBUG - Routing to renderBlockCheckout for event: '$event_type'");
                 // Pass the full payload to get access to rawData
                 return $this->renderBlockCheckout($payload, $toolkit);
 
             case 'meta_updated':
-                error_log("ODCM DEBUG - Routing to renderMetaUpdate");
+                $this->logDebugMessage("ODCM DEBUG - Routing to renderMetaUpdate");
                 return $this->renderMetaUpdate($data, $toolkit);
 
             case 'woocommerce_data':
-                error_log("ODCM DEBUG - Routing to renderWooCommerceData");
+                $this->logDebugMessage("ODCM DEBUG - Routing to renderWooCommerceData");
                 return $this->renderWooCommerceData($data, $toolkit);
                 
             case 'order_created':
-                error_log("ODCM DEBUG - Routing to renderOrderCreated");
+                $this->logDebugMessage("ODCM DEBUG - Routing to renderOrderCreated");
                 return $this->renderOrderCreated($data, $toolkit);
                 
             case 'order_check_scheduled':
-                error_log("ODCM DEBUG - Routing to renderOrderCheckScheduled");
+                $this->logDebugMessage("ODCM DEBUG - Routing to renderOrderCheckScheduled");
                 return $this->renderOrderCheckScheduled($data, $toolkit);
 
             default:
-                error_log("ODCM DEBUG - Routing to renderGenericOrder (default case)");
+                $this->logDebugMessage("ODCM DEBUG - Routing to renderGenericOrder (default case)");
                 return $this->renderGenericOrder($data, $toolkit);
         }
     }
@@ -353,12 +353,12 @@ class OrderRenderer extends BaseRenderer
     private function renderBlockCheckout(array $payload, PayloadComponentUIToolkit $toolkit): string
     {
         // DEBUG: Log what we're receiving
-        error_log("ODCM DEBUG - renderBlockCheckout called");
-        error_log("ODCM DEBUG - Payload keys: " . implode(', ', array_keys($payload)));
-        error_log("ODCM DEBUG - rawData exists: " . (isset($payload['rawData']) ? 'YES' : 'NO'));
+        $this->logDebugMessage("ODCM DEBUG - renderBlockCheckout called");
+        $this->logDebugMessage("ODCM DEBUG - Payload keys: " . implode(', ', array_keys($payload)));
+        $this->logDebugMessage("ODCM DEBUG - rawData exists: " . (isset($payload['rawData']) ? 'YES' : 'NO'));
         if (isset($payload['rawData'])) {
-            error_log("ODCM DEBUG - rawData keys: " . implode(', ', array_keys($payload['rawData'])));
-            error_log("ODCM DEBUG - rawData empty: " . (empty($payload['rawData']) ? 'YES' : 'NO'));
+            $this->logDebugMessage("ODCM DEBUG - rawData keys: " . implode(', ', array_keys($payload['rawData'])));
+            $this->logDebugMessage("ODCM DEBUG - rawData empty: " . (empty($payload['rawData']) ? 'YES' : 'NO'));
         }
 
         // --- 1. Main Business Content ---
@@ -383,18 +383,18 @@ class OrderRenderer extends BaseRenderer
         $raw_data = $payload['rawData'] ?? [];
 
         // DEBUG: Log the condition check
-        error_log("ODCM DEBUG - raw_data empty check: " . (empty($raw_data) ? 'EMPTY (will skip)' : 'NOT EMPTY (will render)'));
+        $this->logDebugMessage("ODCM DEBUG - raw_data empty check: " . (empty($raw_data) ? 'EMPTY (will skip)' : 'NOT EMPTY (will render)'));
 
         // Use the entire rawData structure as technical details (it contains the full webhook payload).
         // Display the section only if there is data to show.
         if (!empty($raw_data)) {
-            error_log("ODCM DEBUG - Calling render_expandable_key_value_section with " . count($raw_data) . " items");
+            $this->logDebugMessage("ODCM DEBUG - Calling render_expandable_key_value_section with " . count($raw_data) . " items");
             // Use the new "smart" rendering method to handle nested data.
             $expandable_content = $toolkit->render_expandable_key_value_section('Technical Details', $raw_data);
-            error_log("ODCM DEBUG - Expandable content length: " . strlen($expandable_content));
+            $this->logDebugMessage("ODCM DEBUG - Expandable content length: " . strlen($expandable_content));
             $content .= $expandable_content;
         } else {
-            error_log("ODCM DEBUG - Skipping expandable section - rawData is empty");
+            $this->logDebugMessage("ODCM DEBUG - Skipping expandable section - rawData is empty");
         }
 
         return $content;

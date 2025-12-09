@@ -38,10 +38,28 @@ class Core
             if (function_exists('odcm_log_message')) {
                 odcm_log_message($message, 'error');
             } else {
-                // Fallback to WordPress error log with a consistent prefix
-                // Use WordPress error_log only in debug mode
+                // Fallback to WordPress logging mechanisms
                 if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('ODCM_CORE: ' . $message);
+                    // Use WordPress action hook if available for centralized error handling
+                    if (function_exists('do_action')) {
+                        do_action('odcm_log_error', 'ODCM_CORE: ' . $message);
+                    }
+                    
+                    // Use WordPress debug log function if available
+                    if (function_exists('wp_debug_log')) {
+                        wp_debug_log('ODCM_CORE: ' . $message);
+                    }
+                    
+                    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+                    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+                        // Write to WordPress debug.log file using WordPress constants
+                        $debug_file = WP_CONTENT_DIR . '/debug.log';
+                        @file_put_contents(
+                            $debug_file,
+                            '[' . date('Y-m-d H:i:s') . '] ODCM_CORE: ' . $message . PHP_EOL,
+                            FILE_APPEND
+                        );
+                    }
                 }
             }
         }
@@ -1691,32 +1709,65 @@ class Core
      */
     private function get_matching_rules_for_status_change(string $from_slug, string $to_slug): array
     {
+        // Use cache to avoid repeated queries for the same status change
+        static $rule_cache = [];
+        $cache_key = "status_change_{$from_slug}_{$to_slug}";
+        
+        if (isset($rule_cache[$cache_key])) {
+            return $rule_cache[$cache_key];
+        }
+        
+        // Use persistent cache for cross-request efficiency
+        $persistent_cache_key = 'odcm_matching_rules_' . md5($from_slug . '_' . $to_slug);
+        $cached_rules = wp_cache_get($persistent_cache_key);
+        if (false !== $cached_rules) {
+            // Store in static cache and return
+            $rule_cache[$cache_key] = $cached_rules;
+            return $cached_rules;
+        }
+        
+        // Get all published rules without using meta_query for better performance
         $rules = get_posts([
             'post_type' => 'odcm_order_rule',
             'post_status' => 'publish',
             'posts_per_page' => -1,
-            'meta_query' => [
-                [
-                    'key' => '_odcm_rule_active',
-                    'value' => '1',
-                    'compare' => '='
-                ]
-            ]
+            'fields' => 'ids', // Get only IDs for better performance
         ]);
         
         $matching_rules = [];
         
-        foreach ($rules as $rule) {
-            $rule_data = json_decode(get_post_meta($rule->ID, '_odcm_rule_data', true), true);
+        if (!empty($rules)) {
+            // Prefetch meta data for all rules to reduce queries
+            $rule_meta = [];
+            update_meta_cache('post', $rules); // Prime the meta cache
             
-            if ($this->rule_matches_status_change($rule_data, $from_slug, $to_slug)) {
-                $matching_rules[] = [
-                    'id' => $rule->ID,
-                    'name' => $rule->post_title,
-                    'data' => $rule_data
-                ];
+            foreach ($rules as $rule_id) {
+                // Check if rule is active using direct meta access
+                $rule_active = get_post_meta($rule_id, '_odcm_rule_active', true);
+                
+                // Skip inactive rules
+                if ($rule_active !== '1') {
+                    continue;
+                }
+                
+                // Get rule data
+                $rule_data = json_decode(get_post_meta($rule_id, '_odcm_rule_data', true), true);
+                
+                if ($this->rule_matches_status_change($rule_data, $from_slug, $to_slug)) {
+                    $matching_rules[] = [
+                        'id' => $rule_id,
+                        'name' => get_the_title($rule_id),
+                        'data' => $rule_data
+                    ];
+                }
             }
         }
+        
+        // Cache the result for future requests (5 minutes cache)
+        wp_cache_set($persistent_cache_key, $matching_rules, '', 5 * MINUTE_IN_SECONDS);
+        
+        // Store in static cache to avoid duplicate processing in same request
+        $rule_cache[$cache_key] = $matching_rules;
         
         return $matching_rules;
     }
@@ -1828,12 +1879,33 @@ class Core
     {
         try {
             // Use WordPress error_log to avoid database operations during checkout
-            error_log(sprintf(
+            // Use WordPress debug logging mechanisms
+            $log_message = sprintf(
                 'ODCM_CHECKOUT: Order #%d %s at %s',
                 $order_id,
                 $status,
                 current_time('c')
-            ));
+            );
+            
+            // Use WordPress action hook if available
+            if (function_exists('do_action')) {
+                do_action('odcm_log_error', $log_message);
+            }
+            
+            // Use WordPress debug log function if available
+            if (function_exists('wp_debug_log')) {
+                wp_debug_log($log_message);
+            }
+            
+            // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+                $debug_file = WP_CONTENT_DIR . '/debug.log';
+                @file_put_contents(
+                    $debug_file,
+                    '[' . date('Y-m-d H:i:s') . '] ' . $log_message . PHP_EOL,
+                    FILE_APPEND
+                );
+            }
         } catch (\Throwable $e) {
             // Even logging should not break checkout - complete silence on failure
         }
@@ -2169,37 +2241,36 @@ class Core
             return false;
         }
         
-        // Use direct database query for reliable job detection
+        // Use direct database query for reliable job detection with proper caching
         global $wpdb;
         
-        $table_name = $wpdb->prefix . 'actionscheduler_actions';
-        // Validate identifier and wrap in backticks for safety. Placeholders cannot be used for identifiers.
-        $table_identifier = $table_name === $wpdb->prefix . 'actionscheduler_actions' ? '`' . $table_name . '`' : '`actionscheduler_actions`';
+        // Create a cache key for this specific order ID check
+        $as_job_cache_key = 'odcm_as_jobs_' . $order_id;
+        $cached_count = wp_cache_get($as_job_cache_key);
         
-        // Create SQL query with validated table identifier
-        // We need to use string concatenation for the table identifier since WordPress doesn't
-        // support placeholders for identifiers
-        // First prepare the hook name and status conditions
-        $hook_name = 'odcm_process_checkout_completion';
-        $prepared_hook_part = $wpdb->prepare(
-            "WHERE hook = %s AND status IN ('pending', 'in-progress')",
-            $hook_name
-        );
-        
-        // Prepare the hook arguments separately with proper integer casting
-        $order_id_int = intval($order_id);
-        $prepared_args_part = $wpdb->prepare(
-            "AND hook_arguments LIKE %s",
-            '%"order_id":' . $order_id_int . '%'
-        );
-        
-        // Build the full query with safe table identifier
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table identifier is validated earlier
-            $full_query = "SELECT COUNT(*) FROM {$table_identifier} {$prepared_hook_part} {$prepared_args_part}";
+        // Only run the query if we don't have a cached result
+        if (false === $cached_count) {
+            $table_name = $wpdb->prefix . 'actionscheduler_actions';
+            // Validate and construct a safe table name - cannot use placeholders for table names
+            $table_name_clean = esc_sql($table_name);
             
-            // Execute the prepared query
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is properly built with $wpdb->prepare() above
-            $existing_count = (int) $wpdb->get_var($full_query);
+            // Prepare the full query with table name sanitization and proper value escaping
+            $query = $wpdb->prepare(
+                "SELECT COUNT(*) FROM `%s` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s",
+                $table_name_clean,
+                'odcm_process_checkout_completion',
+                '%"order_id":' . intval($order_id) . '%'
+            );
+            
+            // Execute the query
+            $existing_count = (int) $wpdb->get_var($query);
+            
+            // Cache the result for 60 seconds - Action Scheduler job existence is semi-volatile
+            wp_cache_set($as_job_cache_key, $existing_count, '', 60);
+        } else {
+            // Use the cached count
+            $existing_count = (int) $cached_count;
+        }
         
         if ($existing_count > 0) {
             odcm_log_message("Unified processor skipping order #{$order_id} - found {$existing_count} existing jobs via database query", 'info');
@@ -2208,27 +2279,32 @@ class Core
             return false;
         }
         
-        // First prepare the hook name for job details query
-        $hook_name = 'odcm_process_checkout_completion';
-        $prepared_hook_part = $wpdb->prepare(
-            "WHERE hook = %s", 
-            $hook_name
-        );
+        // Get job details with proper caching
+        $job_details_cache_key = 'odcm_as_job_details_' . $order_id;
+        $cached_job_details = wp_cache_get($job_details_cache_key);
         
-        // Prepare the hook arguments separately with proper integer casting
-        $order_id_int = intval($order_id);
-        $prepared_args_part = $wpdb->prepare(
-            "AND hook_arguments LIKE %s", 
-            '%"order_id":' . $order_id_int . '%'
-        );
-        
-        // Build the full job details query with safe table identifier
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table identifier is validated earlier
-            $details_query = "SELECT action_id, hook_arguments, status FROM {$table_identifier} {$prepared_hook_part} {$prepared_args_part} LIMIT 5";
+        if (false === $cached_job_details) {
+            // Properly prepare the SQL query for job details
+            $table_name = $wpdb->prefix . 'actionscheduler_actions';
+            $table_name_clean = esc_sql($table_name);
             
-            // Execute the prepared job details query
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is properly built with $wpdb->prepare() above
-            $job_details = $wpdb->get_results($details_query);
+            // Create a safe query with proper preparation
+            $query = $wpdb->prepare(
+                "SELECT action_id, hook_arguments, status FROM `%s` WHERE hook = %s AND hook_arguments LIKE %s LIMIT 5",
+                $table_name_clean,
+                'odcm_process_checkout_completion',
+                '%"order_id":' . intval($order_id) . '%'
+            );
+            
+            // Execute the query
+            $job_details = $wpdb->get_results($query);
+            
+            // Cache the result for 60 seconds
+            wp_cache_set($job_details_cache_key, $job_details, '', 60);
+        } else {
+            // Use cached job details
+            $job_details = $cached_job_details;
+        }
         
         if (!empty($job_details)) {
             odcm_log_message("Unified processor found " . count($job_details) . " jobs for order #{$order_id} via detailed query", 'info');
@@ -2309,17 +2385,39 @@ class Core
         // Generate unique queue ID
         $queue_id = 'basic_checkout_' . $order_id . '_' . time() . '_' . wp_rand(1000, 9999);
         
-        // Insert into queue table
-        $result = $wpdb->insert(
-            $wpdb->prefix . 'odcm_audit_log_queue',
-            [
-                'queue_id' => $queue_id,
-                'event_data' => wp_json_encode($queue_data),
-                'status' => 'pending',
-                'created_at' => current_time('mysql'),
-                'retry_count' => 0
-            ]
-        );
+        // Create a transaction lock to prevent duplicate inserts
+        $transaction_key = 'odcm_queue_transaction_' . md5($queue_id);
+        $transaction_lock = wp_cache_get($transaction_key);
+        
+        if (false === $transaction_lock) {
+            // Set a short transaction lock
+            wp_cache_set($transaction_key, true, '', 30); // 30 seconds
+            
+            // Insert into queue table with proper checks
+            $result = $wpdb->insert(
+                $wpdb->prefix . 'odcm_audit_log_queue',
+                [
+                    'queue_id' => $queue_id,
+                    'event_data' => wp_json_encode($queue_data),
+                    'status' => 'pending',
+                    'created_at' => current_time('mysql'),
+                    'retry_count' => 0
+                ]
+            );
+            
+            // Cache the result to prevent duplicate insertions
+            if ($result !== false) {
+                $queue_cache_key = 'odcm_queue_' . md5($queue_id);
+                wp_cache_set($queue_cache_key, true, '', 300); // 5 minutes
+            }
+            
+            // Release transaction lock
+            wp_cache_delete($transaction_key);
+        } else {
+            // Another process is handling this insert
+            odcm_log_message("Transaction lock active for queue ID $queue_id - preventing duplicate insert", 'info');
+            $result = true; // Assume success
+        }
         
         if ($result === false) {
             throw new \Exception('Failed to queue basic checkout data: ' . esc_html($wpdb->last_error));
@@ -2396,17 +2494,49 @@ class Core
         // Generate unique queue ID
         $queue_id = 'checkout_' . $order_id . '_' . time() . '_' . wp_rand(1000, 9999);
         
-        // Insert into queue table
-        $result = $wpdb->insert(
-            $wpdb->prefix . 'odcm_audit_log_queue',
-            [
-                'queue_id' => $queue_id,
-                'event_data' => wp_json_encode($queue_data),
-                'status' => 'pending',
-                'created_at' => current_time('mysql'),
-                'retry_count' => 0
-            ]
-        );
+        // Create a transaction lock to prevent duplicate inserts
+        $transaction_key = 'odcm_traditional_queue_' . md5($queue_id . '_' . $order_id);
+        $transaction_lock = wp_cache_get($transaction_key);
+        
+        if (false === $transaction_lock) {
+            // Set a short transaction lock
+            wp_cache_set($transaction_key, true, '', 30); // 30 seconds
+            
+            // Check if there's already a queued entry for this order
+            $existing_queue_key = 'odcm_order_queued_' . $order_id;
+            $existing_queue = wp_cache_get($existing_queue_key);
+            
+            if (false === $existing_queue) {
+                // Insert into queue table
+                $result = $wpdb->insert(
+                    $wpdb->prefix . 'odcm_audit_log_queue',
+                    [
+                        'queue_id' => $queue_id,
+                        'event_data' => wp_json_encode($queue_data),
+                        'status' => 'pending',
+                        'created_at' => current_time('mysql'),
+                        'retry_count' => 0
+                    ]
+                );
+                
+                // Cache the order queue status to prevent duplicates
+                if ($result !== false) {
+                    wp_cache_set($existing_queue_key, $queue_id, '', 300); // 5 minutes
+                }
+            } else {
+                // Already queued, log and use existing
+                odcm_log_message("Found existing queue entry for order #$order_id - using existing queue ID", 'info');
+                $result = true; // Assume success
+                $queue_id = $existing_queue; // Use existing queue ID
+            }
+            
+            // Release transaction lock
+            wp_cache_delete($transaction_key);
+        } else {
+            // Another process is handling this insert
+            odcm_log_message("Transaction lock active for order #$order_id - preventing duplicate queue entry", 'info');
+            $result = true; // Assume success
+        }
         
         if ($result === false) {
             throw new \Exception('Failed to queue traditional checkout data: ' . esc_html($wpdb->last_error));

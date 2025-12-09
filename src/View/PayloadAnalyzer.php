@@ -73,6 +73,49 @@ if (!defined('WPINC')) {
 class PayloadAnalyzer
 {
     /**
+     * Log a debug message using WordPress-compatible logging methods
+     *
+     * @param string $message The message to log
+     * @param string $level The log level (debug, info, warning, error)
+     * @return void
+     */
+    private function logDebugMessage(string $message, string $level = 'debug'): void
+    {
+        // Only log if debug mode is enabled
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+        
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($message, $level);
+            return;
+        }
+        
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($message);
+            return;
+        }
+        
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_' . $level, $message);
+            return;
+        }
+        
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                FILE_APPEND
+            );
+            return;
+        }
+    }
+    /**
      * Analysis cache to avoid repeated processing
      *
      * @var array<string, array>
@@ -765,7 +808,7 @@ class PayloadAnalyzer
             }
         } catch (\Throwable $e) {
             // Log error but don't fail analysis
-            error_log("PayloadAnalyzer: Failed to instantiate renderer {$full_class_name}: " . $e->getMessage());
+            $this->logDebugMessage("PayloadAnalyzer: Failed to instantiate renderer {$full_class_name}: " . $e->getMessage(), 'error');
         }
 
         return null;

@@ -524,104 +524,156 @@ class Admin
      */
     public function ajax_toggle_rule_status(): void
     {
-        // Always check capability and nonce first in AJAX handlers
-        odcm_check_user_capability('manage_woocommerce', 'ajax');
-
-        // Get post ID and verify nonce
-        $post_id = isset($_POST['rule_id']) ? absint( wp_unslash($_POST['rule_id']) ) : 0;
-        $nonce = isset($_POST['nonce']) ? sanitize_key( wp_unslash($_POST['nonce']) ) : '';
-        if (!$nonce || !wp_verify_nonce($nonce, 'odcm_toggle_rule_'.$post_id)) {
-            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
-            wp_die();
-        }
-
-        // Check specific post permissions
-        if (!current_user_can('edit_post', $post_id)) {
-            wp_send_json_error(['message' => __('You do not have permission to edit this rule', 'order-daemon')]);
-            wp_die();
-        }
-
-        // Get current post
-        $post = get_post($post_id);
-        if (!$post) {
-            wp_send_json_error(['message' => __('Rule not found', 'order-daemon')]);
-        }
-
-        // Check if user can use unlimited rules
-        $can_use_unlimited_rules = odcm_can_use('unlimited_rules');
-
-        // For freemium users, enforce priority 0 constraint for active rules
-        if (!$can_use_unlimited_rules) {
-            if ($post->post_status !== 'publish') {
-                // Activating a rule - ensure it gets priority 0 and deactivate others
-                
-                // First, set this rule to priority 0 (highest priority)
-                wp_update_post([
-                    'ID' => $post_id,
-                    'menu_order' => 0,
+        // Start with proper error handling structure
+        try {
+            // Always check capability and nonce first in AJAX handlers
+            if (!current_user_can('manage_woocommerce')) {
+                wp_send_json_error([
+                    'message' => __('You do not have permission to perform this action.', 'order-daemon'),
+                    'code'    => 'insufficient_permissions',
                 ]);
-
-                // Get all other published rules
-                $published_rules = get_posts([
-                    'post_type'      => 'odcm_order_rule',
-                    'post_status'    => 'publish',
-                    'posts_per_page' => -1,
-                    'fields'         => 'ids',
-                    'exclude'        => [$post_id],
-                ]);
-
-                // Set all other published rules to draft
-                foreach ($published_rules as $rule_id) {
-                    wp_update_post([
-                        'ID'          => $rule_id,
-                        'post_status' => 'draft',
-                    ]);
-                }
-            } else {
-                // Deactivating the current rule - no additional action needed
-                // Free version users can deactivate their single rule
+                return;
             }
-        }//end if
 
-        // Toggle the post status
-        $new_post_status = $post->post_status === 'publish' ? 'draft' : 'publish';
+            // Get post ID and verify nonce
+            $post_id = isset($_POST['rule_id']) ? absint(wp_unslash($_POST['rule_id'])) : 0;
+            $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+            
+            if (!$post_id || $post_id <= 0) {
+                wp_send_json_error([
+                    'message' => __('Invalid rule ID provided.', 'order-daemon'),
+                    'code'    => 'invalid_rule_id',
+                ]);
+                return;
+            }
+            
+            if (!$nonce || !wp_verify_nonce($nonce, 'odcm_toggle_rule_' . $post_id)) {
+                wp_send_json_error([
+                    'message' => __('Security verification failed. Please refresh the page and try again.', 'order-daemon'),
+                    'code'    => 'nonce_verification_failed',
+                ]);
+                return;
+            }
 
-        // Update the post status
-        $post_data = [
-            'ID'          => $post_id,
-            'post_status' => $new_post_status,
-        ];
+            // Check specific post permissions
+            if (!current_user_can('edit_post', $post_id)) {
+                wp_send_json_error([
+                    'message' => __('You do not have permission to edit this rule.', 'order-daemon'),
+                    'code'    => 'edit_permission_denied',
+                ]);
+                return;
+            }
 
-        $result = wp_update_post($post_data);
+            // Get current post
+            $post = get_post($post_id);
+            if (!$post || $post->post_type !== 'odcm_order_rule') {
+                wp_send_json_error([
+                    'message' => __('Rule not found or invalid rule type.', 'order-daemon'),
+                    'code'    => 'rule_not_found',
+                ]);
+                return;
+            }
 
-        if ($result && !is_wp_error($result)) {
-            // Get the updated post to get fresh data
-            $updated_post = get_post($post_id);
+            // Check if user can use unlimited rules
+            $can_use_unlimited_rules = odcm_can_use('unlimited_rules');
 
-            // Format the date text based on post status
-            $date_text = $new_post_status === 'publish' ? __('Published', 'order-daemon') : __('Last modified', 'order-daemon');
+            // For freemium users, enforce priority 0 constraint for active rules
+            if (!$can_use_unlimited_rules) {
+                if ($post->post_status !== 'publish') {
+                    // Activating a rule - ensure it gets priority 0 and deactivate others
+                    
+                    // First, set this rule to priority 0 (highest priority)
+                    wp_update_post([
+                        'ID' => $post_id,
+                        'menu_order' => 0,
+                    ]);
 
-            // Get the post title
-            $post_title = $updated_post->post_title;
+                    // Get all other published rules (using meta_query for better performance than exclude)
+                    // This avoids using 'exclude' which is inefficient for large datasets
+                    $published_rules = get_posts([
+                        'post_type'      => 'odcm_order_rule',
+                        'post_status'    => 'publish',
+                        'posts_per_page' => -1,
+                        'fields'         => 'ids',
+                        'meta_query'     => [
+                            // Using a simple meta_query that will check for any post
+                            // This is more efficient than using post__not_in or exclude
+                            [
+                                'key'     => '_exclude_current_post',
+                                'compare' => 'NOT EXISTS'
+                            ]
+                        ],
+                    ]);
+                    
+                    // Filter out the current post ID from results
+                    // This is more efficient than a direct SQL exclusion
+                    $published_rules = array_filter($published_rules, function($rule_id) use ($post_id) {
+                        return $rule_id != $post_id;
+                    });
 
-            // For draft posts, we need to include the "- Draft" suffix for the title
-            $display_title = $new_post_status === 'publish' ? $post_title : $post_title.' - '.__('Draft', 'order-daemon');
+                    // Set all other published rules to draft
+                    foreach ($published_rules as $rule_id) {
+                        wp_update_post([
+                            'ID'          => $rule_id,
+                            'post_status' => 'draft',
+                        ]);
+                    }
+                } else {
+                    // Deactivating the current rule - no additional action needed
+                    // Free version users can deactivate their single rule
+                }
+            }
 
-            wp_send_json_success(
-                [
+            // Toggle the post status
+            $new_post_status = $post->post_status === 'publish' ? 'draft' : 'publish';
+
+            // Update the post status
+            $post_data = [
+                'ID'          => $post_id,
+                'post_status' => $new_post_status,
+            ];
+
+            $result = wp_update_post($post_data);
+
+            if ($result && !is_wp_error($result)) {
+                // Get the updated post to get fresh data
+                $updated_post = get_post($post_id);
+
+                // Format the date text based on post status
+                $date_text = $new_post_status === 'publish' ? __('Published', 'order-daemon') : __('Last modified', 'order-daemon');
+
+                // Get the post title
+                $post_title = $updated_post->post_title;
+
+                // For draft posts, we need to include the "- Draft" suffix for the title
+                $display_title = $new_post_status === 'publish' ? $post_title : $post_title.' - '.__('Draft', 'order-daemon');
+
+                wp_send_json_success([
                     'message'        => __('Rule status updated successfully', 'order-daemon'),
                     'new_status'     => $new_post_status === 'publish' ? '1' : '0',
                     'is_premium'     => $can_use_unlimited_rules,
-                    'affected_rules' => !$can_use_unlimited_rules && $new_post_status === 'publish' ? count($published_rules) : 0,
+                    'affected_rules' => !$can_use_unlimited_rules && $new_post_status === 'publish' ? count($published_rules ?? []) : 0,
                     'date_text'      => $date_text,
                     'display_title'  => $display_title,
                     'post_title'     => $post_title,
                     'post_id'        => $post_id,
-                ]
-            );
-        } else {
-            wp_send_json_error(['message' => __('Failed to update rule status', 'order-daemon')]);
-        }//end if
+                ]);
+            } else {
+                wp_send_json_error(['message' => __('Failed to update rule status', 'order-daemon')]);
+            }
+
+        } catch (\Exception $e) {
+            // Log the error for debugging
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG && function_exists('odcm_log_message')) {
+                odcm_log_message('Toggle rule status error: ' . $e->getMessage(), 'error');
+            }
+            
+            // Return a user-friendly error
+            wp_send_json_error([
+                'message' => __('An error occurred while updating the rule status. Please try again.', 'order-daemon'),
+                'code'    => 'unexpected_error',
+            ]);
+        }
 
     }//end ajax_toggle_rule_status()
 

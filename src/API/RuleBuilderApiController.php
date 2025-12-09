@@ -44,6 +44,50 @@ class RuleBuilderApiController extends WP_REST_Controller
     }
 
     /**
+     * Log a debug message using WordPress-compatible logging methods
+     *
+     * @param string $message The message to log
+     * @param string $level The log level (debug, info, warning, error)
+     * @return void
+     */
+    private function logDebugMessage(string $message, string $level = 'debug'): void
+    {
+        // Only log if debug mode is enabled
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+        
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($message, $level);
+            return;
+        }
+        
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($message);
+            return;
+        }
+        
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_' . $level, $message);
+            return;
+        }
+        
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                FILE_APPEND
+            );
+            return;
+        }
+    }
+
+    /**
      * Registers the routes for the objects of the controller.
      */
     public function register_routes()
@@ -108,7 +152,6 @@ class RuleBuilderApiController extends WP_REST_Controller
                 ],
             ],
         ]);
-
     }
 
     /**
@@ -358,7 +401,7 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         } catch (\Exception $e) {
             // Log the error for debugging
-            error_log('ODCM Rule Save Error: ' . $e->getMessage());
+            $this->logDebugMessage('ODCM Rule Save Error: ' . $e->getMessage(), 'error');
 
             return new WP_Error(
                 'rule_save_exception',
@@ -703,12 +746,6 @@ class RuleBuilderApiController extends WP_REST_Controller
      * @param WP_REST_Request $request Request object.
      * @return bool|WP_Error
      */
-    /**
-     * Permission callback for POST requests that require nonce verification.
-     *
-     * @param WP_REST_Request $request The REST API request.
-     * @return bool|WP_Error True if user has permission, WP_Error otherwise.
-     */
     public function post_permissions_check(WP_REST_Request $request)
     {
         // Check user capability
@@ -729,359 +766,58 @@ class RuleBuilderApiController extends WP_REST_Controller
                 ['status' => 401]
             );
         }
-
+        
         return true;
     }
-
+    
     /**
-     * Generate sanitized HTML summary for a single rule component.
+     * Search dynamic content for use in component settings.
      *
-     * @param WP_REST_Request $request
-     * @return WP_REST_Response|WP_Error
+     * @param WP_REST_Request $request Full details about the request.
+     * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
      */
-
-    /**
-     * Formats a list of components for the API response with entitlement-aware display.
-     *
-     * This method includes all components but marks premium ones appropriately.
-     * Premium components that users can't access are included with restricted schemas
-     * and premium indicators for better UX.
-     *
-     * @param Interfaces\ComponentInterface[] $components
-     * @param array|null $current_rule_data Current rule data for state detection
-     * @return array
-     */
-    private function format_components(array $components, ?array $current_rule_data = null): array
+    public function search_dynamic_content(WP_REST_Request $request): WP_REST_Response
     {
-        $formatted = [];
-        foreach ($components as $component) {
-            // Complete list of all free component capabilities
-            $free_capabilities = [
-                'free',
-                'condition_product_type',
-                'condition_single_category',
-                'condition_order_total',
-                'trigger_basic',
-                'action_basic',
-                'free_trigger',
-                'free_condition',
-                'free_action'
-            ];
+        $source = $request->get_param('source');
+        $search = $request->get_param('search');
+        $limit = (int) $request->get_param('limit');
 
-            // Complete list of all free component IDs for explicit matching
-            // Updated to ensure consistent identification of core free components
-            $free_component_ids = [
-                'order_processing',       // Free trigger
-                'order_total_amount',     // Free condition
-                'product_type',           // Free condition
-                'product_category',       // Free condition
-                'change_status_to_completed', // Free action
-                'order_processing_trigger', // Alternative naming
-                'order_total_condition',  // Alternative naming
-                'product_category_condition', // Alternative naming
-                'product_type_condition'  // Alternative naming
-            ];
+        try {
+            $start_time = microtime(true);
 
-            // Determine if component is free by capability OR explicit ID
-            $capability = $component->get_capability();
-            $component_id = $component->get_id();
+            $results = $this->perform_content_search($source, $search, $limit);
 
-            // Force-mark specific components as free regardless of their current capability
-            $is_core_free_component = in_array($component_id, $free_component_ids);
+            $execution_time = microtime(true) - $start_time;
+            $this->log_api_performance('search_dynamic_content', $execution_time, [
+                'source' => $source,
+                'search_term' => $search,
+                'results_count' => count($results),
+                'limit' => $limit
+            ]);
 
-            $is_free = ($is_core_free_component ||
-                in_array($capability, $free_capabilities) ||
-                strpos($capability, 'free_') === 0);
+            return new WP_REST_Response([
+                'results' => $results,
+                'meta' => [
+                    'source' => $source,
+                    'search_term' => $search,
+                    'count' => count($results),
+                    'execution_time' => $execution_time,
+                ]
+            ], 200);
 
-            $can_use = $is_free || (function_exists('odcm_can_use') && odcm_can_use($capability));
-            $already_in_rule = $this->is_component_in_current_rule($component_id, $current_rule_data);
+        } catch (\Exception $e) {
+            $this->log_api_error('search_dynamic_content', $e, [
+                'source' => $source,
+                'search' => $search,
+                'limit' => $limit
+            ]);
 
-            // SERVER-SIDE FILTER: If user can't use it and it's not in the rule, hide it from selection lists
-            if (!$can_use && !$already_in_rule) {
-                continue;
-            }
-
-            // Determine component state for graceful degradation
-            $component_state = 'available';
-            if (!$can_use && $already_in_rule) {
-                $component_state = 'already_selected_unavailable';
-            } elseif (!$can_use) {
-                $component_state = 'unavailable';
-            }
-
-            // Get ordering metadata from component if available
-            $is_default = method_exists($component, 'is_default') ? $component->is_default() : false;
-            $priority = method_exists($component, 'get_priority') ? $component->get_priority() : 999;
-
-            // Assign consistent priorities based on component ID regardless of free/premium status
-            // This ensures consistent ordering across both versions
-            // FIXED: Ensuring order_processing is ALWAYS at the top of the trigger list
-            if ($component_id === 'order_processing' || $component_id === 'order_processing_trigger') {
-                $priority = 1; // Top trigger - CORE FREE FEATURE
-            } else if ($component_id === 'order_total_amount' || $component_id === 'order_total_condition') {
-                $priority = 2; // Top condition - CORE FREE FEATURE
-            } else if ($component_id === 'product_category' || $component_id === 'product_category_condition') {
-                $priority = 3; // Second condition - CORE FREE FEATURE
-            } else if ($component_id === 'product_type' || $component_id === 'product_type_condition') {
-                $priority = 4; // Third condition - CORE FREE FEATURE
-            } else if ($component_id === 'change_status_to_completed') {
-                $priority = 1; // Top action - CORE FREE FEATURE
-            } else if ($is_free) {
-                $priority = 10; // Other free components
-            } else {
-                // Premium components maintain their original priority but offset to come after free
-                $priority = 100 + $priority;
-            }
-
-            // For already selected unavailable components, provide full schema for editing
-            // Ensure schema is NULL for inaccessible components not in the rule
-            $schema = ($can_use || $component_state === 'already_selected_unavailable') ?
-                $component->get_settings_schema() : null;
-
-            // Defense-in-depth: if somehow schema exists for inaccessible components not in rule, nullify it
-            if ($schema && !$can_use && !$already_in_rule) {
-                $schema = null;
-            }
-
-            if ($schema) {
-                // Always filter schema by entitlement, regardless of component accessibility
-                // This ensures free users get filtered options even for accessible components
-                $schema = $this->filter_schema_by_entitlement($schema);
-            }
-
-            // Force specific components to always be treated as free (core features)
-            if ($is_core_free_component) {
-                $capability = 'free'; // Override any other capability to ensure no premium badge
-            }
-
-            $formatted[] = [
-                'id'          => $component->get_id(),
-                'label'       => $component->get_label(),
-                'description' => $component->get_description(),
-                'schema'      => $schema,
-                'capability'  => $is_free ? 'free' : $component->get_capability(), // Mark free components with 'free' capability
-                'accessible'  => $can_use,
-                'state'       => $component_state,
-                'already_in_rule' => $already_in_rule,
-                'is_default'  => $is_default,
-                'priority'    => $priority,
-                'is_free'     => $is_free, // Add explicit is_free property for sorting
-                'is_core_free' => $is_core_free_component, // Mark core free components explicitly
-            ];
+            return new WP_Error(
+                'search_error',
+                __('api.rule_builder.search.content_search_failure', 'order-daemon'),
+                ['status' => 500]
+            );
         }
-
-        // Sort components by accessibility and priority
-        return $this->sort_components($formatted);
-    }
-
-    /**
-     * Checks if a component is already part of the current rule.
-     *
-     * @param string $component_id The component ID to check
-     * @param array|null $rule_data The current rule data
-     * @return bool True if component is in the rule
-     */
-    private function is_component_in_current_rule(string $component_id, ?array $rule_data): bool
-    {
-        if (!$rule_data) {
-            return false;
-        }
-
-        // Check trigger
-        if (isset($rule_data['trigger']['id']) && $rule_data['trigger']['id'] === $component_id) {
-            return true;
-        }
-
-        // Check conditions
-        if (isset($rule_data['conditions']) && is_array($rule_data['conditions'])) {
-            foreach ($rule_data['conditions'] as $condition) {
-                if (isset($condition['id']) && $condition['id'] === $component_id) {
-                    return true;
-                }
-            }
-        }
-
-        // Check primary action
-        if (isset($rule_data['primaryAction']['id']) && $rule_data['primaryAction']['id'] === $component_id) {
-            return true;
-        }
-
-        // Check secondary actions
-        if (isset($rule_data['secondaryActions']) && is_array($rule_data['secondaryActions'])) {
-            foreach ($rule_data['secondaryActions'] as $action) {
-                if (isset($action['id']) && $action['id'] === $component_id) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Filters component schemas to remove premium options based on user entitlements.
-     *
-     * This method ensures that even within accessible components, premium-only options
-     * are completely removed from the schema. This prevents free users from seeing
-     * or accessing premium features within freemium components.
-     *
-     * @param array|null $schema The component's settings schema
-     * @return array|null The filtered schema with premium options removed
-     */
-    private function filter_schema_by_entitlement(?array $schema): ?array
-    {
-        if (!$schema || !isset($schema['properties'])) {
-            return $schema;
-        }
-
-        // Process each property in the schema
-        foreach ($schema['properties'] as $property_key => &$property) {
-            $property = $this->filter_property_by_entitlement($property, $property_key);
-        }
-
-        return $schema;
-    }
-
-    /**
-     * Filters individual schema properties based on entitlements.
-     *
-     * Handles different property types and their entitlement requirements:
-     * - Tiered checkboxes (ui:tiers with capability requirements)
-     * - Searchable checkboxes (enum options with premium restrictions)
-     * - Regular enums with premium options
-     *
-     * @param array $property The schema property to filter
-     * @param string $property_key The property key for context
-     * @return array The filtered property
-     */
-    private function filter_property_by_entitlement(array $property, string $property_key): array
-    {
-        // Handle tiered checkboxes (like ProductTypeCondition)
-        if (isset($property['ui:widget']) && $property['ui:widget'] === 'tiered_checkboxes') {
-            $property = $this->filter_tiered_checkboxes($property);
-        }
-
-        // Handle searchable checkboxes (like ShippingMethodCondition)
-        elseif (isset($property['ui:widget']) && $property['ui:widget'] === 'searchable_checkboxes') {
-            $property = $this->filter_searchable_checkboxes($property);
-        }
-
-        // Handle regular enums with potential premium options
-        elseif (isset($property['enum'])) {
-            $property = $this->filter_enum_options($property);
-        }
-
-        // Handle array items with enums (like multi-select options)
-        elseif (isset($property['items']['enum'])) {
-            $property['items'] = $this->filter_enum_options($property['items']);
-        }
-
-        return $property;
-    }
-
-    /**
-     * Filters tiered checkbox options based on user capabilities.
-     *
-     * Removes entire tiers that the user cannot access and filters individual
-     * options within accessible tiers based on their capability requirements.
-     *
-     * @param array $property The tiered checkboxes property
-     * @return array The filtered property
-     */
-    private function filter_tiered_checkboxes(array $property): array
-    {
-        if (!isset($property['ui:tiers']) || !isset($property['items']['enum'])) {
-            return $property;
-        }
-
-        $filtered_tiers = [];
-        $filtered_enum = [];
-
-        foreach ($property['ui:tiers'] as $tier_id => $tier_config) {
-            // Check if user can access this tier
-            $tier_accessible = true;
-            if (isset($tier_config['capability'])) {
-                $tier_accessible = function_exists('odcm_can_use') && odcm_can_use($tier_config['capability']);
-            }
-
-            if ($tier_accessible) {
-                // Include the tier and its options
-                $filtered_tiers[$tier_id] = $tier_config;
-
-                // Add tier's options to the enum
-                if (isset($tier_config['types'])) {
-                    foreach ($tier_config['types'] as $type_id) {
-                        if (isset($property['items']['enum'][$type_id])) {
-                            $filtered_enum[$type_id] = $property['items']['enum'][$type_id];
-                        }
-                    }
-                }
-            }
-            // Premium tiers are completely omitted
-        }
-
-        // Update the property with filtered data
-        $property['ui:tiers'] = $filtered_tiers;
-        $property['items']['enum'] = $filtered_enum;
-
-        return $property;
-    }
-
-    /**
-     * Filters searchable checkbox options based on entitlements.
-     *
-     * For searchable checkboxes, we filter the enum options to only include
-     * those the user has access to. Premium options are completely removed.
-     *
-     * @param array $property The searchable checkboxes property
-     * @return array The filtered property
-     */
-    private function filter_searchable_checkboxes(array $property): array
-    {
-        if (isset($property['items']['enum'])) {
-            $property['items'] = $this->filter_enum_options($property['items']);
-        }
-        return $property;
-    }
-
-    /**
-     * Filters enum options based on entitlements.
-     *
-     * This is a generic method for filtering enum options. Currently, it passes
-     * through all options, but can be extended to handle specific premium enum
-     * restrictions based on option keys or values.
-     *
-     * @param array $enum_container The container with 'enum' key
-     * @return array The filtered container
-     */
-    private function filter_enum_options(array $enum_container): array
-    {
-        if (!isset($enum_container['enum'])) {
-            return $enum_container;
-        }
-
-        // For now, pass through all enum options
-        // This can be extended to filter specific premium options
-        // based on naming conventions or explicit capability mappings
-
-        return $enum_container;
-    }
-
-    /**
-     * Checks if a user can access a specific option within a component.
-     *
-     * This method can be extended to handle option-level entitlement checking
-     * for fine-grained control over individual options within components.
-     *
-     * @param string $option_key The option key to check
-     * @param string $component_context Optional component context
-     * @return bool True if user can access the option
-     */
-    private function can_use_option(string $option_key, string $component_context = ''): bool
-    {
-        // Default: allow all options for accessible components
-        // This can be extended for option-level entitlement checking
-        return true;
     }
 
     /**
@@ -1095,85 +831,43 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         // Log slow API calls (>1 second)
         if ($execution_time > 1.0) {
-            error_log(sprintf(
+            $this->logDebugMessage(sprintf(
                 'ODCM API Slow Call: %s took %.3fs - Context: %s',
                 $endpoint,
                 $execution_time,
                 json_encode($context)
-            ));
+            ), 'warning');
         }
     }
 
     /**
-     * Categorizes actions into primary (status-changing) and secondary actions.
-     *
-     * Primary actions are status-changing actions that can serve as the main action of a rule.
-     * Secondary actions are supplementary actions like sending emails, notifications, etc.
-     *
-     * @param array $actions All action components
-     * @return array Array with 'primary' and 'secondary' keys containing categorized actions
+     * Log API errors for debugging
      */
-    private function categorize_actions(array $actions): array
+    private function log_api_error(string $endpoint, \Exception $e, array $context): void
     {
-        $primary_actions = [];
-        $secondary_actions = [];
+        // Log to WordPress debug system
+        $this->logDebugMessage(sprintf(
+            'ODCM API Error in %s: %s - Context: %s',
+            $endpoint,
+            $e->getMessage(),
+            json_encode($context)
+        ), 'error');
 
-        // Define which action IDs are considered primary (status-changing)
-        $primary_action_ids = [
-            'change_status_to_completed',
-            'change_status_to_processing',
-            'change_status_to_on_hold',
-            // Add more status-changing actions here as they're created
-        ];
-
-        foreach ($actions as $action_id => $action) {
-            if (in_array($action_id, $primary_action_ids)) {
-                $primary_actions[$action_id] = $action;
-            } else {
-                $secondary_actions[$action_id] = $action;
-            }
+        // Log to plugin's audit trail if available
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
+                "API Error in {$endpoint}: " . $e->getMessage(),
+                array_merge($context, [
+                    'error_file' => $e->getFile(),
+                    'error_line' => $e->getLine(),
+                    'stack_trace' => $e->getTraceAsString(),
+                ]),
+                null,
+                'error',
+                'api_error',
+                true
+            );
         }
-
-        return [
-            'primary' => $primary_actions,
-            'secondary' => $secondary_actions
-        ];
-    }
-
-    /**
-     * Sorts components by accessibility and priority for optimal user experience.
-     *
-     * Sorting order:
-     * 1. Accessible components first, inaccessible last
-     * 2. Within accessible: default/free first, then by priority
-     * 3. Within inaccessible: by priority
-     *
-     * @param array $components The formatted components to sort
-     * @return array The sorted components
-     */
-    private function sort_components(array $components): array
-    {
-        usort($components, function($a, $b) {
-            // 1. Free components first, then accessible premium, then inaccessible premium
-            if (isset($a['is_free']) && isset($b['is_free']) && $a['is_free'] !== $b['is_free']) {
-                return $b['is_free'] - $a['is_free']; // free (true=1) before premium (false=0)
-            }
-
-            // 2. For non-free components, accessible first
-            if ((!isset($a['is_free']) || !$a['is_free']) && $a['accessible'] !== $b['accessible']) {
-                return $b['accessible'] - $a['accessible'];
-            }
-
-            // 3. Then by priority (lower number = higher priority)
-            if ($a['priority'] !== $b['priority']) {
-                return $a['priority'] - $b['priority'];
-            }
-
-            // 4. Finally by label alphabetically
-            return strcmp($a['label'], $b['label']);
-        });
-
-        return $components;
     }
 
     /**
@@ -1204,7 +898,9 @@ class RuleBuilderApiController extends WP_REST_Controller
                 'user_context' => [
                     'timestamp' => current_time('mysql'),
                     'user_id' => get_current_user_id(),
-                    'user_agent' => sanitize_text_field($user_context['user_agent'] ?? $_SERVER['HTTP_USER_AGENT'] ?? ''),
+                    'user_agent' => sanitize_text_field($user_context['user_agent'] ?? (
+                        isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : ''
+                    )),
                     'ip_address' => $this->get_client_ip(),
                     'page_url' => esc_url_raw($user_context['page_url'] ?? ''),
                     'frontend_timestamp' => sanitize_text_field($user_context['timestamp'] ?? ''),
@@ -1226,13 +922,13 @@ class RuleBuilderApiController extends WP_REST_Controller
                     true // Force logging even if disabled
                 );
             } else {
-                // Fallback to WordPress error log
-                error_log(sprintf(
+                // Fallback to WordPress debug log
+                $this->logDebugMessage(sprintf(
                     'ODCM Rule Audit: %s for Rule #%d - Changes: %s',
                     $action,
                     $rule_id,
                     $audit_entry['changes_summary']
-                ));
+                ), 'info');
             }
 
             // Store audit metadata in post meta for quick access
@@ -1240,11 +936,11 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         } catch (\Exception $e) {
             // Log audit logging errors
-            error_log(sprintf(
+            $this->logDebugMessage(sprintf(
                 'ODCM Audit Logging Error for Rule #%d: %s',
                 $rule_id,
                 $e->getMessage()
-            ));
+            ), 'error');
         }
     }
 
@@ -1383,7 +1079,7 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         foreach ($ip_keys as $key) {
             if (!empty($_SERVER[$key])) {
-                $ip = sanitize_text_field($_SERVER[$key]);
+                $ip = sanitize_text_field(wp_unslash($_SERVER[$key]));
                 // Handle comma-separated IPs (from proxies)
                 if (strpos($ip, ',') !== false) {
                     $ip = trim(explode(',', $ip)[0]);
@@ -1394,57 +1090,377 @@ class RuleBuilderApiController extends WP_REST_Controller
             }
         }
 
-        return sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+        return sanitize_text_field(
+            isset($_SERVER['REMOTE_ADDR']) ? wp_unslash($_SERVER['REMOTE_ADDR']) : 'unknown'
+        );
     }
 
     /**
-     * Search dynamic content for use in component settings.
+     * Formats a list of components for the API response with entitlement-aware display.
      *
-     * @param WP_REST_Request $request Full details about the request.
-     * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+     * This method includes all components but marks premium ones appropriately.
+     * Premium components that users can't access are included with restricted schemas
+     * and premium indicators for better UX.
+     *
+     * @param Interfaces\ComponentInterface[] $components
+     * @param array|null $current_rule_data Current rule data for state detection
+     * @return array
      */
-    public function search_dynamic_content(WP_REST_Request $request): WP_REST_Response
+    private function format_components(array $components, ?array $current_rule_data = null): array
     {
-        $source = $request->get_param('source');
-        $search = $request->get_param('search');
-        $limit = (int) $request->get_param('limit');
+        $formatted = [];
+        foreach ($components as $component) {
+            // Complete list of all free component capabilities
+            $free_capabilities = [
+                'free',
+                'condition_product_type',
+                'condition_single_category',
+                'condition_order_total',
+                'trigger_basic',
+                'action_basic',
+                'free_trigger',
+                'free_condition',
+                'free_action'
+            ];
 
-        try {
-            $start_time = microtime(true);
+            // Complete list of all free component IDs for explicit matching
+            $free_component_ids = [
+                'order_processing',       // Free trigger
+                'order_total_amount',     // Free condition
+                'product_type',           // Free condition
+                'product_category',       // Free condition
+                'change_status_to_completed', // Free action
+                'order_processing_trigger', // Alternative naming
+                'order_total_condition',  // Alternative naming
+                'product_category_condition', // Alternative naming
+                'product_type_condition'  // Alternative naming
+            ];
 
-            $results = $this->perform_content_search($source, $search, $limit);
+            // Determine if component is free by capability OR explicit ID
+            $capability = $component->get_capability();
+            $component_id = $component->get_id();
 
-            $execution_time = microtime(true) - $start_time;
-            $this->log_api_performance('search_dynamic_content', $execution_time, [
-                'source' => $source,
-                'search_term' => $search,
-                'results_count' => count($results),
-                'limit' => $limit
-            ]);
+            // Force-mark specific components as free regardless of their current capability
+            $is_core_free_component = in_array($component_id, $free_component_ids);
 
-            return new WP_REST_Response([
-                'results' => $results,
-                'meta' => [
-                    'source' => $source,
-                    'search_term' => $search,
-                    'count' => count($results),
-                    'execution_time' => $execution_time,
-                ]
-            ], 200);
+            $is_free = ($is_core_free_component ||
+                in_array($capability, $free_capabilities) ||
+                strpos($capability, 'free_') === 0);
 
-        } catch (\Exception $e) {
-            $this->log_api_error('search_dynamic_content', $e, [
-                'source' => $source,
-                'search' => $search,
-                'limit' => $limit
-            ]);
+            $can_use = $is_free || (function_exists('odcm_can_use') && odcm_can_use($capability));
+            $already_in_rule = $this->is_component_in_current_rule($component_id, $current_rule_data);
 
-            return new WP_Error(
-                'search_error',
-                __('api.rule_builder.search.content_search_failure', 'order-daemon'),
-                ['status' => 500]
-            );
+            // SERVER-SIDE FILTER: If user can't use it and it's not in the rule, hide it from selection lists
+            if (!$can_use && !$already_in_rule) {
+                continue;
+            }
+
+            // Determine component state for graceful degradation
+            $component_state = 'available';
+            if (!$can_use && $already_in_rule) {
+                $component_state = 'already_selected_unavailable';
+            } elseif (!$can_use) {
+                $component_state = 'unavailable';
+            }
+
+            // Get ordering metadata from component if available
+            $is_default = method_exists($component, 'is_default') ? $component->is_default() : false;
+            $priority = method_exists($component, 'get_priority') ? $component->get_priority() : 999;
+
+            // Assign consistent priorities based on component ID regardless of free/premium status
+            if ($component_id === 'order_processing' || $component_id === 'order_processing_trigger') {
+                $priority = 1; // Top trigger - CORE FREE FEATURE
+            } else if ($component_id === 'order_total_amount' || $component_id === 'order_total_condition') {
+                $priority = 2; // Top condition - CORE FREE FEATURE
+            } else if ($component_id === 'product_category' || $component_id === 'product_category_condition') {
+                $priority = 3; // Second condition - CORE FREE FEATURE
+            } else if ($component_id === 'product_type' || $component_id === 'product_type_condition') {
+                $priority = 4; // Third condition - CORE FREE FEATURE
+            } else if ($component_id === 'change_status_to_completed') {
+                $priority = 1; // Top action - CORE FREE FEATURE
+            } else if ($is_free) {
+                $priority = 10; // Other free components
+            } else {
+                // Premium components maintain their original priority but offset to come after free
+                $priority = 100 + $priority;
+            }
+
+            // For already selected unavailable components, provide full schema for editing
+            $schema = ($can_use || $component_state === 'already_selected_unavailable') ?
+                $component->get_settings_schema() : null;
+
+            // Defense-in-depth: if somehow schema exists for inaccessible components not in rule, nullify it
+            if ($schema && !$can_use && !$already_in_rule) {
+                $schema = null;
+            }
+
+            if ($schema) {
+                // Always filter schema by entitlement, regardless of component accessibility
+                $schema = $this->filter_schema_by_entitlement($schema);
+            }
+
+            // Force specific components to always be treated as free (core features)
+            if ($is_core_free_component) {
+                $capability = 'free'; // Override any other capability to ensure no premium badge
+            }
+
+            $formatted[] = [
+                'id'          => $component->get_id(),
+                'label'       => $component->get_label(),
+                'description' => $component->get_description(),
+                'schema'      => $schema,
+                'capability'  => $is_free ? 'free' : $component->get_capability(), // Mark free components with 'free' capability
+                'accessible'  => $can_use,
+                'state'       => $component_state,
+                'already_in_rule' => $already_in_rule,
+                'is_default'  => $is_default,
+                'priority'    => $priority,
+                'is_free'     => $is_free, // Add explicit is_free property for sorting
+                'is_core_free' => $is_core_free_component, // Mark core free components explicitly
+            ];
         }
+
+        // Sort components by accessibility and priority
+        return $this->sort_components($formatted);
+    }
+
+    /**
+     * Checks if a component is already part of the current rule.
+     *
+     * @param string $component_id The component ID to check
+     * @param array|null $rule_data The current rule data
+     * @return bool True if component is in the rule
+     */
+    private function is_component_in_current_rule(string $component_id, ?array $rule_data): bool
+    {
+        if (!$rule_data) {
+            return false;
+        }
+
+        // Check trigger
+        if (isset($rule_data['trigger']['id']) && $rule_data['trigger']['id'] === $component_id) {
+            return true;
+        }
+
+        // Check conditions
+        if (isset($rule_data['conditions']) && is_array($rule_data['conditions'])) {
+            foreach ($rule_data['conditions'] as $condition) {
+                if (isset($condition['id']) && $condition['id'] === $component_id) {
+                    return true;
+                }
+            }
+        }
+
+        // Check primary action
+        if (isset($rule_data['primaryAction']['id']) && $rule_data['primaryAction']['id'] === $component_id) {
+            return true;
+        }
+
+        // Check secondary actions
+        if (isset($rule_data['secondaryActions']) && is_array($rule_data['secondaryActions'])) {
+            foreach ($rule_data['secondaryActions'] as $action) {
+                if (isset($action['id']) && $action['id'] === $component_id) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Filters component schemas to remove premium options based on user entitlements.
+     *
+     * This method ensures that even within accessible components, premium-only options
+     * are completely removed from the schema. This prevents free users from seeing
+     * or accessing premium features within freemium components.
+     *
+     * @param array|null $schema The component's settings schema
+     * @return array|null The filtered schema with premium options removed
+     */
+    private function filter_schema_by_entitlement(?array $schema): ?array
+    {
+        if (!$schema || !isset($schema['properties'])) {
+            return $schema;
+        }
+
+        // Process each property in the schema
+        foreach ($schema['properties'] as $property_key => &$property) {
+            $property = $this->filter_property_by_entitlement($property, $property_key);
+        }
+
+        return $schema;
+    }
+
+    /**
+     * Filters individual schema properties based on entitlements.
+     *
+     * @param array $property The schema property to filter
+     * @param string $property_key The property key for context
+     * @return array The filtered property
+     */
+    private function filter_property_by_entitlement(array $property, string $property_key): array
+    {
+        // Handle tiered checkboxes (like ProductTypeCondition)
+        if (isset($property['ui:widget']) && $property['ui:widget'] === 'tiered_checkboxes') {
+            $property = $this->filter_tiered_checkboxes($property);
+        }
+
+        // Handle searchable checkboxes (like ShippingMethodCondition)
+        elseif (isset($property['ui:widget']) && $property['ui:widget'] === 'searchable_checkboxes') {
+            $property = $this->filter_searchable_checkboxes($property);
+        }
+
+        // Handle regular enums with potential premium options
+        elseif (isset($property['enum'])) {
+            $property = $this->filter_enum_options($property);
+        }
+
+        // Handle array items with enums (like multi-select options)
+        elseif (isset($property['items']['enum'])) {
+            $property['items'] = $this->filter_enum_options($property['items']);
+        }
+
+        return $property;
+    }
+
+    /**
+     * Filters tiered checkbox options based on user capabilities.
+     *
+     * @param array $property The tiered checkboxes property
+     * @return array The filtered property
+     */
+    private function filter_tiered_checkboxes(array $property): array
+    {
+        if (!isset($property['ui:tiers']) || !isset($property['items']['enum'])) {
+            return $property;
+        }
+
+        $filtered_tiers = [];
+        $filtered_enum = [];
+
+        foreach ($property['ui:tiers'] as $tier_id => $tier_config) {
+            // Check if user can access this tier
+            $tier_accessible = true;
+            if (isset($tier_config['capability'])) {
+                $tier_accessible = function_exists('odcm_can_use') && odcm_can_use($tier_config['capability']);
+            }
+
+            if ($tier_accessible) {
+                // Include the tier and its options
+                $filtered_tiers[$tier_id] = $tier_config;
+
+                // Add tier's options to the enum
+                if (isset($tier_config['types'])) {
+                    foreach ($tier_config['types'] as $type_id) {
+                        if (isset($property['items']['enum'][$type_id])) {
+                            $filtered_enum[$type_id] = $property['items']['enum'][$type_id];
+                        }
+                    }
+                }
+            }
+            // Premium tiers are completely omitted
+        }
+
+        // Update the property with filtered data
+        $property['ui:tiers'] = $filtered_tiers;
+        $property['items']['enum'] = $filtered_enum;
+
+        return $property;
+    }
+
+    /**
+     * Filters searchable checkbox options based on entitlements.
+     *
+     * @param array $property The searchable checkboxes property
+     * @return array The filtered property
+     */
+    private function filter_searchable_checkboxes(array $property): array
+    {
+        if (isset($property['items']['enum'])) {
+            $property['items'] = $this->filter_enum_options($property['items']);
+        }
+        return $property;
+    }
+
+    /**
+     * Filters enum options based on entitlements.
+     *
+     * @param array $enum_container The container with 'enum' key
+     * @return array The filtered container
+     */
+    private function filter_enum_options(array $enum_container): array
+    {
+        if (!isset($enum_container['enum'])) {
+            return $enum_container;
+        }
+
+        // For now, pass through all enum options (can be extended later)
+        return $enum_container;
+    }
+
+    /**
+     * Sorts components by accessibility and priority for optimal user experience.
+     *
+     * @param array $components The formatted components to sort
+     * @return array The sorted components
+     */
+    private function sort_components(array $components): array
+    {
+        usort($components, function($a, $b) {
+            // 1. Free components first, then accessible premium, then inaccessible premium
+            if (isset($a['is_free']) && isset($b['is_free']) && $a['is_free'] !== $b['is_free']) {
+                return $b['is_free'] - $a['is_free']; // free (true=1) before premium (false=0)
+            }
+
+            // 2. For non-free components, accessible first
+            if ((!isset($a['is_free']) || !$a['is_free']) && $a['accessible'] !== $b['accessible']) {
+                return $b['accessible'] - $a['accessible'];
+            }
+
+            // 3. Then by priority (lower number = higher priority)
+            if ($a['priority'] !== $b['priority']) {
+                return $a['priority'] - $b['priority'];
+            }
+
+            // 4. Finally by label alphabetically
+            return strcmp($a['label'], $b['label']);
+        });
+
+        return $components;
+    }
+
+    /**
+     * Categorizes actions into primary (status-changing) and secondary actions.
+     *
+     * @param array $actions All action components
+     * @return array Array with 'primary' and 'secondary' keys containing categorized actions
+     */
+    private function categorize_actions(array $actions): array
+    {
+        $primary_actions = [];
+        $secondary_actions = [];
+
+        // Define which action IDs are considered primary (status-changing)
+        $primary_action_ids = [
+            'change_status_to_completed',
+            'change_status_to_processing',
+            'change_status_to_on_hold',
+            // Add more status-changing actions here as they're created
+        ];
+
+        foreach ($actions as $action_id => $action) {
+            if (in_array($action_id, $primary_action_ids)) {
+                $primary_actions[$action_id] = $action;
+            } else {
+                $secondary_actions[$action_id] = $action;
+            }
+        }
+
+        return [
+            'primary' => $primary_actions,
+            'secondary' => $secondary_actions
+        ];
     }
 
     /**
@@ -1480,7 +1496,17 @@ class RuleBuilderApiController extends WP_REST_Controller
     }
 
     /**
-     * Search WooCommerce products by ID, title, and SKU.
+     * Cache of product search results to prevent redundant queries
+     *
+     * @var array
+     */
+    private static $product_search_cache = [];
+
+    /**
+     * Search WooCommerce products with multi-level caching.
+     *
+     * Uses both static in-memory cache and WordPress persistent cache
+     * to optimize performance for repeated product searches.
      *
      * @param string $search Search term
      * @param int $limit Maximum results
@@ -1496,32 +1522,42 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         $search = sanitize_text_field($search);
         $limit = max(1, min($limit, 100)); // Ensure reasonable limits
+        
+        // Create a unique cache key based on search parameters
+        $cache_key = 'odcm_product_search_' . md5($search . '_' . $limit);
+        
+        // Check static cache first (fastest, for this request only)
+        if (isset(self::$product_search_cache[$cache_key])) {
+            return self::$product_search_cache[$cache_key];
+        }
+        
+        // Check persistent cache next
+        $cached_results = wp_cache_get($cache_key);
+        if (false !== $cached_results) {
+            // Store in static cache for future use in this request
+            self::$product_search_cache[$cache_key] = $cached_results;
+            return $cached_results;
+        }
 
-        // Build search query for products - use concatenation to avoid phpcs warning about unprepared table names
-        $sql =
-            "SELECT DISTINCT p.ID,
-                p.post_title,
-                pm.meta_value as sku
-            FROM $wpdb->posts p
-                LEFT JOIN $wpdb->postmeta pm ON p.ID = pm.post_id AND pm.meta_key = %s
-            WHERE p.post_type = %s
-                AND p.post_status = %s";
+        // Cache miss - perform database query
+        // Build search query for products using safe preparation
+        $sql = "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
+                FROM {$wpdb->posts} p
+                LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
+                WHERE p.post_type = %s AND p.post_status = %s";
 
         $where_conditions = [];
         $search_params = ['_sku', 'product', 'publish'];
 
         if (!empty($search)) {
-            // Search by ID (exact match)
             if (is_numeric($search)) {
                 $where_conditions[] = "p.ID = %d";
                 $search_params[] = (int) $search;
             }
 
-            // Search by title (partial match)
             $where_conditions[] = "p.post_title LIKE %s";
             $search_params[] = '%' . $wpdb->esc_like($search) . '%';
 
-            // Search by SKU (partial match)
             $where_conditions[] = "pm.meta_value LIKE %s";
             $search_params[] = '%' . $wpdb->esc_like($search) . '%';
         }
@@ -1533,7 +1569,7 @@ class RuleBuilderApiController extends WP_REST_Controller
         $sql .= " ORDER BY p.post_title ASC LIMIT %d";
         $search_params[] = $limit;
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- The dynamic query builder safely sanitizes its inputs.
+        // Use proper wpdb preparation
         $results = $wpdb->get_results($wpdb->prepare($sql, $search_params));
 
         $formatted_results = [];
@@ -1554,6 +1590,13 @@ class RuleBuilderApiController extends WP_REST_Controller
                 ]
             ];
         }
+        
+        // Cache the formatted results
+        // Use 5 minute cache for product searches - balances fresh data with performance
+        wp_cache_set($cache_key, $formatted_results, '', 5 * MINUTE_IN_SECONDS);
+        
+        // Save in static cache for this request
+        self::$product_search_cache[$cache_key] = $formatted_results;
 
         return $formatted_results;
     }
@@ -1598,6 +1641,53 @@ class RuleBuilderApiController extends WP_REST_Controller
                     'name' => $category->name,
                     'slug' => $category->slug,
                     'count' => $category->count,
+                ]
+            ];
+        }
+
+        return $formatted_results;
+    }
+
+    /**
+     * Search product tags.
+     *
+     * @param string $search Search term
+     * @param int $limit Maximum results
+     * @return array Product tag results
+     */
+    private function search_product_tags(string $search, int $limit): array
+    {
+        if (!class_exists('WooCommerce')) {
+            return [];
+        }
+
+        $args = [
+            'taxonomy' => 'product_tag',
+            'hide_empty' => false,
+            'number' => $limit,
+            'orderby' => 'name',
+            'order' => 'ASC',
+        ];
+
+        if (!empty($search)) {
+            $args['name__like'] = sanitize_text_field($search);
+        }
+
+        $tags = get_terms($args);
+        if (is_wp_error($tags)) {
+            return [];
+        }
+
+        $formatted_results = [];
+        foreach ($tags as $tag) {
+            $formatted_results[] = [
+                'value' => (string) $tag->term_id,
+                'label' => $tag->name . " (ID: {$tag->term_id})",
+                'meta' => [
+                    'id' => $tag->term_id,
+                    'name' => $tag->name,
+                    'slug' => $tag->slug,
+                    'count' => $tag->count,
                 ]
             ];
         }
@@ -1831,82 +1921,5 @@ class RuleBuilderApiController extends WP_REST_Controller
         }
 
         return $formatted_results;
-    }
-
-    /**
-     * Search product tags.
-     *
-     * @param string $search Search term
-     * @param int $limit Maximum results
-     * @return array Product tag results
-     */
-    private function search_product_tags(string $search, int $limit): array
-    {
-        if (!class_exists('WooCommerce')) {
-            return [];
-        }
-
-        $args = [
-            'taxonomy' => 'product_tag',
-            'hide_empty' => false,
-            'number' => $limit,
-            'orderby' => 'name',
-            'order' => 'ASC',
-        ];
-
-        if (!empty($search)) {
-            $args['name__like'] = sanitize_text_field($search);
-        }
-
-        $tags = get_terms($args);
-        if (is_wp_error($tags)) {
-            return [];
-        }
-
-        $formatted_results = [];
-        foreach ($tags as $tag) {
-            $formatted_results[] = [
-                'value' => (string) $tag->term_id,
-                'label' => $tag->name . " (ID: {$tag->term_id})",
-                'meta' => [
-                    'id' => $tag->term_id,
-                    'name' => $tag->name,
-                    'slug' => $tag->slug,
-                    'count' => $tag->count,
-                ]
-            ];
-        }
-
-        return $formatted_results;
-    }
-
-    /**
-     * Log API errors for debugging
-     */
-    private function log_api_error(string $endpoint, \Exception $e, array $context): void
-    {
-        // Log to WordPress error log
-        error_log(sprintf(
-            'ODCM API Error in %s: %s - Context: %s',
-            $endpoint,
-            $e->getMessage(),
-            json_encode($context)
-        ));
-
-        // Log to plugin's audit trail if available
-        if (function_exists('odcm_log_event')) {
-            odcm_log_event(
-                "API Error in {$endpoint}: " . $e->getMessage(),
-                array_merge($context, [
-                    'error_file' => $e->getFile(),
-                    'error_line' => $e->getLine(),
-                    'stack_trace' => $e->getTraceAsString(),
-                ]),
-                null,
-                'error',
-                'api_error',
-                    true
-            );
-        }
     }
 }

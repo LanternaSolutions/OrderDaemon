@@ -51,7 +51,7 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             'summary' => $summary,
             'event_type' => $eventType,
             'source' => $source,
-            'log_id' => $logEntry['id'] ?? 0,
+            'log_id' => $logEntry['log_id'] ?? $logEntry['id'] ?? 0,
             'status' => $status,
         ];
         

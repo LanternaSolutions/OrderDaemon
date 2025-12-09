@@ -56,7 +56,8 @@ function odcm_handle_log_processing($args) {
     // SIMPLIFIED: Expect only compressed format
     // odcm_log_event() sends compressed data directly to Action Scheduler
     if (!isset($args['d']) || !is_array($args['d'])) {
-        error_log("ODCM: Invalid compressed payload structure. Expected 'd' key with array value, got: " . wp_json_encode($args));
+        // Log critical error for operational stability
+        odcm_critical_log("Invalid compressed payload structure. Expected 'd' key with array value, got: " . wp_json_encode($args));
         return;
     }
 
@@ -118,17 +119,32 @@ function odcm_handle_log_processing($args) {
     // Sanitize and insert payload
     $sanitized_payload = odcm_sanitize_payload_for_logging($payload_to_store);
     
-    $payload_insert = $wpdb->insert(
-        $wpdb->prefix . 'odcm_audit_log_payloads',
-        ['payload' => json_encode($sanitized_payload)]
-    );
-
-    if ($payload_insert === false) {
-        error_log("ODCM: Failed to insert payload: " . $wpdb->last_error);
-        return;
+    // Check for duplicate payload based on hash to reduce storage
+    $payload_hash = md5(json_encode($sanitized_payload));
+    $payload_cache_key = 'odcm_payload_hash_' . $payload_hash;
+    $existing_payload_id = wp_cache_get($payload_cache_key);
+    
+    if (false !== $existing_payload_id) {
+        // Reuse existing payload
+        $payload_id = $existing_payload_id;
+        odcm_log_message("Reusing existing payload ID: {$payload_id}", 'debug');
+    } else {
+        // Insert new payload
+        $payload_insert = $wpdb->insert(
+            $wpdb->prefix . 'odcm_audit_log_payloads',
+            ['payload' => json_encode($sanitized_payload)]
+        );
+    
+        if ($payload_insert === false) {
+            odcm_critical_log("Failed to insert payload: " . $wpdb->last_error);
+            return;
+        }
+    
+        $payload_id = $wpdb->insert_id;
+        
+        // Cache payload ID for future reuse
+        wp_cache_set($payload_cache_key, $payload_id, '', HOUR_IN_SECONDS);
     }
-
-    $payload_id = $wpdb->insert_id;
 
     // Prepare log data from extracted values
     $log_data = [
@@ -161,6 +177,16 @@ function odcm_handle_log_processing($args) {
     ]));
     $log_data['duplicate_hash'] = $duplicate_hash;
 
+    // Check for duplicate log entry
+    $dedup_cache_key = 'odcm_log_hash_' . $duplicate_hash;
+    $existing_entry = wp_cache_get($dedup_cache_key);
+    
+    if (false !== $existing_entry) {
+        // Skip creating duplicate log entry
+        odcm_log_message("Skipping duplicate log entry for hash {$duplicate_hash}", 'debug');
+        return;
+    }
+
     $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
 
     // Use $wpdb->insert() with explicit formats to satisfy sniffs and ensure safety
@@ -182,7 +208,29 @@ function odcm_handle_log_processing($args) {
         $formats[] = $format_map[$k] ?? '%s';
     }
 
-    $wpdb->insert($audit_log_table, $log_data, $formats);
+    $insert_result = $wpdb->insert($audit_log_table, $log_data, $formats);
+    
+    if ($insert_result !== false) {
+        // Cache the hash to prevent duplicates (10 minutes)
+        wp_cache_set($dedup_cache_key, true, '', 10 * MINUTE_IN_SECONDS);
+
+        // Invalidate dashboard logs cache by bumping a global cache version
+        $version_key = 'odcm_logs_cache_version';
+        // Try atomic increment when available
+        if (function_exists('wp_cache_incr')) {
+            $new_version = wp_cache_incr($version_key);
+            if (false === $new_version) {
+                // Initialize the key if it doesn't exist
+                wp_cache_set($version_key, 1);
+            }
+        } else {
+            $current = wp_cache_get($version_key);
+            if ($current === false) {
+                $current = 0;
+            }
+            wp_cache_set($version_key, ((int) $current) + 1);
+        }
+    }
 }
 
 // Hook the handler to the action scheduled by the Feeder
@@ -254,10 +302,13 @@ function odcm_handle_order_check_processing($args) {
     }
 
     try {
-        // TEMPORARY DEBUG: Log action handler execution
-        error_log("ODCM_DEBUG_TRACE: Action Handler - Processing Order #{$order_id}");
-        error_log("ODCM_DEBUG_TRACE: Action Handler - Order status: " . $order->get_status());
-        error_log("ODCM_DEBUG_TRACE: Action Handler - Payment method: " . $order->get_payment_method());
+        // Create structured logging data instead of using error_log
+        $log_data = [
+            'order_id' => $order_id,
+            'order_status' => $order->get_status(),
+            'payment_method' => $order->get_payment_method()
+        ];
+        odcm_log_message("Action Handler - Processing Order #{$order_id}", 'debug', $log_data);
         
         // Create a universal event for the order check
         $universal_event_data = [
@@ -282,17 +333,17 @@ function odcm_handle_order_check_processing($args) {
             ]
         ];
 
-        error_log("ODCM_DEBUG_TRACE: Action Handler - Created universal event data");
+        odcm_log_message("Action Handler - Created universal event data", 'debug');
 
         // Process through UniversalEventProcessor
         $processor = \OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor::instance();
-        error_log("ODCM_DEBUG_TRACE: Action Handler - About to call processEvent()");
+        odcm_log_message("Action Handler - About to call processEvent()", 'debug');
         $result = $processor->processEvent($universal_event_data);
-        error_log("ODCM_DEBUG_TRACE: Action Handler - processEvent() returned: " . ($result ? 'TRUE' : 'FALSE'));
+        odcm_log_message("Action Handler - processEvent() returned: " . ($result ? 'TRUE' : 'FALSE'), 'debug');
 
         // Debug logging only
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM_DEBUG: Order check completed for #{$order_id} - Result: " . ($result ? 'TRUE' : 'FALSE'));
+            odcm_log_message("Order check completed for #{$order_id} - Result: " . ($result ? 'TRUE' : 'FALSE'), 'debug');
         }
 
     } catch (\Throwable $e) {
@@ -384,7 +435,7 @@ function odcm_handle_universal_event_processing(array $args) {
                 "{$gateway} {$event_type} processed successfully" : 
                 "{$gateway} {$event_type} completed with no action";
                 
-            error_log("ODCM_DEBUG: {$message}");
+            odcm_log_message($message, 'debug');
         }
 
     } catch (\Throwable $e) {
@@ -440,48 +491,49 @@ function odcm_handle_checkout_completion_processing($args) {
     }
 
     // DEBUG: Log entry with full context
-    error_log("ODCM_DUPLICATE_DEBUG: === CHECKOUT COMPLETION PROCESSING START ===");
-    error_log("ODCM_DUPLICATE_DEBUG: Order ID: {$order_id}");
-    error_log("ODCM_DUPLICATE_DEBUG: Checkout Type: {$checkout_type}");
-    error_log("ODCM_DUPLICATE_DEBUG: Scheduled At: " . ($scheduled_at ?: 'MISSING - THIS IS A DUPLICATE JOB'));
-    error_log("ODCM_DUPLICATE_DEBUG: Args: " . wp_json_encode($args));
-    error_log("ODCM_DUPLICATE_DEBUG: Current time: " . current_time('c'));
+    $debug_data = [
+        'order_id' => $order_id,
+        'checkout_type' => $checkout_type,
+        'scheduled_at' => $scheduled_at ?: 'MISSING - THIS IS A DUPLICATE JOB',
+        'args' => $args,
+        'current_time' => current_time('c')
+    ];
+    odcm_log_message("=== CHECKOUT COMPLETION PROCESSING START ===", 'debug', $debug_data);
 
     if ($order_id <= 0) {
-        error_log('ODCM_BACKGROUND: Invalid order ID for checkout completion processing');
+        odcm_critical_log('Invalid order ID for checkout completion processing');
         return;
     }
 
     $order = wc_get_order($order_id);
     if (!$order instanceof \WC_Order) {
-        error_log("ODCM_BACKGROUND: Order #{$order_id} not found for checkout completion processing");
+        odcm_critical_log("Order #{$order_id} not found for checkout completion processing");
         return;
     }
 
     try {
         // Try to retrieve enriched data from queue first
-        error_log("ODCM_DUPLICATE_DEBUG: About to call odcm_get_queued_checkout_data for order #{$order_id}");
+        odcm_log_message("About to call odcm_get_queued_checkout_data for order #{$order_id}", 'debug');
         $queued_data = odcm_get_queued_checkout_data($order_id);
         
         if ($queued_data) {
             // Use queued data with original timestamp
-            error_log("ODCM_DUPLICATE_DEBUG: FOUND queued data for order #{$order_id}");
-            error_log("ODCM_DUPLICATE_DEBUG: Queue ID: " . ($queued_data['queue_id'] ?? 'missing'));
+            odcm_log_message("FOUND queued data for order #{$order_id}", 'debug', ['queue_id' => $queued_data['queue_id'] ?? 'missing']);
             $universal_event = odcm_synthesize_checkout_from_queued_data($order, $queued_data);
-            error_log("ODCM_BACKGROUND: Using queued checkout data for order #{$order_id}");
+            odcm_log_message("Using queued checkout data for order #{$order_id}", 'debug');
         } else {
             // Only create fallback event for legitimate jobs that have scheduled_at parameter
             // Duplicate jobs (missing scheduled_at) should exit silently without creating events
             if (!$scheduled_at) {
-                error_log("ODCM_DUPLICATE_DEBUG: BLOCKED duplicate job for order #{$order_id} - no queued data AND missing scheduled_at");
-                error_log("ODCM_DUPLICATE_DEBUG: This prevents the empty DEBUG event from being created");
+                odcm_log_message("BLOCKED duplicate job for order #{$order_id} - no queued data AND missing scheduled_at", 'debug');
+                odcm_log_message("This prevents the empty DEBUG event from being created", 'debug');
                 return; // Exit silently - this is a duplicate job with no data
             }
             
             // Legitimate job but no queued data - create fallback event
-            error_log("ODCM_DUPLICATE_DEBUG: NO queued data found for order #{$order_id} but legitimate job - using fallback");
+            odcm_log_message("NO queued data found for order #{$order_id} but legitimate job - using fallback", 'debug');
             $universal_event = odcm_synthesize_checkout_processed_event($order, [], $checkout_type);
-            error_log("ODCM_BACKGROUND: Using fallback synthesis for order #{$order_id} (no queued data)");
+            odcm_log_message("Using fallback synthesis for order #{$order_id} (no queued data)", 'debug');
         }
 
         // Process through UniversalEventProcessor
@@ -494,11 +546,11 @@ function odcm_handle_checkout_completion_processing($args) {
         }
 
         // Log successful background processing
-        error_log("ODCM_BACKGROUND: Checkout completion processed successfully for order #{$order_id}");
+        odcm_log_message("Checkout completion processed successfully for order #{$order_id}", 'debug');
 
     } catch (\Throwable $e) {
         // Log processing error but don't let it break the system
-        error_log("ODCM_BACKGROUND: Checkout completion processing failed for order #{$order_id}: " . $e->getMessage());
+        odcm_critical_log("Checkout completion processing failed for order #{$order_id}: " . $e->getMessage());
         
         odcm_log_event(
             'Checkout completion processing failed with exception: ' . $e->getMessage(),
@@ -520,9 +572,9 @@ function odcm_handle_checkout_completion_processing($args) {
             as_enqueue_async_action('odcm_process_order_check', [
                 'order_id' => $order_id
             ], 'odcm-emergency-processing');
-            error_log("ODCM_BACKGROUND: Scheduled emergency fallback processing for order #{$order_id}");
+            odcm_log_message("Scheduled emergency fallback processing for order #{$order_id}", 'debug');
         } catch (\Throwable $fallback_error) {
-            error_log("ODCM_BACKGROUND: Emergency fallback failed for order #{$order_id}: " . $fallback_error->getMessage());
+            odcm_log_message("Emergency fallback failed for order #{$order_id}: " . $fallback_error->getMessage(), 'error');
         }
     }
 }
@@ -721,21 +773,24 @@ function odcm_handle_payment_completion_processing($args) {
     }
 
     if ($order_id <= 0) {
-        error_log('ODCM_BACKGROUND: Invalid order ID for payment completion processing');
+        odcm_critical_log('Invalid order ID for payment completion processing');
         return;
     }
 
     $order = wc_get_order($order_id);
     if (!$order instanceof \WC_Order) {
-        error_log("ODCM_BACKGROUND: Order #{$order_id} not found for payment completion processing");
+        odcm_critical_log("Order #{$order_id} not found for payment completion processing");
         return;
     }
 
     try {
-        // TEMPORARY DEBUG: Log background processing execution
-        error_log("ODCM_DEBUG_TRACE: Background Handler - Processing payment completion for Order #{$order_id}");
-        error_log("ODCM_DEBUG_TRACE: Background Handler - Order status: " . $order->get_status());
-        error_log("ODCM_DEBUG_TRACE: Background Handler - Payment method: " . $order->get_payment_method());
+        // Log using structured logging instead of direct error_log
+        $log_data = [
+            'order_id' => $order_id,
+            'order_status' => $order->get_status(),
+            'payment_method' => $order->get_payment_method()
+        ];
+        odcm_log_message("Background Handler - Processing payment completion for Order #{$order_id}", 'debug', $log_data);
 
         // Use provided gateway or get from order
         $gateway = $payment_gateway ?: $order->get_payment_method();
@@ -763,16 +818,16 @@ function odcm_handle_payment_completion_processing($args) {
             ]
         ];
 
-        error_log("ODCM_DEBUG_TRACE: Background Handler - Created payment completion event data");
+        odcm_log_message("Background Handler - Created payment completion event data", 'debug');
 
         // Process through UniversalEventProcessor
         $processor = \OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor::instance();
-        error_log("ODCM_DEBUG_TRACE: Background Handler - About to call processEvent() for payment");
+        odcm_log_message("Background Handler - About to call processEvent() for payment", 'debug');
         $result = $processor->processEvent($universal_event_data);
-        error_log("ODCM_DEBUG_TRACE: Background Handler - Payment processEvent() returned: " . ($result ? 'TRUE' : 'FALSE'));
+        odcm_log_message("Background Handler - Payment processEvent() returned: " . ($result ? 'TRUE' : 'FALSE'), 'debug');
 
         // Log successful background processing
-        error_log("ODCM_BACKGROUND: Payment completion processed successfully for order #{$order_id}");
+        odcm_log_message("Payment completion processed successfully for order #{$order_id}", 'debug');
 
         // Log the processing result for debugging
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -794,7 +849,7 @@ function odcm_handle_payment_completion_processing($args) {
 
     } catch (\Throwable $e) {
         // Log processing error but don't let it break the system
-        error_log("ODCM_BACKGROUND: Payment completion processing failed for order #{$order_id}: " . $e->getMessage());
+        odcm_critical_log("Payment completion processing failed for order #{$order_id}: " . $e->getMessage());
         
         odcm_log_event(
             'Payment completion processing failed with exception: ' . $e->getMessage(),
@@ -816,9 +871,9 @@ function odcm_handle_payment_completion_processing($args) {
             as_enqueue_async_action('odcm_process_order_check', [
                 'order_id' => $order_id
             ], 'odcm-emergency-processing');
-            error_log("ODCM_BACKGROUND: Scheduled emergency fallback processing for order #{$order_id}");
+            odcm_log_message("Scheduled emergency fallback processing for order #{$order_id}", 'debug');
         } catch (\Throwable $fallback_error) {
-            error_log("ODCM_BACKGROUND: Emergency fallback failed for order #{$order_id}: " . $fallback_error->getMessage());
+            odcm_critical_log("Emergency fallback failed for order #{$order_id}: " . $fallback_error->getMessage());
         }
     }
 }
@@ -839,7 +894,7 @@ function odcm_process_queued_log_entry($args): void
     // Handle both array and direct string arguments from Action Scheduler
     if (is_array($args)) {
         if (empty($args['queue_id'])) {
-            error_log('ODCM: odcm_process_queued_log_entry called without queue_id in array');
+            odcm_log_message('odcm_process_queued_log_entry called without queue_id in array', 'error');
             return;
         }
         $queue_id = $args['queue_id'];
@@ -847,24 +902,33 @@ function odcm_process_queued_log_entry($args): void
         // Action Scheduler passed queue_id directly
         $queue_id = $args;
     } else {
-        error_log('ODCM: odcm_process_queued_log_entry called with invalid argument type: ' . gettype($args));
+        odcm_log_message('odcm_process_queued_log_entry called with invalid argument type: ' . gettype($args), 'error');
         return;
     }
     
     if (empty($queue_id)) {
-        error_log('ODCM: odcm_process_queued_log_entry called with empty queue_id');
+        odcm_log_message('odcm_process_queued_log_entry called with empty queue_id', 'error');
         return;
     }
     
-    // Retrieve queued event
-    $queue_entry = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM {$wpdb->prefix}odcm_audit_log_queue 
-         WHERE queue_id = %s AND status = 'pending'",
-        $queue_id
-    ));
+    // Check cache first
+    $cache_key = 'odcm_queue_entry_' . md5($queue_id);
+    $queue_entry = wp_cache_get($cache_key);
+    
+    if (false === $queue_entry) {
+        // Retrieve queued event from database
+        $queue_entry = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}odcm_audit_log_queue 
+             WHERE queue_id = %s AND status = 'pending'",
+            $queue_id
+        ));
+        
+        // Cache the result for 5 minutes
+        wp_cache_set($cache_key, $queue_entry, '', 5 * MINUTE_IN_SECONDS);
+    }
     
     if (!$queue_entry) {
-        error_log("ODCM: Queue entry {$queue_id} not found or already processed");
+        odcm_log_message("Queue entry {$queue_id} not found or already processed", 'debug');
         return;
     }
     
@@ -882,32 +946,87 @@ function odcm_process_queued_log_entry($args): void
         // Create payload ID if we have envelope data
         $payload_id = null;
         if (!empty($envelope)) {
-            $payload_result = $wpdb->insert(
-                "{$wpdb->prefix}odcm_audit_log_payloads",
-                ['payload' => wp_json_encode($envelope)]
-            );
+            // Check if this payload already exists to avoid duplicates
+            $payload_hash = md5(wp_json_encode($envelope));
+            $payload_cache_key = 'odcm_payload_' . $payload_hash;
             
-            if ($payload_result !== false) {
-                $payload_id = $wpdb->insert_id;
+            $cached_payload_id = wp_cache_get($payload_cache_key);
+            
+            if (false !== $cached_payload_id) {
+                // Use existing payload ID from cache
+                $payload_id = $cached_payload_id;
+            } else {
+                // Create new payload entry
+                $payload_result = $wpdb->insert(
+                    "{$wpdb->prefix}odcm_audit_log_payloads",
+                    ['payload' => wp_json_encode($envelope)]
+                );
+                
+                if ($payload_result !== false) {
+                    $payload_id = $wpdb->insert_id;
+                    // Cache the payload ID for future reuse (1 hour)
+                    wp_cache_set($payload_cache_key, $payload_id, '', HOUR_IN_SECONDS);
+                }
             }
         }
         
-        // Create final audit log entry
-        $log_result = $wpdb->insert(
-            "{$wpdb->prefix}odcm_audit_log",
-            [
-                'timestamp' => $event_data['timestamp'],
-                'status' => $event_data['status'],
-                'summary' => $event_data['summary'],
-                'order_id' => $event_data['order_id'] ?? null,
-                'event_type' => $event_data['event_type'],
-                'source' => $event_data['source'] ?? 'system',
-                'log_category' => 'custom',
-                'is_test' => $event_data['is_test'] ? 1 : 0,
-                'process_id' => $event_data['process_id'] ?? null,
-                'payload_id' => $payload_id,
-            ]
-        );
+        // Generate a deduplication hash for this entry
+        $dedup_data = [
+            'timestamp' => $event_data['timestamp'],
+            'summary' => $event_data['summary'],
+            'order_id' => $event_data['order_id'] ?? null,
+            'event_type' => $event_data['event_type'],
+            'payload_id' => $payload_id,
+        ];
+        $dedup_hash = md5(wp_json_encode($dedup_data));
+        
+        // Check for existing entry with this hash to avoid duplicates
+        $dedup_cache_key = 'odcm_log_dedup_' . $dedup_hash;
+        $existing_entry = wp_cache_get($dedup_cache_key);
+        
+        if (false !== $existing_entry) {
+            // Skip creating duplicate log entry
+            odcm_log_message("Skipping duplicate log entry creation for hash {$dedup_hash}", 'debug');
+            $log_result = true; // Pretend success to continue processing
+        } else {
+            // Create final audit log entry
+            $log_result = $wpdb->insert(
+                "{$wpdb->prefix}odcm_audit_log",
+                [
+                    'timestamp' => $event_data['timestamp'],
+                    'status' => $event_data['status'],
+                    'summary' => $event_data['summary'],
+                    'order_id' => $event_data['order_id'] ?? null,
+                    'event_type' => $event_data['event_type'],
+                    'source' => $event_data['source'] ?? 'system',
+                    'log_category' => 'custom',
+                    'is_test' => $event_data['is_test'] ? 1 : 0,
+                    'process_id' => $event_data['process_id'] ?? null,
+                    'payload_id' => $payload_id,
+                    'duplicate_hash' => $dedup_hash,
+                ]
+            );
+            
+            if ($log_result !== false) {
+                // Cache the deduplication hash (10 minutes)
+                wp_cache_set($dedup_cache_key, true, '', 10 * MINUTE_IN_SECONDS);
+
+                // Invalidate dashboard logs cache by bumping a global cache version
+                $version_key = 'odcm_logs_cache_version';
+                if (function_exists('wp_cache_incr')) {
+                    $new_version = wp_cache_incr($version_key);
+                    if (false === $new_version) {
+                        wp_cache_set($version_key, 1);
+                    }
+                } else {
+                    $current = wp_cache_get($version_key);
+                    if ($current === false) {
+                        $current = 0;
+                    }
+                    wp_cache_set($version_key, ((int) $current) + 1);
+                }
+            }
+        }
         
         if ($log_result === false) {
             throw new \Exception('Failed to insert audit log: ' . $wpdb->last_error);
@@ -925,7 +1044,7 @@ function odcm_process_queued_log_entry($args): void
         
         // Debug logging
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM: Successfully processed queue entry {$queue_id}, created log ID: {$wpdb->insert_id}");
+            odcm_log_message("Successfully processed queue entry {$queue_id}, created log ID: {$wpdb->insert_id}", 'debug');
         }
         
     } catch (\Throwable $e) {
@@ -942,7 +1061,7 @@ function odcm_process_queued_log_entry($args): void
             ['queue_id' => $queue_id]
         );
         
-        error_log("ODCM: Error processing queue entry {$queue_id}: " . $e->getMessage());
+        odcm_log_message("Error processing queue entry {$queue_id}: " . $e->getMessage(), 'error');
         
         // Re-schedule if under retry limit
         if ($retry_count < 3) {
@@ -970,6 +1089,28 @@ function odcm_cleanup_audit_log_queue(): void
 {
     global $wpdb;
     
+    // Use a cache lock to prevent multiple cleanups running simultaneously
+    $lock_key = 'odcm_queue_cleanup_lock';
+    $got_lock = wp_cache_add($lock_key, 1, '', 5 * MINUTE_IN_SECONDS); // 5 minute lock
+    
+    if (!$got_lock) {
+        odcm_log_message("Queue cleanup already in progress, skipping", 'debug');
+        return;
+    }
+    
+    // Cache the cleanup schedule to avoid performing this operation too frequently
+    $last_cleanup_key = 'odcm_last_queue_cleanup';
+    $last_cleanup = wp_cache_get($last_cleanup_key);
+    
+    if (false !== $last_cleanup) {
+        $hours_since_last = (time() - (int)$last_cleanup) / 3600;
+        if ($hours_since_last < 12) { // Only clean up once per 12 hours at most
+            odcm_log_message("Queue cleanup performed recently ({$hours_since_last} hours ago), skipping", 'debug');
+            wp_cache_delete($lock_key); // Release lock
+            return;
+        }
+    }
+    
     // Delete processed entries older than 24 hours
     $deleted = $wpdb->query(
         "DELETE FROM {$wpdb->prefix}odcm_audit_log_queue 
@@ -978,7 +1119,7 @@ function odcm_cleanup_audit_log_queue(): void
     );
     
     if ($deleted !== false && $deleted > 0) {
-        error_log("ODCM: Cleaned up {$deleted} processed queue entries");
+        odcm_log_message("Cleaned up {$deleted} processed queue entries", 'info');
     }
     
     // Delete failed entries older than 30 days
@@ -988,8 +1129,14 @@ function odcm_cleanup_audit_log_queue(): void
          AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)"
     );
     
+    // Update the last cleanup timestamp
+    wp_cache_set($last_cleanup_key, time(), '', DAY_IN_SECONDS);
+    
+    // Release the lock
+    wp_cache_delete($lock_key);
+    
     if ($deleted_failed !== false && $deleted_failed > 0) {
-        error_log("ODCM: Cleaned up {$deleted_failed} failed queue entries");
+        odcm_log_message("Cleaned up {$deleted_failed} failed queue entries", 'info');
     }
 }
 
@@ -1035,7 +1182,7 @@ if (!(defined('WP_CLI') && WP_CLI) && !(defined('DOING_CRON') && DOING_CRON)) {
  */
 function odcm_update_rule_order_handler() {
     // Verify nonce for security
-    if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'odcm_update_rule_order')) {
+    if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'odcm_update_rule_order')) {
         wp_send_json_error([
             'message' => __('admin.ajax.security_check_failed', 'order-daemon')
         ]);
@@ -1110,12 +1257,21 @@ function odcm_get_queued_checkout_data(int $order_id): ?array {
         return null;
     }
     
-    // Retrieve data from queue table
-    $queue_entry = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM {$wpdb->prefix}odcm_audit_log_queue 
-         WHERE queue_id = %s AND status = 'pending'",
-        $queue_id
-    ));
+    // Check cache first
+    $cache_key = 'odcm_checkout_queue_' . md5($queue_id);
+    $queue_entry = wp_cache_get($cache_key);
+    
+    if (false === $queue_entry) {
+        // Retrieve data from queue table
+        $queue_entry = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}odcm_audit_log_queue 
+             WHERE queue_id = %s AND status = 'pending'",
+            $queue_id
+        ));
+        
+        // Cache the result for 5 minutes
+        wp_cache_set($cache_key, $queue_entry, '', 5 * MINUTE_IN_SECONDS);
+    }
     
     if (!$queue_entry) {
         return null;
@@ -1240,6 +1396,16 @@ function odcm_synthesize_checkout_from_queued_data(\WC_Order $order, array $queu
 function odcm_cleanup_processed_queue_data(int $order_id, string $queue_id): void {
     global $wpdb;
     
+    // Use a transaction key to prevent duplicate processing
+    $transaction_key = 'odcm_cleanup_transaction_' . md5($queue_id);
+    $got_transaction = wp_cache_add($transaction_key, true, '', 30); // 30 second lock
+    
+    if (!$got_transaction) {
+        // Another process is already handling this
+        odcm_log_message("Skipping duplicate cleanup for queue ID {$queue_id}", 'debug');
+        return;
+    }
+    
     // Mark queue entry as processed
     $wpdb->update(
         $wpdb->prefix . 'odcm_audit_log_queue',
@@ -1250,9 +1416,13 @@ function odcm_cleanup_processed_queue_data(int $order_id, string $queue_id): voi
         ['queue_id' => $queue_id]
     );
     
+    // Clear related caches
+    wp_cache_delete('odcm_queue_entry_' . md5($queue_id));
+    wp_cache_delete('odcm_checkout_queue_' . md5($queue_id));
+    
     // Remove order meta flags
     OrderMetaManager::delete_meta($order_id, '_odcm_checkout_queue_id');
     OrderMetaManager::delete_meta($order_id, '_odcm_checkout_data_queued');
     
-    error_log("ODCM_BACKGROUND: Cleaned up queue data for order #{$order_id}, queue ID: {$queue_id}");
+    odcm_log_message("Cleaned up queue data for order #{$order_id}, queue ID: {$queue_id}", 'debug');
 }

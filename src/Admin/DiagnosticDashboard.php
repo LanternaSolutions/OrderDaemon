@@ -469,8 +469,8 @@ class DiagnosticDashboard
                 <?php foreach ($report['categories'] as $category_name => $category_data): ?>
                 <div class="odcm-category-results">
                     <h5><?php
-                        /* translators: 1: Category name, 2: Number passed, 3: Total number */
                     printf(
+                           /* translators: 1: Category name, 2: Number passed, 3: Total number */
                            esc_html__('%1$s: %2$d/%3$d passed', 'order-daemon'),
                            esc_html( $this->format_category_name($category_name) ),
                            esc_html($category_data['passed']),
@@ -766,7 +766,6 @@ class DiagnosticDashboard
         $output .= "-------\n";
                 /* translators: 1: Total tests run, 2: Number passed, 3: Number failed */
                 $output .= sprintf(
-                    // translators: 1: Total number of tests run, 2: Number of tests passed, 3: Number of tests failed
                     __('Tests run: %1$d | Passed: %2$d | Failed: %3$d', 'order-daemon'),
                     $report['summary']['total_tests'],
                     $report['summary']['passed'],

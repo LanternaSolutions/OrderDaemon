@@ -19,6 +19,49 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
 class RuleRenderer extends BaseRenderer
 {
     /**
+     * Log a debug message using WordPress-compatible logging methods
+     *
+     * @param string $message The message to log
+     * @param string $level The log level (debug, info, warning, error)
+     * @return void
+     */
+    private function logDebugMessage(string $message, string $level = 'debug'): void
+    {
+        // Only log if debug mode is enabled
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+        
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($message, $level);
+            return;
+        }
+        
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($message);
+            return;
+        }
+        
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_' . $level, $message);
+            return;
+        }
+        
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                FILE_APPEND
+            );
+            return;
+        }
+    }
+    /**
      * Constructor
      *
      * Sets the rule-specific theme.
@@ -966,15 +1009,15 @@ class RuleRenderer extends BaseRenderer
     {
         // Add debugging to understand the payload structure
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM DEBUG - RuleRenderer extractOrderId payload keys: " . implode(', ', array_keys($payload)));
+            $this->logDebugMessage("ODCM DEBUG - RuleRenderer extractOrderId payload keys: " . implode(', ', array_keys($payload)));
             if (isset($payload['rawData'])) {
-                error_log("ODCM DEBUG - RuleRenderer rawData keys: " . implode(', ', array_keys($payload['rawData'])));
+                $this->logDebugMessage("ODCM DEBUG - RuleRenderer rawData keys: " . implode(', ', array_keys($payload['rawData'])));
                 if (isset($payload['rawData']['rule_execution'])) {
-                    error_log("ODCM DEBUG - RuleRenderer rule_execution keys: " . implode(', ', array_keys($payload['rawData']['rule_execution'])));
+                    $this->logDebugMessage("ODCM DEBUG - RuleRenderer rule_execution keys: " . implode(', ', array_keys($payload['rawData']['rule_execution'])));
                 }
             }
             if (isset($payload['data'])) {
-                error_log("ODCM DEBUG - RuleRenderer data keys: " . implode(', ', array_keys($payload['data'])));
+                $this->logDebugMessage("ODCM DEBUG - RuleRenderer data keys: " . implode(', ', array_keys($payload['data'])));
             }
         }
         
@@ -997,14 +1040,14 @@ class RuleRenderer extends BaseRenderer
         foreach ($sources as $i => $source) {
             if (is_numeric($source) && (int)$source > 0) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log("ODCM DEBUG - RuleRenderer found order ID {$source} from source index {$i}");
+                    $this->logDebugMessage("ODCM DEBUG - RuleRenderer found order ID {$source} from source index {$i}");
                 }
                 return (int)$source;
             }
         }
         
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log("ODCM DEBUG - RuleRenderer NO ORDER ID FOUND in payload: " . json_encode($payload, JSON_PRETTY_PRINT));
+            $this->logDebugMessage("ODCM DEBUG - RuleRenderer NO ORDER ID FOUND in payload: " . json_encode($payload, JSON_PRETTY_PRINT), 'warning');
         }
         
         return 0;

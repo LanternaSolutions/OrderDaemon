@@ -252,7 +252,7 @@ final class UpgradePrompts
         if (!current_user_can('manage_woocommerce') && !current_user_can('manage_options')) {
             wp_send_json_error(['message' => __('upgrade_prompts.ajax.insufficient_permissions', 'order-daemon')], 403);
         }
-        $nonce = $_POST['nonce'] ?? '';
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
         if (!wp_verify_nonce($nonce, 'odcm_upgrade_prompts')) {
             wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')], 400);
         }
@@ -279,7 +279,7 @@ final class UpgradePrompts
         if (!current_user_can('manage_woocommerce') && !current_user_can('manage_options')) {
             wp_send_json_error(['message' => __('upgrade_prompts.ajax.insufficient_permissions', 'order-daemon')], 403);
         }
-        $nonce = $_POST['nonce'] ?? '';
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
         if (!wp_verify_nonce($nonce, 'odcm_upgrade_prompts')) {
             wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')], 400);
         }

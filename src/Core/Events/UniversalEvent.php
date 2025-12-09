@@ -168,28 +168,28 @@ final class UniversalEvent
         try {
             // Validate and set required fields
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("Validating eventType: " . var_export($data['eventType'] ?? '', true));
+                $this->logDebugMessage("Validating eventType: " . $this->formatDebugValue($data['eventType'] ?? ''));
             }
             $this->eventType = $this->validateEventType($data['eventType'] ?? '');
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("Validating channel: " . var_export($data['channel'] ?? '', true));
+                $this->logDebugMessage("Validating channel: " . $this->formatDebugValue($data['channel'] ?? ''));
             }
             $this->channel = $this->validateChannel($data['channel'] ?? '');
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("Validating primaryObjectType: " . var_export($data['primaryObjectType'] ?? '', true));
+                $this->logDebugMessage("Validating primaryObjectType: " . $this->formatDebugValue($data['primaryObjectType'] ?? ''));
             }
             $this->primaryObjectType = $this->validateObjectType($data['primaryObjectType'] ?? '');
             
             // Set optional fields with validation
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("Processing sourceGateway: " . var_export($data['sourceGateway'] ?? null, true));
+                $this->logDebugMessage("Processing sourceGateway: " . $this->formatDebugValue($data['sourceGateway'] ?? null));
             }
             $this->sourceGateway = $this->sanitizeString($data['sourceGateway'] ?? null);
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("Validating primaryObjectID: " . var_export($data['primaryObjectID'] ?? null, true));
+                $this->logDebugMessage("Validating primaryObjectID: " . $this->formatDebugValue($data['primaryObjectID'] ?? null));
             }
             $this->primaryObjectID = $this->validateObjectID($data['primaryObjectID'] ?? null);
 
@@ -203,29 +203,29 @@ final class UniversalEvent
             $this->reason = $this->sanitizeString($data['reason'] ?? null);
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("Validating amount: " . var_export($data['amount'] ?? null, true));
+                $this->logDebugMessage("Validating amount: " . $this->formatDebugValue($data['amount'] ?? null));
             }
             $this->amount = $this->validateAmount($data['amount'] ?? null);
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("Validating currency: " . var_export($data['currency'] ?? null, true));
+                $this->logDebugMessage("Validating currency: " . $this->formatDebugValue($data['currency'] ?? null));
             }
             $this->currency = $this->validateCurrency($data['currency'] ?? null);
             
             // Set timestamps
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("Validating occurredAt timestamp: " . var_export($data['occurredAt'] ?? '', true));
+                $this->logDebugMessage("Validating occurredAt timestamp: " . $this->formatDebugValue($data['occurredAt'] ?? ''));
             }
             $this->occurredAt = $this->validateTimestamp($data['occurredAt'] ?? '');
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("Validating receivedAt timestamp: " . var_export($data['receivedAt'] ?? current_time('c'), true));
+                $this->logDebugMessage("Validating receivedAt timestamp: " . $this->formatDebugValue($data['receivedAt'] ?? current_time('c')));
             }
             $this->receivedAt = $this->validateTimestamp($data['receivedAt'] ?? current_time('c'));
             
             // Set or generate idempotency key
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("Processing idempotencyKey: " . var_export($data['idempotencyKey'] ?? '', true));
+                $this->logDebugMessage("Processing idempotencyKey: " . $this->formatDebugValue($data['idempotencyKey'] ?? ''));
             }
             $this->idempotencyKey = !empty($data['idempotencyKey']) 
                 ? sanitize_text_field((string) $data['idempotencyKey'])
@@ -609,6 +609,11 @@ final class UniversalEvent
      */
     private function logDebugMessage(string $message): void
     {
+        // Only log if debug is enabled
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+        
         // Prefix for all debug messages from this class
         $prefix = "ODCM_CONSTRUCTOR_DEBUG: ";
         
@@ -624,8 +629,56 @@ final class UniversalEvent
             return;
         }
         
-        // Fallback to error_log only if neither of the above are available
-        error_log($prefix . $message);
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_debug', $prefix . $message);
+            return;
+        }
+        
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . date('Y-m-d H:i:s') . '] ' . $prefix . $message . PHP_EOL,
+                FILE_APPEND
+            );
+        }
+    }
+    
+    /**
+     * Format a value for debug output without using var_export
+     *
+     * @param mixed $value The value to format
+     * @return string Formatted value suitable for debug logs
+     */
+    private function formatDebugValue($value): string
+    {
+        if (is_null($value)) {
+            return 'null';
+        }
+        
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        
+        if (is_string($value)) {
+            return '"' . $value . '"';
+        }
+        
+        if (is_numeric($value)) {
+            return (string)$value;
+        }
+        
+        if (is_array($value)) {
+            return '[array with ' . count($value) . ' elements]';
+        }
+        
+        if (is_object($value)) {
+            return '[object of class ' . get_class($value) . ']';
+        }
+        
+        return '[' . gettype($value) . ']';
     }
 
     /**

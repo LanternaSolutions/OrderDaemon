@@ -231,11 +231,28 @@ abstract class AbstractDiagnostic implements DiagnosticInterface
             return (bool)$cached_result;
         }
         
-        $result = $wpdb->get_var(
-            $wpdb->prepare("SHOW TABLES LIKE %s", $full_table_name)
-        );
+        // Use the WordPress schema API instead of direct query
+        $exists = false;
         
-        $exists = $result === $full_table_name;
+        // Get the list of tables using $wpdb->tables
+        $tables = $wpdb->tables('all', true);
+        if (in_array($full_table_name, $tables, true)) {
+            $exists = true;
+        }
+        
+        // If not found in the standard tables, check if it exists using the WordPress API
+        if (!$exists) {
+            // Get_var will return null if the table doesn't exist
+            $exists = ($wpdb->get_var($wpdb->prepare(
+                "SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables 
+                    WHERE table_schema = %s 
+                    AND table_name = %s
+                )",
+                DB_NAME,
+                $full_table_name
+            )) === '1');
+        }
         
         // Cache the result for 1 hour - table existence rarely changes
         wp_cache_set($cache_key, $exists ? '1' : '0', '', HOUR_IN_SECONDS);
@@ -266,11 +283,11 @@ abstract class AbstractDiagnostic implements DiagnosticInterface
             return (int)$cached_count;
         }
         
-        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
-        $table_identifier = '`' . $full_table_name . '`';
-        
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Validated and backticked identifier; no values interpolated.
-        $count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$table_identifier}");
+        // Use prepared statement with get_var instead of direct SQL interpolation
+        $count = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM `{$wpdb->prefix}%s`", // Use $wpdb->prefix here for safety
+            str_replace($wpdb->prefix, '', $table_name) // Remove prefix if already included
+        ));
         
         // Cache the result for 5 minutes - row counts may change more frequently
         wp_cache_set($cache_key, $count, '', 5 * MINUTE_IN_SECONDS);

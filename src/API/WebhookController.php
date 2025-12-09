@@ -541,7 +541,7 @@ class WebhookController extends WP_REST_Controller
 
         foreach ($headers as $header) {
             if (!empty($_SERVER[$header])) {
-                $ip = $_SERVER[$header];
+                $ip = sanitize_text_field(wp_unslash($_SERVER[$header]));
                 
                 if (strpos($ip, ',') !== false) {
                     $ip = trim(explode(',', $ip)[0]);
@@ -553,7 +553,51 @@ class WebhookController extends WP_REST_Controller
             }
         }
 
-        return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        return isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : 'unknown';
+    }
+
+    /**
+     * Log a debug message using WordPress-compatible logging methods
+     *
+     * @param string $message The message to log
+     * @param string $level The log level (debug, info, warning, error)
+     * @return void
+     */
+    private function logDebugMessage(string $message, string $level = 'debug'): void
+    {
+        // Only log if debug mode is enabled
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+        
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($message, $level);
+            return;
+        }
+        
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($message);
+            return;
+        }
+        
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_' . $level, $message);
+            return;
+        }
+        
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                FILE_APPEND
+            );
+            return;
+        }
     }
 
     /**
@@ -584,11 +628,11 @@ class WebhookController extends WP_REST_Controller
         }
 
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log(sprintf(
+            $this->logDebugMessage(sprintf(
                 'ODCM Webhook: Received %s webhook from %s',
                 $gateway,
                 $input_data['ip_address'] ?? 'unknown'
-            ));
+            ), 'info');
         }
     }
 
@@ -620,12 +664,12 @@ class WebhookController extends WP_REST_Controller
         }
 
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log(sprintf(
+            $this->logDebugMessage(sprintf(
                 'ODCM Webhook: Successfully processed %s webhook (%d events, %.3fs)',
                 $gateway,
                 $events_count,
                 $execution_time
-            ));
+            ), 'info');
         }
     }
 
@@ -657,12 +701,12 @@ class WebhookController extends WP_REST_Controller
             );
         }
 
-        error_log(sprintf(
+        $this->logDebugMessage(sprintf(
             'ODCM Webhook Error: %s webhook failed - %s (%.3fs)',
             $gateway,
             $error->getMessage(),
             $execution_time
-        ));
+        ), 'error');
     }
 
     /**
@@ -771,13 +815,13 @@ class WebhookController extends WP_REST_Controller
             );
         }
 
-        error_log(sprintf(
+        $this->logDebugMessage(sprintf(
             'ODCM Webhook Test Error: %s %s test failed - %s (%.3fs)',
             $gateway,
             $event_type,
             $error->getMessage(),
             $execution_time
-        ));
+        ), 'error');
     }
 
     /**
