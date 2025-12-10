@@ -662,13 +662,14 @@ function insightDashboard() {
             }
         },
 
-        async fetchLogDetails(logId) {
+        async fetchLogDetails(logId, viewMode = 'consolidated') {
             this.detailLoading = true;
 
             try {
                 // Debug logging to track the complete request pipeline
                 if (odcmIsDebug()) {
                     console.log('ODCM: fetchLogDetails called with logId:', logId);
+                    console.log('ODCM: fetchLogDetails called with viewMode:', viewMode);
                     console.log('ODCM: this.config.apiUrl:', this.config.apiUrl);
                     console.log('ODCM: this.config.nonce:', this.config.nonce ? 'present' : 'missing');
                     console.log('ODCM: this.filters.include_debug:', this.filters.include_debug);
@@ -678,7 +679,8 @@ function insightDashboard() {
                 const renderEndpoint = this.config.renderUrl || `${this.config.apiUrl}render-components/`;
                 const requestPayload = {
                     log_id: logId,
-                    include_debug: this.filters.include_debug
+                    include_debug: this.filters.include_debug,
+                    view_mode: viewMode
                 };
 
                 if (odcmIsDebug()) {
@@ -708,12 +710,12 @@ function insightDashboard() {
                         }
                         return '<div class="odcm-debug-filtered">This log entry is only visible when "Include Debug Logs" is enabled.</div>';
                     }
-                    
+
                     if (odcmIsDebug()) {
                         const responseText = await response.text().catch(() => 'Unable to read response');
                         console.error('ODCM: API Error Response:', responseText);
                     }
-                    
+
                     // Try to parse structured error to surface any helpful message
                     try {
                         const errData = await response.clone().json();
@@ -732,10 +734,22 @@ function insightDashboard() {
                 }
 
                 const data = await response.json();
-                
+
                 if (odcmIsDebug()) {
                     console.log('ODCM: Response data:', data);
                     console.log('ODCM: HTML length:', (data.html || '').length);
+                }
+
+                // Handle special case for error templates that should be displayed directly
+                if (data.error === 'odcm_render_error' && data.html &&
+                    (data.use_error_template === true ||
+                     (data.meta && data.meta.render_directly === true))) {
+
+                    if (odcmIsDebug()) {
+                        console.log('ODCM: Using error template directly from response');
+                    }
+
+                    return data.html;
                 }
 
                 return data.html || '';
@@ -750,7 +764,18 @@ function insightDashboard() {
                     });
                 }
                 this.showToast('Failed to load log details', 'error');
-                return '<div class="odcm-error">Failed to load details</div>';
+
+                // Check for error details in the error object to provide more context
+                let errorDetails = '';
+                if (odcmIsDebug() && error && error.message) {
+                    errorDetails = `<p class="odcm-error-details">${error.message}</p>`;
+                }
+
+                return `<div class="odcm-error">
+                    <h3>Failed to load details</h3>
+                    ${errorDetails}
+                    <p>Please try again or check the debug log for more information.</p>
+                </div>`;
             } finally {
                 this.detailLoading = false;
             }
@@ -1143,6 +1168,14 @@ function insightDashboard() {
                             this.totalPages = data.pagination.total_pages;
                             if (odcmIsDebug()) { console.log(`ODCM: Updated pagination - Total: ${this.total}, Pages: ${this.totalPages}`); }
                         }
+                    } else {
+                        // No new logs, but still ensure proper ordering in flat view
+                        if (this.viewMode === 'flat' && this.logs.length > 0) {
+                            if (odcmIsDebug()) {
+                                console.log('ODCM: No new logs from auto-refresh, but ensuring proper ordering');
+                            }
+                            this.ensureChronologicalOrder();
+                        }
                     }
 
                     this.lastFetchTime = new Date().toISOString();
@@ -1223,12 +1256,76 @@ function insightDashboard() {
             // Prepend truly new logs to the beginning
             this.logs = [...logsWithAnimation, ...this.logs];
 
+            // Only sort in flat view mode to maintain chronological order
+            // In consolidated view, the API handles the ordering
+            if (this.viewMode === 'flat') {
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Sorting logs chronologically in flat view mode');
+                    console.log('ODCM: Before sort - first few timestamps:', this.logs.slice(0, 5).map(l => l.timestamp));
+                }
+
+                // Sort all logs by timestamp in descending order (newest first)
+                // Using a stable sort with proper comparison
+                this.logs.sort((a, b) => {
+                    const result = this.compareLogTimestamps(a, b);
+                    // For descending order (newest first), we want newer items to come first
+                    // So if a is newer than b, it should come first (return -1)
+                    // If a is older than b, it should come after (return 1)
+                    return result;
+                });
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: After sort - first few timestamps:', this.logs.slice(0, 5).map(l => l.timestamp));
+                }
+            }
+
             // Schedule individual animation cleanup (more efficient than bulk update)
             logsWithAnimation.forEach(log => {
                 setTimeout(() => {
                     this.removeNewFlag(log.animationId);
                 }, 600);
             });
+        },
+
+        /**
+         * Compare two log timestamps for sorting
+         * Handles various timestamp formats and ensures consistent chronological ordering
+         *
+         * @param {Object} logA - First log entry
+         * @param {Object} logB - Second log entry
+         * @return {number} Comparison result (-1, 0, 1)
+         */
+        compareLogTimestamps(logA, logB) {
+            try {
+                // Handle missing timestamps
+                if (!logA.timestamp && !logB.timestamp) return 0;
+                if (!logA.timestamp) return 1; // A should come after B if A has no timestamp
+                if (!logB.timestamp) return -1; // A should come before B if B has no timestamp
+
+                // Convert timestamps to Date objects for reliable comparison
+                const dateA = new Date(logA.timestamp);
+                const dateB = new Date(logB.timestamp);
+
+                // Handle invalid dates
+                if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
+                if (isNaN(dateA.getTime())) return 1;
+                if (isNaN(dateB.getTime())) return -1;
+
+                // Compare timestamps for DESCENDING order (newest first)
+                // If dateA is newer than dateB, A should come BEFORE B (return -1)
+                // If dateA is older than dateB, A should come AFTER B (return 1)
+                if (dateA.getTime() > dateB.getTime()) return -1; // A is newer, comes first
+                if (dateA.getTime() < dateB.getTime()) return 1;  // A is older, comes later
+                return 0; // Same timestamp
+
+            } catch (error) {
+                if (odcmIsDebug()) {
+                    console.warn('ODCM: Error comparing timestamps, falling back to ID comparison:', error);
+                    console.log('ODCM: Problematic logs:', { logA, logB });
+                }
+                // Fallback: compare by ID to ensure stable sorting (descending)
+                return logB.id - logA.id;
+            }
         },
 
         removeNewFlag(animationId) {
@@ -1242,6 +1339,57 @@ function insightDashboard() {
 
                 // Update only this specific log (more efficient than full array update)
                 this.logs[logIndex] = updatedLog;
+            }
+        },
+
+        /**
+         * Ensure logs are in proper chronological order
+         * This is called when no new logs are received but we still want to verify ordering
+         */
+        ensureChronologicalOrder() {
+            if (this.viewMode !== 'flat' || this.logs.length <= 1) {
+                return; // Only needed for flat view with multiple logs
+            }
+
+            if (odcmIsDebug()) {
+                console.log('ODCM: Ensuring chronological order for existing logs');
+                console.log('ODCM: Current order - first few timestamps:', this.logs.slice(0, 5).map(l => l.timestamp));
+            }
+
+            // Check if logs are already in correct order
+            let needsSorting = false;
+            for (let i = 0; i < this.logs.length - 1; i++) {
+                const currentDate = new Date(this.logs[i].timestamp);
+                const nextDate = new Date(this.logs[i + 1].timestamp);
+
+                if (isNaN(currentDate.getTime()) || isNaN(nextDate.getTime())) {
+                    continue; // Skip invalid dates
+                }
+
+                if (currentDate < nextDate) {
+                    needsSorting = true;
+                    if (odcmIsDebug()) {
+                        console.log(`ODCM: Found out-of-order logs at index ${i}: ${this.logs[i].timestamp} < ${this.logs[i + 1].timestamp}`);
+                    }
+                    break;
+                }
+            }
+
+            if (needsSorting) {
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Logs need reordering, applying sort...');
+                }
+
+                // Sort all logs by timestamp in descending order (newest first)
+                this.logs.sort((a, b) => this.compareLogTimestamps(b, a));
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: After reordering - first few timestamps:', this.logs.slice(0, 5).map(l => l.timestamp));
+                }
+            } else {
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Logs are already in correct chronological order');
+                }
             }
         },
 
@@ -1946,21 +2094,22 @@ function insightDashboard() {
         async selectLog(log) {
             this.selectedLog = log;
             this.detailLoading = true;
-            
+
             // Check if this is a consolidated/representative entry
             const isConsolidated = this.isConsolidatedEntry(log);
-            
+
             if (odcmIsDebug()) {
                 console.log('ODCM: selectLog called for:', {
                     id: log.id,
                     summary: log.summary,
                     isConsolidated: isConsolidated,
                     isProcessRepresentative: log.is_process_representative,
-                    processEventCount: log.process_event_count
+                    processEventCount: log.process_event_count,
+                    viewMode: this.viewMode
                 });
             }
-            
-            this.detailHtml = await this.fetchLogDetails(log.id);
+
+            this.detailHtml = await this.fetchLogDetails(log.id, this.viewMode);
             this.detailLoading = false;
             this.$nextTick(() => {
                 const detailPane = document.querySelector('.odcm-detail-content');

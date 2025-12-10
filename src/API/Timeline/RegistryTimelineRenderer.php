@@ -48,7 +48,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             $debug_file = WP_CONTENT_DIR . '/debug.log';
             @file_put_contents(
                 $debug_file,
-                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                '[' . gmdate('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
                 FILE_APPEND
             );
             return;
@@ -60,30 +60,185 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     public function renderTimeline(TimelineData $timeline): string
     {
         if (!$timeline->hasComponents()) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Timeline has no components, rendering empty timeline", 'debug');
+                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Timeline metadata: " . json_encode($timeline->metadata), 'debug');
+            }
             return $this->renderEmptyTimeline($timeline);
         }
         
         // Load the existing registry system
         $this->ensureRegistryLoaded();
         
-        $html = '<div class="odcm-narrative-timeline">';
+        // Order event tracking
+        $isOrderEvent = false;
+        $eventType = '';
+        if (isset($timeline->metadata['event_type']) && is_string($timeline->metadata['event_type'])) {
+            $eventType = $timeline->metadata['event_type'];
+            $isOrderEvent = strpos($eventType, 'checkout') !== false || 
+                            strpos($eventType, 'order_') !== false || 
+                            strpos($eventType, 'complete') !== false ||
+                            strpos($eventType, 'completion') !== false ||
+                            strpos($eventType, 'order_completed') !== false ||
+                            strpos($eventType, 'checkout_processed') !== false ||
+                            strpos($eventType, 'checkout_completed') !== false;
+            
+            if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Rendering order timeline for event: " . $eventType, 'debug');
+                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Timeline has " . count($timeline->components) . " components", 'debug');
+            }
+        }
         
-        foreach ($timeline->components as $component) {
+        $html = '<div class="odcm-narrative-timeline">';
+        $renderedComponentCount = 0;
+        
+        foreach ($timeline->components as $idx => $component) {
             try {
+                if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Processing component #" . $idx, 'debug');
+                    if (isset($component['event_type'])) {
+                        $this->logDebugMessage("ODCM DEBUG: Component event_type: " . $component['event_type'], 'debug');
+                    }
+                }
                 $renderedComponent = $this->renderComponent($component);
             } catch (\Throwable $e) {
                 // Never let a single component break the whole timeline
                 $this->logDebugMessage("ODCM TIMELINE DEBUG: Component render threw exception: " . $e->getMessage(), 'error');
-                $renderedComponent = '';
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: Exception stack trace: " . $e->getTraceAsString(), 'error');
+                
+                // For order events, add fallback rendering instead of empty content
+                if ($isOrderEvent) {
+                    $this->logDebugMessage("ODCM DEBUG: Providing fallback for order event with exception: " . $e->getMessage(), 'warning');
+                    $renderedComponent = $this->generateOrderEventFallback($component, $eventType);
+                } else {
+                    $renderedComponent = '';
+                }
             }
+            
             if (!empty($renderedComponent)) {
                 $html .= $renderedComponent;
+                $renderedComponentCount++;
+            } else if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Component #" . $idx . " rendered empty content", 'warning');
+                
+                // For order events with empty rendering, add a basic fallback
+                if ($isOrderEvent) {
+                    $this->logDebugMessage("ODCM DEBUG: Adding fallback for empty order component render", 'warning');
+                    $fallback = $this->generateOrderEventFallback($component, $eventType);
+                    $html .= $fallback;
+                    $renderedComponentCount++;
+                }
             }
         }
         
         $html .= '</div>';
         
+        // If we didn't render any components for an order event, provide a zero-error fallback
+        if ($isOrderEvent && $renderedComponentCount == 0) {
+            $this->logDebugMessage("ODCM DEBUG: No components rendered for order event, providing zero-error fallback", 'warning');
+            return $this->generateEmptyOrderFallback($eventType, $timeline->metadata);
+        }
+        
         return $html;
+    }
+    
+    /**
+     * Generate a fallback component for order events that failed to render
+     * 
+     * @param array $component The component that failed to render
+     * @param string $eventType The overall event type
+     * @return string Basic HTML to show key order information
+     */
+    private function generateOrderEventFallback(array $component, string $eventType): string
+    {
+        $label = $component['label'] ?? ucfirst($eventType);
+        $timestamp = $this->formatTimestamp($component['ts'] ?? time());
+        $level = $component['level'] ?? 'info';
+        $orderId = $component['order_id'] ?? ($component['data']['order_id'] ?? null);
+        
+        $html = '<div class="odcm-timeline-component odcm-level-' . esc_attr($level) . ' odcm-fallback">';
+        $html .= '<div class="odcm-timeline-header">';
+        $html .= '<div class="odcm-timeline-timestamp">' . esc_html($timestamp) . '</div>';
+        $html .= '<div class="odcm-timeline-title">' . esc_html($label) . ' <span class="odcm-fallback-badge">Fallback View</span></div>';
+        $html .= '</div>';
+        $html .= '<div class="odcm-timeline-body">';
+        $html .= '<div class="odcm-timeline-message">';
+        
+        // Show order ID if available
+        if ($orderId) {
+            $html .= '<p><strong>Order ID:</strong> ' . esc_html($orderId) . '</p>';
+        }
+        
+        // Show event type
+        $componentEventType = $component['event_type'] ?? $eventType;
+        $html .= '<p><strong>Event Type:</strong> ' . esc_html($componentEventType) . '</p>';
+        
+        // Add a standard message
+        $html .= '<p>Order event details are available. This is a fallback view.</p>';
+        
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '</div>';
+        
+        return $html;
+    }
+    
+    /**
+     * Generate an empty order fallback when no components rendered successfully
+     * 
+     * @param string $eventType The overall event type
+     * @param array $metadata The timeline metadata
+     * @return string Basic HTML showing order information
+     */
+    private function generateEmptyOrderFallback(string $eventType, array $metadata): string
+    {
+        $orderId = $metadata['order_id'] ?? null;
+        $label = odcm_get_component_label($eventType) ?? ucfirst(str_replace('_', ' ', $eventType));
+        
+        $html = '<div class="odcm-narrative-timeline">';
+        $html .= '<div class="odcm-timeline-component odcm-level-info odcm-zero-error-fallback">';
+        $html .= '<div class="odcm-timeline-header">';
+        $html .= '<div class="odcm-timeline-timestamp">' . gmdate('Y-m-d H:i:s') . '</div>';
+        $html .= '<div class="odcm-timeline-title">' . esc_html($label) . ' <span class="odcm-fallback-badge">Zero-Error Fallback</span></div>';
+        $html .= '</div>';
+        $html .= '<div class="odcm-timeline-body">';
+        $html .= '<div class="odcm-timeline-message">';
+        
+        if ($orderId) {
+            $html .= '<p><strong>Order ID:</strong> ' . esc_html($orderId) . '</p>';
+        }
+        
+        $html .= '<p><strong>Event Type:</strong> ' . esc_html($eventType) . '</p>';
+        $html .= '<p>This order event was processed, but detailed component visualization is not available.</p>';
+        
+        // Add any additional metadata that might be useful
+        if (isset($metadata['timestamp'])) {
+            $html .= '<p><strong>Timestamp:</strong> ' . esc_html($metadata['timestamp']) . '</p>';
+        }
+        
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '</div>';
+        
+        return $html;
+    }
+    
+    /**
+     * Format a timestamp value for display
+     *
+     * @param mixed $ts The timestamp to format
+     * @return string Formatted timestamp
+     */
+    private function formatTimestamp($ts): string
+    {
+        if (is_numeric($ts)) {
+            return gmdate('Y-m-d H:i:s', (int)$ts);
+        } elseif (is_string($ts)) {
+            return $ts;
+        }
+
+        return gmdate('Y-m-d H:i:s');
     }
     
     /**
@@ -91,6 +246,21 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
      */
     private function renderComponent(array $payload): string
     {
+        // Enhanced debugging for specific event types
+        $isOrderEvent = false;
+        if (isset($payload['event_type'])) {
+            $eventType = $payload['event_type'];
+            $isOrderEvent = strpos($eventType, 'checkout') !== false || 
+                            strpos($eventType, 'order_') !== false || 
+                            strpos($eventType, 'complete') !== false ||
+                            strpos($eventType, 'completion') !== false;
+            
+            if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - renderComponent for order event: " . $eventType, 'debug');
+                $this->logDebugMessage("ODCM DEBUG: Order event payload keys: " . implode(', ', array_keys($payload)), 'debug');
+            }
+        }
+        
         // Debug Event Filtering - hide debug events in production
         if ($this->shouldFilterDebugEvent($payload)) {
             $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - Debug event hidden in production mode");
@@ -138,12 +308,23 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         if (function_exists('odcm_get_renderer_for_event_type')) {
             try {
                 $rendererClass = odcm_get_renderer_for_event_type($event_type);
+                
+                // Special debug logging for order events
+                if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM DEBUG: Order event renderer mapping - event_type: '$event_type' -> renderer: '$rendererClass'", 'debug');
+                }
             } catch (\Throwable $e) {
                 $this->logDebugMessage("ODCM TIMELINE DEBUG: Registry lookup failed: " . $e->getMessage(), 'error');
+                if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM DEBUG: Order event renderer lookup FAILED: " . $e->getMessage(), 'error');
+                }
                 $rendererClass = '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer';
             }
         } else {
             $this->logDebugMessage("ODCM TIMELINE DEBUG: Registry function missing, using FallbackRenderer", 'warning');
+            if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM DEBUG: Order event failed - odcm_get_renderer_for_event_type function missing", 'error');
+            }
             $rendererClass = '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer';
         }
         $originalRendererClass = $rendererClass;
@@ -159,11 +340,26 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $this->logDebugMessage("ODCM TIMELINE DEBUG: Original renderer class: '$originalRendererClass'");
         $this->logDebugMessage("ODCM TIMELINE DEBUG: Full renderer class: '$rendererClass'");
         $this->logDebugMessage("ODCM TIMELINE DEBUG: Checking if class exists...");
-        
+
         if (!class_exists($rendererClass)) {
             $this->logDebugMessage("ODCM TIMELINE DEBUG: ERROR - Renderer class '$rendererClass' does not exist", 'error');
             $this->logDebugMessage("ODCM TIMELINE DEBUG: Using fallback renderer");
-            $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
+            
+            if ($isOrderEvent) {
+                $this->logDebugMessage("ODCM DEBUG: Class not found for order event renderer: " . $rendererClass, 'error');
+                
+                // For order events, use the OrderRenderer as first fallback before using the generic fallback
+                $orderRendererClass = '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\OrderRenderer';
+                if (class_exists($orderRendererClass)) {
+                    $this->logDebugMessage("ODCM DEBUG: Using OrderRenderer as fallback", 'debug');
+                    $renderer = new $orderRendererClass();
+                } else {
+                    $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
+                }
+            } else {
+                $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
+            }
+            
             $timeline = [
                 'label' => $label,
                 'ts' => $ts,
@@ -173,7 +369,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         }
         
         $this->logDebugMessage("ODCM TIMELINE DEBUG: Renderer class exists, attempting instantiation...");
-        
+
         try {
             $renderer = new $rendererClass();
             
@@ -201,6 +397,22 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                     $this->logDebugMessage("ODCM TIMELINE DEBUG: SUCCESS - Component rendered with timeline data");
                 } else {
                     $this->logDebugMessage("ODCM TIMELINE DEBUG: WARNING - Renderer returned empty result", 'warning');
+                    // For order events, provide a fallback instead of returning empty
+                    if ($isOrderEvent) {
+                        $this->logDebugMessage("ODCM TIMELINE DEBUG: Providing fallback for empty order event render", 'warning');
+                        if ($rendererClass !== '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer' &&
+                            class_exists('\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\OrderRenderer')) {
+                            // Try OrderRenderer as a fallback
+                            $fallbackRenderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\OrderRenderer();
+                            $fallbackResult = $fallbackRenderer->render($payload, $event_type, $timeline);
+                            if (!empty($fallbackResult)) {
+                                return $fallbackResult;
+                            }
+                        }
+                        // If OrderRenderer also fails, use the generic fallback
+                        $fallbackRenderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
+                        return $fallbackRenderer->render($payload, $event_type, $timeline);
+                    }
                 }
                 
                 return $result;
@@ -228,6 +440,30 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             if (function_exists('wp_debug_log')) {
                 wp_debug_log("ODCM Timeline Renderer Error for {$rendererClass}: " . $e->getMessage());
             }
+            
+            // For order events, use OrderRenderer as fallback before generic fallback
+            if ($isOrderEvent && 
+                $rendererClass !== '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\OrderRenderer' &&
+                $rendererClass !== '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer' &&
+                class_exists('\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\OrderRenderer')) {
+                try {
+                    $this->logDebugMessage("ODCM DEBUG: Attempting OrderRenderer as exception fallback");
+                    $orderRenderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\OrderRenderer();
+                    $timeline = [
+                        'label' => $label,
+                        'ts' => $ts,
+                        'level' => $level
+                    ];
+                    $result = $orderRenderer->render($payload, $event_type, $timeline);
+                    if (!empty($result)) {
+                        return $result;
+                    }
+                } catch (\Throwable $orderExp) {
+                    $this->logDebugMessage("ODCM DEBUG: OrderRenderer fallback also failed: " . $orderExp->getMessage(), 'error');
+                }
+            }
+            
+            // Final fallback is FallbackRenderer
             $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
             $timeline = [
                 'label' => $label,
@@ -288,6 +524,12 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 $this->logDebugMessage('ODCM TIMELINE DEBUG: Failed to load FallbackRenderer.php: ' . $e->getMessage(), 'error');
             }
         }
+        // Ensure OrderRenderer is available for order event fallbacks
+        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\OrderRenderer')) {
+            try { require_once $renderer_dir . 'OrderRenderer.php'; } catch (\Throwable $e) {
+                $this->logDebugMessage('ODCM TIMELINE DEBUG: Failed to load OrderRenderer.php: ' . $e->getMessage(), 'error');
+            }
+        }
     }
     
     /**
@@ -299,15 +541,15 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             return false;
         }
-        
+
         // Get event type
         $event_type = $payload['data']['event_type'] ?? $payload['event_type'] ?? '';
-        
+
         // Hide technical debug events
-        if (in_array($event_type, ['order_created', 'order_check_scheduled', 'order_loaded'])) {
+        if (in_array($event_type, ['order_created', 'order_check_scheduled', 'order_loaded', 'checkout_processed'])) {
             return true;
         }
-        
+
         return false;
     }
 }

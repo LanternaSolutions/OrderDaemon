@@ -1,171 +1,367 @@
-
-FILE: src/Admin/InsightDashboard.php
+FILE: src/Admin/DiagnosticDashboard.php
 Line 	Column 	Type 	Code 	Message
-461 	29 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-484 	26 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+769 	21 	ERROR 	WordPress.WP.I18n.MissingTranslatorsComment 	A function call to __() with texts containing placeholders was found, but was not accompanied by a "translators:" comment on the line above to clarify the meaning of the placeholders.
+Learn more (opens in a new tab)
+
+FILE: src/Diagnostics/Performance/QueryDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+462 	47 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $prepared_query
+523 	47 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query
+730 	43 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query_template
+736 	43 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query_template
+745 	46 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query_template
+747 	63 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query_template
+420 	13 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$table_identifier} at "SELECT COUNT(*) FROM {$table_identifier}"
+425 	13 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$table_identifier} at "SELECT * FROM {$table_identifier} ORDER BY timestamp DESC LIMIT %d"
+431 	13 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$table_identifier} at "SELECT * FROM {$table_identifier} WHERE status = %s ORDER BY timestamp DESC LIMIT %d"
+439 	13 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$table_identifier} at "SELECT * FROM {$table_identifier} WHERE timestamp >= DATE_SUB(NOW(), INTERVAL %d HOUR) ORDER BY timestamp DESC LIMIT %d"
+449 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$table_identifier} at FROM {$table_identifier} l\n
+450 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$payload_table_identifier} at LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id\n
+
+FILE: src/Admin/RuleBuilder.php
+Line 	Column 	Type 	Code 	Message
+155 	35 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+
+FILE: src/Core/Logging/ProcessLogger.php
+Line 	Column 	Type 	Code 	Message
+497 	31 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
 
 FILE: src/Core/ProcessLifecycleDiscovery.php
 Line 	Column 	Type 	Code 	Message
-307 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+324 	39 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query
+360 	35 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
 
 FILE: src/Core/BlockCheckoutCompatibility.php
 Line 	Column 	Type 	Code 	Message
-607 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-709 	33 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+736 	52 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query
 
 FILE: src/Core/Core.php
 Line 	Column 	Type 	Code 	Message
-2202 	37 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-2202 	37 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-2231 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-2231 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-2313 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-2400 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+59 	35 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+1905 	27 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+2266 	52 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query
+2300 	47 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query
 
-FILE: src/Core/Events/UniversalEventProcessor.php
+FILE: src/Core/Events/UniversalEvent.php
 Line 	Column 	Type 	Code 	Message
-262 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-262 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-567 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-567 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-575 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-575 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-584 	26 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-584 	26 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-592 	29 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-592 	29 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-600 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-600 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+643 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+
+FILE: src/Core/Events/EventRouter.php
+Line 	Column 	Type 	Code 	Message
+400 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+
+FILE: src/Core/RefundDeletionDiagnostics.php
+Line 	Column 	Type 	Code 	Message
+484 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+289 	30 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_wp_debug_backtrace_summary 	wp_debug_backtrace_summary() found. Debug code should not normally be used in production.
+
+FILE: src/Core/RuleComponents/RuleIndexBuilder.php
+Line 	Column 	Type 	Code 	Message
+285 	39 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
 
 FILE: src/Core/LogCleanup.php
 Line 	Column 	Type 	Code 	Message
-61 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-61 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-79 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-79 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-109 	37 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-109 	37 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-129 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-129 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-201 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-201 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-216 	36 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-216 	36 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+66 	46 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query_template
+68 	47 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $prepared_query
+97 	50 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query_template
+99 	54 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $prepared_query
+139 	58 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query_template
+141 	54 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $prepared_query
+179 	58 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query_template
+181 	38 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $prepared_query
+276 	46 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query_template
+278 	47 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $prepared_query
+303 	46 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query_template
+305 	55 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $prepared_query
+
+FILE: src/Core/CheckoutCircuitBreaker.php
+Line 	Column 	Type 	Code 	Message
+447 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
 
 FILE: src/API/AuditLogEndpoint.php
 Line 	Column 	Type 	Code 	Message
-1025 	29 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1025 	29 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1035 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1035 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1045 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1045 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1421 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1421 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1462 	17 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1462 	17 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1656 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1656 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1808 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1808 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1811 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1811 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1875 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1875 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1878 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1878 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1920 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1920 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1923 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1923 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-2069 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-2069 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-2093 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-2093 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-2102 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-2102 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-2115 	17 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-2115 	17 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-2125 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-2125 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-2134 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-2134 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-2140 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-2140 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-2307 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-2307 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-3327 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-3327 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-3331 	35 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-3331 	35 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+137 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+740 	94 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+860 	26 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $logTableName
+861 	35 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $payloadTableName
+868 	40 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query
+1116 	40 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $sql
+1180 	40 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $sql
+1238 	37 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $sql
+1551 	37 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $sql
+1821 	26 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+1175 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$where_sql} at {$where_sql}\n
+1598 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$ids_list} at WHERE log_id IN ({$ids_list}) AND payload_id IS NOT NULL\n
+1608 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$ids_list} at WHERE log_id IN ({$ids_list})\n
+1619 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$payload_ids_list} at WHERE payload_id IN ({$payload_ids_list})\n
+1630 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$orphaned_ids_list} at WHERE id IN ({$orphaned_ids_list})\n
+1993 	46 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$audit_table} at "SELECT COUNT(*) FROM {$audit_table}"
+1994 	47 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$audit_table} at "SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)"
+1995 	51 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$audit_table} at "SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE '%completion%'"
+1996 	46 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$audit_table} at "SELECT COUNT(*) FROM {$audit_table} WHERE status = 'debug' OR event_type LIKE 'debug_%'"
+2008 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$audit_table} at FROM {$audit_table}\n
 
 FILE: src/API/RuleBuilderApiController.php
 Line 	Column 	Type 	Code 	Message
-1537 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1537 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+83 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+1573 	54 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $sql
+
+FILE: src/API/WebhookController.php
+Line 	Column 	Type 	Code 	Message
+596 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
 
 FILE: src/API/Timeline/DatabaseTimelineBuilder.php
 Line 	Column 	Type 	Code 	Message
-49 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-49 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-86 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-86 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+107 	22 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $logTableEscaped
+108 	31 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $payloadTableEscaped
+114 	34 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query
+196 	22 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $logTableEscaped
+197 	31 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $payloadTableEscaped
+204 	39 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query
+39 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+46 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+118 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+119 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+119 	72 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+121 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+122 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+122 	83 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+282 	111 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REQUEST_TIME_FLOAT']
+295 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+296 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+296 	73 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+304 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+355 	111 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REQUEST_TIME_FLOAT']
+410 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+410 	70 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_var_export 	var_export() found. Debug code should not normally be used in production.
+436 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+439 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+441 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+456 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+469 	17 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+480 	13 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
 
-FILE: src/Includes/Installer.php
+FILE: src/API/Timeline/RegistryTimelineRenderer.php
 Line 	Column 	Type 	Code 	Message
-132 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-132 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-162 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-162 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-197 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-197 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+51 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
 
-FILE: src/Includes/functions.php
+FILE: src/View/PayloadAnalyzer.php
 Line 	Column 	Type 	Code 	Message
-1153 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+112 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
 
-FILE: src/Includes/actions.php
+FILE: src/View/PayloadRenderer/RuleRenderer.php
 Line 	Column 	Type 	Code 	Message
-121 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-185 	5 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-860 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-860 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-885 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-896 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-917 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-917 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-935 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-935 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-974 	16 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-974 	16 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-985 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-985 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1114 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1114 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
-1244 	5 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
-1244 	5 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+58 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
 
-FILE: src/Admin/Admin.php
+FILE: src/View/PayloadRenderer/BaseRenderer.php
 Line 	Column 	Type 	Code 	Message
-570 	21 	WARNING 	WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude 	Using exclusionary parameters, like exclude, in calls to get_posts() should be done with caution, see https://wpvip.com/documentation/performance-improvements-by-removing-usage-of-post__not_in/ for more information.
-
-FILE: src/Core/Logging/ComponentSanitizer.php
-Line 	Column 	Type 	Code 	Message
-140 	26 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_key 	Detected usage of meta_key, possible slow query.
-
-FILE: src/Core/PremiumComponentFallback.php
-Line 	Column 	Type 	Code 	Message
-218 	13 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_query 	Detected usage of meta_query, possible slow query.
-
-FILE: src/Core/Core.php
-Line 	Column 	Type 	Code 	Message
-1698 	13 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_query 	Detected usage of meta_query, possible slow query.
+55 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
 
 FILE: src/Includes/Utils/OrderMetaManager.php
 Line 	Column 	Type 	Code 	Message
-349 	17 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_key 	Detected usage of meta_key, possible slow query.
-350 	17 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_value 	Detected usage of meta_value, possible slow query.
-390 	17 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_key 	Detected usage of meta_key, possible slow query.
-391 	17 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_value 	Detected usage of meta_value, possible slow query.
-465 	21 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_key 	Detected usage of meta_key, possible slow query.
-466 	21 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_value 	Detected usage of meta_value, possible slow query.
+56 	23 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+
+FILE: src/Includes/functions.php
+Line 	Column 	Type 	Code 	Message
+477 	19 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+522 	19 	ERROR 	WordPress.DateTime.RestrictedFunctions.date_date 	date() is affected by runtime timezone changes which can cause date/time to be incorrectly displayed. Use gmdate() instead.
+485 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+533 	9 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_error_log 	error_log() found. Debug code should not normally be used in production.
+
+FILE: src/Core/ManualStatusTracker.php
+Line 	Column 	Type 	Code 	Message
+274 	34 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_wp_debug_backtrace_summary 	wp_debug_backtrace_summary() found. Debug code should not normally be used in production.
+376 	34 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_wp_debug_backtrace_summary 	wp_debug_backtrace_summary() found. Debug code should not normally be used in production.
+402 	29 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+402 	61 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification.
+
+FILE: src/Core/AttributionTracker.php
+Line 	Column 	Type 	Code 	Message
+230 	34 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_wp_debug_backtrace_summary 	wp_debug_backtrace_summary() found. Debug code should not normally be used in production.
+245 	23 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace 	debug_backtrace() found. Debug code should not normally be used in production.
+519 	26 	WARNING 	WordPress.PHP.DevelopmentFunctions.error_log_wp_debug_backtrace_summary 	wp_debug_backtrace_summary() found. Debug code should not normally be used in production.
+
+FILE: src/Diagnostics/AbstractDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+246 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+287 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Diagnostics/Core/CheckoutFlowDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+292 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Diagnostics/Core/PluginStateDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+127 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+127 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+
+FILE: src/Diagnostics/API/NetworkDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+216 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Diagnostics/Performance/QueryDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+245 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+355 	36 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+462 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+462 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+523 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+598 	34 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+631 	26 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+730 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+736 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+747 	33 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Admin/InsightDashboard.php
+Line 	Column 	Type 	Code 	Message
+482 	29 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+509 	26 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Core/ProcessLifecycleDiscovery.php
+Line 	Column 	Type 	Code 	Message
+324 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Core/BlockCheckoutCompatibility.php
+Line 	Column 	Type 	Code 	Message
+616 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+736 	37 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Core/Core.php
+Line 	Column 	Type 	Code 	Message
+2266 	37 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2300 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2397 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2511 	27 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Core/Events/UniversalEventProcessor.php
+Line 	Column 	Type 	Code 	Message
+273 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+619 	29 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+635 	34 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+652 	30 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+668 	33 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+684 	34 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Core/LogCleanup.php
+Line 	Column 	Type 	Code 	Message
+68 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+99 	35 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+141 	41 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+181 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+278 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+305 	40 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/API/AuditLogEndpoint.php
+Line 	Column 	Type 	Code 	Message
+868 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+868 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1116 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1180 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1238 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1551 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1579 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1595 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1606 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1616 	34 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1628 	21 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1636 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1644 	13 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1980 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1980 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1993 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1993 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1994 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1994 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1995 	36 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1995 	36 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+1996 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1996 	31 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2006 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2006 	32 	WARNING 	WordPress.DB.DirectDatabaseQuery.NoCaching 	Direct database call without caching detected. Consider using wp_cache_get() / wp_cache_set() or wp_cache_delete().
+2083 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2091 	28 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+2099 	26 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/API/RuleBuilderApiController.php
+Line 	Column 	Type 	Code 	Message
+1573 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/API/Timeline/DatabaseTimelineBuilder.php
+Line 	Column 	Type 	Code 	Message
+114 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+204 	20 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Includes/Installer.php
+Line 	Column 	Type 	Code 	Message
+249 	19 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Includes/functions.php
+Line 	Column 	Type 	Code 	Message
+1240 	25 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Includes/actions.php
+Line 	Column 	Type 	Code 	Message
+133 	27 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+211 	22 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+920 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+960 	35 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+993 	27 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1036 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1054 	9 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1115 	16 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1126 	23 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1266 	24 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+1410 	5 	WARNING 	WordPress.DB.DirectDatabaseQuery.DirectQuery 	Use of a direct database call is discouraged.
+
+FILE: src/Admin/Admin.php
+Line 	Column 	Type 	Code 	Message
+598 	25 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_query 	Detected usage of meta_query, possible slow query.
+
+FILE: src/Includes/Utils/OrderMetaManager.php
+Line 	Column 	Type 	Code 	Message
+419 	17 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_query 	Detected usage of meta_query, possible slow query.
+507 	17 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_query 	Detected usage of meta_query, possible slow query.
+649 	21 	WARNING 	WordPress.DB.SlowDBQuery.slow_db_query_meta_query 	Detected usage of meta_query, possible slow query.
+
+FILE: src/Diagnostics/Performance/QueryDiagnostic.php
+Line 	Column 	Type 	Code 	Message
+523 	35 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $query used in $wpdb->get_results($query)\n$query assigned unsafely at line 522:\n $query = "SHOW INDEX FROM `" . esc_sql($table_name_clean) . "`"\n$indexes assigned unsafely at line 523:\n $indexes = $wpdb->get_results($query, 'ARRAY_A')
+730 	20 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $query_template used in $wpdb->get_var($wpdb->prepare($query_template, $cutoff_time))\n$query_template assigned unsafely at line 707:\n $query_template = "SELECT COUNT(*) FROM {$table_identifier} WHERE timestamp > %s"\n$table_identifier assigned unsafely at line 703:\n $table_identifier = '`' . $table_name . '`'\n$table_name assigned unsafely at line 701:\n $table_name = $wpdb->prefix . 'odcm_audit_log'
+736 	20 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $query_template used in $wpdb->get_var($wpdb->prepare($query_template, $cutoff_time))\n$query_template assigned unsafely at line 707:\n $query_template = "SELECT COUNT(*) FROM {$table_identifier} WHERE timestamp > %s"\n$table_identifier assigned unsafely at line 703:\n $table_identifier = '`' . $table_name . '`'\n$table_name assigned unsafely at line 701:\n $table_name = $wpdb->prefix . 'odcm_audit_log'
+747 	40 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $query_template used in $wpdb->get_var($wpdb->prepare($query_template, $cutoff_time))\n$query_template assigned unsafely at line 707:\n $query_template = "SELECT COUNT(*) FROM {$table_identifier} WHERE timestamp > %s"\n$table_identifier assigned unsafely at line 703:\n $table_identifier = '`' . $table_name . '`'\n$table_name assigned unsafely at line 701:\n $table_name = $wpdb->prefix . 'odcm_audit_log'
+355 	43 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_col($sql)\n$sql assigned unsafely at line 346:\n $sql = str_replace("FROM {$table_identifier}", "FROM {$table_identifier} USE INDEX (idx_{$column})", $sql)\n$sql assigned unsafely at line 341:\n $sql = $wpdb->prepare($sql_tpl, $val)\n$table_identifier assigned unsafely at line 302:\n $table_identifier = ($table_name === $wpdb->prefix . 'odcm_audit_log') ? '`' . $table_name . '`' : '`odcm_audit_log`'\n$sql_tpl assigned unsafely at line 340:\n $sql_tpl = "SELECT DISTINCT source FROM {$table_identifier} WHERE source IS NOT NULL AND source != %s ORDER BY source ASC"\n$table_name assigned unsafely at line 300:\n $table_name = $wpdb->prefix . 'odcm_audit_log'
+
+FILE: src/Core/LogCleanup.php
+Line 	Column 	Type 	Code 	Message
+68 	39 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $prepared_query used in $wpdb->get_var($prepared_query)\n$prepared_query assigned unsafely at line 66:\n $prepared_query = $wpdb->prepare($query_template, $cutoff_date)\n$query_template assigned unsafely at line 65:\n $query_template = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s"\n$log_table_identifier assigned unsafely at line 50:\n $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`'\n$log_table assigned unsafely at line 47:\n $log_table = $wpdb->prefix . 'odcm_audit_log'\n$payloads_table assigned unsafely at line 48:\n $payloads_table = $wpdb->prefix . 'odcm_audit_log_payloads'
+99 	42 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $prepared_query used in $wpdb->get_results($prepared_query)\n$prepared_query assigned unsafely at line 97:\n $prepared_query = $wpdb->prepare($query_template, $cutoff_date, self::BATCH_SIZE)\n$query_template assigned unsafely at line 96:\n $query_template = "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d"\n$log_table_identifier assigned unsafely at line 50:\n $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`'\n$log_table assigned unsafely at line 47:\n $log_table = $wpdb->prefix . 'odcm_audit_log'\n$payloads_table assigned unsafely at line 48:\n $payloads_table = $wpdb->prefix . 'odcm_audit_log_payloads'
+141 	48 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $prepared_query used in $wpdb->query($prepared_query)\n$prepared_query assigned unsafely at line 139:\n $prepared_query = $wpdb->prepare($query_template, ...$log_ids)\n$query_template assigned unsafely at line 137:\n $query_template = "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)"\n$log_table_identifier assigned unsafely at line 50:\n $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`'\n$log_table assigned unsafely at line 47:\n $log_table = $wpdb->prefix . 'odcm_audit_log'\n$payloads_table assigned unsafely at line 48:\n $payloads_table = $wpdb->prefix . 'odcm_audit_log_payloads'
+181 	32 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $prepared_query used in $wpdb->query($prepared_query)\n$prepared_query assigned unsafely at line 179:\n $prepared_query = $wpdb->prepare($query_template, ...$payload_ids)\n$query_template assigned unsafely at line 177:\n $query_template = "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)"\n$payloads_table_identifier assigned unsafely at line 51:\n $payloads_table_identifier = ($payloads_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payloads_table . '`' : '`odcm_audit_log_payloads`'\n$payloads_table assigned unsafely at line 48:\n $payloads_table = $wpdb->prefix . 'odcm_audit_log_payloads'\n$log_table assigned unsafely at line 47:\n $log_table = $wpdb->prefix . 'odcm_audit_log'
+278 	39 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $prepared_query used in $wpdb->get_var($prepared_query)\n$prepared_query assigned unsafely at line 276:\n $prepared_query = $wpdb->prepare($query_template, $cutoff_date)\n$query_template assigned unsafely at line 275:\n $query_template = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s"\n$log_table_identifier assigned unsafely at line 263:\n $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`'\n$log_table assigned unsafely at line 262:\n $log_table = $wpdb->prefix . 'odcm_audit_log'
+305 	47 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $prepared_query used in $wpdb->get_var($prepared_query)\n$prepared_query assigned unsafely at line 303:\n $prepared_query = $wpdb->prepare($query_template, $cutoff_date)\n$query_template assigned unsafely at line 302:\n $query_template = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL"\n$log_table_identifier assigned unsafely at line 263:\n $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`'\n$log_table assigned unsafely at line 262:\n $log_table = $wpdb->prefix . 'odcm_audit_log'
+
+FILE: src/API/AuditLogEndpoint.php
+Line 	Column 	Type 	Code 	Message
+868 	28 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $query used in $wpdb->get_results($query)\n$query assigned unsafely at line 848:\n $query = $wpdb->prepare(\n "SELECT l.log_id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n l.process_id,\n COALESCE(p.payload, l.details, %s) as payload\n FROM " . $logTableName . " l\n LEFT JOIN " . $payloadTableName . " p ON l.payload_id = p.payload_id\n WHERE l.process_id = %s\n ORDER BY l.timestamp ASC",\n '',\n $process_id\n )\n$logTableName assigned unsafely at line 845:\n $logTableName = '`' . esc_sql($wpdb->prefix . 'odcm_audit_log') . '`'\n$payloadTableName assigned unsafely at line 846:\n $payloadTableName = '`' . esc_sql($wpdb->prefix . 'odcm_audit_log_payloads') . '`'\n$process_id assigned unsafely at line 834:\n $process_id = $request->get_param('process_id')\n$request used without escaping.
+1116 	28 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_results($sql)\n$sql assigned unsafely at line 1108:\n $sql = "\n SELECT l.*, p.payload \n FROM {$wpdb->prefix}odcm_audit_log l\n LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id\n {$where_sql}\n ORDER BY l.timestamp DESC\n "\n$where_sql assigned unsafely at line 1105:\n $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : ''\n$where_clauses assigned unsafely at line 1104:\n $where_clauses = $this->build_filter_where_clauses($request)\n$request used without escaping.
+1180 	28 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_results($sql)\n$sql assigned unsafely at line 1171:\n $sql = $wpdb->prepare("\n SELECT l.*, p.payload \n FROM {$wpdb->prefix}odcm_audit_log l\n LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id\n {$where_sql}\n ORDER BY l.timestamp DESC\n LIMIT %d OFFSET %d\n ", $per_page, $offset)\n$where_sql assigned unsafely at line 1165:\n $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : ''\n$where_clauses assigned unsafely at line 1164:\n $where_clauses = $this->build_filter_where_clauses($request)\n$request used without escaping.
+1238 	29 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_var($sql)\n$sql assigned unsafely at line 1232:\n $sql = "\n SELECT COUNT(*) \n FROM {$wpdb->prefix}odcm_audit_log l\n {$where_sql}\n "\n$where_sql assigned unsafely at line 1229:\n $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : ''\n$where_clauses assigned unsafely at line 1228:\n $where_clauses = $this->build_filter_where_clauses($request)\n$request used without escaping.
+1551 	29 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_col($sql)\n$sql assigned unsafely at line 1545:\n $sql = "\n SELECT log_id \n FROM {$wpdb->prefix}odcm_audit_log \n WHERE log_id IN ({$ids_list})\n "\n$ids_list assigned unsafely at line 1542:\n $ids_list = implode(',', $log_ids)\n$log_ids assigned unsafely at line 1523:\n $log_ids = array_unique(array_map('intval', $log_ids))
+1595 	39 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $ids_list used in $wpdb->get_col("\n SELECT DISTINCT payload_id \n FROM {$wpdb->prefix}odcm_audit_log \n WHERE log_id IN ({$ids_list}) AND payload_id IS NOT NULL\n ")\n$ids_list assigned unsafely at line 1576:\n $ids_list = implode(',', $log_ids)\n$log_ids used without escaping.
+1606 	31 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $ids_list used in $wpdb->query("\n DELETE FROM {$wpdb->prefix}odcm_audit_log \n WHERE log_id IN ({$ids_list})\n ")\n$ids_list assigned unsafely at line 1576:\n $ids_list = implode(',', $log_ids)\n$log_ids used without escaping.
+1616 	41 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $payload_ids_list used in $wpdb->get_col("\n SELECT DISTINCT payload_id \n FROM {$wpdb->prefix}odcm_audit_log \n WHERE payload_id IN ({$payload_ids_list})\n ")\n$payload_ids_list assigned unsafely at line 1613:\n $payload_ids_list = implode(',', $payload_ids)\n$payload_ids assigned unsafely at line 1595:\n $payload_ids = $wpdb->get_col("\n SELECT DISTINCT payload_id \n FROM {$wpdb->prefix}odcm_audit_log \n WHERE log_id IN ({$ids_list}) AND payload_id IS NOT NULL\n ")\n$ids_list assigned unsafely at line 1576:\n $ids_list = implode(',', $log_ids)\n$log_ids used without escaping.
+1628 	28 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $orphaned_ids_list used in $wpdb->query("\n DELETE FROM {$wpdb->prefix}odcm_audit_log_payloads \n WHERE id IN ({$orphaned_ids_list})\n ")\n$orphaned_ids_list assigned unsafely at line 1627:\n $orphaned_ids_list = implode(',', $orphaned_payloads)\n$orphaned_payloads assigned unsafely at line 1623:\n $orphaned_payloads = array_diff($payload_ids, $used_payloads)\n$payload_ids assigned unsafely at line 1595:\n $payload_ids = $wpdb->get_col("\n SELECT DISTINCT payload_id \n FROM {$wpdb->prefix}odcm_audit_log \n WHERE log_id IN ({$ids_list}) AND payload_id IS NOT NULL\n ")\n$used_payloads assigned unsafely at line 1616:\n $used_payloads = $wpdb->get_col("\n SELECT DISTINCT payload_id \n FROM {$wpdb->prefix}odcm_audit_log \n WHERE payload_id IN ({$payload_ids_list})\n ")\n$ids_list assigned unsafely at line 1576:\n $ids_list = implode(',', $log_ids)\n$payload_ids_list assigned unsafely at line 1613:\n $payload_ids_list = implode(',', $payload_ids)\n$log_ids used without escaping.
+1993 	38 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $audit_table used in $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table}")\n$audit_table assigned unsafely at line 1977:\n $audit_table = $wpdb->prefix . 'odcm_audit_log'\n$payload_table assigned unsafely at line 1978:\n $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads'\n$table_check assigned unsafely at line 1980:\n $table_check = $wpdb->get_var($wpdb->prepare(\n "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",\n DB_NAME,\n $audit_table\n ))
+1994 	39 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $audit_table used in $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)")\n$audit_table assigned unsafely at line 1977:\n $audit_table = $wpdb->prefix . 'odcm_audit_log'\n$payload_table assigned unsafely at line 1978:\n $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads'\n$table_check assigned unsafely at line 1980:\n $table_check = $wpdb->get_var($wpdb->prepare(\n "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",\n DB_NAME,\n $audit_table\n ))
+1995 	43 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $audit_table used in $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE '%completion%'")\n$audit_table assigned unsafely at line 1977:\n $audit_table = $wpdb->prefix . 'odcm_audit_log'\n$payload_table assigned unsafely at line 1978:\n $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads'\n$table_check assigned unsafely at line 1980:\n $table_check = $wpdb->get_var($wpdb->prepare(\n "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",\n DB_NAME,\n $audit_table\n ))
+1996 	38 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $audit_table used in $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE status = 'debug' OR event_type LIKE 'debug_%'")\n$audit_table assigned unsafely at line 1977:\n $audit_table = $wpdb->prefix . 'odcm_audit_log'\n$payload_table assigned unsafely at line 1978:\n $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads'\n$table_check assigned unsafely at line 1980:\n $table_check = $wpdb->get_var($wpdb->prepare(\n "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",\n DB_NAME,\n $audit_table\n ))
+2006 	39 	WARNING 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $audit_table used in $wpdb->get_results("\n SELECT id, timestamp, status, event_type, summary, order_id\n FROM {$audit_table}\n ORDER BY timestamp DESC\n LIMIT 10\n ")\n$audit_table assigned unsafely at line 1977:\n $audit_table = $wpdb->prefix . 'odcm_audit_log'\n$payload_table assigned unsafely at line 1978:\n $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads'\n$table_check assigned unsafely at line 1980:\n $table_check = $wpdb->get_var($wpdb->prepare(\n "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",\n DB_NAME,\n $audit_table\n ))
+
+FILE: src/API/RuleBuilderApiController.php
+Line 	Column 	Type 	Code 	Message
+1573 	27 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $sql used in $wpdb->get_results($wpdb->prepare($sql, $search_params))\n$sql assigned unsafely at line 1566:\n $sql .= " AND (" . implode(' OR ', $where_conditions) . ")"\n$where_conditions assigned unsafely at line 1561:\n $where_conditions[] = "pm.meta_value LIKE %s"\n$search assigned unsafely at line 1523:\n $search = sanitize_text_field($search)\nNote: sanitize_text_field() is not a safe escaping function.
+
+FILE: src/API/Timeline/DatabaseTimelineBuilder.php
+Line 	Column 	Type 	Code 	Message
+114 	26 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $query used in $wpdb->get_row($query)\n$query assigned unsafely at line 95:\n $query = $wpdb->prepare(\n "SELECT l.log_id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n l.process_id,\n COALESCE(p.payload, l.details, %s) as payload\n FROM " . $logTableEscaped . " l\n LEFT JOIN " . $payloadTableEscaped . " p ON l.payload_id = p.payload_id\n WHERE l.log_id = %d",\n '',\n $logId\n )\n$logTableEscaped assigned unsafely at line 91:\n $logTableEscaped = '`' . esc_sql($logTableName) . '`'\n$payloadTableEscaped assigned unsafely at line 92:\n $payloadTableEscaped = '`' . esc_sql($payloadTableName) . '`'\n$payloadTableName assigned unsafely at line 88:\n $payloadTableName = $wpdb->prefix . 'odcm_audit_log_payloads'\n$logId used without escaping.\n$logTableName assigned unsafely at line 87:\n $logTableName = $wpdb->prefix . 'odcm_audit_log'
+204 	27 	ERROR 	PluginCheck.Security.DirectDB.UnescapedDBParameter 	Unescaped parameter $query used in $wpdb->get_results($query)\n$query assigned unsafely at line 184:\n $query = $wpdb->prepare(\n "SELECT l.log_id,\n l.timestamp,\n l.status,\n l.summary,\n l.order_id,\n l.event_type,\n l.source,\n l.payload_id,\n l.is_test,\n l.process_id,\n COALESCE(p.payload, l.details, %s) as payload\n FROM " . $logTableEscaped . " l\n LEFT JOIN " . $payloadTableEscaped . " p ON l.payload_id = p.payload_id\n WHERE l.process_id = %s\n ORDER BY l.timestamp ASC",\n '',\n $processId\n )\n$logTableEscaped assigned unsafely at line 181:\n $logTableEscaped = '`' . esc_sql($logTableName) . '`'\n$payloadTableEscaped assigned unsafely at line 182:\n $payloadTableEscaped = '`' . esc_sql($payloadTableName) . '`'\n$payloadTableName assigned unsafely at line 178:\n $payloadTableName = $wpdb->prefix . 'odcm_audit_log_payloads'\n$processId used without escaping.\n$logTableName assigned unsafely at line 177:\n $logTableName = $wpdb->prefix . 'odcm_audit_log'

@@ -105,12 +105,7 @@ class PayloadComponentUIToolkit
     public function render_key_value_list(array $data, string $title = ''): string
     {
         $output = '<div class="odcm-section">';
-        
-        // Add optional title with 'str' font styling
-        if (!empty($title)) {
-            $output .= '<div class="odcm-section-title">' . esc_html($title) . '</div>';
-        }
-        
+
         // Generate compact grid-based definition list
         $output .= '<dl class="odcm-key-value-list">';
         foreach ($data as $key => $value) {

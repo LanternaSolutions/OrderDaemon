@@ -184,6 +184,15 @@ class AuditLogEndpoint extends WP_REST_Controller
                             return is_bool($value) || is_string($value) || is_numeric($value);
                         },
                     ],
+                    'view_mode' => [
+                        'type'              => 'string',
+                        'default'           => 'consolidated',
+                        'enum'              => ['consolidated', 'flat'],
+                        'sanitize_callback' => 'sanitize_text_field',
+                        'validate_callback' => function($value) {
+                            return in_array($value, ['consolidated', 'flat'], true);
+                        },
+                    ],
                 ],
             ],
         ]);
@@ -290,6 +299,15 @@ class AuditLogEndpoint extends WP_REST_Controller
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'diagnostic_check'],
+                    'permission_callback' => '__return_true', // Public for debugging
+                ],
+            ]);
+            
+            // Special raw data diagnostic route
+            register_rest_route(self::NAMESPACE, '/' . self::BASE_ROUTE . '/raw-data/(?P<log_id>\d+)', [
+                [
+                    'methods'             => WP_REST_Server::READABLE,
+                    'callback'            => [$this, 'get_raw_timeline_data'],
                     'permission_callback' => '__return_true', // Public for debugging
                 ],
             ]);
@@ -674,32 +692,115 @@ class AuditLogEndpoint extends WP_REST_Controller
     public function render_components(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         try {
+            // Enhanced debugging for order completion events
+            $log_id = $request->get_param('log_id');
+            $include_debug = (bool) $request->get_param('include_debug');
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: render_components called for log_id: " . $log_id, 'debug');
+                $this->logDebugMessage("ODCM: Request parameters: " . json_encode($request->get_params()), 'debug');
+            }
+
             // Ensure services are initialized (lazy init to avoid early fatals)
             if (!$this->timelineBuilder instanceof TimelineBuilderInterface) {
-                $this->timelineBuilder = new DatabaseTimelineBuilder(new ProcessLoggerComponentExtractor());
+                error_log("ODCM TIMELINE: Initializing DatabaseTimelineBuilder");
+                try {
+                    $this->timelineBuilder = new DatabaseTimelineBuilder(new ProcessLoggerComponentExtractor());
+                    error_log("ODCM TIMELINE: DatabaseTimelineBuilder initialized successfully");
+                } catch (\Throwable $e) {
+                    error_log("ODCM TIMELINE: Failed to initialize DatabaseTimelineBuilder: " . $e->getMessage());
+                    throw $e; // Re-throw to be caught by main catch block
+                }
             }
+            
             if (!$this->timelineRenderer instanceof TimelineRendererInterface) {
-                $this->timelineRenderer = new RegistryTimelineRenderer();
+                error_log("ODCM TIMELINE: Initializing RegistryTimelineRenderer");
+                try {
+                    $this->timelineRenderer = new RegistryTimelineRenderer();
+                    error_log("ODCM TIMELINE: RegistryTimelineRenderer initialized successfully");
+                } catch (\Throwable $e) {
+                    error_log("ODCM TIMELINE: Failed to initialize RegistryTimelineRenderer: " . $e->getMessage());
+                    throw $e; // Re-throw to be caught by main catch block
+                }
             }
             // Registry loading is handled internally by RegistryTimelineRenderer::ensureRegistryLoaded()
-            
+
             // Start performance monitoring
             $start_time = microtime(true);
-            
+
             // Create immutable request object
-            $timelineRequest = TimelineRequest::fromRestRequest($request);
-            
+            try {
+                error_log("ODCM TIMELINE: Creating TimelineRequest");
+                $timelineRequest = TimelineRequest::fromRestRequest($request);
+                error_log("ODCM TIMELINE: TimelineRequest created successfully");
+            } catch (\Throwable $e) {
+                error_log("ODCM TIMELINE: Failed to create TimelineRequest: " . $e->getMessage());
+                throw $e;
+            }
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: TimelineRequest created: log_id=" . $timelineRequest->logId . ", include_debug=" . ($timelineRequest->includeDebug ? 'true' : 'false'), 'debug');
+            }
+
             // Build timeline data using injected services
-            $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
-            
+            error_log("ODCM TIMELINE: Building timeline data");
+            try {
+                $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
+                error_log("ODCM TIMELINE: Timeline data built successfully with " . 
+                         ($timelineData->getComponentCount() ?? 'unknown') . " components");
+                
+                // IMPORTANT: Verify that timelineData is the correct type and fully qualified
+                error_log("ODCM TIMELINE: TimelineData type check: " . (get_class($timelineData) ?? 'unknown'));
+                if (!($timelineData instanceof \OrderDaemon\CompletionManager\API\Timeline\TimelineData)) {
+                    error_log("ODCM TIMELINE: WARNING - timelineData is not the expected class. Actual class: " . get_class($timelineData));
+                }
+            } catch (\Throwable $e) {
+                error_log("ODCM TIMELINE: Failed to build timeline data: " . $e->getMessage());
+                error_log("ODCM TIMELINE: Exception trace: " . $e->getTraceAsString());
+                throw $e;
+            }
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: TimelineData created with " . $timelineData->getComponentCount() . " components", 'debug');
+                $this->logDebugMessage("ODCM: TimelineData metadata: " . json_encode($timelineData->metadata), 'debug');
+                $this->logDebugMessage("ODCM: TimelineData type: " . ($timelineData->isProcessGroup() ? 'process_group' : 'individual'), 'debug');
+            }
+
             // Filter debug components if needed
             if (!$timelineRequest->includeDebug) {
-                $timelineData = $this->filter_debug_components($timelineData);
+                error_log("ODCM TIMELINE: Filtering debug components");
+                try {
+                    $timelineData = $this->filter_debug_components($timelineData);
+                    error_log("ODCM TIMELINE: Debug components filtered, " . $timelineData->getComponentCount() . " components remaining");
+                } catch (\Throwable $e) {
+                    error_log("ODCM TIMELINE: Failed to filter debug components: " . $e->getMessage());
+                    throw $e;
+                }
+                
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM: After debug filtering: " . $timelineData->getComponentCount() . " components", 'debug');
+                }
             }
+
+            // DIAGNOSTIC: Check if any components have malformed data before rendering
+            $componentCheck = $this->checkComponentsBeforeRendering($timelineData);
             
             // Render timeline using injected renderer
-            $html = $this->timelineRenderer->renderTimeline($timelineData);
-            
+            error_log("ODCM TIMELINE: Rendering timeline");
+            try {
+                $html = $this->timelineRenderer->renderTimeline($timelineData);
+                error_log("ODCM TIMELINE: Timeline rendered successfully, output length: " . strlen($html));
+            } catch (\Throwable $e) {
+                error_log("ODCM TIMELINE: Failed to render timeline: " . $e->getMessage());
+                error_log("ODCM TIMELINE: Exception trace: " . $e->getTraceAsString());
+                throw $e;
+            }
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: Rendered HTML length: " . strlen($html), 'debug');
+                $this->logDebugMessage("ODCM: HTML empty: " . (empty($html) ? 'YES' : 'NO'), 'debug');
+            }
+
             // Performance monitoring
             $execution_time = microtime(true) - $start_time;
             $this->log_api_performance('render_components', $execution_time, [
@@ -707,7 +808,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'is_process_timeline' => $timelineData->isProcessGroup(),
                 'component_count' => $timelineData->getComponentCount(),
                 'html_size' => strlen($html),
-                'debug_filtered' => !$timelineRequest->includeDebug
+                'debug_filtered' => !$timelineRequest->includeDebug,
+                'component_check' => $componentCheck
             ]);
 
             return new WP_REST_Response([
@@ -716,36 +818,190 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'execution_time' => $execution_time,
                     'timestamp' => current_time('mysql'),
                     'components_filtered' => !$timelineRequest->includeDebug,
-                    'debug_mode' => $timelineRequest->includeDebug
+                    'debug_mode' => $timelineRequest->includeDebug,
+                    'component_diagnostics' => $componentCheck
                 ]),
             ], 200);
 
         } catch (\Throwable $e) {
+            // Always log exceptions for this critical endpoint
+            error_log("ODCM TIMELINE ERROR: Exception in render_components: " . $e->getMessage());
+            error_log("ODCM TIMELINE ERROR: Exception class: " . get_class($e));
+            error_log("ODCM TIMELINE ERROR: Exception file: " . $e->getFile() . ":" . $e->getLine());
+            error_log("ODCM TIMELINE ERROR: Exception trace: " . $e->getTraceAsString());
+            
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage("ODCM: Exception in render_components: " . $e->getMessage(), 'error');
+                $this->logDebugMessage("ODCM: Exception class: " . get_class($e), 'error');
+                $this->logDebugMessage("ODCM: Exception file: " . $e->getFile() . ":" . $e->getLine(), 'error');
                 $this->logDebugMessage("ODCM: Stack trace: " . $e->getTraceAsString(), 'error');
             }
-            
+
             $this->log_api_error('render_components', $e, [
                 'log_id' => $request->get_param('log_id'),
                 'include_debug' => $request->get_param('include_debug')
             ]);
 
-            // IMPORTANT: Return a structured 200 response to avoid frontend "Failed to load details"
-            // We provide an empty HTML with error context; UI will render a graceful state.
+            // SPECIAL HANDLING: Instead of empty HTML, provide a clear error template that shows information
+            $error_template = $this->generateErrorTemplate($e, $request);
+
+            // CRITICAL FLAG: This tells the frontend to render our error template directly instead of showing a generic error
+            // This bypass will ensure our detailed error template is displayed to the user
             $response_body = [
-                'html' => '',
+                'html' => $error_template,
                 'error' => 'odcm_render_error',
+                'use_error_template' => true, // Critical flag to instruct frontend to use our template
                 'meta' => [
                     'timestamp' => function_exists('current_time') ? current_time('mysql') : date('Y-m-d H:i:s'),
                     'debug_mode' => defined('ODCM_DEBUG') && ODCM_DEBUG,
+                    'exception_message' => $e->getMessage(),
+                    'exception_class' => get_class($e),
+                    'render_directly' => true, // Secondary flag to ensure template is rendered
                 ],
             ];
+            
+            // Add detailed information in debug mode
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $response_body['developer_message'] = $e->getMessage();
+                $response_body['exception_class'] = get_class($e);
+                $response_body['exception_file'] = $e->getFile();
+                $response_body['exception_line'] = $e->getLine();
+                $response_body['stack_trace'] = $e->getTraceAsString();
             }
+            
             return new WP_REST_Response($response_body, 200);
         }
+    }
+    
+    /**
+     * Check components for potential issues before rendering
+     * 
+     * @param \OrderDaemon\CompletionManager\API\Timeline\TimelineData $timelineData The timeline data to check
+     * @return array Diagnostic information about components
+     */
+    private function checkComponentsBeforeRendering(\OrderDaemon\CompletionManager\API\Timeline\TimelineData $timelineData): array
+    {
+        $diagnostics = [
+            'total_components' => $timelineData->getComponentCount(),
+            'issues_found' => 0,
+            'issues' => []
+        ];
+        
+        // Add extra error logging to track component access
+        error_log("ODCM TIMELINE: Checking components before rendering");
+        error_log("ODCM TIMELINE: Total components: " . $timelineData->getComponentCount());
+        
+        try {
+            // Safely iterate through components with extra error handling
+            foreach ($timelineData->components as $idx => $component) {
+                // Check type before accessing array keys
+                if (!is_array($component)) {
+                    $diagnostics['issues'][] = "Component #{$idx} is not an array, it's a " . gettype($component);
+                    $diagnostics['issues_found']++;
+                    continue;
+                }
+                
+                // Check for common issues
+                if (!isset($component['event_type'])) {
+                    $diagnostics['issues'][] = "Component #{$idx} missing event_type";
+                    $diagnostics['issues_found']++;
+                }
+                
+                if (!isset($component['data']) || !is_array($component['data'])) {
+                    $diagnostics['issues'][] = "Component #{$idx} missing data array";
+                    $diagnostics['issues_found']++;
+                }
+                
+                if (!isset($component['ts'])) {
+                    $diagnostics['issues'][] = "Component #{$idx} missing timestamp (ts)";
+                    $diagnostics['issues_found']++;
+                }
+                
+                // Log full component in debug mode if it has issues
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG && $diagnostics['issues_found'] > 0) {
+                    error_log("ODCM TIMELINE: Problematic component #{$idx}: " . json_encode($component));
+                }
+            }
+        } catch (\Throwable $e) {
+            // Catch any exceptions during component checking
+            error_log("ODCM TIMELINE ERROR: Exception in checkComponentsBeforeRendering: " . $e->getMessage());
+            $diagnostics['exception'] = $e->getMessage();
+            $diagnostics['issues_found']++;
+        }
+        
+        return $diagnostics;
+    }
+    
+    /**
+     * Generate a user-friendly error template with diagnostic information
+     * 
+     * @param \Throwable $e The exception that was thrown
+     * @param WP_REST_Request $request The original request
+     * @return string HTML error template
+     */
+    private function generateErrorTemplate(\Throwable $e, WP_REST_Request $request): string
+    {
+        $log_id = $request->get_param('log_id');
+        $debug_mode = defined('ODCM_DEBUG') && ODCM_DEBUG;
+        
+        $html = '<div class="odcm-timeline-error">';
+        $html .= '<div class="odcm-timeline-error-header">';
+        $html .= '<h3>Timeline Rendering Error</h3>';
+        $html .= '</div>';
+        $html .= '<div class="odcm-timeline-error-body">';
+        $html .= '<p>There was an error rendering the timeline for log entry #' . esc_html($log_id) . '</p>';
+        
+        // Include basic error information
+        $html .= '<div class="odcm-timeline-error-details">';
+        $html .= '<p><strong>Error Type:</strong> ' . esc_html(get_class($e)) . '</p>';
+        
+        // Sanitize and shorten the error message
+        $error_message = $e->getMessage();
+        if (empty($error_message)) {
+            $error_message = 'Unknown error';
+        }
+        // Limit the size of the error message to avoid huge outputs
+        if (strlen($error_message) > 200) {
+            $error_message = substr($error_message, 0, 200) . '...';
+        }
+        $html .= '<p><strong>Error Message:</strong> ' . esc_html($error_message) . '</p>';
+        
+        // Include more details in debug mode
+        if ($debug_mode) {
+            $html .= '<div class="odcm-timeline-error-debug">';
+            $html .= '<h4>Debug Information</h4>';
+            $html .= '<p><strong>File:</strong> ' . esc_html($e->getFile()) . ':' . esc_html($e->getLine()) . '</p>';
+            
+            // Format stack trace for readability
+            $trace_lines = explode("\n", $e->getTraceAsString());
+            $html .= '<div class="odcm-timeline-error-trace">';
+            $html .= '<p><strong>Stack Trace:</strong></p>';
+            $html .= '<pre>';
+            foreach ($trace_lines as $line) {
+                $html .= esc_html($line) . "\n";
+            }
+            $html .= '</pre>';
+            $html .= '</div>'; // trace
+            
+            $html .= '</div>'; // debug
+        }
+        
+        $html .= '</div>'; // details
+        
+        // Add helpful information for users
+        $html .= '<div class="odcm-timeline-error-help">';
+        $html .= '<p>If this error persists, please try the following:</p>';
+        $html .= '<ul>';
+        $html .= '<li>Refresh the page and try again</li>';
+        $html .= '<li>Check if there are plugin updates available</li>';
+        $html .= '<li>Contact support and provide the error details above</li>';
+        $html .= '</ul>';
+        $html .= '</div>'; // help
+        
+        $html .= '</div>'; // body
+        $html .= '</div>'; // container
+        
+        return $html;
     }
 
     /**
@@ -2050,6 +2306,95 @@ class AuditLogEndpoint extends WP_REST_Controller
         ], 200);
     }
 
+    /**
+     * Get raw timeline data for diagnostic purposes
+     * This endpoint is only available in debug mode and returns the raw timeline data
+     * without rendering, which helps diagnose rendering issues
+     * 
+     * @param WP_REST_Request $request The REST request
+     * @return WP_REST_Response Raw timeline data
+     */
+    public function get_raw_timeline_data(WP_REST_Request $request): WP_REST_Response
+    {
+        try {
+            // Get the log ID from the request
+            $log_id = (int)$request->get_param('log_id');
+            
+            // Create immutable request object
+            $timelineRequest = new TimelineRequest($log_id, true); // Include debug components
+            
+            // Ensure services are initialized
+            if (!$this->timelineBuilder) {
+                $this->timelineBuilder = new DatabaseTimelineBuilder(new ProcessLoggerComponentExtractor());
+            }
+            
+            // Get the raw timeline data
+            $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
+            
+            // Check component data for potential issues
+            $componentDiagnostics = [];
+            foreach ($timelineData->components as $idx => $component) {
+                // Create a diagnostic report for each component
+                $componentDiagnostics[] = [
+                    'index' => $idx,
+                    'event_type' => $component['event_type'] ?? '-- MISSING --',
+                    'label' => $component['label'] ?? '-- MISSING --',
+                    'level' => $component['level'] ?? '-- MISSING --',
+                    'ts' => $component['ts'] ?? '-- MISSING --',
+                    'has_data' => isset($component['data']),
+                    'data_is_array' => isset($component['data']) && is_array($component['data']),
+                    'data_keys' => isset($component['data']) && is_array($component['data']) 
+                        ? array_keys($component['data']) 
+                        : [],
+                    'data_sample' => isset($component['data']) && is_array($component['data'])
+                        ? json_encode(array_slice($component['data'], 0, 3, true))
+                        : (isset($component['data']) ? gettype($component['data']) : 'NULL'),
+                ];
+            }
+            
+            // Build the diagnostic response
+            $diagnosticData = [
+                'log_id' => $log_id,
+                'timeline_type' => $timelineData->isProcessGroup() ? 'process_group' : 'individual',
+                'component_count' => $timelineData->getComponentCount(),
+                'metadata' => $timelineData->metadata,
+                'component_diagnostics' => $componentDiagnostics,
+                'first_component_sample' => !empty($timelineData->components) 
+                    ? json_encode($timelineData->components[0], JSON_PRETTY_PRINT)
+                    : 'No components found',
+            ];
+            
+            // Add raw components if they exist but are limited to avoid huge responses
+            if (!empty($timelineData->components)) {
+                if (count($timelineData->components) <= 10) {
+                    $diagnosticData['raw_components'] = $timelineData->components;
+                } else {
+                    // Just include a sample of components to avoid huge responses
+                    $diagnosticData['raw_components_sample'] = array_slice($timelineData->components, 0, 5);
+                    $diagnosticData['raw_components_count'] = count($timelineData->components);
+                    $diagnosticData['raw_components_truncated'] = true;
+                }
+            }
+            
+            return new WP_REST_Response([
+                'diagnostic_data' => $diagnosticData,
+                'timestamp' => current_time('mysql'),
+                'debug_mode' => true,
+            ], 200);
+            
+        } catch (\Throwable $e) {
+            // Return detailed error information
+            return new WP_REST_Response([
+                'error' => true,
+                'error_message' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'error_file' => $e->getFile() . ':' . $e->getLine(),
+                'error_trace' => $e->getTraceAsString(),
+                'timestamp' => current_time('mysql'),
+            ], 200);
+        }
+    }
+    
     /**
      * Get filter options for dynamic filters 
      */

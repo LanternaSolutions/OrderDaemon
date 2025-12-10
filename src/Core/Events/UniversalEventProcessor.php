@@ -429,8 +429,13 @@ class UniversalEventProcessor
         if ($has_components) {
             $summary = $event->getSummary();
             $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
-            $message = !empty($summary) ? "Processed: {$summary}" : sprintf('%s %s processed', $gateway, $event->eventType);
-            
+            $order_id = $context->getOrderId();
+            $amount = $event->amount;
+            $currency = $event->currency;
+
+            // Generate user-friendly message based on event type
+            $message = $this->generateUserFriendlyMessage($event->eventType, $gateway, $order_id, $amount, $currency, $summary);
+
             \odcm_log_event(
                 $message,
                 $payload_for_storage,
@@ -467,22 +472,32 @@ class UniversalEventProcessor
                 $process_id
             );
         } else if ($result && !$is_canonical_rule_event && defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            // Log rule evaluation for non-canonical events only in debug mode
-            $rule_name = $this->matched_rule_data['rule']->post_title ?? 'unnamed rule';
-            \odcm_log_event(
-                sprintf('Rule "%s" evaluated for non-canonical event: %s', $rule_name, $event->eventType),
-                [
-                    'event_type' => $event->eventType,
-                    'rule_name' => $rule_name,
-                    'canonical_event' => false,
-                    'timeline_event_suppressed' => true,
-                ],
-                $context->getOrderId(),
-                'debug',
-                'rule_evaluation_non_canonical',
-                false,
-                $process_id
-            );
+                // Log rule evaluation for non-canonical events with improved messaging
+                $rule_name = $this->matched_rule_data['rule']->post_title ?? 'virtual rule';
+                \odcm_log_event(
+                    sprintf('Rule "%s" evaluated event: %s', $rule_name, $event->eventType),
+                    [
+                        'event_type' => $event->eventType,
+                        'rule_name' => $rule_name,
+                        'explanation' => 'This rule evaluated a ' . $event->eventType . ' event. This is a debug entry showing rule evaluation behavior for non-standard event types.',
+                        'purpose' => 'Helps developers understand when rules evaluate different event types',
+                        'note' => 'This entry appears in debug mode to provide visibility into rule evaluation',
+                        'canonical_event' => false,
+                        'timeline_behavior' => 'Debug entry created for visibility',
+                        'debug_context' => [
+                            'event_source' => $event->sourceGateway,
+                            'event_channel' => $event->channel,
+                            'order_id' => $context->getOrderId(),
+                            'customer_id' => $context->getCustomerId(),
+                            'rule_evaluation_context' => 'This debug entry helps trace rule evaluation for events that were not known when the original code was written',
+                        ],
+                    ],
+                    $context->getOrderId(),
+                    'debug',
+                    'rule_evaluation_non_canonical',
+                    false,
+                    $process_id
+                );
         } else if (!$has_components && defined('ODCM_DEBUG') && ODCM_DEBUG) {
             // Events without components only logged in debug mode
             $summary = $event->getSummary();
@@ -1357,37 +1372,147 @@ class UniversalEventProcessor
     private function createBusinessErrorMessage(string $technical_message, string $gateway): string
     {
         $message_lower = strtolower($technical_message);
-        
+
         // Map common technical errors to business-friendly messages
         if (strpos($message_lower, 'invalid arguments') !== false) {
             return "$gateway event processing error: Missing required data";
         }
-        
+
         if (strpos($message_lower, 'authentication') !== false || strpos($message_lower, 'unauthorized') !== false) {
             return "$gateway authentication error: Unable to verify event authenticity";
         }
-        
+
         if (strpos($message_lower, 'timeout') !== false || strpos($message_lower, 'connection') !== false) {
             return "$gateway connection error: Network communication failed";
         }
-        
+
         if (strpos($message_lower, 'database') !== false) {
             return "$gateway processing error: Data storage issue";
         }
-        
+
         if (strpos($message_lower, 'validation') !== false) {
             return "$gateway validation error: Event data format issue";
         }
-        
+
         if (strpos($message_lower, 'duplicate') !== false) {
             return "$gateway processing notice: Duplicate event detected";
         }
-        
+
         if (strpos($message_lower, 'not found') !== false) {
             return "$gateway processing error: Referenced order not found";
         }
-        
+
         // Generic fallback for unknown errors
         return "$gateway event processing error: Unable to process event";
+    }
+
+    /**
+     * Generate user-friendly message based on event type and context
+     * 
+     * @param string $event_type The event type
+     * @param string $gateway The payment gateway name
+     * @param int $order_id The order ID
+     * @param float $amount The amount
+     * @param string $currency The currency
+     * @param string $summary The original summary
+     * @return string User-friendly message
+     */
+    private function generateUserFriendlyMessage(string $event_type, string $gateway, int $order_id, float $amount, string $currency, string $summary): string
+    {
+        // Format amount with currency symbol
+        $formatted_amount = $this->formatAmount($amount, $currency);
+
+        // Generate message based on event type and actual payload data
+        switch ($event_type) {
+            case 'checkout_processed':
+                // Check if this is a consolidated view or individual view
+                // For now, we'll use the same format for both, but this could be enhanced
+                return sprintf('Payment received via %s - %s',
+                    $gateway,
+                    $formatted_amount
+                );
+
+            case 'order_completed':
+                return sprintf('Completed - %s processed via %s',
+                    $formatted_amount,
+                    $gateway
+                );
+
+            case 'payment_completed':
+                return sprintf('%s payment processed successfully - %s',
+                    $gateway,
+                    $formatted_amount
+                );
+
+            case 'order_status_changed':
+                // For order status changes, we need to look at the actual payload data
+                // to determine the specific status transition that occurred
+                return $this->generateStatusChangeMessage($summary);
+
+            default:
+                // Fallback to original format for unknown event types
+                if (!empty($summary)) {
+                    return "Processed: {$summary}";
+                } else {
+                    return sprintf('%s %s processed', $gateway, $event_type);
+                }
+        }
+    }
+    /**
+     * Generate a status change message based on the actual payload data
+     * 
+     * @param string $summary The original summary from the event
+     * @return string Status change message
+     */
+    private function generateStatusChangeMessage(string $summary): string
+    {
+        // Extract status change information from the summary or payload
+        // The summary might contain information like "Status Changed to Completed"
+        // We need to parse this to get the actual status transition
+
+        // Look for patterns in the summary that indicate status changes
+        if (strpos($summary, 'Status Changed to') !== false) {
+            // Extract the target status
+            preg_match('/Status Changed to ([^\s]+)/', $summary, $matches);
+            if (!empty($matches[1])) {
+                $to_status = $matches[1];
+
+                // Look for "From" pattern to get the source status
+                preg_match('/From ([^\s]+) To ([^\s]+)/', $summary, $from_matches);
+                if (!empty($from_matches[1]) && !empty($from_matches[2])) {
+                    $from_status = $from_matches[1];
+                    $to_status = $from_matches[2];
+                    return sprintf('Status changed: %s → %s', $from_status, $to_status);
+                } else {
+                    // If we don't have the "From" information, just show the target status
+                    return sprintf('Status changed to %s', $to_status);
+                }
+            }
+        }
+
+        // Fallback: if we can't parse the status change, use a generic message
+        return 'Status updated';
+    }
+
+    /**
+     * Format amount with proper currency symbol
+     * 
+     * @param float $amount The amount
+     * @param string $currency The currency code
+     * @return string Formatted amount
+     */
+    private function formatAmount(float $amount, string $currency): string
+    {
+        // Simple formatting for now - could be enhanced with proper currency symbols
+        switch (strtoupper($currency)) {
+            case 'USD':
+                return '$' . number_format($amount, 2);
+            case 'EUR':
+                return '€' . number_format($amount, 2);
+            case 'GBP':
+                return '£' . number_format($amount, 2);
+            default:
+                return $currency . ' ' . number_format($amount, 2);
+        }
     }
 }

@@ -503,16 +503,13 @@ class InsightDashboard
         // Check if any log entries exist
         $log_count_cache_key = 'odcm_log_count';
         $log_count = wp_cache_get($log_count_cache_key);
-        
+
         if ($log_count === false) {
-            // Use a properly prepared statement for the COUNT query
+            // Use direct table name construction for COUNT query (table names shouldn't use prepared statements)
             $log_count = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT COUNT(*) FROM `{$wpdb->prefix}%s`", 
-                    str_replace($wpdb->prefix, '', 'odcm_audit_log')
-                )
+                "SELECT COUNT(*) FROM `{$wpdb->prefix}odcm_audit_log`"
             );
-            
+
             // Cache the result for 5 minutes - log count may change more frequently
             wp_cache_set($log_count_cache_key, $log_count, '', 5 * MINUTE_IN_SECONDS);
         }
@@ -728,7 +725,7 @@ class InsightDashboard
                                     :aria-checked="viewMode === 'consolidated'"
                                     :class="{ 'is-active': viewMode === 'consolidated' }"
                                     @click="setViewMode('consolidated')">
-                                <?php echo esc_html__('Consolidated', 'order-daemon'); ?>
+                                <?php echo esc_html__('Grouped', 'order-daemon'); ?>
                             </button>
                             <button type="button"
                                     class="odcm-segmented-option"
@@ -737,7 +734,7 @@ class InsightDashboard
                                     :class="{ 'is-active': viewMode === 'flat' }"
                                     @click="setViewMode('flat')"
                                     title="<?php echo esc_attr__('Shows all events ungrouped, in strict chronological order', 'order-daemon'); ?>">
-                                Individual
+                                <?php echo esc_html__('Individual', 'order-daemon'); ?>
                             </button>
                         </div>
                     </div>

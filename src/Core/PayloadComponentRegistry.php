@@ -25,21 +25,74 @@ if (!defined('WPINC')) {
     die;
 }
 
-/**
- * Get Renderer for Event Type
- *
- * Direct mapping from event_type to renderer class.
- * No complex lookups or capability checks - just a simple array lookup.
- *
- * @param string $event_type The event type to get a renderer for
- * @return string Renderer class name
- */
-function odcm_get_renderer_for_event_type(string $event_type): string
-{
-    // Handle hierarchical payment events: payment.{gateway}.{original_event_type}
-    if (strpos($event_type, 'payment.') === 0) {
-        return PaymentRenderer::class;
-    }
+    /**
+     * Get Renderer for Event Type
+     *
+     * Direct mapping from event_type to renderer class.
+     * No complex lookups or capability checks - just a simple array lookup.
+     *
+     * @param string $event_type The event type to get a renderer for
+     * @return string Renderer class name
+     */
+    function odcm_get_renderer_for_event_type(string $event_type): string
+    {
+        // Enhanced logging for order event type rendering resolution
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            if (strpos($event_type, 'checkout') !== false || 
+                strpos($event_type, 'order_') !== false || 
+                strpos($event_type, 'complete') !== false ||
+                strpos($event_type, 'completion') !== false) {
+                error_log('ODCM DEBUG: Registry mapping requested for order event type: ' . $event_type);
+            }
+        }
+        
+        // Handle hierarchical payment events: payment.{gateway}.{original_event_type}
+        if (strpos($event_type, 'payment.') === 0) {
+            return PaymentRenderer::class;
+        }
+        
+        // Handle order completion events with various naming patterns
+        // Enhanced pattern matching to catch all order completion events
+        if (strpos($event_type, 'order_complete') !== false ||
+            strpos($event_type, 'order_completed') !== false ||
+            strpos($event_type, 'completion') !== false ||
+            strpos($event_type, 'checkout_complete') !== false ||
+            strpos($event_type, 'checkout_processed') !== false ||
+            strpos($event_type, 'checkout_completion') !== false ||
+            strpos($event_type, 'checkout_completed') !== false ||
+            strpos($event_type, 'order_completion') !== false ||
+            strpos($event_type, 'order_processed') !== false) {
+            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log('ODCM DEBUG: Registry matched order completion pattern for: ' . $event_type);
+            }
+            
+            return OrderRenderer::class;
+        }
+        
+        // Handle status change events that might be completion-related
+        if (strpos($event_type, 'status_change') !== false ||
+            strpos($event_type, 'status_changed') !== false ||
+            strpos($event_type, 'status_update') !== false) {
+            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log('ODCM DEBUG: Registry matched status change pattern for: ' . $event_type);
+            }
+            
+            return OrderRenderer::class;
+        }
+        
+        // Handle process events that might be order-related
+        if (strpos($event_type, 'process_') !== false ||
+            strpos($event_type, '_process') !== false ||
+            strpos($event_type, '_processed') !== false) {
+            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log('ODCM DEBUG: Registry matched process event pattern for: ' . $event_type);
+            }
+            
+            return OrderRenderer::class;
+        }
     
     $renderers = [
         // Process events -> Appropriate Renderers
@@ -52,6 +105,7 @@ function odcm_get_renderer_for_event_type(string $event_type): string
         'rule_no_match' => RuleRenderer::class,
         'rule_evaluated' => RuleRenderer::class,
         'rule_evaluation' => RuleRenderer::class,
+        'rule_evaluation_non_canonical' => RuleRenderer::class,
         'condition_passed' => RuleRenderer::class,
         'condition_failed' => RuleRenderer::class,
         'action_executed' => RuleRenderer::class,
@@ -66,6 +120,17 @@ function odcm_get_renderer_for_event_type(string $event_type): string
         'meta_updated' => OrderRenderer::class,
         'woocommerce_data' => OrderRenderer::class,
         'no_rules_matched' => OrderRenderer::class,
+        'order_completed' => OrderRenderer::class,
+        'checkout_completed' => OrderRenderer::class,
+        'order_completion' => OrderRenderer::class,
+        'checkout_completion' => OrderRenderer::class,
+        'order_complete' => OrderRenderer::class,
+        'checkout_complete' => OrderRenderer::class,
+        'status_change_processing' => OrderRenderer::class,
+        'manual_status_change' => OrderRenderer::class,
+        'order_check_scheduled' => OrderRenderer::class,
+        'order_created' => OrderRenderer::class,
+        'order_processed' => OrderRenderer::class,
         
         // Subscription events -> OrderRenderer
         'subscription_created' => OrderRenderer::class,
@@ -102,7 +167,24 @@ function odcm_get_renderer_for_event_type(string $event_type): string
         'dedup' => AnalysisRenderer::class,
     ];
 
-    return $renderers[$event_type] ?? FallbackRenderer::class;
+    // If we have an explicit mapping, use it
+    if (isset($renderers[$event_type])) {
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log('ODCM DEBUG: Registry found exact match for event_type: ' . $event_type . ' => ' . $renderers[$event_type]);
+        }
+        return $renderers[$event_type];
+    }
+
+    // Log fallback to default renderer
+    if (defined('ODCM_DEBUG') && ODCM_DEBUG && 
+        (strpos($event_type, 'checkout') !== false || 
+         strpos($event_type, 'order_') !== false || 
+         strpos($event_type, 'complete') !== false ||
+         strpos($event_type, 'completion') !== false)) {
+        error_log('ODCM DEBUG: Registry fallback for order event: ' . $event_type . ' => ' . FallbackRenderer::class);
+    }
+
+    return FallbackRenderer::class;
 }
 
 /**
@@ -121,6 +203,14 @@ function odcm_get_component_theme(string $event_type): string
         return 'payment';
     }
     
+    // Handle order completion events with various naming patterns
+    if (strpos($event_type, 'order_') !== false ||
+        strpos($event_type, 'checkout') !== false ||
+        strpos($event_type, 'complete') !== false ||
+        strpos($event_type, 'completion') !== false) {
+        return 'woocommerce';
+    }
+    
     $themes = [
         // Process events use appropriate themes
         'rule_execution' => 'rule',
@@ -132,6 +222,7 @@ function odcm_get_component_theme(string $event_type): string
         'rule_no_match' => 'rule',
         'rule_evaluated' => 'rule',
         'rule_evaluation' => 'rule',
+        'rule_evaluation_non_canonical' => 'rule',
         'condition_passed' => 'rule',
         'condition_failed' => 'rule',
         'action_executed' => 'rule',
@@ -197,6 +288,19 @@ function odcm_get_component_theme(string $event_type): string
  */
 function odcm_get_status_pill_config(string $event_type): ?array
 {
+    // Handle order completion events with consistent pill labels
+    if (strpos($event_type, 'order_complete') !== false ||
+        strpos($event_type, 'order_completed') !== false ||
+        strpos($event_type, 'completion') !== false ||
+        strpos($event_type, 'checkout_complete') !== false) {
+        return ['label' => 'COMPLETED', 'type' => 'success'];
+    }
+
+    if (strpos($event_type, 'checkout_processed') !== false ||
+        strpos($event_type, 'order_processed') !== false) {
+        return ['label' => 'PROCESSED', 'type' => 'success'];
+    }
+
     $pills = [
         // Process events
         'rule_execution' => ['label' => 'RULE', 'type' => 'info'],
@@ -206,6 +310,7 @@ function odcm_get_status_pill_config(string $event_type): ?array
         // Rule events
         'rule_matched' => ['label' => 'MATCHED', 'type' => 'success'],
         'rule_no_match' => ['label' => 'NOT MATCHED', 'type' => 'notice'],
+        'rule_evaluation_non_canonical' => ['label' => 'DEBUG', 'type' => 'debug'],
         'condition_passed' => ['label' => 'PASSED', 'type' => 'success'],
         'condition_failed' => ['label' => 'FAILED', 'type' => 'warning'],
         'action_executed' => ['label' => 'EXECUTED', 'type' => 'info'],
@@ -218,6 +323,13 @@ function odcm_get_status_pill_config(string $event_type): ?array
         'checkout_processed' => ['label' => 'CHECKOUT', 'type' => 'woocommerce'],  // UniversalEvent checkout events
         'meta_updated' => ['label' => 'UPDATED', 'type' => 'info'],
         'woocommerce_data' => ['label' => 'WOOCOMMERCE', 'type' => 'woocommerce'],
+        'order_completion' => ['label' => 'COMPLETED', 'type' => 'success'],
+        'order_completed' => ['label' => 'COMPLETED', 'type' => 'success'],
+        'checkout_completion' => ['label' => 'COMPLETED', 'type' => 'success'],
+        'checkout_completed' => ['label' => 'COMPLETED', 'type' => 'success'],
+        'order_complete' => ['label' => 'COMPLETED', 'type' => 'success'],
+        'checkout_complete' => ['label' => 'COMPLETED', 'type' => 'success'],
+        'order_processed' => ['label' => 'PROCESSED', 'type' => 'success'],
         
         // Subscription events
         'subscription_created' => ['label' => 'CREATED', 'type' => 'success'],
@@ -271,6 +383,7 @@ function odcm_get_component_label(string $event_type): string
         'rule_no_match' => 'Rule Not Matched',
         'rule_evaluated' => 'Rule Evaluated',
         'rule_evaluation' => 'Rule Evaluation',
+        'rule_evaluation_non_canonical' => 'Rule Evaluation (Debug)',
         'condition_passed' => 'Condition Passed',
         'condition_failed' => 'Condition Failed',
         'action_executed' => 'Action Executed',
@@ -282,9 +395,16 @@ function odcm_get_component_label(string $event_type): string
         'status_changed' => 'Status Changed',
         'order_loaded' => 'Order Loaded',
         'block_checkout_processed' => 'Checkout Processed (Block)',
-        'checkout_processed' => 'Checkout Completed',  // UniversalEvent checkout events
+        'checkout_processed' => 'Checkout Processed',  // UniversalEvent checkout events
         'meta_updated' => 'Meta Updated',
         'woocommerce_data' => 'WooCommerce Data',
+        'order_completion' => 'Order Completed',
+        'order_completed' => 'Order Completed',
+        'checkout_completion' => 'Checkout Completed',
+        'checkout_completed' => 'Checkout Completed',
+        'order_complete' => 'Order Completed',
+        'checkout_complete' => 'Checkout Completed',
+        'order_processed' => 'Order Processed',
         
         // Subscription events
         'subscription_created' => 'Subscription Created',

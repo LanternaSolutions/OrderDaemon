@@ -25,7 +25,7 @@ class RuleRenderer extends BaseRenderer
      * @param string $level The log level (debug, info, warning, error)
      * @return void
      */
-    private function logDebugMessage(string $message, string $level = 'debug'): void
+    protected function logDebugMessage(string $message, string $level = 'debug'): void
     {
         // Only log if debug mode is enabled
         if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
@@ -111,6 +111,9 @@ class RuleRenderer extends BaseRenderer
 
             case 'validation':
                 return $this->renderValidation($data, $toolkit);
+
+            case 'rule_evaluation_non_canonical':
+                return $this->renderNonCanonicalRuleEvaluation($payload, $toolkit);
 
             default:
                 return $this->renderGenericRule($payload, $toolkit);
@@ -1209,6 +1212,76 @@ class RuleRenderer extends BaseRenderer
             }
         }
         
+        return $content;
+    }
+
+    /**
+     * Render Non-Canonical Rule Evaluation
+     *
+     * Renders debug entries for rule evaluation on non-canonical events.
+     * Designed to show detailed debugging information for developers.
+     *
+     * @param array                    $payload Full payload data
+     * @param PayloadComponentUIToolkit $toolkit UI toolkit instance
+     * @return string HTML content
+     */
+    private function renderNonCanonicalRuleEvaluation(array $payload, PayloadComponentUIToolkit $toolkit): string
+    {
+        // Extract data from the payload
+        $rule_name = $payload['rule_name'] ?? 'unnamed rule';
+        $event_type = $payload['event_type'] ?? 'unknown';
+        $explanation = $payload['explanation'] ?? '';
+        $purpose = $payload['purpose'] ?? '';
+        $note = $payload['note'] ?? '';
+        $debug_context = $payload['debug_context'] ?? [];
+        $canonical_event = $payload['canonical_event'] ?? false;
+        $timeline_behavior = $payload['timeline_behavior'] ?? '';
+
+        // Build main information section
+        $main_info = [
+            'Rule Name' => $rule_name,
+            'Event Type' => $event_type,
+            'Canonical Event' => $canonical_event ? 'Yes' : 'No',
+            'Timeline Behavior' => $timeline_behavior,
+        ];
+
+        $content = $toolkit->render_key_value_list($main_info, 'Rule Evaluation Debug');
+
+        // Add explanation in expandable section
+        if (!empty($explanation)) {
+            $content .= $toolkit->render_expandable_section('Explanation', '<p>' . esc_html($explanation) . '</p>');
+        }
+
+        // Add purpose in expandable section
+        if (!empty($purpose)) {
+            $content .= $toolkit->render_expandable_section('Purpose', '<p>' . esc_html($purpose) . '</p>');
+        }
+
+        // Add note in expandable section
+        if (!empty($note)) {
+            $content .= $toolkit->render_expandable_section('Note', '<p>' . esc_html($note) . '</p>');
+        }
+
+        // Add debug context in expandable section
+        if (!empty($debug_context)) {
+            $debug_info = [];
+            foreach ($debug_context as $key => $value) {
+                if (is_scalar($value)) {
+                    $debug_info[ucfirst(str_replace('_', ' ', $key))] = $value;
+                }
+            }
+
+            if (!empty($debug_info)) {
+                $debug_content = $toolkit->render_key_value_list($debug_info, 'Debug Context Details');
+                $content .= $toolkit->render_expandable_section('Debug Context', $debug_content);
+            }
+        }
+
+        // Add raw payload in expandable section for advanced debugging
+        $raw_payload_json = json_encode($payload, JSON_PRETTY_PRINT);
+        $raw_payload_content = $toolkit->render_code_block($raw_payload_json, 'json');
+        $content .= $toolkit->render_expandable_section('Raw Payload Data', $raw_payload_content);
+
         return $content;
     }
 }
