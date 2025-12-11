@@ -56,7 +56,7 @@ class Core
                         $debug_file = WP_CONTENT_DIR . '/debug.log';
                         @file_put_contents(
                             $debug_file,
-                            '[' . date('Y-m-d H:i:s') . '] ODCM_CORE: ' . $message . PHP_EOL,
+                            '[' . gmdate('Y-m-d H:i:s') . '] ODCM_CORE: ' . $message . PHP_EOL,
                             FILE_APPEND
                         );
                     }
@@ -1897,15 +1897,15 @@ class Core
                 wp_debug_log($log_message);
             }
             
-            // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-            if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-                $debug_file = WP_CONTENT_DIR . '/debug.log';
-                @file_put_contents(
-                    $debug_file,
-                    '[' . date('Y-m-d H:i:s') . '] ' . $log_message . PHP_EOL,
-                    FILE_APPEND
-                );
-            }
+                    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+                    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+                        $debug_file = WP_CONTENT_DIR . '/debug.log';
+                        @file_put_contents(
+                            $debug_file,
+                            '[' . gmdate('Y-m-d H:i:s') . '] ' . $log_message . PHP_EOL,
+                            FILE_APPEND
+                        );
+                    }
         } catch (\Throwable $e) {
             // Even logging should not break checkout - complete silence on failure
         }
@@ -2253,7 +2253,9 @@ class Core
             $table_name = $wpdb->prefix . 'actionscheduler_actions';
             // Validate and construct a safe table name - cannot use placeholders for table names
             $table_name_clean = esc_sql($table_name);
-            
+
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Direct query is needed for reliable Action Scheduler job detection with proper caching
             // Prepare the full query with table name sanitization and proper value escaping
             $query = $wpdb->prepare(
                 "SELECT COUNT(*) FROM `%s` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s",
@@ -2261,7 +2263,7 @@ class Core
                 'odcm_process_checkout_completion',
                 '%"order_id":' . intval($order_id) . '%'
             );
-            
+
             // Execute the query
             $existing_count = (int) $wpdb->get_var($query);
             
@@ -2287,7 +2289,9 @@ class Core
             // Properly prepare the SQL query for job details
             $table_name = $wpdb->prefix . 'actionscheduler_actions';
             $table_name_clean = esc_sql($table_name);
-            
+
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Direct query is needed for reliable Action Scheduler job detection with proper caching
             // Create a safe query with proper preparation
             $query = $wpdb->prepare(
                 "SELECT action_id, hook_arguments, status FROM `%s` WHERE hook = %s AND hook_arguments LIKE %s LIMIT 5",
@@ -2295,7 +2299,7 @@ class Core
                 'odcm_process_checkout_completion',
                 '%"order_id":' . intval($order_id) . '%'
             );
-            
+
             // Execute the query
             $job_details = $wpdb->get_results($query);
             

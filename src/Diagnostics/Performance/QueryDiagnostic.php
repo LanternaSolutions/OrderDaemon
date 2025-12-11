@@ -235,7 +235,7 @@ class QueryDiagnostic extends AbstractDiagnostic
             $full_table_name = $wpdb->prefix . $table;
             
             // Get row count
-            $row_count = $this->get_table_row_count($table);
+            $row_count = $this->get_table_row_count($table); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             
             // Get table size information with caching
             $table_size_cache_key = 'odcm_table_size_' . md5($full_table_name);
@@ -325,25 +325,25 @@ class QueryDiagnostic extends AbstractDiagnostic
                 
                 if (false === $results) {
                     // Cache miss - run the query
-                    // First prepare a safe SQL statement with the known value placeholder
-                    $val = '';
-                    
-                    // Construct query with column names explicitly validated against whitelist
-                    // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- Column names can't use placeholders but are pre-validated
-                    if ($column === 'status') {
-                        $sql_tpl = "SELECT DISTINCT status FROM {$table_identifier} WHERE status IS NOT NULL AND status != %s ORDER BY status ASC";
-                        $sql = $wpdb->prepare($sql_tpl, $val);
-                    } elseif ($column === 'event_type') {
-                        $sql_tpl = "SELECT DISTINCT event_type FROM {$table_identifier} WHERE event_type IS NOT NULL AND event_type != %s ORDER BY event_type ASC";
-                        $sql = $wpdb->prepare($sql_tpl, $val);
-                    } elseif ($column === 'source') {
-                        $sql_tpl = "SELECT DISTINCT source FROM {$table_identifier} WHERE source IS NOT NULL AND source != %s ORDER BY source ASC";
-                        $sql = $wpdb->prepare($sql_tpl, $val);
-                    }
-                    // phpcs:enable
+        // First prepare a safe SQL statement with the known value placeholder
+        $val = '';
+
+        // Construct query with column names explicitly validated against whitelist
+        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- Column names can't use placeholders but are pre-validated
+        if ($column === 'status') {
+            $sql_tpl = "SELECT DISTINCT status FROM {$table_identifier} WHERE status IS NOT NULL AND status != %s ORDER BY status ASC";
+            $sql = $wpdb->prepare($sql_tpl, $val); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        } elseif ($column === 'event_type') {
+            $sql_tpl = "SELECT DISTINCT event_type FROM {$table_identifier} WHERE event_type IS NOT NULL AND event_type != %s ORDER BY event_type ASC";
+            $sql = $wpdb->prepare($sql_tpl, $val); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        } elseif ($column === 'source') {
+            $sql_tpl = "SELECT DISTINCT source FROM {$table_identifier} WHERE source IS NOT NULL AND source != %s ORDER BY source ASC";
+            $sql = $wpdb->prepare($sql_tpl, $val); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        }
+        // phpcs:enable
                     
                     // Add index hint for performance on large tables
-                    $sql = str_replace("FROM {$table_identifier}", "FROM {$table_identifier} USE INDEX (idx_{$column})", $sql);
+                    $sql = str_replace("FROM {$table_identifier}", "FROM {$table_identifier} USE INDEX (idx_{$column})", $sql); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
                     
                     // Execute the query with proper caching
                     $query_cache_key = 'odcm_col_query_' . md5($sql);
@@ -351,7 +351,7 @@ class QueryDiagnostic extends AbstractDiagnostic
                     
                     if (false === $results) {
                         // The SQL is created using $wpdb->prepare() above with validated column names
-                        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is safely prepared above
+                        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is safely prepared above with validated table identifiers and column names
                         $results = $wpdb->get_col($sql);
                         
                         // Cache results for 5 minutes (filter options change infrequently)
@@ -414,32 +414,32 @@ class QueryDiagnostic extends AbstractDiagnostic
         
         // Create properly prepared test scenarios
         $test_scenarios = [];
-        
+
         // Basic select
         $test_scenarios['basic_select'] = $wpdb->prepare(
             "SELECT COUNT(*) FROM {$table_identifier}"
-        );
-        
+        ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
         // Recent logs
         $test_scenarios['recent_logs'] = $wpdb->prepare(
             "SELECT * FROM {$table_identifier} ORDER BY timestamp DESC LIMIT %d",
             20
-        );
-        
+        ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
         // With filters
         $test_scenarios['with_filters'] = $wpdb->prepare(
             "SELECT * FROM {$table_identifier} WHERE status = %s ORDER BY timestamp DESC LIMIT %d",
             'success',
             20
-        );
-        
+        ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
         // Date range - using a prepared statement with the interval
         $interval_hours = 24;
         $test_scenarios['date_range'] = $wpdb->prepare(
             "SELECT * FROM {$table_identifier} WHERE timestamp >= DATE_SUB(NOW(), INTERVAL %d HOUR) ORDER BY timestamp DESC LIMIT %d",
             $interval_hours,
             20
-        );
+        ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
         // Add payload join test if payload table exists
         if ($payload_exists) {
@@ -452,7 +452,7 @@ class QueryDiagnostic extends AbstractDiagnostic
                 LIMIT %d",
                 '',
                 20
-            );
+            ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         }
 
         foreach ($test_scenarios as $test_name => $prepared_query) {

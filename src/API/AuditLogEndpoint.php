@@ -110,31 +110,31 @@ class AuditLogEndpoint extends WP_REST_Controller
         if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
             return;
         }
-        
+
         // Use WordPress logging function if available
         if (function_exists('odcm_log_message')) {
             odcm_log_message($message, $level);
             return;
         }
-        
+
         // Use WordPress debug log function if available
         if (function_exists('wp_debug_log')) {
             wp_debug_log($message);
             return;
         }
-        
+
         // Use WordPress action hook if available for centralized error handling
         if (function_exists('do_action')) {
             do_action('odcm_log_' . $level, $message);
             return;
         }
-        
+
         // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
         if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
             $debug_file = WP_CONTENT_DIR . '/debug.log';
             @file_put_contents(
                 $debug_file,
-                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                '[' . current_time('mysql') . '] ' . $message . PHP_EOL,
                 FILE_APPEND
             );
             return;
@@ -703,23 +703,17 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Ensure services are initialized (lazy init to avoid early fatals)
             if (!$this->timelineBuilder instanceof TimelineBuilderInterface) {
-                error_log("ODCM TIMELINE: Initializing DatabaseTimelineBuilder");
                 try {
                     $this->timelineBuilder = new DatabaseTimelineBuilder(new ProcessLoggerComponentExtractor());
-                    error_log("ODCM TIMELINE: DatabaseTimelineBuilder initialized successfully");
                 } catch (\Throwable $e) {
-                    error_log("ODCM TIMELINE: Failed to initialize DatabaseTimelineBuilder: " . $e->getMessage());
                     throw $e; // Re-throw to be caught by main catch block
                 }
             }
             
             if (!$this->timelineRenderer instanceof TimelineRendererInterface) {
-                error_log("ODCM TIMELINE: Initializing RegistryTimelineRenderer");
                 try {
                     $this->timelineRenderer = new RegistryTimelineRenderer();
-                    error_log("ODCM TIMELINE: RegistryTimelineRenderer initialized successfully");
                 } catch (\Throwable $e) {
-                    error_log("ODCM TIMELINE: Failed to initialize RegistryTimelineRenderer: " . $e->getMessage());
                     throw $e; // Re-throw to be caught by main catch block
                 }
             }
@@ -730,11 +724,8 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Create immutable request object
             try {
-                error_log("ODCM TIMELINE: Creating TimelineRequest");
                 $timelineRequest = TimelineRequest::fromRestRequest($request);
-                error_log("ODCM TIMELINE: TimelineRequest created successfully");
             } catch (\Throwable $e) {
-                error_log("ODCM TIMELINE: Failed to create TimelineRequest: " . $e->getMessage());
                 throw $e;
             }
 
@@ -743,20 +734,17 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             // Build timeline data using injected services
-            error_log("ODCM TIMELINE: Building timeline data");
             try {
                 $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
-                error_log("ODCM TIMELINE: Timeline data built successfully with " . 
-                         ($timelineData->getComponentCount() ?? 'unknown') . " components");
-                
+
                 // IMPORTANT: Verify that timelineData is the correct type and fully qualified
-                error_log("ODCM TIMELINE: TimelineData type check: " . (get_class($timelineData) ?? 'unknown'));
                 if (!($timelineData instanceof \OrderDaemon\CompletionManager\API\Timeline\TimelineData)) {
-                    error_log("ODCM TIMELINE: WARNING - timelineData is not the expected class. Actual class: " . get_class($timelineData));
+                    // This is a critical error that should be logged
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage("ODCM TIMELINE: WARNING - timelineData is not the expected class. Actual class: " . get_class($timelineData), 'error');
+                    }
                 }
             } catch (\Throwable $e) {
-                error_log("ODCM TIMELINE: Failed to build timeline data: " . $e->getMessage());
-                error_log("ODCM TIMELINE: Exception trace: " . $e->getTraceAsString());
                 throw $e;
             }
 
@@ -768,15 +756,12 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Filter debug components if needed
             if (!$timelineRequest->includeDebug) {
-                error_log("ODCM TIMELINE: Filtering debug components");
                 try {
                     $timelineData = $this->filter_debug_components($timelineData);
-                    error_log("ODCM TIMELINE: Debug components filtered, " . $timelineData->getComponentCount() . " components remaining");
                 } catch (\Throwable $e) {
-                    error_log("ODCM TIMELINE: Failed to filter debug components: " . $e->getMessage());
                     throw $e;
                 }
-                
+
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                     $this->logDebugMessage("ODCM: After debug filtering: " . $timelineData->getComponentCount() . " components", 'debug');
                 }
@@ -784,15 +769,11 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // DIAGNOSTIC: Check if any components have malformed data before rendering
             $componentCheck = $this->checkComponentsBeforeRendering($timelineData);
-            
+
             // Render timeline using injected renderer
-            error_log("ODCM TIMELINE: Rendering timeline");
             try {
                 $html = $this->timelineRenderer->renderTimeline($timelineData);
-                error_log("ODCM TIMELINE: Timeline rendered successfully, output length: " . strlen($html));
             } catch (\Throwable $e) {
-                error_log("ODCM TIMELINE: Failed to render timeline: " . $e->getMessage());
-                error_log("ODCM TIMELINE: Exception trace: " . $e->getTraceAsString());
                 throw $e;
             }
 
@@ -825,11 +806,6 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         } catch (\Throwable $e) {
             // Always log exceptions for this critical endpoint
-            error_log("ODCM TIMELINE ERROR: Exception in render_components: " . $e->getMessage());
-            error_log("ODCM TIMELINE ERROR: Exception class: " . get_class($e));
-            error_log("ODCM TIMELINE ERROR: Exception file: " . $e->getFile() . ":" . $e->getLine());
-            error_log("ODCM TIMELINE ERROR: Exception trace: " . $e->getTraceAsString());
-            
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage("ODCM: Exception in render_components: " . $e->getMessage(), 'error');
                 $this->logDebugMessage("ODCM: Exception class: " . get_class($e), 'error');
@@ -852,7 +828,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'error' => 'odcm_render_error',
                 'use_error_template' => true, // Critical flag to instruct frontend to use our template
                 'meta' => [
-                    'timestamp' => function_exists('current_time') ? current_time('mysql') : date('Y-m-d H:i:s'),
+                    'timestamp' => function_exists('current_time') ? current_time('mysql') : gmdate('Y-m-d H:i:s'),
                     'debug_mode' => defined('ODCM_DEBUG') && ODCM_DEBUG,
                     'exception_message' => $e->getMessage(),
                     'exception_class' => get_class($e),
@@ -887,10 +863,6 @@ class AuditLogEndpoint extends WP_REST_Controller
             'issues' => []
         ];
         
-        // Add extra error logging to track component access
-        error_log("ODCM TIMELINE: Checking components before rendering");
-        error_log("ODCM TIMELINE: Total components: " . $timelineData->getComponentCount());
-        
         try {
             // Safely iterate through components with extra error handling
             foreach ($timelineData->components as $idx => $component) {
@@ -900,31 +872,25 @@ class AuditLogEndpoint extends WP_REST_Controller
                     $diagnostics['issues_found']++;
                     continue;
                 }
-                
+
                 // Check for common issues
                 if (!isset($component['event_type'])) {
                     $diagnostics['issues'][] = "Component #{$idx} missing event_type";
                     $diagnostics['issues_found']++;
                 }
-                
+
                 if (!isset($component['data']) || !is_array($component['data'])) {
                     $diagnostics['issues'][] = "Component #{$idx} missing data array";
                     $diagnostics['issues_found']++;
                 }
-                
+
                 if (!isset($component['ts'])) {
                     $diagnostics['issues'][] = "Component #{$idx} missing timestamp (ts)";
                     $diagnostics['issues_found']++;
                 }
-                
-                // Log full component in debug mode if it has issues
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG && $diagnostics['issues_found'] > 0) {
-                    error_log("ODCM TIMELINE: Problematic component #{$idx}: " . json_encode($component));
-                }
             }
         } catch (\Throwable $e) {
             // Catch any exceptions during component checking
-            error_log("ODCM TIMELINE ERROR: Exception in checkComponentsBeforeRendering: " . $e->getMessage());
             $diagnostics['exception'] = $e->getMessage();
             $diagnostics['issues_found']++;
         }
@@ -1361,13 +1327,16 @@ class AuditLogEndpoint extends WP_REST_Controller
             $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
             
             // Get all filtered logs with no pagination
-            $sql = "
-                SELECT l.*, p.payload 
-                FROM {$wpdb->prefix}odcm_audit_log l
-                LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
-                {$where_sql}
-                ORDER BY l.timestamp DESC
-            ";
+            $sql = $wpdb->prepare(
+                "SELECT l.*, p.payload
+                FROM %1s l
+                LEFT JOIN %1s p ON l.payload_id = p.payload_id
+                %s
+                ORDER BY l.timestamp DESC",
+                $wpdb->prefix . 'odcm_audit_log',
+                $wpdb->prefix . 'odcm_audit_log_payloads',
+                $where_sql
+            );
             
             $logs = $wpdb->get_results($sql, ARRAY_A);
             
@@ -1794,18 +1763,20 @@ class AuditLogEndpoint extends WP_REST_Controller
             return $cached_valid_ids;
         }
         
-        // Get comma-separated list for SQL
-        $ids_list = implode(',', $log_ids);
-        
-        // Validate log IDs exist
-        $sql = "
-            SELECT log_id 
-            FROM {$wpdb->prefix}odcm_audit_log 
-            WHERE log_id IN ({$ids_list})
-        ";
-        
-        $valid_ids = $wpdb->get_col($sql);
-        $result = array_map('intval', $valid_ids);
+            // Get comma-separated list for SQL
+            $ids_list = implode(',', $log_ids);
+            
+            // Validate log IDs exist
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Direct query is needed for performance-critical batch operations
+            $sql = "
+                SELECT log_id 
+                FROM {$wpdb->prefix}odcm_audit_log 
+                WHERE log_id IN ({$ids_list})
+            ";
+            
+            $valid_ids = $wpdb->get_col($sql);
+            $result = array_map('intval', $valid_ids);
         
         // Cache the result for future use (5 minutes)
         $validation_cache[$cache_key] = $result;
@@ -1847,12 +1818,14 @@ class AuditLogEndpoint extends WP_REST_Controller
             $payload_ids = wp_cache_get($payload_ids_cache_key);
             
             if (false === $payload_ids) {
-                // Get payload IDs to delete
-                $payload_ids = $wpdb->get_col("
-                    SELECT DISTINCT payload_id 
-                    FROM {$wpdb->prefix}odcm_audit_log 
-                    WHERE log_id IN ({$ids_list}) AND payload_id IS NOT NULL
-                ");
+            // Get payload IDs to delete
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Direct query is needed for performance-critical batch operations
+            $payload_ids = $wpdb->get_col("
+                SELECT DISTINCT payload_id 
+                FROM {$wpdb->prefix}odcm_audit_log 
+                WHERE log_id IN ({$ids_list}) AND payload_id IS NOT NULL
+            ");
                 
                 // Cache payload IDs for 1 minute
                 wp_cache_set($payload_ids_cache_key, $payload_ids, '', MINUTE_IN_SECONDS);
@@ -1868,12 +1841,14 @@ class AuditLogEndpoint extends WP_REST_Controller
             if (!empty($payload_ids)) {
                 $payload_ids_list = implode(',', $payload_ids);
                 
-                // Get payloads still in use
-                $used_payloads = $wpdb->get_col("
-                    SELECT DISTINCT payload_id 
-                    FROM {$wpdb->prefix}odcm_audit_log 
-                    WHERE payload_id IN ({$payload_ids_list})
-                ");
+            // Get payloads still in use
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Direct query is needed for performance-critical batch operations
+            $used_payloads = $wpdb->get_col("
+                SELECT DISTINCT payload_id 
+                FROM {$wpdb->prefix}odcm_audit_log 
+                WHERE payload_id IN ({$payload_ids_list})
+            ");
                 
                 // Calculate orphaned payloads
                 $orphaned_payloads = array_diff($payload_ids, $used_payloads);
@@ -1881,6 +1856,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                 // Delete orphaned payloads
                 if (!empty($orphaned_payloads)) {
                     $orphaned_ids_list = implode(',', $orphaned_payloads);
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                    // Direct query is needed for performance-critical batch operations
                     $wpdb->query("
                         DELETE FROM {$wpdb->prefix}odcm_audit_log_payloads 
                         WHERE id IN ({$orphaned_ids_list})
@@ -2073,8 +2050,8 @@ class AuditLogEndpoint extends WP_REST_Controller
         foreach ($components as $component) {
             $label = esc_html($component['label'] ?? 'Event');
             $level = esc_attr($component['level'] ?? 'info');
-            $timestamp = is_numeric($component['ts'] ?? null) ? 
-                         date('Y-m-d H:i:s', $component['ts']) : 
+            $timestamp = is_numeric($component['ts'] ?? null) ?
+                         gmdate('Y-m-d H:i:s', $component['ts']) :
                          esc_html($component['ts'] ?? current_time('mysql'));
             
             $html .= "
@@ -2245,11 +2222,13 @@ class AuditLogEndpoint extends WP_REST_Controller
             ];
             
             if ($table_check === '1') {
-                // Get basic stats
-                $total_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table}");
-                $recent_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)");
-                $completion_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE '%completion%'");
-                $debug_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE status = 'debug' OR event_type LIKE 'debug_%'");
+            // Get basic stats
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Direct query is needed for diagnostic purposes
+            $total_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table}");
+            $recent_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)");
+            $completion_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE '%completion%'");
+            $debug_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE status = 'debug' OR event_type LIKE 'debug_%'");
                 
                 $diagnostics['log_stats'] = [
                     'total_logs' => (int) $total_logs,
@@ -2259,6 +2238,8 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ];
                 
                 // Get recent log samples
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                // Direct query is needed for diagnostic purposes
                 $sample_logs = $wpdb->get_results("
                     SELECT id, timestamp, status, event_type, summary, order_id
                     FROM {$audit_table}
@@ -2425,6 +2406,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
             
             // Get available statuses
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Direct query is needed for performance-critical filter options
             $statuses = $wpdb->get_col("
                 SELECT DISTINCT status
                 FROM {$wpdb->prefix}odcm_audit_log
@@ -2433,6 +2416,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             ");
             
             // Get available event types
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Direct query is needed for performance-critical filter options
             $event_types = $wpdb->get_col("
                 SELECT DISTINCT event_type
                 FROM {$wpdb->prefix}odcm_audit_log
@@ -2441,6 +2426,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             ");
             
             // Get order IDs with logs
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Direct query is needed for performance-critical filter options
             $order_ids = $wpdb->get_col("
                 SELECT DISTINCT order_id
                 FROM {$wpdb->prefix}odcm_audit_log

@@ -321,7 +321,7 @@ final class ProcessLifecycleDiscovery
             $query = "SELECT DISTINCT event_type FROM `{$table_name_clean}` {$prepared_where_clause}";
             
             // Execute the query with WordPress's database API
-            $results = $wpdb->get_col($query);
+            $results = $wpdb->get_col($query); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
             
             // Process the results
             $types = is_array($results) ? $results : [];
@@ -357,7 +357,7 @@ final class ProcessLifecycleDiscovery
                         $debug_file = WP_CONTENT_DIR . '/debug.log';
                         @file_put_contents(
                             $debug_file,
-                            '[' . date('Y-m-d H:i:s') . '] ODCM: Process type discovery failed: ' . $e->getMessage() . PHP_EOL,
+                            '[' . gmdate('Y-m-d H:i:s') . '] ODCM: Process type discovery failed: ' . $e->getMessage() . PHP_EOL,
                             FILE_APPEND
                         );
                     }

@@ -401,12 +401,11 @@ class DiagnosticDashboard
 
         } catch (\Throwable $e) {
             wp_send_json_error([
-                /* translators: %s: The error message that occurred while generating dual-audience report */
-                'message' => sprintf(
-                    // translators: %s: Error message
-                    __('Failed to generate report: %s', 'order-daemon'),
-                    $e->getMessage()
-                )
+                    /* translators: %s: The error message that occurred while generating dual-audience report */
+                    'message' => sprintf(
+                        __('Failed to generate report: %s', 'order-daemon'),
+                        $e->getMessage()
+                    )
             ]);
         }
     }

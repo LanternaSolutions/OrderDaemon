@@ -282,7 +282,7 @@ final class RuleIndexBuilder
                             $debug_file = WP_CONTENT_DIR . '/debug.log';
                             @file_put_contents(
                                 $debug_file,
-                                '[' . date('Y-m-d H:i:s') . '] ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage() . PHP_EOL,
+                                '[' . gmdate('Y-m-d H:i:s') . '] ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage() . PHP_EOL,
                                 FILE_APPEND
                             );
                         }

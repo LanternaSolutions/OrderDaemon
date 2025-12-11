@@ -15,7 +15,6 @@ class LogCleanup
      */
     private const BATCH_SIZE = 500;
 
-
     /**
      * Initialize the log cleanup functionality.
      *
@@ -27,7 +26,6 @@ class LogCleanup
         add_action('odcm_cleanup_old_logs', [$this, 'cleanup_old_logs'], 10);
 
     }//end init()
-
 
     /**
      * Cleanup old audit trail logs based on the retention policy.
@@ -42,7 +40,7 @@ class LogCleanup
 
         // Free/Core plugin: use a fixed retention period to keep DB lean
         $retention_days = 30; // Fixed for free/core - 30 days provides good balance
-        
+
         // Define table names
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payloads_table = $wpdb->prefix . 'odcm_audit_log_payloads';
@@ -55,18 +53,20 @@ class LogCleanup
 
         // Create a cache key for the count query
         $count_cache_key = 'odcm_logs_to_delete_' . md5($cutoff_date);
-        
+
         // Try to get from cache first
         $total_to_delete = wp_cache_get($count_cache_key);
-        
+
         // Cache miss - perform count query
         if (false === $total_to_delete) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Performance-critical cleanup operation using properly prepared query
             // Split the query to properly handle table identifiers which can't use placeholders
-            $query_template = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s";
-            $prepared_query = $wpdb->prepare($query_template, $cutoff_date);
+            $count_sql = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s";
+            $prepared_count = $wpdb->prepare($count_sql, $cutoff_date);
             // Query is properly prepared above
-            $total_to_delete = $wpdb->get_var($prepared_query);
-            
+            $total_to_delete = $wpdb->get_var($prepared_count);
+
             // Cache the result for 10 minutes
             // This is appropriate for cleanup operations that don't need real-time precision
             wp_cache_set($count_cache_key, $total_to_delete, '', 10 * MINUTE_IN_SECONDS);
@@ -86,111 +86,117 @@ class LogCleanup
             // Create a unique cache key for this batch
             // Include iteration to ensure each batch gets a fresh query
             $batch_cache_key = 'odcm_logs_batch_' . md5($cutoff_date . '_' . $iteration);
-            
+
             // Try to get from cache first
             $logs_to_delete = wp_cache_get($batch_cache_key);
-            
+
             // Cache miss - perform batch query
             if (false === $logs_to_delete) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                // Performance-critical cleanup operation using properly prepared query
                 // Split the query to properly handle table identifiers which can't use placeholders
-                $query_template = "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d";
-                $prepared_query = $wpdb->prepare($query_template, $cutoff_date, self::BATCH_SIZE);
+                $batch_sql = "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d";
+                $prepared_batch = $wpdb->prepare($batch_sql, $cutoff_date, self::BATCH_SIZE);
                 // Query is properly prepared above
-                $logs_to_delete = $wpdb->get_results($prepared_query);
-                
+                $logs_to_delete = $wpdb->get_results($prepared_batch);
+
                 // Cache the result briefly - just enough to avoid duplicate queries
                 // in case of concurrent cleanup processes
                 wp_cache_set($batch_cache_key, $logs_to_delete, '', 60); // 1 minute
             }
-            
+
             if (empty($logs_to_delete)) {
                 // No more logs to delete
                 break;
             }
-            
+
             // Collect payload IDs to delete
             $payload_ids = [];
             $log_ids = [];
-            
+
             foreach ($logs_to_delete as $log) {
                 $log_ids[] = $log->log_id;
-                
+
                 // Only collect non-null payload IDs
                 if (!empty($log->payload_id)) {
                     $payload_ids[] = $log->payload_id;
                 }
             }
-            
-                // Delete the log entries
-                if (!empty($log_ids)) {
-                    // Transaction key to prevent duplicate delete operations
-                    $delete_lock_key = 'odcm_deleting_logs_' . md5(implode(',', $log_ids));
-                    $is_deleting = wp_cache_get($delete_lock_key);
-                    
-                    if (false === $is_deleting) {
-                        // Set lock
-                        wp_cache_set($delete_lock_key, true, '', 60); // 1 minute lock
-                        
-                        // Create placeholder string for the IN clause
-                        $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
-                        // Build query with properly separated table identifier and placeholders
-                        $query_template = "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)";
-                        // Prepare with all log IDs as parameters
-                        $prepared_query = $wpdb->prepare($query_template, ...$log_ids);
-                        // Execute the query with the properly prepared statement
-                        $deleted_rows = $wpdb->query($prepared_query);
-                        
-                         // Delete log ID cache keys after deletion
-                        foreach ($log_ids as $log_id) {
-                            // Delete any cached log entries that might exist
-                            wp_cache_delete('odcm_log_' . $log_id);
-                        }
-                        
-                        // Release lock
-                        wp_cache_delete($delete_lock_key);
-                    } else {
-                        // Another process is deleting these logs
-                        $deleted_rows = 0;
+
+            // Delete the log entries
+            if (!empty($log_ids)) {
+                // Transaction key to prevent duplicate delete operations
+                $delete_lock_key = 'odcm_deleting_logs_' . md5(implode(',', $log_ids));
+                $is_deleting = wp_cache_get($delete_lock_key);
+
+                if (false === $is_deleting) {
+                    // Set lock
+                    wp_cache_set($delete_lock_key, true, '', 60); // 1 minute lock
+
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                    // Performance-critical cleanup operation using properly prepared query
+                    // Create placeholder string for the IN clause
+                    $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
+                    // Build query with properly separated table identifier and placeholders
+                    $delete_sql = "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)";
+                    // Prepare with all log IDs as parameters
+                    $prepared_delete = $wpdb->prepare($delete_sql, ...$log_ids);
+                    // Execute the query with the properly prepared statement
+                    $deleted_rows = $wpdb->query($prepared_delete);
+
+                    // Delete log ID cache keys after deletion
+                    foreach ($log_ids as $log_id) {
+                        // Delete any cached log entries that might exist
+                        wp_cache_delete('odcm_log_' . $log_id);
                     }
-                
+
+                    // Release lock
+                    wp_cache_delete($delete_lock_key);
+                } else {
+                    // Another process is deleting these logs
+                    $deleted_rows = 0;
+                }
+
                 if ($deleted_rows === false) {
                     // Error occurred
                     break;
                 }
-                
+
                 $deleted_total += $deleted_rows;
             }
-            
-                // Delete the corresponding payload entries 
-                if (!empty($payload_ids)) {
-                    // Transaction key to prevent duplicate delete operations
-                    $payload_lock_key = 'odcm_deleting_payloads_' . md5(implode(',', $payload_ids));
-                    $is_deleting_payloads = wp_cache_get($payload_lock_key);
-                    
-                    if (false === $is_deleting_payloads) {
-                        // Set lock
-                        wp_cache_set($payload_lock_key, true, '', 60); // 1 minute lock
-                        
-                        // Create placeholder string for the IN clause
-                        $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
-                        // Build query with properly separated table identifier and placeholders
-                        $query_template = "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)";
-                        // Prepare with all payload IDs as parameters
-                        $prepared_query = $wpdb->prepare($query_template, ...$payload_ids);
-                        // Execute the query with the properly prepared statement
-                        $wpdb->query($prepared_query);
-                        
-                        // Delete payload cache keys after deletion
-                        foreach ($payload_ids as $payload_id) {
-                            // Delete any cached payload entries that might exist
-                            wp_cache_delete('odcm_payload_' . $payload_id);
-                        }
-                        
-                        // Release lock
-                        wp_cache_delete($payload_lock_key);
+
+            // Delete the corresponding payload entries
+            if (!empty($payload_ids)) {
+                // Transaction key to prevent duplicate delete operations
+                $payload_lock_key = 'odcm_deleting_payloads_' . md5(implode(',', $payload_ids));
+                $is_deleting_payloads = wp_cache_get($payload_lock_key);
+
+                if (false === $is_deleting_payloads) {
+                    // Set lock
+                    wp_cache_set($payload_lock_key, true, '', 60); // 1 minute lock
+
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                    // Performance-critical cleanup operation using properly prepared query
+                    // Create placeholder string for the IN clause
+                    $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
+                    // Build query with properly separated table identifier and placeholders
+                    $delete_sql = "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)";
+                    // Prepare with all payload IDs as parameters
+                    $prepared_delete = $wpdb->prepare($delete_sql, ...$payload_ids);
+                    // Execute the query with the properly prepared statement
+                    $wpdb->query($prepared_delete);
+
+                    // Delete payload cache keys after deletion
+                    foreach ($payload_ids as $payload_id) {
+                        // Delete any cached payload entries that might exist
+                        wp_cache_delete('odcm_payload_' . $payload_id);
                     }
+
+                    // Release lock
+                    wp_cache_delete($payload_lock_key);
                 }
-            
+            }
+
             $iteration++;
 
             // Add a small delay between batches to reduce database load
@@ -205,7 +211,6 @@ class LogCleanup
         }
 
     }//end cleanup_old_logs()
-
 
     /**
      * Log the cleanup activity to the audit trail.
@@ -226,7 +231,7 @@ class LogCleanup
             'retention_type'   => $retention_type,
             'cleanup_date'     => current_time('mysql'),
         ];
-        
+
         // Narrative-based single process entry for cleanup activity
         $pl = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger(new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer());
         $pl->start('admin_action', [ 'summary' => 'Audit log cleanup' ]);
@@ -237,14 +242,13 @@ class LogCleanup
 
     }//end log_cleanup_activity()
 
-
     /**
      * Cache of log stats to prevent redundant counting operations
      *
      * @var array
      */
     private static $log_stats_cache = [];
-    
+
     /**
      * Manually trigger log cleanup (for testing or manual execution).
      * This method can be called from WP-CLI or other admin interfaces.
@@ -265,18 +269,20 @@ class LogCleanup
 
         // Create a cache key for the manual cleanup count
         $manual_count_cache_key = 'odcm_manual_cleanup_count_' . md5($cutoff_date);
-        
+
         // Try to get from cache first
         $count_to_delete = wp_cache_get($manual_count_cache_key);
-        
+
         // Cache miss - perform count query
         if (false === $count_to_delete) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Performance-critical cleanup operation using properly prepared query
             // Count records that would be deleted
-            $query_template = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s";
-            $prepared_query = $wpdb->prepare($query_template, $cutoff_date);
+            $count_sql = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s";
+            $prepared_count = $wpdb->prepare($count_sql, $cutoff_date);
             // Query is properly prepared above
-            $count_to_delete = $wpdb->get_var($prepared_query);
-            
+            $count_to_delete = $wpdb->get_var($prepared_count);
+
             // Cache the result for 5 minutes - manual cleanup has higher freshness expectations
             wp_cache_set($manual_count_cache_key, $count_to_delete, '', 5 * MINUTE_IN_SECONDS);
         }
@@ -292,18 +298,20 @@ class LogCleanup
 
         // Create a cache key for payload count
         $payload_count_cache_key = 'odcm_manual_payload_count_' . md5($cutoff_date);
-        
+
         // Try to get from cache first
         $payload_count_to_delete = wp_cache_get($payload_count_cache_key);
-        
+
         // Cache miss - perform count query
         if (false === $payload_count_to_delete) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Performance-critical cleanup operation using properly prepared query
             // Count payload records that would be deleted
-            $query_template = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL";
-            $prepared_query = $wpdb->prepare($query_template, $cutoff_date);
+            $count_sql = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL";
+            $prepared_count = $wpdb->prepare($count_sql, $cutoff_date);
             // Query is properly prepared above
-            $payload_count_to_delete = $wpdb->get_var($prepared_query);
-            
+            $payload_count_to_delete = $wpdb->get_var($prepared_count);
+
             // Cache the result for 5 minutes
             wp_cache_set($payload_count_cache_key, $payload_count_to_delete, '', 5 * MINUTE_IN_SECONDS);
         }
@@ -317,7 +325,7 @@ class LogCleanup
             $count_to_delete,
             $retention_days
         );
-        
+
         if ($payload_count_to_delete > 0) {
             $message .= ' ' . sprintf(
                 /* translators: %d: number of deleted payload records */
@@ -334,6 +342,5 @@ class LogCleanup
         ];
 
     }//end manual_cleanup()
-
 
 }//end class

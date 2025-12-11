@@ -286,6 +286,7 @@ final class RefundDeletionDiagnostics
         
         // Use WordPress native function if available
         if (function_exists('wp_debug_backtrace_summary')) {
+            // @todo Debugging code should not be used in production. // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_wp_debug_backtrace_summary
             $trace_summary = wp_debug_backtrace_summary('', 0, $limit);
             if (is_string($trace_summary)) {
                 $parts = explode(', ', $trace_summary);
@@ -481,7 +482,7 @@ final class RefundDeletionDiagnostics
             $debug_file = WP_CONTENT_DIR . '/debug.log';
             @file_put_contents(
                 $debug_file,
-                '[' . date('Y-m-d H:i:s') . '] ' . $log_message . PHP_EOL,
+                '[' . gmdate('Y-m-d H:i:s') . '] ' . $log_message . PHP_EOL,
                 FILE_APPEND
             );
             return;

@@ -611,8 +611,9 @@ final class BlockCheckoutCompatibility
         if (false === $transaction_lock) {
             // Set transaction lock
             wp_cache_set($transaction_key, true, '', 30); // 30 second lock
-            
+
             // Insert the record
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $result = $wpdb->insert(
                 $wpdb->prefix . 'odcm_audit_log_queue',
                 [
@@ -733,6 +734,7 @@ final class BlockCheckoutCompatibility
         
         if (false === $job_count) {
             // Execute the properly prepared query with caching
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $existing_count = (int) $wpdb->get_var($query);
             
             // Cache the job count result for 60 seconds

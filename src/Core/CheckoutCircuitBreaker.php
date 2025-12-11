@@ -444,7 +444,7 @@ class CheckoutCircuitBreaker
             $debug_file = WP_CONTENT_DIR . '/debug.log';
             @file_put_contents(
                 $debug_file,
-                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                '[' . gmdate('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
                 FILE_APPEND
             );
             return;

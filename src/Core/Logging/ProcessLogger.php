@@ -488,16 +488,16 @@ final class ProcessLogger
                     do_action('odcm_log_error', 'ProcessLogger: ' . $message);
                 }
                 
-                // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-                if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-                    // Write to WordPress debug.log file using WordPress constants
-                    $debug_file = WP_CONTENT_DIR . '/debug.log';
-                    @file_put_contents(
-                        $debug_file,
-                        '[' . date('Y-m-d H:i:s') . '] ODCM ProcessLogger: ' . $message . PHP_EOL,
-                        FILE_APPEND
-                    );
-                }
+                        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+                        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+                            // Write to WordPress debug.log file using WordPress constants
+                            $debug_file = WP_CONTENT_DIR . '/debug.log';
+                            @file_put_contents(
+                                $debug_file,
+                                '[' . gmdate('Y-m-d H:i:s') . '] ODCM ProcessLogger: ' . $message . PHP_EOL,
+                                FILE_APPEND
+                            );
+                        }
                 
                 // Use WordPress debug log function if available
                 if (function_exists('wp_debug_log')) {

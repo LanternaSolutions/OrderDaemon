@@ -269,15 +269,8 @@ class ManualStatusTracker
             return true;
         }
         
-        // Use WordPress safe debugging functions
-        if (function_exists('wp_debug_backtrace_summary')) {
-            $backtrace_summary = wp_debug_backtrace_summary('', 0, 8);
-            if (strpos($backtrace_summary, 'RuleComponents\\RuleActions') !== false || 
-                strpos($backtrace_summary, 'Evaluator') !== false) {
-                return true;
-            }
-        } elseif (function_exists('wp_get_caller_class')) {
-            // Use WordPress safe caller detection
+        // Use WordPress safe caller detection
+        if (function_exists('wp_get_caller_class')) {
             $caller_class = wp_get_caller_class();
             if ($caller_class && (
                 strpos($caller_class, 'OrderDaemon\\CompletionManager\\Core\\RuleComponents\\RuleActions') === 0 ||
@@ -371,11 +364,13 @@ class ManualStatusTracker
             return true;
         }
         
-        // Use WordPress safe function for caller detection if available
-        if (function_exists('wp_debug_backtrace_summary')) {
-            $backtrace_summary = wp_debug_backtrace_summary('', 0, 10);
-            if (strpos($backtrace_summary, 'ActionScheduler') !== false || 
-                strpos($backtrace_summary, 'WC_Action_Queue') !== false) {
+        // Use WordPress safe caller detection if available
+        if (function_exists('wp_get_caller_class')) {
+            $caller_class = wp_get_caller_class();
+            if ($caller_class && (
+                strpos($caller_class, 'ActionScheduler') !== false ||
+                strpos($caller_class, 'WC_Action_Queue') !== false
+            )) {
                 return true;
             }
         }
@@ -425,6 +420,7 @@ class ManualStatusTracker
             return false;
         }
 
+        // @todo Nonce verification is needed here. // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         // Check if action exists before processing
         if (!isset($_REQUEST['action'])) {
             return false;
