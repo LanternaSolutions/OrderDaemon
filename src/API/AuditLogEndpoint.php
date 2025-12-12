@@ -1571,15 +1571,15 @@ class AuditLogEndpoint extends WP_REST_Controller
         if (empty($logs)) {
             return [];
         }
-        
+
         // Group logs by process_id if available
         $grouped_logs = [];
         $ungrouped_logs = [];
-        
+
         foreach ($logs as $log) {
             // Note: Debug filtering is already handled at the database level in build_filter_where_clauses()
             // No need to filter again here as it causes count vs logs discrepancy
-            
+
             if (!empty($log['process_id'])) {
                 $process_id = $log['process_id'];
                 $grouped_logs[$process_id][] = $log;
@@ -1587,38 +1587,55 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $ungrouped_logs[] = $log;
             }
         }
-        
+
         // Merge grouped and ungrouped logs
         $consolidated_logs = [];
-        
+
         // Process grouped logs
         foreach ($grouped_logs as $process_id => $process_logs) {
             // Sort process logs by timestamp (descending)
             usort($process_logs, function($a, $b) {
                 return strtotime($b['timestamp']) - strtotime($a['timestamp']);
             });
-            
+
             // Use the most recent log as the representative entry
             $primary_log = reset($process_logs);
             $primary_log['_is_process_group'] = true;
             $primary_log['_process_count'] = count($process_logs);
             $primary_log['_process_logs'] = $process_logs;
-            
+
+            // CRITICAL FIX: Ensure the representative log has a valid log_id
+            // This is essential for TimelineData creation in the frontend
+            if (empty($primary_log['log_id']) || !is_numeric($primary_log['log_id'])) {
+                // If the primary log doesn't have a valid log_id, use the most recent valid one
+                foreach ($process_logs as $process_log) {
+                    if (!empty($process_log['log_id']) && is_numeric($process_log['log_id'])) {
+                        $primary_log['log_id'] = (int) $process_log['log_id'];
+                        break;
+                    }
+                }
+            }
+
+            // Add debug information for troubleshooting
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM Consolidation: Process group created for process_id {$process_id} with {$primary_log['_process_count']} logs, representative log_id: " . ($primary_log['log_id'] ?? 'MISSING'), 'debug');
+            }
+
             $consolidated_logs[] = $primary_log;
         }
-        
+
         // Add ungrouped logs
         foreach ($ungrouped_logs as $log) {
             $log['_is_process_group'] = false;
             $log['_process_count'] = 1;
             $consolidated_logs[] = $log;
         }
-        
+
         // Sort all logs by timestamp (descending)
         usort($consolidated_logs, function($a, $b) {
             return strtotime($b['timestamp']) - strtotime($a['timestamp']);
         });
-        
+
         return $consolidated_logs;
     }
 
@@ -1697,36 +1714,66 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function format_logs_for_api(array $logs): array
     {
         $formatted_logs = [];
-        
+
         foreach ($logs as $log) {
+            // DEFENSIVE: Handle missing or invalid log_id in consolidated entries
+            // This can happen when process consolidation creates representative entries
+            $log_id = $log['log_id'] ?? null;
+
+            // If log_id is missing or invalid, try to find a valid one
+            if (empty($log_id) || !is_numeric($log_id)) {
+                // For process groups, try to get log_id from the process logs
+                if (isset($log['_process_logs']) && is_array($log['_process_logs'])) {
+                    foreach ($log['_process_logs'] as $process_log) {
+                        if (!empty($process_log['log_id']) && is_numeric($process_log['log_id'])) {
+                            $log_id = $process_log['log_id'];
+                            break;
+                        }
+                    }
+                }
+
+                // If still no valid log_id, use a fallback
+                if (empty($log_id) || !is_numeric($log_id)) {
+                    $log_id = 0; // This will cause issues, but at least it won't be null
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage('ODCM: format_logs_for_api - No valid log_id found for log: ' . json_encode($log), 'error');
+                    }
+                }
+            }
+
             $formatted_log = [
-                'id' => (int) $log['log_id'],
+                'id' => (int) $log_id,
                 'timestamp' => $log['timestamp'],
                 'status' => $log['status'],
                 'summary' => $log['summary'],
                 'event_type' => $log['event_type'],
             ];
-            
+
             // Add order_id if present
             if (!empty($log['order_id'])) {
                 $formatted_log['order_id'] = (int) $log['order_id'];
             }
-            
+
             // Add process group info if available
             if (isset($log['_is_process_group']) && $log['_is_process_group']) {
                 $formatted_log['is_process_group'] = true;
                 $formatted_log['process_id'] = $log['process_id'];
                 $formatted_log['process_count'] = $log['_process_count'];
             }
-            
+
             // Add payload_id if available (for rendering components)
             if (!empty($log['payload_id'])) {
                 $formatted_log['payload_id'] = (int) $log['payload_id'];
             }
-            
+
+            // Add debug information for consolidated entries
+            if (isset($log['_is_process_group']) && $log['_is_process_group'] && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM: Formatted consolidated entry - ID: ' . $formatted_log['id'] . ', Process ID: ' . ($log['process_id'] ?? 'N/A') . ', Process Count: ' . ($log['_process_count'] ?? 'N/A'), 'debug');
+            }
+
             $formatted_logs[] = $formatted_log;
         }
-        
+
         return $formatted_logs;
     }
 
