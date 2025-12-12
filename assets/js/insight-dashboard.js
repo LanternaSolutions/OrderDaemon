@@ -1430,13 +1430,28 @@ function insightDashboard() {
         // =================================================================
         // VIEW MODE
         // =================================================================
-        setViewMode(mode) {
+        async setViewMode(mode) {
             if (mode !== 'consolidated' && mode !== 'flat') return;
             if (this.viewMode === mode) return;
+
+            // Store the currently selected log before changing view mode
+            const previouslySelectedLog = this.selectedLog;
+
             this.viewMode = mode;
             try { localStorage.setItem('odcm_view_mode', mode); } catch (e) {}
             this.currentPage = 1;
-            this.fetchLogs();
+
+            // Refresh the log list
+            await this.fetchLogs();
+
+            // If there was a selected log before the view mode change, re-select it
+            // to ensure the timeline is refreshed with the new view mode
+            if (previouslySelectedLog) {
+                const logStillExists = this.logs.find(log => log.id === previouslySelectedLog.id);
+                if (logStillExists) {
+                    await this.selectLog(logStillExists);
+                }
+            }
         },
 
         // =================================================================

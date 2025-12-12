@@ -396,8 +396,8 @@ class AuditLogEndpoint extends WP_REST_Controller
         // Use WooCommerce standard capability for reports (allows Shop Manager access)
         // Fall back to manage_woocommerce for sites where view_woocommerce_reports isn't available
         // Add manage_options as additional fallback for WordPress admins
-        $has_permission = current_user_can('view_woocommerce_reports') || 
-                         current_user_can('manage_woocommerce') || 
+        $has_permission = current_user_can('view_woocommerce_reports') ||
+                         current_user_can('manage_woocommerce') ||
                          current_user_can('manage_options');
 
         if (!$has_permission) {
@@ -422,6 +422,120 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             $this->logDebugMessage('ODCM API: Permission check passed');
+        }
+
+        return true;
+    }
+
+    /**
+     * Check delete permissions for destructive operations
+     *
+     * DELETE routes require higher privileges than read operations:
+     * - Requires manage_woocommerce capability (not just view_woocommerce_reports)
+     * - Requires valid REST nonce for CSRF protection
+     * - Includes additional audit logging for security monitoring
+     *
+     * This implements the principle of least privilege for destructive operations.
+     *
+     * @param WP_REST_Request $request The REST request
+     * @return bool True if permitted; false otherwise
+     */
+    public function check_delete_permissions(WP_REST_Request $request): bool
+    {
+        // Enhanced permission debugging for delete operations
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage('ODCM API Delete Permission Check:');
+            $this->logDebugMessage('- User ID: ' . get_current_user_id());
+            $this->logDebugMessage('- User roles: ' . implode(', ', wp_get_current_user()->roles ?? []));
+            $this->logDebugMessage('- manage_woocommerce: ' . (current_user_can('manage_woocommerce') ? 'YES' : 'NO'));
+            $this->logDebugMessage('- manage_options (admin): ' . (current_user_can('manage_options') ? 'YES' : 'NO'));
+            $this->logDebugMessage('- is_user_logged_in: ' . (is_user_logged_in() ? 'YES' : 'NO'));
+            $this->logDebugMessage('- Request method: ' . $request->get_method());
+            $this->logDebugMessage('- Request URL: ' . $request->get_route());
+        }
+
+        // User must be logged in
+        if (!is_user_logged_in()) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM API Delete: Permission denied - user not logged in');
+            }
+            return false;
+        }
+
+        // DELETE operations require manage_woocommerce capability (higher privilege than view)
+        // This implements principle of least privilege - only users who can manage WooCommerce can delete logs
+        $has_permission = current_user_can('manage_woocommerce') || current_user_can('manage_options');
+
+        if (!$has_permission) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM API Delete: Permission denied - user lacks manage_woocommerce capability');
+            }
+
+            // Log delete permission failure for security monitoring
+            if (function_exists('odcm_log_event')) {
+                odcm_log_event(
+                    'Failed attempt to delete audit logs - insufficient permissions',
+                    [
+                        'user_id' => get_current_user_id(),
+                        'user_roles' => wp_get_current_user()->roles ?? [],
+                        'request_method' => $request->get_method(),
+                        'request_route' => $request->get_route(),
+                    ],
+                    null,
+                    'warning',
+                    'security_delete_attempt'
+                );
+            }
+
+            return false;
+        }
+
+        // Nonce verification for DELETE requests (critical for destructive operations)
+        $nonce = $request->get_header('X-WP-Nonce');
+        if (!$nonce || !wp_verify_nonce($nonce, 'wp_rest')) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM API Delete: Permission denied - invalid or missing nonce');
+                $this->logDebugMessage('- Nonce provided: ' . ($nonce ? 'YES' : 'NO'));
+                $this->logDebugMessage('- Nonce value: ' . ($nonce ?: 'none'));
+            }
+
+            // Log nonce failure for security monitoring
+            if (function_exists('odcm_log_event')) {
+                odcm_log_event(
+                    'Failed attempt to delete audit logs - invalid nonce',
+                    [
+                        'user_id' => get_current_user_id(),
+                        'nonce_provided' => $nonce ? 'yes' : 'no',
+                        'request_method' => $request->get_method(),
+                        'request_route' => $request->get_route(),
+                    ],
+                    null,
+                    'warning',
+                    'security_delete_attempt'
+                );
+            }
+
+            return false;
+        }
+
+        // Log successful delete permission check for audit trail
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
+                'Delete permission granted for audit logs',
+                [
+                    'user_id' => get_current_user_id(),
+                    'user_roles' => wp_get_current_user()->roles ?? [],
+                    'request_method' => $request->get_method(),
+                    'request_route' => $request->get_route(),
+                ],
+                null,
+                'info',
+                'security_delete_permission'
+            );
+        }
+
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage('ODCM API Delete: Permission check passed');
         }
 
         return true;
