@@ -349,14 +349,6 @@ final class BlockCheckoutCompatibility
             ],
             [
                 'k'     => odcm_component_key(),
-                'event_type'  => 'order_loaded',
-                'ts'    => time(),
-                'label' => 'Cart Analysis',
-                'level' => 'info',
-                'data'  => $checkout_context['cart_analysis'] ?? [],
-            ],
-            [
-                'k'     => odcm_component_key(),
                 'event_type'  => 'payment.' . $gateway . '.checkout_processed',
                 'ts'    => time(),
                 'label' => 'Payment Event',
@@ -448,14 +440,6 @@ final class BlockCheckoutCompatibility
                     'currency' => (string) $currency,        // Force string type
                     'checkout_type' => 'woocommerce_blocks', // Standard value for checkout type
                 ]
-            ],
-            [
-                'k' => odcm_component_key(),
-                'event_type' => 'order_loaded',
-                'ts' => time(),
-                'label' => 'Cart Analysis',
-                'level' => 'info',
-                'data' => $checkout_context['cart_analysis'] ?? []
             ],
             [
                 'k' => odcm_component_key(),

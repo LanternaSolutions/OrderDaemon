@@ -622,40 +622,32 @@ function odcm_synthesize_checkout_processed_event(\WC_Order $order, array $poste
     $order_status = $order->get_status();
 
     // Create rich components array matching block checkout format
-    $components = [
-        [
-            'k' => 'checkout_complete_' . str_replace('.', '_', (string)$checkout_timestamp),
-            'event_type' => 'checkout_processed',
-            'ts' => $checkout_timestamp, // REAL checkout timestamp from order creation
-            'label' => 'Checkout Completed',
-            'level' => 'info',
-            'data' => [
-                // Match BlockCheckoutCompatibility data format exactly
-                'order_id' => (int) $order_id,
-                'status' => (string) $order_status,
-                'payment_method' => (string) $payment_method,
-                'total' => (float) $order_total,
-                'currency' => (string) $currency,
-                'checkout_type' => $checkout_type, // 'standard' for traditional checkout
+        $components = [
+            [
+                'k' => 'checkout_complete_' . str_replace('.', '_', (string)$checkout_timestamp),
+                'event_type' => 'checkout_processed',
+                'ts' => $checkout_timestamp, // REAL checkout timestamp from order creation
+                'label' => 'Checkout Completed',
+                'level' => 'info',
+                'data' => [
+                    // Match BlockCheckoutCompatibility data format exactly
+                    'order_id' => (int) $order_id,
+                    'status' => (string) $order_status,
+                    'payment_method' => (string) $payment_method,
+                    'total' => (float) $order_total,
+                    'currency' => (string) $currency,
+                    'checkout_type' => $checkout_type, // 'standard' for traditional checkout
+                ]
+            ],
+            [
+                'k' => 'payment_event_' . str_replace('.', '_', (string)$checkout_timestamp),
+                'event_type' => 'payment.' . $gateway . '.checkout_processed',
+                'ts' => $checkout_timestamp,
+                'label' => 'Payment Event',
+                'level' => 'info',
+                'data' => $checkout_context['payment_context'] ?? []
             ]
-        ],
-        [
-            'k' => 'cart_analysis_' . str_replace('.', '_', (string)$checkout_timestamp),
-            'event_type' => 'order_loaded',
-            'ts' => $checkout_timestamp,
-            'label' => 'Cart Analysis',
-            'level' => 'info',
-            'data' => $checkout_context['cart_analysis'] ?? []
-        ],
-        [
-            'k' => 'payment_event_' . str_replace('.', '_', (string)$checkout_timestamp),
-            'event_type' => 'payment.' . $gateway . '.checkout_processed',
-            'ts' => $checkout_timestamp,
-            'label' => 'Payment Event',
-            'level' => 'info',
-            'data' => $checkout_context['payment_context'] ?? []
-        ]
-    ];
+        ];
 
     // Technical data for rawData (not duplicated in UI)
     $technical_data = [
@@ -1335,14 +1327,6 @@ function odcm_synthesize_checkout_from_queued_data(\WC_Order $order, array $queu
                 'currency' => (string) $currency,
                 'checkout_type' => $checkout_type,
             ]
-        ],
-        [
-            'k' => 'cart_analysis_' . str_replace('.', '_', (string)$checkout_timestamp),
-            'event_type' => 'order_loaded',
-            'ts' => $checkout_timestamp, // ORIGINAL timestamp
-            'label' => 'Cart Analysis',
-            'level' => 'info',
-            'data' => $checkout_context['cart_analysis'] ?? []
         ],
         [
             'k' => 'payment_event_' . str_replace('.', '_', (string)$checkout_timestamp),

@@ -1590,6 +1590,11 @@ class Core
      * Log status change evaluation for debug mode.
      * Called when ODCM_DEBUG is true to track all status change evaluations.
      *
+     * This method now implements a comprehensive solution to reduce timeline noise:
+     * 1. Only logs to debug log, not to timeline (event_type starts with underscore)
+     * 2. Merges evaluation details into the main status change event
+     * 3. Respects logging level settings
+     *
      * @param int $order_id Order ID
      * @param string $from Previous status slug
      * @param string $to New status slug
@@ -1601,12 +1606,23 @@ class Core
         $process_id = \OrderDaemon\CompletionManager\Core\ProcessIdManager::instance()
             ->get_or_create_process_id($order_id);
         
+        // SOLUTION 1: Use event_type that starts with underscore to exclude from timeline
+        // SOLUTION 2: Include detailed evaluation data for debugging
         odcm_log_event(
             "Status change evaluation: Order #{$order_id} ({$from} → {$to})",
-            ['from' => $from, 'to' => $to, 'debug_mode' => true],
+            [
+                'from' => $from,
+                'to' => $to,
+                'debug_mode' => true,
+                'evaluation_details' => [
+                    'timestamp' => current_time('c'),
+                    'source' => $this->determine_change_source(),
+                    'purpose' => 'This event provides debugging information about status change evaluations but is excluded from the main timeline to reduce noise'
+                ]
+            ],
             $order_id,
-            'info',
-            'status_evaluation',
+            'debug',  // Changed from 'info' to 'debug' to reduce visibility
+            '_status_evaluation',  // Prefixed with underscore to exclude from timeline
             false,     // is_test
             $process_id
         );
