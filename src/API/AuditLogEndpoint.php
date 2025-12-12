@@ -399,7 +399,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         $has_permission = current_user_can('view_woocommerce_reports') || 
                          current_user_can('manage_woocommerce') || 
                          current_user_can('manage_options');
-        
+
         if (!$has_permission) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage('ODCM API: Permission denied - user lacks required capabilities');
@@ -422,35 +422,6 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             $this->logDebugMessage('ODCM API: Permission check passed');
-        }
-
-        return true;
-    }
-
-    /**
-     * Check delete permissions for batch operations
-     *
-     * Enhanced security for destructive operations:
-     * 1. All standard permission checks
-     * 2. Additional capability check for log deletion
-     * 3. Mandatory nonce verification
-     */
-    public function check_delete_permissions(WP_REST_Request $request): bool
-    {
-        // Run standard permission checks first
-        if (!$this->check_permissions($request)) {
-            return false;
-        }
-
-        // Additional capability check for deletion operations
-        if (!current_user_can('delete_posts')) {
-            return false;
-        }
-
-        // Mandatory nonce verification for DELETE operations
-        $nonce = $request->get_header('X-WP-Nonce');
-        if (!$nonce || !wp_verify_nonce($nonce, 'wp_rest')) {
-            return false;
         }
 
         return true;
@@ -592,10 +563,9 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'filters' => $this->get_applied_filters($request),
                     'meta' => [
                         'execution_time' => $execution_time,
-                        'cache_status' => $this->get_cache_status($request),
-                        'timestamp' => current_time('mysql'),
-                        'consolidated_pagination' => false,
-                        'pagination_basis' => 'raw',
+                    'timestamp' => current_time('mysql'),
+                    'consolidated_pagination' => false,
+                    'pagination_basis' => 'raw',
                     ],
                 ];
 
@@ -664,7 +634,6 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'filters' => $this->get_applied_filters($request),
                 'meta' => [
                     'execution_time' => $execution_time,
-                    'cache_status' => $this->get_cache_status($request),
                     'timestamp' => current_time('mysql'),
                     'consolidated_pagination' => true,
                     'pagination_basis' => 'consolidated',
@@ -1303,54 +1272,34 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function get_all_filtered_logs(WP_REST_Request $request): array|WP_Error
     {
         global $wpdb;
-        
+
         try {
-            // Build a cache key based on the filter parameters and current cache version
-            $filter_params = array_filter($request->get_params());
-            unset($filter_params['page']); // Exclude pagination from cache key
-            unset($filter_params['per_page']); // Exclude pagination from cache key
-            $cache_version = wp_cache_get('odcm_logs_cache_version');
-            if ($cache_version === false) {
-                $cache_version = 1; // default version
-            }
-            $cache_key = 'odcm_v' . $cache_version . '_filtered_logs_' . md5(json_encode($filter_params));
-            
-            // Check if we have a cached result
-            $cached_logs = wp_cache_get($cache_key);
-            if (false !== $cached_logs) {
-                $this->logDebugMessage("Cache hit for all filtered logs: " . $cache_key, 'debug');
-                return $cached_logs;
-            }
-            
             // Build query conditions from request parameters
             $where_clauses = $this->build_filter_where_clauses($request);
-            $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
-            
-            // Get all filtered logs with no pagination
-            $sql = $wpdb->prepare(
-                "SELECT l.*, p.payload
-                FROM %1s l
-                LEFT JOIN %1s p ON l.payload_id = p.payload_id
-                %s
-                ORDER BY l.timestamp DESC",
-                $wpdb->prefix . 'odcm_audit_log',
-                $wpdb->prefix . 'odcm_audit_log_payloads',
-                $where_sql
-            );
-            
+
+            // Build the SQL query safely
+            $sql = "SELECT l.*, p.payload
+                    FROM {$wpdb->prefix}odcm_audit_log l
+                    LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id";
+
+            // Add WHERE clause if there are conditions
+            if (!empty($where_clauses)) {
+                $sql .= ' WHERE ' . implode(' AND ', $where_clauses);
+            }
+
+            $sql .= ' ORDER BY l.timestamp DESC';
+
+            // Execute the query
             $logs = $wpdb->get_results($sql, ARRAY_A);
-            
+
             if ($logs === false) {
                 throw new \Exception($wpdb->last_error ?: 'Database query failed');
             }
-            
+
             $result = $logs ?: [];
-            
-            // Cache the result for 2 minutes (filtered lists change often)
-            wp_cache_set($cache_key, $result, '', 2 * MINUTE_IN_SECONDS);
-            
+
             return $result;
-            
+
         } catch (\Exception $e) {
             $this->logDebugMessage("ODCM: Failed to get all filtered logs: " . $e->getMessage(), 'error');
             return new WP_Error('audit_log_query_failed', $e->getMessage());
@@ -1368,53 +1317,35 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function get_filtered_logs(WP_REST_Request $request, int $per_page, int $page): array
     {
         global $wpdb;
-        
+
         try {
-            // Build a cache key based on the filter parameters and pagination, with cache version
-            $filter_params = $request->get_params();
-            $cache_version = wp_cache_get('odcm_logs_cache_version');
-            if ($cache_version === false) {
-                $cache_version = 1; // default version
-            }
-            $cache_key = 'odcm_v' . $cache_version . '_filtered_logs_page_' . md5(json_encode($filter_params) . "_p{$page}_pp{$per_page}");
-            
-            // Check if we have a cached result
-            $cached_logs = wp_cache_get($cache_key);
-            if (false !== $cached_logs) {
-                $this->logDebugMessage("Cache hit for filtered logs page: " . $cache_key, 'debug');
-                return $cached_logs;
-            }
-        
             // Build query conditions from request parameters
             $where_clauses = $this->build_filter_where_clauses($request);
             $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
-            
+
             // Calculate offset based on pagination
             $offset = ($page - 1) * $per_page;
-            
+
             // Get paginated filtered logs
             $sql = $wpdb->prepare("
-                SELECT l.*, p.payload 
+                SELECT l.*, p.payload
                 FROM {$wpdb->prefix}odcm_audit_log l
                 LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
                 {$where_sql}
                 ORDER BY l.timestamp DESC
                 LIMIT %d OFFSET %d
             ", $per_page, $offset);
-            
+
             $logs = $wpdb->get_results($sql, ARRAY_A);
-            
+
             if ($logs === false) {
                 throw new \Exception($wpdb->last_error ?: 'Database query failed');
             }
-            
+
             $result = $logs ?: [];
-            
-            // Cache the result for 2 minutes (filtered lists change often)
-            wp_cache_set($cache_key, $result, '', 2 * MINUTE_IN_SECONDS);
-            
+
             return $result;
-            
+
         } catch (\Exception $e) {
             $this->logDebugMessage("ODCM: Failed to get filtered logs: " . $e->getMessage(), 'error');
             return [];
@@ -1430,49 +1361,29 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function get_filtered_log_count(WP_REST_Request $request): int
     {
         global $wpdb;
-        
+
         try {
-            // Build a cache key based on the filter parameters and cache version
-            $filter_params = array_filter($request->get_params());
-            unset($filter_params['page']); // Exclude pagination from cache key
-            unset($filter_params['per_page']); // Exclude pagination from cache key
-            $cache_version = wp_cache_get('odcm_logs_cache_version');
-            if ($cache_version === false) {
-                $cache_version = 1; // default version
-            }
-            $cache_key = 'odcm_v' . $cache_version . '_filtered_log_count_' . md5(json_encode($filter_params));
-            
-            // Check if we have a cached result
-            $cached_count = wp_cache_get($cache_key);
-            if (false !== $cached_count) {
-                $this->logDebugMessage("Cache hit for filtered log count: " . $cache_key, 'debug');
-                return (int) $cached_count;
-            }
-            
             // Build query conditions from request parameters
             $where_clauses = $this->build_filter_where_clauses($request);
             $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
-            
+
             // Get count of filtered logs
             $sql = "
                 SELECT COUNT(*) 
                 FROM {$wpdb->prefix}odcm_audit_log l
                 {$where_sql}
             ";
-            
+
             $count = $wpdb->get_var($sql);
-            
+
             if ($count === false) {
                 throw new \Exception($wpdb->last_error ?: 'Database query failed');
             }
-            
+
             $result = (int) $count;
-            
-            // Cache the result for 2 minutes (filtered counts change often)
-            wp_cache_set($cache_key, $result, '', 2 * MINUTE_IN_SECONDS);
-            
+
             return $result;
-            
+
         } catch (\Exception $e) {
             $this->logDebugMessage("ODCM: Failed to get filtered log count: " . $e->getMessage(), 'error');
             return 0;
@@ -1569,6 +1480,9 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function apply_process_id_consolidation(array $logs, bool $include_debug): array
     {
         if (empty($logs)) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM Consolidation: Empty input logs array', 'warning');
+            }
             return [];
         }
 
@@ -1577,8 +1491,10 @@ class AuditLogEndpoint extends WP_REST_Controller
         $ungrouped_logs = [];
 
         foreach ($logs as $log) {
-            // Note: Debug filtering is already handled at the database level in build_filter_where_clauses()
-            // No need to filter again here as it causes count vs logs discrepancy
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM Consolidation: Processing log ' . ($log['log_id'] ?? 'NO_ID') .
+                                      ' with process_id: ' . ($log['process_id'] ?? 'NULL'), 'debug');
+            }
 
             if (!empty($log['process_id'])) {
                 $process_id = $log['process_id'];
@@ -1588,37 +1504,57 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
         }
 
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage('ODCM Consolidation: Grouped logs by process_id: ' . count($grouped_logs) .
+                                  ' groups, Ungrouped logs: ' . count($ungrouped_logs), 'debug');
+        }
+
         // Merge grouped and ungrouped logs
         $consolidated_logs = [];
 
-        // Process grouped logs
+        // Process grouped logs - THIS IS WHERE PLACEHOLDER ENTRIES ARE CREATED
         foreach ($grouped_logs as $process_id => $process_logs) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM Consolidation: Creating placeholder for process_id ' . $process_id .
+                                      ' with ' . count($process_logs) . ' logs', 'debug');
+            }
+
             // Sort process logs by timestamp (descending)
             usort($process_logs, function($a, $b) {
                 return strtotime($b['timestamp']) - strtotime($a['timestamp']);
             });
 
-            // Use the most recent log as the representative entry
+            // Use the most recent log as the representative entry (placeholder)
             $primary_log = reset($process_logs);
             $primary_log['_is_process_group'] = true;
             $primary_log['_process_count'] = count($process_logs);
             $primary_log['_process_logs'] = $process_logs;
 
-            // CRITICAL FIX: Ensure the representative log has a valid log_id
-            // This is essential for TimelineData creation in the frontend
+            // CRITICAL: Ensure the placeholder has a valid log_id
             if (empty($primary_log['log_id']) || !is_numeric($primary_log['log_id'])) {
-                // If the primary log doesn't have a valid log_id, use the most recent valid one
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage('ODCM Consolidation: WARNING - Placeholder log missing valid log_id for process_id ' . $process_id, 'error');
+                }
+
+                // Try to find a valid log_id from the process logs
                 foreach ($process_logs as $process_log) {
                     if (!empty($process_log['log_id']) && is_numeric($process_log['log_id'])) {
                         $primary_log['log_id'] = (int) $process_log['log_id'];
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            $this->logDebugMessage('ODCM Consolidation: Found valid log_id ' . $primary_log['log_id'] .
+                                                  ' for placeholder', 'debug');
+                        }
                         break;
                     }
                 }
-            }
 
-            // Add debug information for troubleshooting
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM Consolidation: Process group created for process_id {$process_id} with {$primary_log['_process_count']} logs, representative log_id: " . ($primary_log['log_id'] ?? 'MISSING'), 'debug');
+                // If still no valid log_id, this placeholder will cause issues
+                if (empty($primary_log['log_id']) || !is_numeric($primary_log['log_id'])) {
+                    $primary_log['log_id'] = 0; // Fallback that will cause frontend issues
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage('ODCM Consolidation: CRITICAL - No valid log_id found, using fallback 0', 'error');
+                    }
+                }
             }
 
             $consolidated_logs[] = $primary_log;
@@ -1641,33 +1577,14 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Get cache status for the request
-     * 
+     *
      * @param WP_REST_Request $request The REST request
      * @return array Cache status information
      */
     private function get_cache_status(WP_REST_Request $request): array
     {
-        // Determine cache status
-        $cache_enabled = defined('ODCM_API_CACHE_ENABLED') && ODCM_API_CACHE_ENABLED;
-        
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG && $cache_enabled) {
-            $request_params = array_filter($request->get_params());
-            unset($request_params['page']); // Exclude pagination from cache key
-            
-            // Cache is based on the filtered request parameters
-            $cache_key = 'odcm_logs_' . md5(json_encode($request_params));
-            $transient_exists = (bool) get_transient($cache_key);
-            
-            return [
-                'enabled' => true,
-                'hit' => $transient_exists,
-                'key' => $cache_key,
-                'ttl' => defined('ODCM_API_CACHE_TTL') ? ODCM_API_CACHE_TTL : 300, // 5 minutes default
-            ];
-        }
-        
         return [
-            'enabled' => $cache_enabled,
+            'enabled' => false,
             'hit' => false,
         ];
     }
@@ -1720,13 +1637,26 @@ class AuditLogEndpoint extends WP_REST_Controller
             // This can happen when process consolidation creates representative entries
             $log_id = $log['log_id'] ?? null;
 
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM Format: Processing log for formatting, log_id: ' .
+                                      ($log_id ?? 'NULL') . ', is_process_group: ' .
+                                      (isset($log['_is_process_group']) ? ($log['_is_process_group'] ? 'true' : 'false') : 'false'), 'debug');
+            }
+
             // If log_id is missing or invalid, try to find a valid one
             if (empty($log_id) || !is_numeric($log_id)) {
                 // For process groups, try to get log_id from the process logs
-                if (isset($log['_process_logs']) && is_array($log['_process_logs'])) {
+                if (isset($log['_is_process_group']) && $log['_is_process_group'] && isset($log['_process_logs'])) {
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage('ODCM Format: Placeholder log missing valid log_id, searching in process logs', 'warning');
+                    }
+
                     foreach ($log['_process_logs'] as $process_log) {
                         if (!empty($process_log['log_id']) && is_numeric($process_log['log_id'])) {
                             $log_id = $process_log['log_id'];
+                            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                                $this->logDebugMessage('ODCM Format: Found valid log_id ' . $log_id . ' in process logs', 'debug');
+                            }
                             break;
                         }
                     }
@@ -1736,7 +1666,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 if (empty($log_id) || !is_numeric($log_id)) {
                     $log_id = 0; // This will cause issues, but at least it won't be null
                     if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                        $this->logDebugMessage('ODCM: format_logs_for_api - No valid log_id found for log: ' . json_encode($log), 'error');
+                        $this->logDebugMessage('ODCM Format: CRITICAL - No valid log_id found for placeholder, using fallback 0', 'error');
                     }
                 }
             }
@@ -1768,7 +1698,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Add debug information for consolidated entries
             if (isset($log['_is_process_group']) && $log['_is_process_group'] && defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage('ODCM: Formatted consolidated entry - ID: ' . $formatted_log['id'] . ', Process ID: ' . ($log['process_id'] ?? 'N/A') . ', Process Count: ' . ($log['_process_count'] ?? 'N/A'), 'debug');
+                $this->logDebugMessage('ODCM Format: Formatted consolidated entry - ID: ' . $formatted_log['id'] . ', Process ID: ' . ($log['process_id'] ?? 'N/A') . ', Process Count: ' . ($log['_process_count'] ?? 'N/A'), 'debug');
             }
 
             $formatted_logs[] = $formatted_log;
@@ -1786,49 +1716,29 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function validate_log_ids_for_deletion(array $log_ids): array
     {
         global $wpdb;
-        
+
         if (empty($log_ids)) {
             return [];
         }
-        
+
         // Convert to integers and get unique values
         $log_ids = array_unique(array_map('intval', $log_ids));
-        
-        // Check cache for recently validated IDs
-        static $validation_cache = [];
-        $cache_key = 'odcm_valid_log_ids_' . md5(implode(',', $log_ids));
-        
-        if (isset($validation_cache[$cache_key])) {
-            return $validation_cache[$cache_key];
-        }
-        
-        // Also check persistent cache
-        $cached_valid_ids = wp_cache_get($cache_key);
-        if (false !== $cached_valid_ids) {
-            // Store in static cache and return
-            $validation_cache[$cache_key] = $cached_valid_ids;
-            return $cached_valid_ids;
-        }
-        
+
             // Get comma-separated list for SQL
             $ids_list = implode(',', $log_ids);
-            
+
             // Validate log IDs exist
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical batch operations
             $sql = "
-                SELECT log_id 
-                FROM {$wpdb->prefix}odcm_audit_log 
+                SELECT log_id
+                FROM {$wpdb->prefix}odcm_audit_log
                 WHERE log_id IN ({$ids_list})
             ";
-            
+
             $valid_ids = $wpdb->get_col($sql);
             $result = array_map('intval', $valid_ids);
-        
-        // Cache the result for future use (5 minutes)
-        $validation_cache[$cache_key] = $result;
-        wp_cache_set($cache_key, $result, '', 5 * MINUTE_IN_SECONDS);
-        
+
         return $result;
     }
 
@@ -1841,82 +1751,63 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function perform_batch_deletion(array $log_ids): int
     {
         global $wpdb;
-        
+
         if (empty($log_ids)) {
             return 0;
         }
-        
+
         // Get comma-separated list for SQL
         $ids_list = implode(',', $log_ids);
-        
+
         // Start transaction
         $wpdb->query('START TRANSACTION');
-        
+
         try {
-            // Calculate associated cache keys to invalidate later
-            $cache_keys_to_invalidate = [];
-            foreach ($log_ids as $log_id) {
-                $cache_keys_to_invalidate[] = 'odcm_log_' . $log_id;
-                $cache_keys_to_invalidate[] = 'odcm_log_components_' . $log_id;
-            }
-            
-            // Check cache for payload IDs
-            $payload_ids_cache_key = 'odcm_payload_ids_' . md5($ids_list);
-            $payload_ids = wp_cache_get($payload_ids_cache_key);
-            
-            if (false === $payload_ids) {
             // Get payload IDs to delete
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical batch operations
             $payload_ids = $wpdb->get_col("
-                SELECT DISTINCT payload_id 
-                FROM {$wpdb->prefix}odcm_audit_log 
+                SELECT DISTINCT payload_id
+                FROM {$wpdb->prefix}odcm_audit_log
                 WHERE log_id IN ({$ids_list}) AND payload_id IS NOT NULL
             ");
-                
-                // Cache payload IDs for 1 minute
-                wp_cache_set($payload_ids_cache_key, $payload_ids, '', MINUTE_IN_SECONDS);
-            }
-            
+
             // Delete logs
             $deleted = $wpdb->query("
-                DELETE FROM {$wpdb->prefix}odcm_audit_log 
+                DELETE FROM {$wpdb->prefix}odcm_audit_log
                 WHERE log_id IN ({$ids_list})
             ");
-            
+
             // Delete orphaned payloads
             if (!empty($payload_ids)) {
                 $payload_ids_list = implode(',', $payload_ids);
-                
+
             // Get payloads still in use
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical batch operations
             $used_payloads = $wpdb->get_col("
-                SELECT DISTINCT payload_id 
-                FROM {$wpdb->prefix}odcm_audit_log 
+                SELECT DISTINCT payload_id
+                FROM {$wpdb->prefix}odcm_audit_log
                 WHERE payload_id IN ({$payload_ids_list})
             ");
-                
+
                 // Calculate orphaned payloads
                 $orphaned_payloads = array_diff($payload_ids, $used_payloads);
-                
+
                 // Delete orphaned payloads
                 if (!empty($orphaned_payloads)) {
                     $orphaned_ids_list = implode(',', $orphaned_payloads);
                     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                     // Direct query is needed for performance-critical batch operations
                     $wpdb->query("
-                        DELETE FROM {$wpdb->prefix}odcm_audit_log_payloads 
+                        DELETE FROM {$wpdb->prefix}odcm_audit_log_payloads
                         WHERE id IN ({$orphaned_ids_list})
                     ");
                 }
             }
-            
+
             // Commit transaction
             $wpdb->query('COMMIT');
-
-            // Invalidate dashboard logs cache by bumping a global cache version
-            $this->invalidate_logs_cache();
 
             return $deleted;
         } catch (\Exception $e) {
@@ -2168,80 +2059,6 @@ class AuditLogEndpoint extends WP_REST_Controller
         return $html;
     }
 
-    /**
-     * Invalidate logs cache by bumping the cache version
-     * 
-     * This is a centralized method to ensure cache invalidation works consistently
-     * across all cache-dependent operations like deletions, rule changes, etc.
-     */
-    private function invalidate_logs_cache(): void
-    {
-        $version_key = 'odcm_logs_cache_version';
-        
-        try {
-            // Try to increment the cache version atomically
-            if (function_exists('wp_cache_incr')) {
-                $new_version = wp_cache_incr($version_key);
-                if (false === $new_version) {
-                    // If increment failed, set initial version
-                    wp_cache_set($version_key, 1);
-                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                        $this->logDebugMessage('ODCM Cache: Set initial cache version to 1');
-                    }
-                } else {
-                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                        $this->logDebugMessage('ODCM Cache: Incremented cache version to ' . $new_version);
-                    }
-                }
-            } else {
-                // Fallback for systems without wp_cache_incr
-                $current = wp_cache_get($version_key);
-                if ($current === false) {
-                    $current = 0;
-                }
-                $new_version = ((int) $current) + 1;
-                wp_cache_set($version_key, $new_version);
-                
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage('ODCM Cache: Set cache version to ' . $new_version . ' (fallback method)');
-                }
-            }
-            
-            // Also clear any specific cache keys we know about
-            $this->clear_specific_cache_keys();
-            
-        } catch (\Exception $e) {
-            // Fallback: just clear what we can
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage('ODCM Cache: Cache invalidation failed, using fallback:' . $e->getMessage());
-            }
-            $this->clear_specific_cache_keys();
-        }
-    }
-
-    /**
-     * Clear specific cache keys that we know about
-     * 
-     * This is a fallback method when the cache version bump fails
-     */
-    private function clear_specific_cache_keys(): void
-    {
-        $keys_to_clear = [
-            'odcm_filter_options',
-            'odcm_welcome_scenario',
-            // Clear some common filter combinations
-            'odcm_v1_filtered_logs_' . md5(json_encode([])), // Empty filters
-            'odcm_v1_filtered_log_count_' . md5(json_encode([])), // Empty filters count
-        ];
-        
-        foreach ($keys_to_clear as $key) {
-            wp_cache_delete($key);
-        }
-        
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            $this->logDebugMessage('ODCM Cache: Cleared ' . count($keys_to_clear) . ' specific cache keys');
-        }
-    }
 
     /**
      * Add diagnostic endpoint for debugging empty dashboards
@@ -2304,11 +2121,10 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ];
             }
             
-            // Check cache status
-            $cache_version = wp_cache_get('odcm_logs_cache_version');
+            // Cache status (caching has been removed)
             $diagnostics['cache'] = [
-                'cache_version' => $cache_version,
-                'cache_version_type' => gettype($cache_version),
+                'enabled' => false,
+                'message' => 'Caching has been removed from AuditLogEndpoint',
             ];
             
             // Check WordPress and plugin versions
@@ -2424,34 +2240,16 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
     
     /**
-     * Get filter options for dynamic filters 
+     * Get filter options for dynamic filters
      */
     public function get_filter_options(WP_REST_Request $request): WP_REST_Response
     {
         try {
             global $wpdb;
-            
+
             // Start performance monitoring
             $start_time = microtime(true);
-            
-            // Check cache for filter options
-            $cache_key = 'odcm_filter_options';
-            $cached_options = wp_cache_get($cache_key);
-            
-            if (false !== $cached_options) {
-                return new WP_REST_Response(
-                    array_merge($cached_options, [
-                        'meta' => [
-                            'execution_time' => microtime(true) - $start_time,
-                            'timestamp' => current_time('mysql'),
-                            'max_results' => 100,
-                            'cache_hit' => true,
-                        ],
-                    ]),
-                    200
-                );
-            }
-            
+
             // Get available statuses
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical filter options
@@ -2461,7 +2259,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 WHERE status != ''
                 ORDER BY status
             ");
-            
+
             // Get available event types
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical filter options
@@ -2471,7 +2269,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 WHERE event_type != ''
                 ORDER BY event_type
             ");
-            
+
             // Get order IDs with logs
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical filter options
@@ -2482,7 +2280,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ORDER BY order_id DESC
                 LIMIT 100
             ");
-            
+
             // Format response
             $response_data = [
                 'statuses' => array_values(array_filter($statuses)),
@@ -2492,25 +2290,15 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'execution_time' => microtime(true) - $start_time,
                     'timestamp' => current_time('mysql'),
                     'max_results' => 100,
-                    'cache_hit' => false,
                 ],
             ];
-            
-            // Cache the filter options for 10 minutes
-            // Excluding meta since it changes between requests
-            $cache_data = [
-                'statuses' => $response_data['statuses'],
-                'event_types' => $response_data['event_types'],
-                'order_ids' => $response_data['order_ids'],
-            ];
-            wp_cache_set($cache_key, $cache_data, '', 10 * MINUTE_IN_SECONDS);
-            
+
             return new WP_REST_Response($response_data, 200);
-            
+
         } catch (\Throwable $e) {
             // Log error for debugging
             $this->log_api_error('get_filter_options', $e, []);
-            
+
             return new WP_Error(
                 'odcm_api_error',
                 __('audit.logs.filter_options.failure', 'order-daemon'),
