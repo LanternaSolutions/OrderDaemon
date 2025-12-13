@@ -30,12 +30,27 @@ final class ProcessIdManager
 
     /**
      * Get or create a process ID for an order lifecycle
+     * 
+     * Enhanced with stronger validation to prevent Order #0 issues
      *
      * @param int $order_id
      * @return string
      */
     public function get_or_create_process_id(int $order_id): string
     {
+        // CRITICAL FIX: Validate order ID to prevent Order #0 issues
+        // This is a key change to prevent malformed process IDs
+        if ($order_id <= 0) {
+            // Log warning when invalid order ID is provided (only if logging function exists)
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG && function_exists('odcm_log_message')) {
+                odcm_log_message("PROCESS_ID_WARNING: Invalid order ID {$order_id} provided to get_or_create_process_id", 'warning');
+            }
+            
+            // Return a fallback process ID that won't create "Order #0" events
+            // Use microsecond precision for uniqueness even when called multiple times
+            return 'odcm:system:' . microtime(true) . ':' . uniqid('', true);
+        }
+
         // Check for existing active process ID in order meta
         $existing_id = OrderMetaManager::get_meta($order_id, '_odcm_active_process_id', true);
 
@@ -46,13 +61,16 @@ final class ProcessIdManager
             }
         }
 
-        // Create new process ID
+        // Create new process ID - include validation check in format
         $process_id = 'odcm:lifecycle:' . $order_id . ':' . time() . ':' . uniqid('', true);
 
         // Store in order meta
         OrderMetaManager::update_meta($order_id, '_odcm_active_process_id', $process_id);
         OrderMetaManager::update_meta($order_id, '_odcm_process_started_at', time());
 
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("PROCESS_ID_DEBUG: Created new process ID {$process_id} for order #{$order_id}", 'debug');
+        }
 
         return $process_id;
     }

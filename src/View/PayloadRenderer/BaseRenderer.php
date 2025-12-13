@@ -396,7 +396,7 @@ class BaseRenderer
     /**
      * Format Currency
      *
-     * Formats currency values using WooCommerce's built-in currency formatting.
+     * Formats currency values with a clean format without HTML wrapping.
      *
      * @param float|string $amount   Amount to format
      * @param string       $currency Currency code
@@ -404,7 +404,10 @@ class BaseRenderer
      */
     protected function formatCurrency($amount, string $currency): string
     {
-        return wc_price($amount, ['currency' => $currency]);
+        // Get the currency symbol without HTML entities
+        $currency_symbol = html_entity_decode(get_woocommerce_currency_symbol($currency));
+        // Format the amount with the currency symbol, no HTML wrapping
+        return $currency_symbol . number_format((float)$amount, 2);
     }
 
     /**
@@ -448,12 +451,54 @@ class BaseRenderer
      *
      * @param array                    $debug_data  The debug data to render (metrics, correlation IDs, etc)
      * @param PayloadComponentUIToolkit $toolkit    UI toolkit instance
-     * @param string                   $title      Optional section title, defaults to 'Debug'
+     * @param string                   $title      Optional section title, defaults to 'Technical Details'
      * @return string HTML content
      */
-    protected function renderDebugSection(array $debug_data, PayloadComponentUIToolkit $toolkit, string $title = 'Debug'): string
+    protected function renderDebugSection(array $debug_data, PayloadComponentUIToolkit $toolkit, string $title = 'Technical Details'): string
     {
-        $formatted_data = [];
+        // Group technical details into logical categories for better organization
+        $grouped_data = [
+            'Performance Metrics' => [],
+            'System Context' => [],
+            'Event Details' => [],
+            'Process Information' => [],
+            'Other Details' => [] // Fallback for ungrouped items
+        ];
+        
+        // Define keys for each category
+        $performance_keys = [
+            'execution_time_ms',
+            'processing_time',
+            'evaluation_time',
+            'loading_time',
+            'query_time',
+            'render_time'
+        ];
+        $system_keys = [
+            'wp_version',
+            'wc_version',
+            'plugin_version',
+            'theme',
+            'checkout_type',
+            'is_store_api'
+        ];
+        $event_keys = [
+            'event_type',
+            'event_source',
+            'event_channel',
+            'event_id',
+            'idempotency_key',
+            'canonical_event'
+        ];
+        $process_keys = [
+            'process_id',
+            'correlation_id',
+            'component_count',
+            'source',
+            'origin'
+        ];
+        
+        // Sort data into groups
         foreach ($debug_data as $key => $value) {
             $formattedKey = ucwords(str_replace('_', ' ', $key));
             
@@ -468,14 +513,127 @@ class BaseRenderer
                     $value = substr($value, 0, 8) . '...' . substr($value, -8);
                 }
             }
-            // Format arrays as comma-separated values
+            // Format complex data (arrays/objects) more intelligently
             elseif (is_array($value)) {
-                $value = implode(', ', array_map('strval', $value));
+                if (count($value) > 3) {
+                    // For larger arrays, use a structured display
+                    $value = $this->formatComplexData($value);
+                } else {
+                    // For small arrays, keep as comma-separated list
+                    $value = implode(', ', array_map('strval', $value));
+                }
             }
             
-            $formatted_data[$formattedKey] = (string)$value;
+            // Determine which group this item belongs to
+            if ($this->keyMatchesAny($key, $performance_keys)) {
+                $grouped_data['Performance Metrics'][$formattedKey] = (string)$value;
+            } elseif ($this->keyMatchesAny($key, $system_keys)) {
+                $grouped_data['System Context'][$formattedKey] = (string)$value;
+            } elseif ($this->keyMatchesAny($key, $event_keys)) {
+                $grouped_data['Event Details'][$formattedKey] = (string)$value;
+            } elseif ($this->keyMatchesAny($key, $process_keys)) {
+                $grouped_data['Process Information'][$formattedKey] = (string)$value;
+            } else {
+                $grouped_data['Other Details'][$formattedKey] = (string)$value;
+            }
         }
-        return $toolkit->render_key_value_list($formatted_data, $title);
+        
+        // Combine all non-empty groups into a single organized output
+        $content = '';
+        foreach ($grouped_data as $group_title => $group_data) {
+            if (!empty($group_data)) {
+                $content .= $toolkit->render_key_value_list($group_data, $group_title);
+            }
+        }
+        
+        // If no content was generated, fall back to simpler rendering
+        if (empty($content)) {
+            $formatted_data = [];
+            foreach ($debug_data as $key => $value) {
+                $formattedKey = ucwords(str_replace('_', ' ', $key));
+                $formatted_data[$formattedKey] = is_array($value) ? json_encode($value) : (string)$value;
+            }
+            $content = $toolkit->render_key_value_list($formatted_data, $title);
+        }
+        
+        return $content;
+    }
+    
+    /**
+     * Format complex data for display
+     * 
+     * @param array $data The complex data to format
+     * @return string Formatted representation
+     */
+    private function formatComplexData(array $data): string
+    {
+        // For small arrays with simple values, use comma-separated representation
+        if (count($data) <= 5 && !$this->hasNestedArrays($data)) {
+            return implode(', ', array_map(function($item) {
+                return is_scalar($item) ? (string)$item : '[complex]';
+            }, $data));
+        }
+        
+        // For more complex data, return a structured summary
+        $count = count($data);
+        $types = $this->getValueTypes($data);
+        
+        return sprintf(
+            '%d items [%s]', 
+            $count, 
+            implode(', ', $types)
+        );
+    }
+    
+    /**
+     * Check if data has nested arrays
+     * 
+     * @param array $data The data to check
+     * @return bool True if contains nested arrays
+     */
+    private function hasNestedArrays(array $data): bool
+    {
+        foreach ($data as $value) {
+            if (is_array($value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Get summary of value types in an array
+     * 
+     * @param array $data The data to analyze
+     * @return array Array of type strings
+     */
+    private function getValueTypes(array $data): array
+    {
+        $types = [];
+        foreach ($data as $key => $value) {
+            $type = gettype($value);
+            if (!in_array($type, $types)) {
+                $types[] = $type;
+            }
+        }
+        return $types;
+    }
+    
+    /**
+     * Check if a key matches any string in an array
+     * 
+     * @param string $key The key to check
+     * @param array $possibilities Possible matches
+     * @return bool True if matches any
+     */
+    private function keyMatchesAny(string $key, array $possibilities): bool
+    {
+        foreach ($possibilities as $possibility) {
+            if (strpos($key, $possibility) !== false) {
+                return true;
+            }
+        }
+        return false;
     }
 
     protected function formatMetricValue($value, string $unit = ''): string

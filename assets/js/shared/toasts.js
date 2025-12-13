@@ -84,7 +84,7 @@
             }
             
             this.createContainer();
-            try { if (typeof window !== 'undefined' && (window.ODCM_DEBUG === true || (window.odcmInsightConfig && window.odcmInsightConfig.debug === true))) { console.log('ODCM: Toast system initialized'); } } catch(e) {}
+            try { if (typeof window !== 'undefined' && (typeof window.ODCM_DEBUG !== 'undefined' && window.ODCM_DEBUG === true || (window.odcmInsightConfig && window.odcmInsightConfig.debug === true))) { console.log('ODCM: Toast system initialized'); } } catch(e) {}
         },
         
         /**

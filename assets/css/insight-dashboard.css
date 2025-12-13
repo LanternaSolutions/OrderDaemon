@@ -472,13 +472,17 @@
 .odcm-filter-pane,
 .odcm-log-stream,
 .odcm-detail-pane {
-    background: var(--odcm-theme-white);
+    background: var(--odcm-theme-grey-100);
     border: 1px solid var(--odcm-component-border-color);
     border-radius: 0px;
     display: flex;
     flex-direction: column;
     margin-top: 0; /* Ensure no margin offset */
     border-top: 0; /* Remove top border to align with header */
+}
+
+.odcm-detail-pane {
+    background-color: var(--odcm-theme-grey-200);
 }
 
 .odcm-filter-pane {
@@ -488,6 +492,7 @@
     height: 100%; /* Fill available grid space */
     min-height: 0; /* Allow shrinking below content size */
     max-height: 100%; /* Prevent growing beyond available space */
+    background-color: var(--odcm-theme-grey-200);
 }
 
 .odcm-log-stream {
@@ -962,7 +967,6 @@ label.odcm-retention-option {
     display: flex;
     flex-direction: column;
     width: var(--odcm-theme-side-pane-width);
-    background: var(--odcm-theme-white);
     z-index: 15; /* Above regular content, below unified header */
     padding: var(--odcm-theme-spacing-sm);
     box-sizing: border-box;
@@ -1419,7 +1423,7 @@ label.odcm-retention-option {
     align-items: center;
     gap: var(--odcm-theme-spacing-md);
     flex-wrap: wrap;
-    flex: 1; /* Take available space on the left */
+    flex: 1;
 }
 
 .odcm-select-all-container {
@@ -2826,7 +2830,8 @@ label.odcm-retention-option {
 /*** ODCM STREAM VIEW TOGGLE — SEGMENTED SLIDER ************************************/
 /* Container fits nicely inside stream controls */
 .odcm-stream-view-toggle {
-    flex: 1 1 auto;
+    align-items: flex-end;
+    margin-left: auto; /* Push to the right edge of parent */
 }
 
 /* Segmented control track */

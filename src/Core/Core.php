@@ -139,7 +139,7 @@ class Core
                 if (is_array($statuses)) {
                     foreach ($statuses as $status_key => $label) {
                         // wc_get_order_statuses keys are like 'wc-processing' -> we need 'processing'
-                        $slug = is_string($status_key) ? sanitize_key($status_key) : '';
+                        $slug = is_string($status_key) ? sanitize_key((string) $status_key) : '';
                         if ($slug === '') {
                             continue;
                         }
@@ -190,6 +190,21 @@ class Core
             $refundDeletion->init();
         } catch (\Throwable $e) {
             // Silently ignore to maintain compatibility on environments without WooCommerce
+        }
+
+        // Initialize Rule Execution Event Updater for consolidated timeline events
+        try {
+            $ruleEventUpdater = \OrderDaemon\CompletionManager\Core\Events\RuleExecutionEventUpdater::instance();
+            
+            // Set up the hook handler for existing events updates
+            add_action('init', function() {
+                // Process any pending updates during WordPress init, once DB is fully ready
+                \OrderDaemon\CompletionManager\Core\Events\RuleExecutionEventUpdater::instance()->process_pending_updates();
+            }, 20);
+            
+            odcm_log_message('Rule Execution Event Updater initialized for consolidated timeline events', 'info');
+        } catch (\Throwable $e) {
+            odcm_log_message('Failed to initialize Rule Execution Event Updater: ' . $e->getMessage(), 'error');
         }
     }
 
@@ -1565,12 +1580,38 @@ class Core
      */
     private function synthesize_order_created_event(\WC_Order $order): UniversalEvent
     {
+        $order_id = $order->get_id();
+        $source = $this->determine_change_source();
+        
+        // Create order creation component
+        $component_data = [
+            'order_id' => $order_id,
+            'status' => $order->get_status(),
+            'amount' => (float) $order->get_total(),
+            'currency' => $order->get_currency(),
+            'customer_id' => $order->get_customer_id(),
+            'payment_method' => $order->get_payment_method(),
+            'source' => $source,
+        ];
+
+        // Use creation timestamp for component
+        $ts = (float) $order->get_date_created()->getTimestamp();
+
+        $components = [[
+            'k' => 'order_created_' . str_replace('.', '_', (string)$ts),
+            'event_type' => 'order_created',
+            'ts' => $ts,
+            'label' => 'Order Created',
+            'level' => 'info',
+            'data' => $component_data,
+        ]];
+
         return new UniversalEvent([
             'eventType' => 'order_created',
-            'sourceGateway' => $this->normalize_gateway_name($order->get_payment_method()),
+            'sourceGateway' => null,
             'channel' => 'system',
             'primaryObjectType' => 'order',
-            'primaryObjectID' => $order->get_id(),
+            'primaryObjectID' => $order_id,
             'transactionID' => $order->get_transaction_id(),
             'status' => $order->get_status(),
             'amount' => (float) $order->get_total(),
@@ -1578,10 +1619,10 @@ class Core
             'occurredAt' => current_time('c'),
             'rawData' => [
                 'order_status' => $order->get_status(),
-                'payment_method' => $order->get_payment_method(),
                 'customer_id' => $order->get_customer_id(),
-                'source' => $this->determine_change_source()
-            ]
+                'source' => $source
+            ],
+            'components' => $components
         ]);
     }
 

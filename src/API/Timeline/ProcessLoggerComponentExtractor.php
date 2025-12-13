@@ -113,9 +113,23 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             }
         }
         
-        // Add rule-related data for rule renderers
-        if ($this->isRuleRelated($summary, $eventType)) {
+        // Detect Rule Traces: Prevent confusion with main events
+        // e.g., 'rule_evaluation_non_canonical' masquerading as 'checkout_processed'
+        $is_rule_trace = $this->isRuleRelated($summary, $eventType) || 
+                         strpos($eventType, 'rule_evaluation') !== false ||
+                         strpos($summary, 'rule evaluated') !== false;
+
+        if ($is_rule_trace) {
             $data['rule_evaluation'] = true;
+            $data['is_trace'] = true;
+            
+            // For technical traces, override the summary/label if it's identical to a main event type
+            // to prevent "Checkout Completed" appearing twice
+            if ($summary === $eventType || $summary === 'Checkout Completed') {
+                $summary = 'Rule Trace: ' . ucfirst(str_replace('_', ' ', $eventType));
+                $data['summary'] = $summary;
+            }
+
             if (strpos($summary, 'rule') !== false) {
                 $data['rule_id'] = $this->extractRuleIdFromSummary($summary);
             }
@@ -136,15 +150,27 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             $data['gateway'] = 'paypal';
         }
         
-        // Include raw payload if it exists but isn't ProcessLogger format
+        // Merge payload data intelligently
+        // This ensures debug events with data in payload but no components (like fallback debug events)
+        // still show their data in the renderer
         $payloadRaw = $logEntry['payload'] ?? '';
         if (!empty($payloadRaw)) {
             $payloadData = json_decode($payloadRaw, true);
             if (is_array($payloadData) && !$this->isProcessLoggerFormat($payloadData)) {
-                $data['legacy_payload'] = $payloadData;
+                // Merge payload data into the main data array so keys like 'amount', 'currency', etc.
+                // are available at the top level for renderers
+                $data = array_merge($payloadData, $data);
+                $data['legacy_payload'] = $payloadData; // Keep reference to original structure
             }
         }
         
+        // Final label adjustment for traces
+        $label = $summary;
+        if ($is_rule_trace && strpos(strtolower($label), 'trace') === false && strpos(strtolower($label), 'rule') === false) {
+             // If we detected it's a trace but the label looks like a main event, fix it
+             $label = 'Rule Evaluation: ' . $label;
+        }
+
         // Debug log the component structure
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             error_log('ODCM DEBUG: createSyntheticComponent - Creating component for event type: ' . $eventType);
@@ -156,7 +182,7 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
         return [
             'component_id' => 'synthetic_' . ($logEntry['log_id'] ?? $logEntry['id'] ?? uniqid()),
             'event_type' => $eventType,
-            'label' => $summary,
+            'label' => $label, // Use adjusted label
             'ts' => $timestamp,
             'level' => $status,
             'data' => $data  // Ensure data is properly structured as an array

@@ -660,7 +660,6 @@ class OrderRenderer extends BaseRenderer
             'Amount' => isset($data['amount'], $data['currency']) 
                        ? $this->formatCurrency($data['amount'], $data['currency']) 
                        : '',
-            'Payment Gateway' => ucfirst($data['source_gateway'] ?? ''),
             'Customer ID' => $data['customer_id'] ?? '',
         ];
 

@@ -545,8 +545,14 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         // Get event type
         $event_type = $payload['data']['event_type'] ?? $payload['event_type'] ?? '';
 
-        // Hide technical debug events
-        if (in_array($event_type, ['order_created', 'order_check_scheduled', 'order_loaded', 'checkout_processed'])) {
+        // Hide ONLY truly technical debug events (not business events)
+        if (in_array($event_type, [
+            'order_check_scheduled',  // Internal scheduling, not business-relevant
+            'rule_evaluation_non_canonical', // Debug traces for rule evaluation
+            '_status_evaluation',     // Debug events for status change evaluation
+            'process_started',        // Technical process lifecycle events
+            'order_loaded'           // Purely technical loading event
+        ])) {
             return true;
         }
 

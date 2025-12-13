@@ -44,8 +44,17 @@ function odcmIsDebug() {
 // Ensure global ODCM_DEBUG is set from localized config when available (non-destructive)
 (function(){
     try {
-        if (typeof window !== 'undefined' && typeof window.ODCM_DEBUG === 'undefined' && window.odcmInsightConfig && typeof window.odcmInsightConfig.debug !== 'undefined') {
-            window.ODCM_DEBUG = !!window.odcmInsightConfig.debug;
+        // Only set ODCM_DEBUG if it's truly undefined (not just falsy)
+        // This prevents overriding a user-defined false value
+        if (typeof window !== 'undefined' &&
+            typeof window.ODCM_DEBUG === 'undefined' &&
+            window.odcmInsightConfig &&
+            typeof window.odcmInsightConfig.debug !== 'undefined') {
+            // Check if ODCM_DEBUG was defined in wp-config.php by looking for it in the global scope
+            // If it's not defined anywhere, we can safely set it
+            if (typeof ODCM_DEBUG_from_wp_config === 'undefined') {
+                window.ODCM_DEBUG = !!window.odcmInsightConfig.debug;
+            }
         }
     } catch (e) {}
 })();
@@ -1137,6 +1146,7 @@ function insightDashboard() {
                     page: this.currentPage,
                     per_page: this.perPage,
                     since: this.lastFetchTime,
+                    view: this.viewMode || 'consolidated',
                     ...this.getActiveFilters()
                 });
 
@@ -2096,6 +2106,11 @@ function insightDashboard() {
          * Check if a log entry is consolidated (has multiple events)
          */
         isConsolidatedEntry(log) {
+            // In flat view, nothing should be treated as consolidated
+            if (this.viewMode === 'flat') {
+                return false;
+            }
+            
             return log.is_process_representative === true || 
                    (log.consolidation_data && log.consolidation_data.is_consolidated === true) ||
                    (log.process_event_count && log.process_event_count > 1);

@@ -257,11 +257,15 @@ class InsightDashboard
         );
 
         // Dashboard JavaScript with Alpine.js app - depends on Alpine.js, Prism.js, and shared toasts
+        // Use filemtime for cache busting during development/updates
+        $js_path = defined('ODCM_PLUGIN_DIR') ? ODCM_PLUGIN_DIR . 'assets/js/insight-dashboard.js' : '';
+        $js_version = (file_exists($js_path)) ? filemtime($js_path) : $plugin_version;
+
         wp_enqueue_script(
             'odcm-insight-dashboard-js',
             $assets_url . 'js/insight-dashboard.js',
             ['alpine-js', 'odcm-prism-js', 'odcm-shared-toasts'], // Ensure Alpine, Prism, and toasts load first
-            $plugin_version,
+            $js_version,
             false // Load in head to ensure registration before Alpine processes DOM
         );
 
@@ -716,29 +720,6 @@ class InsightDashboard
                     <h3><?php echo esc_html__('admin.insight_dashboard.stream.title', 'order-daemon'); ?></h3>
                 </div>
                 <div class="odcm-stream-controls">
-                    <div class="odcm-stream-view-toggle odcm-segmented" role="radiogroup" aria-label="Toggle view mode">
-                        <div class="odcm-segmented-track">
-                            <div class="odcm-segmented-thumb" :class="viewMode === 'flat' ? 'is-right' : 'is-left'"></div>
-                            <button type="button"
-                                    class="odcm-segmented-option"
-                                    role="radio"
-                                    :aria-checked="viewMode === 'consolidated'"
-                                    :class="{ 'is-active': viewMode === 'consolidated' }"
-                                    @click="setViewMode('consolidated')">
-                                <?php echo esc_html__('Grouped', 'order-daemon'); ?>
-                            </button>
-                            <button type="button"
-                                    class="odcm-segmented-option"
-                                    role="radio"
-                                    :aria-checked="viewMode === 'flat'"
-                                    :class="{ 'is-active': viewMode === 'flat' }"
-                                    @click="setViewMode('flat')"
-                                    title="<?php echo esc_attr__('Shows all events ungrouped, in strict chronological order', 'order-daemon'); ?>">
-                                <?php echo esc_html__('Individual', 'order-daemon'); ?>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="odcm-controls-divider" aria-hidden="true"></div>
                     <div class="odcm-refresh-controls">
                         <button type="button" 
                                 class="odcm-refresh-button button"
@@ -1476,9 +1457,10 @@ class InsightDashboard
         $current_user = wp_get_current_user();
         $user_display_name = $current_user->display_name ?: $current_user->user_login;
 
-        // Narrative-based single process entry for admin reprocess action
+        // Don't pass order_id at all for admin actions instead of passing null
+        // This prevents the Order #0 issue in ProcessLogger/ProcessIdManager
         $pl = new \OrderDaemon\CompletionManager\Core\Logging\ProcessLogger(new \OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer());
-        $pl->start('admin_action', [ 'order_id' => null, 'actor_user_id' => get_current_user_id(), 'summary' => 'Admin requested reprocess' ]);
+        $pl->start('admin_action', [ 'actor_user_id' => get_current_user_id(), 'summary' => 'Admin requested reprocess' ]);
         $pl->add_component('info', 'Reprocess orders requested', [ 'message' => sprintf('%s requested reprocessing of %d orders', $user_display_name, $count) ]);
         $pl->add_component('metrics', 'Orders scheduled', [ 'name' => 'orders_scheduled', 'value' => (float)$count ]);
         $pl->finish('success', sprintf('Admin requested reprocessing of %d orders', $count));
@@ -1719,6 +1701,29 @@ class InsightDashboard
                                 <span class="dashicons dashicons-trash" :class="{ 'is-spinning': isDeleting }"></span>
                                 <span x-text="isDeleting ? '<?php echo esc_js(__('admin.insight_dashboard.log_stream.deleting', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.log_stream.delete_selected', 'order-daemon')); ?>'"></span>
                             </button>
+                        </div>
+                        <div class="odcm-controls-divider" aria-hidden="true"></div>
+                        <div class="odcm-stream-view-toggle odcm-segmented" role="radiogroup" aria-label="Toggle view mode">
+                            <div class="odcm-segmented-track">
+                                <div class="odcm-segmented-thumb" :class="viewMode === 'flat' ? 'is-right' : 'is-left'"></div>
+                                <button type="button"
+                                        class="odcm-segmented-option"
+                                        role="radio"
+                                        :aria-checked="viewMode === 'consolidated'"
+                                        :class="{ 'is-active': viewMode === 'consolidated' }"
+                                        @click="setViewMode('consolidated')">
+                                    <?php echo esc_html__('Grouped', 'order-daemon'); ?>
+                                </button>
+                                <button type="button"
+                                        class="odcm-segmented-option"
+                                        role="radio"
+                                        :aria-checked="viewMode === 'flat'"
+                                        :class="{ 'is-active': viewMode === 'flat' }"
+                                        @click="setViewMode('flat')"
+                                        title="<?php echo esc_attr__('Shows all events ungrouped, in strict chronological order', 'order-daemon'); ?>">
+                                    <?php echo esc_html__('Individual', 'order-daemon'); ?>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

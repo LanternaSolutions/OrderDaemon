@@ -39,7 +39,7 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
             error_log('ODCM DEBUG: DatabaseTimelineBuilder - buildTimeline called for log_id: ' . $request->logId);
             error_log('ODCM DEBUG: DatabaseTimelineBuilder - Request include_debug: ' . ($request->includeDebug ? 'true' : 'false'));
             error_log('ODCM DEBUG: DatabaseTimelineBuilder - Request view_mode: ' . $request->viewMode);
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Request is_process_group: ' . ($this->isProcessGroup($request->logId) ? 'true' : 'false'));
+            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Request is_process_group: ' . ($this->isProcessGroup($request->logId, $request->viewMode) ? 'true' : 'false'));
 
             $eventType = $this->getEventTypeForLog($request->logId);
             if ($this->isOrderCompletionEvent($eventType)) {
@@ -48,7 +48,7 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
                     'log_id' => $request->logId,
                     'include_debug' => $request->includeDebug,
                     'view_mode' => $request->viewMode,
-                    'is_process_group' => $this->isProcessGroup($request->logId)
+                    'is_process_group' => $this->isProcessGroup($request->logId, $request->viewMode)
                 ]));
             }
         }
@@ -102,7 +102,7 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
                 error_log('ODCM DEBUG: DatabaseTimelineBuilder - Individual view mode forced, building individual timeline for log_id: ' . $request->logId);
             }
             return $this->buildIndividualTimeline($logEntry, $request->includeDebug);
-        } elseif ($this->shouldRenderAsProcessGroup($logEntry)) {
+        } elseif ($this->shouldRenderAsProcessGroup($logEntry, $request->viewMode)) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 error_log('ODCM DEBUG: DatabaseTimelineBuilder - Building process group timeline for process_id: ' . 
                       ($logEntry['process_id'] ?? 'undefined'));
@@ -142,14 +142,41 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
     /**
      * Check if this log ID should be rendered as a process group
      */
-    private function isProcessGroup(int $logId): bool
+    private function isProcessGroup(int $logId, string $viewMode): bool
     {
         $logEntry = $this->fetchLogEntry($logId);
         if (!$logEntry) {
             return false;
         }
         
-        return $this->shouldRenderAsProcessGroup($logEntry);
+        return $this->shouldRenderAsProcessGroup($logEntry, $viewMode);
+    }
+
+    /**
+     * Determine if log entry should be rendered as process group
+     * 
+     * @param array $logEntry The log entry to check
+     * @param string $viewMode The current view mode ('flat' or 'consolidated')
+     * @return bool True if should render as process group, false otherwise
+     */
+    private function shouldRenderAsProcessGroup(array $logEntry, string $viewMode): bool
+    {
+        // In flat view mode, never render as process group regardless of process_id
+        if ($viewMode === 'flat') {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log('ODCM DEBUG: DatabaseTimelineBuilder - Flat view mode, forcing individual rendering for log_id: ' . ($logEntry['log_id'] ?? 'unknown'));
+            }
+            return false;
+        }
+        
+        // In consolidated view mode, only render as process group if process_id exists
+        $shouldGroup = !empty($logEntry['process_id']);
+        
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Consolidated view mode, process group decision: ' . ($shouldGroup ? 'YES' : 'NO') . ' for log_id: ' . ($logEntry['log_id'] ?? 'unknown'));
+        }
+        
+        return $shouldGroup;
     }
 
     /**
@@ -364,24 +391,18 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
     }
 
     /**
-     * Determine if log entry should be rendered as process group
-     */
-    private function shouldRenderAsProcessGroup(array $logEntry): bool
-    {
-        return !empty($logEntry['process_id']);
-    }
-
-    /**
      * Build individual log entry timeline
      */
     private function buildIndividualTimeline(array $logEntry, bool $includeDebug): TimelineData
     {
         // Special handling for order completion events
         if ($this->isOrderCompletionEvent($logEntry['event_type'] ?? '') && defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Building individual timeline for order completion event: ' . 
+            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Building individual timeline for order completion event: ' .
                   ($logEntry['event_type'] ?? 'unknown'));
         }
-        
+
+        // CRITICAL FIX: Extract components ONLY from the specific log entry, not from the entire process
+        // This ensures that in individual view, each log entry shows only its own components
         $components = $this->extractComponentsFromLogEntry($logEntry, $includeDebug);
 
         // For order events with no components, create a synthetic component to ensure something renders

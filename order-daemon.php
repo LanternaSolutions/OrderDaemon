@@ -57,8 +57,18 @@ if ( ! defined( 'ODCM_VERSION' ) ) {
 define('ODCM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ODCM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('ODCM_PLUGIN_FILE', __FILE__);
+// Handle ODCM_DEBUG constant definition carefully to avoid "already defined" warnings
 if ( ! defined( 'ODCM_DEBUG' ) ) {
-    define('ODCM_DEBUG', false); // ✅ Default disabled, explicit enable only
+    define('ODCM_DEBUG', false); // Default disabled, explicit enable only
+}
+// If ODCM_DEBUG is already defined (e.g., in wp-config.php), respect that setting
+// This elseif block ensures we don't attempt redefinition which causes warnings
+elseif (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+    // Constant already defined and enabled - no action needed
+}
+// If ODCM_DEBUG is defined but false, also respect that setting
+elseif (defined('ODCM_DEBUG') && !ODCM_DEBUG) {
+    // Constant already defined but disabled - no action needed
 }
 define('ODCM_IS_CORE', true);
 

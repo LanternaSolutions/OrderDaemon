@@ -165,11 +165,13 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'args'                => [
                     'log_id' => [
                         'required'          => true,
-                        'type'              => 'integer',
-                        'minimum'           => 1,
-                        'sanitize_callback' => 'absint',
+                        // Allow string type for virtual log IDs (e.g. "302_0")
+                        'type'              => ['integer', 'string'],
+                        'sanitize_callback' => 'sanitize_text_field',
                         'validate_callback' => function($value) {
-                            return is_numeric($value) && $value > 0;
+                            // Accept numeric ID or virtual ID pattern "ID_Index"
+                            if (is_numeric($value) && $value > 0) return true;
+                            return preg_match('/^\d+_\d+$/', (string)$value);
                         },
                     ],
                     'include_debug' => [
@@ -641,10 +643,13 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Determine view mode: consolidated (default) or flat (raw chronological)
             $view = $request->get_param('view') ?: 'consolidated';
+
             if ($view === 'flat') {
-                // Flat view: paginate raw events directly, no consolidation
+                // Flat view: NO consolidation, direct pagination of individual events
                 $page_logs = $this->get_filtered_logs($request, $per_page, $page);
                 $total = $this->get_filtered_log_count($request);
+
+                // Calculate pagination
                 $total_pages = max(1, (int) ceil($total / $per_page));
                 if ($page > $total_pages) {
                     $page = $total_pages;
@@ -663,7 +668,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ]);
 
                 $response_data = [
-                    'logs' => $this->format_logs_for_api($page_logs),
+                    'logs' => $this->format_logs_for_flat_view($page_logs),
                     'pagination' => [
                         'total' => $total,
                         'total_pages' => $total_pages,
@@ -677,23 +682,24 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'filters' => $this->get_applied_filters($request),
                     'meta' => [
                         'execution_time' => $execution_time,
-                    'timestamp' => current_time('mysql'),
-                    'consolidated_pagination' => false,
-                    'pagination_basis' => 'raw',
+                        'timestamp' => current_time('mysql'),
+                        'consolidated_pagination' => false,
+                        'pagination_basis' => 'raw',
+                        'view_mode' => 'flat',
                     ],
                 ];
 
                 return new WP_REST_Response($response_data, 200);
             }
 
-            // Consolidated view (default): fetch all filtered, consolidate by process, then paginate
+            // Consolidated view: apply process grouping
             $all_logs = $this->get_all_filtered_logs($request);
-            
+
             // DETAILED DEBUG: Track every step
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage('ODCM: DEBUG - Result from get_all_filtered_logs: ' . (is_wp_error($all_logs) ? 'WP_Error: ' . $all_logs->get_error_message() : 'Array with ' . count($all_logs) . ' items'), 'debug');
             }
-            
+
             if (is_wp_error($all_logs)) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                     $this->logDebugMessage('ODCM: DEBUG - Converting WP_Error to empty array', 'debug');
@@ -705,8 +711,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Apply UI-only consolidation by process_id for lifecycle events
             try {
                 $include_debug = (bool) $request->get_param('include_debug');
-                $all_logs = $this->apply_process_id_consolidation($all_logs, $include_debug);
-                
+                $all_logs = $this->apply_process_id_consolidation($all_logs, $include_debug, 'consolidated');
+
             } catch (\Throwable $e) {
                 // Fail-safe: keep original logs ungrouped
                 $this->logDebugMessage('ODCM: Process ID consolidation failed: ' . $e->getMessage(), 'error');
@@ -751,6 +757,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'timestamp' => current_time('mysql'),
                     'consolidated_pagination' => true,
                     'pagination_basis' => 'consolidated',
+                    'view_mode' => 'consolidated',
                 ],
             ];
 
@@ -776,11 +783,11 @@ class AuditLogEndpoint extends WP_REST_Controller
     {
         try {
             // Enhanced debugging for order completion events
-            $log_id = $request->get_param('log_id');
+            $log_id_param = $request->get_param('log_id');
             $include_debug = (bool) $request->get_param('include_debug');
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM: render_components called for log_id: " . $log_id, 'debug');
+                $this->logDebugMessage("ODCM: render_components called for log_id: " . $log_id_param, 'debug');
                 $this->logDebugMessage("ODCM: Request parameters: " . json_encode($request->get_params()), 'debug');
             }
 
@@ -805,6 +812,25 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Start performance monitoring
             $start_time = microtime(true);
 
+            // Handle virtual IDs (e.g. "302_0") by stripping the virtual suffix
+            // The filtering will happen after building the timeline
+            $log_id_raw = $request->get_param('log_id');
+            $component_index = null;
+            
+            // Check if this is a virtual ID
+            if (is_string($log_id_raw) && strpos($log_id_raw, '_') !== false) {
+                $parts = explode('_', $log_id_raw);
+                if (count($parts) === 2 && is_numeric($parts[0]) && is_numeric($parts[1])) {
+                    // It's a virtual ID: use the real ID for lookup, store index for later filtering
+                    $request->set_param('log_id', (int)$parts[0]);
+                    $component_index = (int)$parts[1];
+                    
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage("ODCM: Virtual ID detected: {$log_id_raw} -> Real ID: {$parts[0]}, Component Index: {$component_index}", 'debug');
+                    }
+                }
+            }
+
             // Create immutable request object
             try {
                 $timelineRequest = TimelineRequest::fromRestRequest($request);
@@ -813,12 +839,36 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM: TimelineRequest created: log_id=" . $timelineRequest->logId . ", include_debug=" . ($timelineRequest->includeDebug ? 'true' : 'false'), 'debug');
+                $this->logDebugMessage("ODCM: TimelineRequest created: log_id=" . $timelineRequest->logId . ", include_debug=" . ($timelineRequest->includeDebug ? 'true' : 'false') . ", view_mode=" . $timelineRequest->viewMode, 'debug');
             }
 
             // Build timeline data using injected services
             try {
                 $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
+                
+                // If a specific component index was requested (Virtual ID), filter the timeline to ONLY that component
+                if ($component_index !== null) {
+                    if (isset($timelineData->components[$component_index])) {
+                        // Extract just the target component
+                        $target_component = $timelineData->components[$component_index];
+                        
+                        // Create a new TimelineData with just this single component
+                        // We must use reflection or a new instance since properties are readonly
+                        $timelineData = \OrderDaemon\CompletionManager\API\Timeline\TimelineData::individual(
+                            $timelineData->logId,
+                            [$target_component],
+                            $timelineData->metadata
+                        );
+                        
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            $this->logDebugMessage("ODCM: Filtered timeline to virtual component index: {$component_index}", 'debug');
+                        }
+                    } else {
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            $this->logDebugMessage("ODCM: Virtual component index {$component_index} not found in timeline", 'warning');
+                        }
+                    }
+                }
 
                 // IMPORTANT: Verify that timelineData is the correct type and fully qualified
                 if (!($timelineData instanceof \OrderDaemon\CompletionManager\API\Timeline\TimelineData)) {
@@ -1589,10 +1639,19 @@ class AuditLogEndpoint extends WP_REST_Controller
      * 
      * @param array $logs Array of log entries
      * @param bool $include_debug Whether to include debug events
+     * @param string $view_mode The current view mode ('flat' or 'consolidated')
      * @return array Consolidated log entries
      */
-    private function apply_process_id_consolidation(array $logs, bool $include_debug): array
+    private function apply_process_id_consolidation(array $logs, bool $include_debug, string $view_mode = 'consolidated'): array
     {
+        // If flat view mode, return logs unchanged (no consolidation)
+        if ($view_mode === 'flat') {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM Consolidation: SKIPPED - flat view mode requested', 'debug');
+            }
+            return $logs;
+        }
+
         if (empty($logs)) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage('ODCM Consolidation: Empty input logs array', 'warning');
@@ -1734,6 +1793,98 @@ class AuditLogEndpoint extends WP_REST_Controller
         }
         
         return $filters;
+    }
+
+    /**
+     * Format logs for API response - FLAT/INDIVIDUAL VIEW
+     * This method ensures that each log entry is treated individually without any consolidation.
+     * CRITICAL: It also explodes composite log entries (which essentially contain multiple
+     * events in their payload) into distinct virtual entries.
+     * 
+     * @param array $logs Array of log entries
+     * @return array Formatted logs
+     */
+    private function format_logs_for_flat_view(array $logs): array
+    {
+        $formatted_logs = [];
+
+        foreach ($logs as $log) {
+            // For flat view, ensure we have a valid log_id
+            $log_id = $log['log_id'] ?? 0;
+            
+            // Check if payload contains multiple components to explode
+            $payload_data = null;
+            if (!empty($log['payload'])) {
+                $payload_data = json_decode($log['payload'], true);
+            }
+            
+            // Check if this is a composite entry that needs explosion
+            // Only explode if 'components' exists and has more than 1 item
+            if (isset($payload_data['components']) && is_array($payload_data['components']) && count($payload_data['components']) > 1) {
+                
+                foreach ($payload_data['components'] as $index => $component) {
+                    // Create virtual ID: "realID_index" (e.g. 302_0, 302_1)
+                    // Frontend treats strings as IDs fine
+                    $virtual_id = $log_id . '_' . $index;
+                    
+                    $formatted_log = [
+                        'id' => $virtual_id,
+                        'original_id' => (int) $log_id,
+                        // Use component timestamp if available, else row timestamp
+                        'timestamp' => $component['ts'] ? gmdate('Y-m-d H:i:s', (int)$component['ts']) : $log['timestamp'],
+                        // Use component label/message as summary
+                        'summary' => $component['label'] ?? ($component['data']['message'] ?? $log['summary']),
+                        'status' => $component['level'] ?? $log['status'],
+                        'event_type' => $component['event_type'] ?? $log['event_type'],
+                        'is_process_group' => false,
+                        'is_virtual' => true,
+                        'component_index' => $index
+                    ];
+                    
+                    if (!empty($log['order_id'])) {
+                        $formatted_log['order_id'] = (int) $log['order_id'];
+                    }
+                    
+                    if (!empty($log['payload_id'])) {
+                        $formatted_log['payload_id'] = (int) $log['payload_id'];
+                    }
+                    
+                    $formatted_logs[] = $formatted_log;
+                }
+                
+                continue; // Skip the standard processing since we added virtual ones
+            }
+
+            // Standard processing for atomic or empty logs
+            $formatted_log = [
+                'id' => (int) $log_id,
+                'timestamp' => $log['timestamp'],
+                'status' => $log['status'],
+                'summary' => $log['summary'],
+                'event_type' => $log['event_type'],
+            ];
+
+            // Add order_id if present
+            if (!empty($log['order_id'])) {
+                $formatted_log['order_id'] = (int) $log['order_id'];
+            }
+
+            // Add payload_id if available (for rendering components)
+            if (!empty($log['payload_id'])) {
+                $formatted_log['payload_id'] = (int) $log['payload_id'];
+            }
+
+            $formatted_log['is_process_group'] = false;
+
+            // Also explicitly remove any process-related metadata that might exist
+            unset($formatted_log['process_id'], $formatted_log['process_count']);
+            unset($formatted_log['_is_process_group'], $formatted_log['_process_count']);
+            unset($formatted_log['_process_logs']);
+
+            $formatted_logs[] = $formatted_log;
+        }
+
+        return $formatted_logs;
     }
 
     /**
