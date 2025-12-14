@@ -82,6 +82,7 @@
   --odcm-theme-font-weight-str: 500;
 
   /* --- Spacing --- */
+  --odcm-theme-spacing-xxs: 1px;
   --odcm-theme-spacing-xs: 4px;
   --odcm-theme-spacing-sm: 8px;
   --odcm-theme-spacing-md: 12px;
@@ -103,8 +104,8 @@
   --odcm-theme-side-pane-width: 300px;
 
   /* --- Key-Value Layout Primitives --- */
-  --odcm-theme-key-value-gap: var(--odcm-theme-spacing-sm);
-  --odcm-theme-key-value-row-gap: var(--odcm-theme-spacing-sm);
+  --odcm-theme-key-value-gap: var(--odcm-theme-spacing-xxs);
+  --odcm-theme-key-value-row-gap: var(--odcm-theme-spacing-xxs);
   --odcm-theme-key-border-color: var(--odcm-theme-grey-400);
   --odcm-theme-value-bg: var(--odcm-theme-grey-200);
 
@@ -144,11 +145,12 @@
   --odcm-key-value-gap: var(--odcm-theme-key-value-gap);
   --odcm-key-value-row-gap: var(--odcm-theme-key-value-row-gap);
   --odcm-key-padding: var(--odcm-theme-spacing-xs);
-  --odcm-key-bg: var(--odcm-theme-grey-100);
-  --odcm-value-border: 1px solid var(--odcm-theme-grey-300);
+  --odcm-key-bg: var(--odcm-theme-grey-400);
+  --odcm-value-border: 1px solid var(--odcm-theme-red-700);
   --odcm-value-padding: var(--odcm-theme-spacing-xs);
   --odcm-section-title-font-size: var(--odcm-theme-font-size-md);
   --odcm-section-title-font-weight: var(--odcm-theme-font-weight-str);
+  --odcm-section-margin-top: var(--odcm-theme-spacing-xs);
   --odcm-section-margin-bottom: var(--odcm-theme-spacing-xs);
 
   /* --- Default Status Pill Blueprint --- */
@@ -2274,6 +2276,7 @@ label.odcm-retention-option {
     grid-template-columns: var(--odcm-key-value-columns);
     gap: 0px;
     row-gap: var(--odcm-key-value-row-gap);
+    margin-top: var(--odcm-section-margin-top);
     margin-bottom: var(--odcm-section-margin-bottom);
 }
 
@@ -2284,7 +2287,7 @@ label.odcm-retention-option {
 /* Key Styling */
 .odcm-key {
     padding: var(--odcm-key-padding);
-    background-color: var(--odcm-key-bg);
+    background-color: var(--odcm-theme-grey-200);
     border-radius: var(--odcm-component-border-radius);
     font-weight: var(--odcm-theme-font-weight-str);
     font-size: var(--odcm-theme-font-size-sm);
@@ -2297,7 +2300,7 @@ label.odcm-retention-option {
     padding: var(--odcm-value-padding);
     margin: 0px var(--odcm-key-value-gap);
     border-radius: var(--odcm-component-border-radius);
-    background-color: var(--odcm-key-bg);
+    background-color: var(--odcm-theme-grey-200);
     font-size: var(--odcm-theme-font-size-md);
     color: var(--odcm-component-text-color-body);
     word-break: break-word;
@@ -2520,7 +2523,7 @@ label.odcm-retention-option {
 
 /* Default Theme (Fallback) */
 .odcm-component--default {
-    --odcm-component-bg: var(--odcm-theme-grey-100);
+    --odcm-component-bg: var(--odcm-theme-grey-200);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-800);
     --odcm-component-value-bg: var(--odcm-theme-white);

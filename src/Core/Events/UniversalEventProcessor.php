@@ -100,7 +100,7 @@ class UniversalEventProcessor
             ? (int) $event_data['primaryObjectID'] 
             : 0;
         
-        // DEBUG: Log the process_id assignment logic
+        // ENHANCED DEBUG: Log the process_id assignment logic with more detail
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             odcm_log_message("ODCM_PROCESS_ID_DEBUG: Process ID assignment logic:", 'info');
             odcm_log_message("ODCM_PROCESS_ID_DEBUG: - Extracted order_id: $order_id", 'info');
@@ -110,21 +110,44 @@ class UniversalEventProcessor
                 odcm_log_message("ODCM_PROCESS_ID_DEBUG: - primaryObjectID value: " . $event_data['primaryObjectID'], 'info');
                 odcm_log_message("ODCM_PROCESS_ID_DEBUG: - primaryObjectID > 0: " . ($event_data['primaryObjectID'] > 0 ? 'YES' : 'NO'), 'info');
             }
+            
+            // Log event type and idempotency key for further debugging
+            odcm_log_message("ODCM_PROCESS_ID_DEBUG: - Event Type: " . ($event_data['eventType'] ?? 'UNKNOWN'), 'info');
+            odcm_log_message("ODCM_PROCESS_ID_DEBUG: - Idempotency Key: " . ($event_data['idempotencyKey'] ?? 'MISSING'), 'info');
         }
             
+        // IMPORTANT: We always need a valid process_id, so use special handling for the case where
+        // order_id is invalid or ProcessIdManager returns null
+        $process_id = null;
+        
         if ($order_id > 0) {
-            // Use shared process_id for proper order consolidation
+            // Try to get a shared process_id for proper order consolidation
             $process_id = ProcessIdManager::instance()->get_or_create_process_id($order_id);
             
-            // DEBUG: Log successful shared process_id assignment
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_PROCESS_ID_DEBUG: Using SHARED process_id for order #{$order_id}: $process_id", 'debug');
+            // Verify we got a valid process_id back (ProcessIdManager may return null for invalid orders)
+            if ($process_id !== null) {
+                // DEBUG: Log successful shared process_id assignment
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_PROCESS_ID_DEBUG: Using SHARED process_id for order #{$order_id}: $process_id", 'debug');
+                }
+            } else {
+                // CRITICAL: ProcessIdManager rejected this order_id, so we need to use a unique process_id
+                // This will prevent "Order #0" issues by avoiding the problematic process_id format
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_PROCESS_ID_DEBUG: CRITICAL: ProcessIdManager rejected order_id {$order_id}, falling back to unique ID", 'warning');
+                }
+                
+                // Use unique system process_id as fallback
+                $process_id = 'odcm_system_fallback_' . microtime(true) . '_' . uniqid();
             }
-        } else {
+        }
+        
+        // If we still don't have a valid process_id (no order_id or validation failed), use a unique one
+        if ($process_id === null) {
             // Use unique process_id for non-order events
             $process_id = 'odcm_universal_' . uniqid();
             
-            // DEBUG: Log unique process_id assignment (this is the problem case)
+            // DEBUG: Log unique process_id assignment
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 odcm_log_message("ODCM_PROCESS_ID_DEBUG: Using UNIQUE process_id (NOT CONSOLIDATED): $process_id", 'debug');
                 odcm_log_message("ODCM_PROCESS_ID_DEBUG: This event will appear OUTSIDE the consolidated timeline!", 'debug');
@@ -191,13 +214,16 @@ class UniversalEventProcessor
     }
 
     /**
-     * Validate event data structure with detailed debugging
+     * Create business-friendly error message from technical error
      * 
-     * @param array $event_data Event data to validate
-     * @param string $process_id Process ID for debugging
-     * @return bool True if valid
+     * Converts technical error messages into user-friendly versions that
+     * are appropriate for display in the timeline.
+     * 
+     * @param string $technical_message The technical error message
+     * @param string $gateway The payment gateway name
+     * @return string Business-friendly error message
      */
-    private function validateEventData(array $event_data, string $process_id): bool
+    public function createBusinessErrorMessage(string $technical_message, string $gateway): string
     {
         // Required fields for UniversalEvent
         $required_fields = [
@@ -755,6 +781,14 @@ class UniversalEventProcessor
     ];
     
     /**
+     * Storage for tracking which events have been processed for each order+rule
+     * This prevents duplicate rule execution events from different canonical event types
+     *
+     * @var array
+     */
+    private static $processed_events = [];
+    
+    /**
      * Process universal event through rule engine
      * 
      * Simplified rule processing that evaluates rules against universal events
@@ -801,19 +835,31 @@ class UniversalEventProcessor
             return false;
         }
         
-        // Validate order ID to avoid "Order #0" issues
-        if (!$order_id) {
+        // ENHANCED VALIDATION: Strict checks for Order #0 prevention
+        // Validate order ID with detailed logging to avoid "Order #0" issues
+        if (!$order_id || $order_id <= 0) {
+            $event_info = json_encode([
+                'event_type' => $context->event->eventType,
+                'source_gateway' => $context->event->sourceGateway,
+                'idempotency_key' => $context->event->idempotencyKey,
+                'requested_order_id' => $order_id,
+                'primary_object_id' => $context->event->primaryObjectID,
+                'primary_object_type' => $context->event->primaryObjectType
+            ]);
+            
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Invalid Order ID (0) for event: {$context->event->eventType}", 'warning');
-            }
-            return false;
-        }
-
-        // Validate order ID BEFORE creating ProcessLogger
-        // This prevents creation of "Rule evaluation completed for Order #0" events
-        if (empty($order_id) || $order_id <= 0) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - CRITICAL: Rejecting rule execution with invalid Order ID ({$order_id})", 'error');
+                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - CRITICAL: Invalid Order ID debugging trace: " . $event_info, 'error');
+                
+                // Add stack trace for detailed debugging
+                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+                $trace_info = "";
+                foreach ($backtrace as $idx => $frame) {
+                    $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
+                    $line = $frame['line'] ?? '?';
+                    $function = $frame['function'] ?? 'unknown';
+                    $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
+                }
+                odcm_log_message("ODCM_DEBUG_TRACE: Invalid Order ID backtrace: " . $trace_info, 'error');
             }
             
             // Return false to completely skip rule evaluation for invalid order IDs
@@ -1247,6 +1293,7 @@ class UniversalEventProcessor
      * Create a consolidated rule execution event for an order/rule combination
      * 
      * This creates a single rule execution event that shows all triggering events
+     * with enhanced validation to prevent Order #0 issues
      * 
      * @param int $order_id Order ID
      * @param int $rule_id Rule ID
@@ -1255,7 +1302,15 @@ class UniversalEventProcessor
      */
     private function createConsolidatedRuleExecutionEvent(int $order_id, int $rule_id, EvaluationContext $context, string $process_id): void
     {
+        // ENHANCED VALIDATION: Stricter checks to prevent Order #0 issues
         if ($order_id <= 0 || $rule_id <= 0 || !$this->matched_rule_data) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message(
+                    "ODCM_DEDUP_DEBUG: Rejecting rule execution event creation - Invalid parameters: " . 
+                    "order_id={$order_id}, rule_id={$rule_id}, has_rule_data=" . ($this->matched_rule_data ? 'yes' : 'no'),
+                    'warning'
+                );
+            }
             return;
         }
         
@@ -1271,11 +1326,16 @@ class UniversalEventProcessor
         }
         
         $rule_name = $this->matched_rule_data['rule']->post_title ?? 'unnamed rule';
-        $execution_time = microtime(true);
         
         // Get trigger events for this rule
         $trigger_events = [];
-        $primary_trigger_event = $context->event->eventType; // Current event is primary
+        
+        // Determine the primary trigger event - use getPrimaryCanonicalEvent for consistency
+        $primary_trigger_event = $this->getPrimaryCanonicalEvent(
+            $context->event->eventType,
+            $order_id,
+            $rule_id
+        );
         
         // Collect all trigger events that matched this rule
         foreach (self::$rule_trigger_events[$order_id]['rule_matches'][$rule_id] as $event_type) {
@@ -1284,28 +1344,19 @@ class UniversalEventProcessor
             }
         }
         
-        // TWO-STEP APPROACH: Check for existing event first, update if found
+        // ALWAYS check for existing event first, update if found
         $existing_event = $this->getExistingRuleExecutionEvent($order_id, $rule_id, $context);
 
         if ($existing_event) {
-            // CONSOLIDATION STRATEGY: Instead of creating a new event, skip creation entirely
-            // This prevents duplicate events by ensuring only one rule execution event exists per rule+order
+            // Instead of creating a new event, update the existing event
+            $this->updateExistingRuleExecutionEvent($order_id, $rule_id, $context, $process_id);
+            
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Found existing rule execution event for Rule '{$rule_name}' (Order #{$order_id})", 'debug');
-                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Event ID: {$existing_event['event_id']}, Skipping duplicate creation", 'debug');
+                odcm_log_message("ODCM_DEDUP_DEBUG: Updated existing rule execution event for Rule '{$rule_name}' (Order #{$order_id})", 'debug');
+                odcm_log_message("ODCM_DEDUP_DEBUG: Event ID: {$existing_event['event_id']}, Primary trigger: {$primary_trigger_event}", 'debug');
             }
 
-            // Update the cached event to include this trigger for completeness
-            if (!in_array($context->event->eventType, $existing_event['all_triggers'])) {
-                $existing_event['all_triggers'][] = $context->event->eventType;
-                
-                // Update cache
-                $cache_key = 'odcm_rule_exec_' . $order_id . '_' . $rule_id;
-                set_transient($cache_key, $existing_event, HOUR_IN_SECONDS);
-                self::$rule_execution_events[$order_id][$rule_id] = $existing_event;
-            }
-
-            // Return early - no new event created, existing event preserved
+            // Return early - existing event updated, no new event created
             return;
         }
 
@@ -1341,18 +1392,26 @@ class UniversalEventProcessor
             $process_id
         );
 
-        // Cache the new event for future reference
+        // Cache the new event for future reference with improved caching
         if ($event_id) {
-            self::$rule_execution_events[$order_id][$rule_id] = [
+            $event_data = [
                 'event_id' => $event_id,
                 'primary_trigger' => $primary_trigger_event,
                 'all_triggers' => array_keys($trigger_events),
                 'process_id' => $process_id,
+                'trigger_details' => $trigger_events,
             ];
+            
+            // Store in both memory cache and persistent cache
+            self::$rule_execution_events[$order_id][$rule_id] = $event_data;
+            
+            // Use improved cache key
+            $cache_key = 'odcm_rule_exec_order_' . $order_id . '_rule_' . $rule_id;
+            set_transient($cache_key, $event_data, HOUR_IN_SECONDS);
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Created new consolidated rule execution event for Rule '{$rule_name}' (Order #{$order_id})", 'debug');
-                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Event ID: {$event_id}, Triggers: " . implode(', ', array_keys($trigger_events)), 'debug');
+                odcm_log_message("ODCM_DEDUP_DEBUG: Created new consolidated rule execution event for Rule '{$rule_name}' (Order #{$order_id})", 'debug');
+                odcm_log_message("ODCM_DEDUP_DEBUG: Event ID: {$event_id}, Primary trigger: {$primary_trigger_event}", 'debug');
             }
         }
     }
@@ -1707,7 +1766,7 @@ class UniversalEventProcessor
 
 
     /**
-     * Determine if this event type should create timeline events
+     * Check if this event type should create timeline events
      * 
      * This implements the "single source of truth" principle for rule execution timeline events.
      * Only the canonical event (representing the actual business decision point) creates 
@@ -1755,6 +1814,38 @@ class UniversalEventProcessor
         // SAFETY FALLBACK: Unknown events default to creating timeline events
         // This ensures new event types aren't accidentally hidden from the timeline
         return true;
+    }
+    
+    /**
+     * Determine primary canonical event for rule execution display
+     * 
+     * When multiple canonical events trigger the same rule, this method
+     * determines which one should be displayed in the timeline for consistency
+     * 
+     * @param string $event_type Current event type
+     * @param int $order_id Order ID
+     * @param int $rule_id Rule ID
+     * @return string Primary event type to display
+     */
+    private function getPrimaryCanonicalEvent(string $event_type, int $order_id, int $rule_id): string
+    {
+        // Define a unique key for this order+rule combination
+        $key = $order_id . '_' . $rule_id;
+        
+        // If this is the first event for this order+rule, register it as primary
+        if (!isset(self::$processed_events[$key])) {
+            self::$processed_events[$key] = $event_type;
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: Registered primary event {$event_type} for Order #{$order_id}, Rule #{$rule_id}", 'debug');
+            }
+            return $event_type;
+        }
+        
+        // Otherwise, return the existing primary event
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("ODCM_DEDUP_DEBUG: Using existing primary event " . self::$processed_events[$key] . " instead of {$event_type}", 'debug');
+        }
+        return self::$processed_events[$key];
     }
 
     /**
@@ -1874,169 +1965,8 @@ class UniversalEventProcessor
     }
     
     /**
-     * Get human-readable trigger summary
-     * 
-     * @param string $primary_trigger Primary trigger event type
-     * @param array $all_triggers All trigger events for this rule
-     * @return string Trigger summary
-     */
-    private function getTriggerSummary(string $primary_trigger, array $all_triggers): string
-    {
-        // Map event types to human readable triggers
-        $event_type_map = [
-            'checkout_processed' => 'checkout completion',
-            'order_created' => 'order creation',
-            'order_status_changed' => 'status change',
-            'payment_completed' => 'payment completion',
-        ];
-        
-        // Get source gateway
-        $source = '';
-        if (isset($all_triggers[$primary_trigger]['source_gateway'])) {
-            $gateway = $all_triggers[$primary_trigger]['source_gateway'];
-            if (!empty($gateway)) {
-                $source = ' via ' . ucfirst($gateway);
-            }
-        }
-        
-        // Get trigger description
-        $trigger = $event_type_map[$primary_trigger] ?? $primary_trigger;
-        
-        // Add status change context if available
-        if ($primary_trigger === 'order_status_changed' && 
-            isset($all_triggers[$primary_trigger]['status_from'], $all_triggers[$primary_trigger]['status_to'])) {
-            $from = ucfirst($all_triggers[$primary_trigger]['status_from']);
-            $to = ucfirst($all_triggers[$primary_trigger]['status_to']);
-            return "{$trigger}{$source} (status changed from {$from} → {$to})";
-        }
-        
-        return "{$trigger}{$source}";
-    }
-    
-    /**
-     * Get execution summary with status context
-     * 
-     * @param EvaluationContext $context Evaluation context
-     * @param array $payload Enhanced payload with rule data
-     * @return string Execution summary
-     */
-    private static function getExecutionSummary(EvaluationContext $context, array $payload): string
-    {
-        // Start with standard summary
-        $summary = "Completed Order";
-        
-        // Add status change context if available for primary action
-        if (isset($payload['primary_trigger']) && $payload['primary_trigger'] === 'order_status_changed' &&
-            isset($payload['trigger_details'][$payload['primary_trigger']]['status_from'],
-                  $payload['trigger_details'][$payload['primary_trigger']]['status_to'])) {
-            
-            $from = ucfirst($payload['trigger_details'][$payload['primary_trigger']]['status_from']);
-            $to = ucfirst($payload['trigger_details'][$payload['primary_trigger']]['status_to']);
-            $summary .= " (status changed from {$from} → {$to})";
-        }
-        
-        return $summary;
-    }
-    
-    /**
-     * Format conditions for display
-     * 
-     * @param array $conditions Condition evaluation results
-     * @return array Formatted conditions for display
-     */
-    private static function formatConditionsForDisplay(array $conditions): array
-    {
-        $result = [];
-        
-        foreach ($conditions as $condition) {
-            if (isset($condition['label'], $condition['result'])) {
-                $key = $condition['label'];
-                $value = $condition['result'] === 'pass' ? 'PASS' : 'FAIL';
-                $result[$key] = $value;
-            }
-        }
-        
-        return $result;
-    }
-
-    /**
-     * Create a rule_execution component for timeline display
-     * 
-     * @param array $payload_for_storage Enhanced payload with rule data
-     * @param EvaluationContext $context Evaluation context
-     * @return array Rule execution component
-     */
-    private function createRuleExecutionComponent(array $payload_for_storage, EvaluationContext $context): array
-    {
-        $rule_name = $payload_for_storage['rule_name'] ?? 'unnamed rule';
-        $order_id = $payload_for_storage['order_id'] ?? $context->getOrderId();
-        $executed_actions = $payload_for_storage['executed_actions'] ?? '';
-        $execution_status = $payload_for_storage['execution_status'] ?? 'EXECUTED';
-        
-        // Create proper component label
-        $label = sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $order_id);
-        
-        return [
-            'event_type' => 'rule_execution',
-            'label' => $label,
-            'ts' => microtime(true),
-            'level' => 'info',
-            'data' => [
-                'event_type' => 'rule_execution',
-                'primary_object_type' => 'order',
-                'primary_object_id' => $order_id,
-                'order_id' => $order_id, // Ensure order_id is in data for renderer
-                'rule_name' => $rule_name,
-                'rule_id' => $payload_for_storage['rule_id'] ?? null,
-                'executed_actions' => $executed_actions,
-                'execution_status' => $execution_status,
-                'amount' => $payload_for_storage['amount'] ?? 0,
-                'currency' => $payload_for_storage['currency'] ?? '',
-                'processing_result' => $payload_for_storage['processing_result'] ?? true,
-                'customer_id' => $payload_for_storage['customer_id'] ?? null,
-                'transaction_id' => $payload_for_storage['transaction_id'] ?? '',
-                'source_gateway' => $payload_for_storage['source_gateway'] ?? '',
-                'channel' => $payload_for_storage['channel'] ?? '',
-                'execution_time_ms' => $payload_for_storage['execution_time_ms'] ?? 0,
-                'idempotency_key' => $payload_for_storage['idempotency_key'] ?? '',
-                'has_order' => $payload_for_storage['has_order'] ?? false,
-            ],
-            // Include the comprehensive rawData for expandable sections
-            'rawData' => $payload_for_storage['rawData'] ?? [],
-        ];
-    }
-
-    /**
-     * Create business-friendly error message from technical error
-     * 
-     * @param string $technical_message The technical error message
-     * @param string $gateway The payment gateway name
-     * @return string Business-friendly error message
-     */
-    private function createBusinessErrorMessage(string $technical_message, string $gateway): string
-    {
-        $message_lower = strtolower($technical_message);
-
-        // Map common technical errors to business-friendly messages
-        if (strpos($message_lower, 'invalid arguments') !== false) {
-            return "$gateway event processing error: Missing required data";
-        }
-
-        if (strpos($message_lower, 'authentication') !== false || strpos($message_lower, 'unauthorized') !== false) {
-            return "$gateway authentication error: Unable to verify event authenticity";
-        }
-
-        if (strpos($message_lower, 'timeout') !== false || strpos($message_lower, 'connection') !== false) {
-            return "$gateway connection error: Network communication failed";
-        }
-
-        if (strpos($message_lower, 'database') !== false) {
-            return "$gateway processing error: Data storage issue";
-        }
-
-        if (strpos($message_lower, 'validation') !== false) {
-            return "$gateway validation error: Event data format issue";
-        }
+     * Update an existing rule execution event with additional trigger information
+     *
 
         if (strpos($message_lower, 'duplicate') !== false) {
             return "$gateway processing notice: Duplicate event detected";

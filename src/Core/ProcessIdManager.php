@@ -32,23 +32,30 @@ final class ProcessIdManager
      * Get or create a process ID for an order lifecycle
      * 
      * Enhanced with stronger validation to prevent Order #0 issues
+     * Uses strict validation to prevent any invalid order IDs from creating process IDs
+     * that could lead to "Order #0" events in the timeline
      *
-     * @param int $order_id
-     * @return string
+     * @param int $order_id The order ID to get/create process ID for
+     * @return string|null Process ID string or null for invalid order IDs
      */
-    public function get_or_create_process_id(int $order_id): string
+    public function get_or_create_process_id(int $order_id): ?string
     {
-        // CRITICAL FIX: Validate order ID to prevent Order #0 issues
-        // This is a key change to prevent malformed process IDs
+        // STRICTER VALIDATION: Ensure order ID is valid to prevent Order #0 issues
+        // This enhanced validation completely prevents process IDs for invalid order IDs
         if ($order_id <= 0) {
-            // Log warning when invalid order ID is provided (only if logging function exists)
+            // Log detailed warning when invalid order ID is provided
             if (defined('ODCM_DEBUG') && ODCM_DEBUG && function_exists('odcm_log_message')) {
-                odcm_log_message("PROCESS_ID_WARNING: Invalid order ID {$order_id} provided to get_or_create_process_id", 'warning');
+                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+                $caller = isset($backtrace[1]) ? $backtrace[1]['function'] : 'unknown';
+                $file = isset($backtrace[0]) ? basename($backtrace[0]['file']) : 'unknown';
+                $line = isset($backtrace[0]) ? $backtrace[0]['line'] : '?';
+                
+                odcm_log_message("PROCESS_ID_WARNING: Invalid order ID {$order_id} rejected in {$file}:{$line} (called from {$caller})", 'warning');
             }
             
-            // Return a fallback process ID that won't create "Order #0" events
-            // Use microsecond precision for uniqueness even when called multiple times
-            return 'odcm:system:' . microtime(true) . ':' . uniqid('', true);
+            // Return null instead of a fallback process ID to force callers to handle this case
+            // This prevents Order #0 events by making the absence of a valid process ID explicit
+            return null;
         }
 
         // Check for existing active process ID in order meta

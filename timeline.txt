@@ -1,265 +1,23 @@
 Order Created
-(order_created)December 13, 2025 4:57 pm :55
+(order_created)December 13, 2025 11:39 pm :13
 
 Order ID
-    #61
+    #65
 Amount
     $10.00
-Payment Gateway
 Customer ID
     1
 
-Status Changed to Pending
-(status_changed)December 13, 2025 4:57 pm :55
-
-From
-    Checkout Draft
-To
-    Pending
-Order
-    #61
-Type
-    Automatic
-
-Checkout Completed
-PROCESSED
-(checkout_processed)December 13, 2025 4:57 pm :55
-
-Order ID
-    #61
-Status
-    Checkout-draft
-Payment Method
-    Credit / Debit Card
-Total
-    $10.00
-
-Technical Details
-
-Checkout Type
-    block_checkout
-
-Source
-    manual
-
-Real Checkout Timestamp
-    1765645075
-
-Queued At
-    2025-12-13T16:57:59+00:00
-
-Processed From Queue
-    1
-
-{
-    "checkout_type": "block_checkout",
-    "capture_timestamp": "2025-12-13T16:57:59+00:00",
-    "order_id": 61,
-    "cart_analysis": {
-        "total_items": 1,
-        "product_types": [
-            "simple"
-        ],
-        "requires_shipping": false,
-        "has_virtual_products": true,
-        "has_downloadable_products": false,
-        "mixed_cart": false
-    },
-    "payment_context": {
-        "payment_method": "stripe",
-        "payment_method_title": "Credit / Debit Card",
-        "payment_status": "checkout-draft",
-        "transaction_id": "",
-        "currency": "USD",
-        "total_amount": 10,
-        "gateway_context": {
-            "payment_method": "stripe",
-            "gateway_id": "stripe",
-            "gateway_title": "Credit / Debit Card",
-            "gateway_class": "WC_Stripe_UPE_Payment_Gateway",
-            "supports": [
-                "products",
-                "refunds",
-                "tokenization",
-                "add_payment_method"
-            ]
-        }
-    },
-    "shipping_analysis": {
-        "requires_shipping": false,
-        "shipping_methods": [],
-        "has_shipping_address": true,
-        "shipping_address": {
-            "country": "US",
-            "state": "CA",
-            "postcode": "45345",
-            "city": "dfghdth"
-        }
-    },
-    "customer_context": {
-        "is_guest": false,
-        "user_id": 1,
-        "email": "yakir@lanterntech.io",
-        "first_name": "dfghdrt",
-        "last_name": "drthdrt",
-        "billing_phone": "1234567897"
-    },
-    "technical_context": {
-        "wp_version": "6.9",
-        "wc_version": "10.3.5",
-        "wc_blocks_version": "11.8.0-dev",
-        "checkout_type": "block_checkout",
-        "is_store_api": false,
-        "theme": "Twenty Twenty-Five"
-    }
-}
-
-Payment Event
-COMPLETED
-(payment.stripe.checkout_processed)December 13, 2025 4:57 pm :55
-
-Gateway
-    Stripe
-Event Type
-    checkout_processed
-
-Technical Details
-
-Checkout Type
-    block_checkout
-
-Source
-    manual
-
-Real Checkout Timestamp
-    1765645075
-
-Queued At
-    2025-12-13T16:57:59+00:00
-
-Processed From Queue
-    1
-
-{
-    "checkout_type": "block_checkout",
-    "capture_timestamp": "2025-12-13T16:57:59+00:00",
-    "order_id": 61,
-    "cart_analysis": {
-        "total_items": 1,
-        "product_types": [
-            "simple"
-        ],
-        "requires_shipping": false,
-        "has_virtual_products": true,
-        "has_downloadable_products": false,
-        "mixed_cart": false
-    },
-    "payment_context": {
-        "payment_method": "stripe",
-        "payment_method_title": "Credit / Debit Card",
-        "payment_status": "checkout-draft",
-        "transaction_id": "",
-        "currency": "USD",
-        "total_amount": 10,
-        "gateway_context": {
-            "payment_method": "stripe",
-            "gateway_id": "stripe",
-            "gateway_title": "Credit / Debit Card",
-            "gateway_class": "WC_Stripe_UPE_Payment_Gateway",
-            "supports": [
-                "products",
-                "refunds",
-                "tokenization",
-                "add_payment_method"
-            ]
-        }
-    },
-    "shipping_analysis": {
-        "requires_shipping": false,
-        "shipping_methods": [],
-        "has_shipping_address": true,
-        "shipping_address": {
-            "country": "US",
-            "state": "CA",
-            "postcode": "45345",
-            "city": "dfghdth"
-        }
-    },
-    "customer_context": {
-        "is_guest": false,
-        "user_id": 1,
-        "email": "yakir@lanterntech.io",
-        "first_name": "dfghdrt",
-        "last_name": "drthdrt",
-        "billing_phone": "1234567897"
-    },
-    "technical_context": {
-        "wp_version": "6.9",
-        "wc_version": "10.3.5",
-        "wc_blocks_version": "11.8.0-dev",
-        "checkout_type": "block_checkout",
-        "is_store_api": false,
-        "theme": "Twenty Twenty-Five"
-    }
-}
-
 Status Evaluation
 DEBUG
-(_status_evaluation)December 13, 2025 4:57 pm :59
+(_status_evaluation)December 13, 2025 11:39 pm :18
 
 Event type
     _status_evaluation
 Label
-    Status change evaluation: Order #61 (pending → completed)
+    Status change evaluation: Order #65 (checkout-draft → pending)
 Ts
-    1765645079
-Level
-    debug
-
-Data
-
-{
-    "from": "pending",
-    "to": "completed",
-    "debug_mode": true,
-    "evaluation_details": {
-        "timestamp": "2025-12-13T16:57:59+00:00",
-        "source": "manual",
-        "purpose": "This event provides debugging information about status change evaluations but is excluded from the main timeline to reduce noise"
-    }
-}
-
-Status Changed to Completed
-(status_changed)December 13, 2025 4:57 pm :59
-
-From
-    Pending
-To
-    Completed
-Order
-    #61
-Type
-    Automatic
-
-Rule evaluation completed for Order #0
-EXECUTED
-(rule_execution)December 13, 2025 4:57 pm :59
-
-Technical Execution Details
-
-Correlation ID
-    odcm:lifecyc...7a0.25209212
-
-Status Evaluation
-DEBUG
-(_status_evaluation)December 13, 2025 4:57 pm :59
-
-Event type
-    _status_evaluation
-Label
-    Status change evaluation: Order #61 (checkout-draft → pending)
-Ts
-    1765645079
+    1765669158
 Level
     debug
 
@@ -270,93 +28,50 @@ Data
     "to": "pending",
     "debug_mode": true,
     "evaluation_details": {
-        "timestamp": "2025-12-13T16:57:59+00:00",
+        "timestamp": "2025-12-13T23:39:18+00:00",
         "source": "manual",
         "purpose": "This event provides debugging information about status change evaluations but is excluded from the main timeline to reduce noise"
     }
 }
 
-Rule "virtual rule" evaluated successfully for Order #61
+Status Evaluation
+DEBUG
+(_status_evaluation)December 13, 2025 11:39 pm :18
+
+Event type
+    _status_evaluation
+Label
+    Status change evaluation: Order #65 (pending → completed)
+Ts
+    1765669158
+Level
+    debug
+
+Data
+
+{
+    "from": "pending",
+    "to": "completed",
+    "debug_mode": true,
+    "evaluation_details": {
+        "timestamp": "2025-12-13T23:39:18+00:00",
+        "source": "manual",
+        "purpose": "This event provides debugging information about status change evaluations but is excluded from the main timeline to reduce noise"
+    }
+}
+
+Rule evaluation completed for Order #0
 EXECUTED
-(rule_execution)December 13, 2025 4:57 pm :59
-
-Execution Summary
-    Completed Order (status changed from Pending → Completed)
-Trigger
-    payment completion via Stripe
-Actions
-    Change Status to 'Completed'
-
-Rule Evaluation Summary
-
-Evaluation Result
-    1/1 conditions passed
-
-Evaluation Logic
-    ALL conditions must pass
-
-Order Status
-    Completed
-
-Order Total
-    USD 10.00
-
-Payment Method
-    Credit / Debit Card
-
-Customer Type
-    Registered
-
-Event Type
-    payment_completed
-
-Event Source
-    Stripe
-
-Event Channel
-    System
-
-Event Time
-    2025-12-13 16:57:59
-
-Event ID
-    status_c...65645079
-
-From Status
-    Pending
-
-To Status
-    Completed
-
-Conditions
-    Product Type: PASS
+(rule_execution)December 13, 2025 11:39 pm :18
 
 Technical Execution Details
 
-Rule ID
-    #13
-
-Trigger Type
-    order_processing
-
-Evaluation Time
-    140.00 ms
-
-First Match Wins
-    Yes
-
-Rule Position
-    #1
-
-Event Idempotency Key
-    status_chang...d_1765645079
-
-Primary Action Result
-    Success
+Correlation ID
+    odcm:lifecyc...ac2.54772254
 
 Rule Evaluation Check
 DEBUG
-(order_check_scheduled)December 13, 2025 4:58 pm :26
+(order_check_scheduled)December 13, 2025 11:39 pm :43
 
 Order ID
 Purpose
@@ -400,7 +115,59 @@ Additional Event Data
     "debug_context": {
         "event_source": "stripe",
         "event_channel": "system",
-        "order_id": 61,
+        "order_id": 65,
+        "customer_id": 1,
+        "rule_evaluation_context": "This debug entry helps trace rule evaluation for events that were not known when the original code was written"
+    }
+}
+
+Rule Evaluation Check
+DEBUG
+(order_check_scheduled)December 13, 2025 11:39 pm :43
+
+Order ID
+Purpose
+    Automated Rule Evaluation
+Trigger
+    System Event
+Source
+    System
+
+What This Means
+    Order Daemon will asynchronously evaluate completion rules against this order
+When It Runs
+    Scheduled for background processing via Action Scheduler
+Expected Outcome
+    Rules may trigger order status changes or other automated actions
+
+Processing Time
+    N/A
+Channel
+    Unknown
+Object Type
+    order
+Processing Result
+    Pending
+
+Technical Details
+
+{
+    "event_type": "order_check_scheduled"
+}
+
+Additional Event Data
+
+{
+    "rule_name": "virtual rule",
+    "explanation": "This rule evaluated a order_check_scheduled event. This is a debug entry showing rule evaluation behavior for non-standard event types.",
+    "purpose": "Helps developers understand when rules evaluate different event types",
+    "note": "This entry appears in debug mode to provide visibility into rule evaluation",
+    "canonical_event": false,
+    "timeline_behavior": "Debug entry created for visibility",
+    "debug_context": {
+        "event_source": "stripe",
+        "event_channel": "system",
+        "order_id": 65,
         "customer_id": 1,
         "rule_evaluation_context": "This debug entry helps trace rule evaluation for events that were not known when the original code was written"
     }

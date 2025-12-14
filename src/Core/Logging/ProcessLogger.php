@@ -289,8 +289,7 @@ final class ProcessLogger
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                     $this->critical_log('Skipping timeline event creation due to universal event context');
                 }
-                // Still return the correlation_id as log_id for process continuity
-                return $this->correlation_id; 
+                return false;
             }
             
             $log_result = odcm_log_event(
