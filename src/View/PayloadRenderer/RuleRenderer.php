@@ -1003,14 +1003,14 @@ class RuleRenderer extends BaseRenderer
     }
 
     /**
-     * Extract order ID from multiple data sources in the payload - SAFE VERSION
+     * Extract order ID from multiple data sources in the payload - ENHANCED VERSION
      *
      * @param array $payload Full payload data
      * @return int Order ID or 0 if not found
      */
     private function extractOrderId(array $payload): int
     {
-        // Add debugging to understand the payload structure
+        // Add enhanced debugging to understand the payload structure
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             $this->logDebugMessage("ODCM DEBUG - RuleRenderer extractOrderId payload keys: " . implode(', ', array_keys($payload)));
             if (isset($payload['rawData'])) {
@@ -1024,21 +1024,51 @@ class RuleRenderer extends BaseRenderer
             }
         }
         
-        // Priority order for reliable order ID extraction - ADD MORE SOURCES
+        // EXPANDED sources list for reliable order ID extraction
         $sources = [
             // Priority 1: Rule execution context (most reliable for rule events)
             $payload['rawData']['rule_execution']['order_evaluation_context']['order_id'] ?? null,
-            // Priority 2: Universal Events fields (for new structure)
+            
+            // Priority 2: Rule trigger context (frequently contains order ID)
+            $payload['rawData']['rule_execution']['trigger_event_context']['order_id'] ?? null,
+            
+            // Priority 3: Direct in rawData (common format for many events)
+            $payload['rawData']['order_id'] ?? null,
+            $payload['rawData']['primary_object_id'] ?? null,
+            $payload['rawData']['oid'] ?? null,
+            
+            // Priority 4: Universal Events fields (for new structure)
             $payload['primaryObjectID'] ?? null,
             $payload['primary_object_id'] ?? null,
-            // Priority 3: Top-level payload  
+            
+            // Priority 5: Top-level payload  
             $payload['order_id'] ?? null,
             $payload['oid'] ?? null, // ProcessLogger format uses 'oid'
-            // Priority 4: Nested data structure
+            
+            // Priority 6: Nested data structure
             ($payload['data'] ?? [])['order_id'] ?? null,
             ($payload['data'] ?? [])['primary_object_id'] ?? null,
             ($payload['data'] ?? [])['oid'] ?? null,
+            
+            // Priority 7: Look in technical_details
+            ($payload['technical_details'] ?? [])['order_id'] ?? null,
+            
+            // Priority 8: Event data summary (sometimes contains order ID)
+            ($payload['event_data_summary'] ?? [])['order_id'] ?? null,
+            ($payload['event_data_summary'] ?? [])['primary_object_id'] ?? null
         ];
+        
+        // Extended debug logging to trace all checked sources
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage("ODCM DEBUG - RuleRenderer checking " . count($sources) . " possible order ID sources");
+            foreach ($sources as $i => $source) {
+                if (is_numeric($source)) {
+                    $this->logDebugMessage("ODCM DEBUG - Source $i value: $source (type: " . gettype($source) . ")");
+                } else {
+                    $this->logDebugMessage("ODCM DEBUG - Source $i: " . (is_null($source) ? "NULL" : "non-numeric"));
+                }
+            }
+        }
         
         foreach ($sources as $i => $source) {
             if (is_numeric($source) && (int)$source > 0) {
@@ -1049,8 +1079,29 @@ class RuleRenderer extends BaseRenderer
             }
         }
         
+        // Enhanced warning when no order ID is found
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            $this->logDebugMessage("ODCM DEBUG - RuleRenderer NO ORDER ID FOUND in payload: " . json_encode($payload, JSON_PRETTY_PRINT), 'warning');
+            $this->logDebugMessage("ODCM DEBUG - RuleRenderer CRITICAL: NO ORDER ID FOUND in payload! This will cause 'Order #0' issues.", 'warning');
+            $this->logDebugMessage("ODCM DEBUG - RuleRenderer event_type: " . ($payload['event_type'] ?? 'unknown'), 'warning');
+            
+            // Add stack trace for debugging
+            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+            $trace_info = "";
+            foreach ($backtrace as $idx => $frame) {
+                $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
+                $line = $frame['line'] ?? '?';
+                $function = $frame['function'] ?? 'unknown';
+                $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
+            }
+            $this->logDebugMessage("ODCM DEBUG - RuleRenderer backtrace: " . $trace_info, 'warning');
+            
+            // Log complete payload for debugging if it's not too large
+            $payload_json = json_encode($payload, JSON_PRETTY_PRINT);
+            if (strlen($payload_json) < 2000) {
+                $this->logDebugMessage("ODCM DEBUG - Payload that failed order_id extraction: " . $payload_json, 'debug');
+            } else {
+                $this->logDebugMessage("ODCM DEBUG - Payload too large to log: " . strlen($payload_json) . " bytes", 'debug');
+            }
         }
         
         return 0;

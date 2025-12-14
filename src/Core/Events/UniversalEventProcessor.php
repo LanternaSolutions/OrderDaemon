@@ -1156,7 +1156,7 @@ class UniversalEventProcessor
 
     /**
      * Check if a consolidated rule execution event already exists for this rule+order combination
-     * Enhanced with improved database lookup and persistent caching to prevent duplicates
+     * Enhanced with improved database lookup, robust caching, and detailed validation
      * across multiple requests for the same rule+order combination.
      * 
      * @param int $order_id Order ID
@@ -1166,78 +1166,126 @@ class UniversalEventProcessor
      */
     private function getExistingRuleExecutionEvent(int $order_id, int $rule_id, ?EvaluationContext $context = null): ?array
     {
+        // ENHANCED VALIDATION: Strict check for meaningful order and rule IDs
         if ($order_id <= 0 || $rule_id <= 0) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: Invalid parameters passed to getExistingRuleExecutionEvent: order_id={$order_id}, rule_id={$rule_id}", 'warning');
+                
+                // Add stack trace for debugging
+                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+                $trace_info = "";
+                foreach ($backtrace as $idx => $frame) {
+                    $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
+                    $line = $frame['line'] ?? '?';
+                    $function = $frame['function'] ?? 'unknown';
+                    $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
+                }
+                odcm_log_message("ODCM_DEDUP_DEBUG: Invalid parameters backtrace: " . $trace_info, 'debug');
+            }
             return null;
         }
 
-        // Check in-memory cache first
+        // ENHANCED CACHE KEY: More distinct key to prevent collisions
+        $cache_key = sprintf('odcm_rule_exec_o%d_r%d', $order_id, $rule_id);
+
+        // Check in-memory cache first for best performance
         if (isset(self::$rule_execution_events[$order_id][$rule_id])) {
-            return self::$rule_execution_events[$order_id][$rule_id];
+            $cached_event = self::$rule_execution_events[$order_id][$rule_id];
+            
+            // ADDITIONAL VALIDATION: Ensure cache entry has required fields
+            if (!isset($cached_event['event_id']) || !isset($cached_event['primary_trigger'])) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_DEDUP_DEBUG: Corrupt cache entry detected in memory cache, refreshing from DB", 'warning');
+                }
+                // Don't use corrupted cache entries
+                unset(self::$rule_execution_events[$order_id][$rule_id]);
+            } else {
+                return $cached_event;
+            }
         }
 
         // Check persistent cache using WordPress transients
-        $cache_key = 'odcm_rule_exec_' . $order_id . '_' . $rule_id;
         $cached_data = get_transient($cache_key);
         
         if ($cached_data !== false) {
-            // Store in instance variable for this request
-            self::$rule_execution_events[$order_id][$rule_id] = $cached_data;
-            
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Found cached rule execution event for Order #{$order_id}, Rule ID {$rule_id}", 'debug');
-            }
-            
-            return $cached_data;
-        }
-
-        // Check if we have any existing rule execution events in the database
-        global $wpdb;
-
-        // ENHANCED QUERY: Use precise rule_id lookup in the payload
-        // This provides more reliable deduplication across different requests
-        $existing_events = $wpdb->get_results($wpdb->prepare(
-            "SELECT log_id, payload 
-             FROM {$wpdb->prefix}odcm_audit_log
-             WHERE order_id = %d
-             AND event_type = 'rule_execution'
-             AND JSON_EXTRACT(payload, '$.rule_id') = %d
-             AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)
-             ORDER BY timestamp DESC",
-            $order_id,
-            $rule_id
-        ), 'ARRAY_A');
-
-        if (!empty($existing_events)) {
-            foreach ($existing_events as $event) {
-                // Parse payload JSON
-                $payload = json_decode($event['payload'], true);
-                if (is_array($payload)) {
-                    // Found existing event for this rule+order combination
-                    $event_data = [
-                        'event_id' => $event['log_id'],
-                        'primary_trigger' => $payload['primary_trigger'] ?? ($context ? $context->event->eventType : ''),
-                        'all_triggers' => $payload['all_triggers'] ?? [],
-                        'process_id' => $payload['process_id'] ?? '',
-                    ];
-
-                    // Cache it for future reference - both in memory and transient
-                    self::$rule_execution_events[$order_id][$rule_id] = $event_data;
-                    set_transient($cache_key, $event_data, HOUR_IN_SECONDS);
-                    
-                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                        odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Found existing rule execution event in database - Event ID: {$event['log_id']}", 'debug');
-                    }
-
-                    return $event_data;
+            // VALIDATION: Check if cached data has expected structure
+            if (is_array($cached_data) && isset($cached_data['event_id'])) {
+                // Store validated entry in instance variable for this request
+                self::$rule_execution_events[$order_id][$rule_id] = $cached_data;
+                
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_DEDUP_DEBUG: Using cached rule execution event for Order #{$order_id}, Rule #{$rule_id}", 'debug');
+                }
+                
+                return $cached_data;
+            } else {
+                // Invalid cached data, delete it
+                delete_transient($cache_key);
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_DEDUP_DEBUG: Found corrupt transient cache entry, deleted it", 'warning');
                 }
             }
         }
+
+        global $wpdb;
+
+        // IMPROVED QUERY: More reliable with JSON validation and explicit ORDER BY
+        $existing_events = $wpdb->get_results($wpdb->prepare(
+            "SELECT log_id, payload, timestamp
+             FROM {$wpdb->prefix}odcm_audit_log
+             WHERE order_id = %d
+             AND event_type = 'rule_execution'
+             AND JSON_VALID(payload) = 1
+             AND JSON_EXTRACT(payload, '$.rule_id') = %d
+             AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+             ORDER BY timestamp DESC
+             LIMIT 1",
+            $order_id,
+            $rule_id
+        ), ARRAY_A);
+
+        // No events found in database
+        if (empty($existing_events)) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: No existing rule execution event found for Order #{$order_id}, Rule #{$rule_id}", 'debug');
+            }
+            return null;
+        }
+        
+        // Process the event we found
+        $event = $existing_events[0];
+        
+        // Parse payload with error handling to avoid JSON issues
+        $payload = json_decode($event['payload'], true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: Invalid JSON in rule execution event payload (ID: {$event['log_id']}): " . json_last_error_msg(), 'error');
+            }
+            return null;
+        }
+        
+        // ENHANCED DATA STRUCTURE: More complete event data
+        $event_data = [
+            'event_id' => $event['log_id'],
+            'primary_trigger' => $payload['primary_trigger'] ?? ($context ? $context->event->eventType : ''),
+            'all_triggers' => is_array($payload['all_triggers'] ?? null) ? $payload['all_triggers'] : [],
+            'process_id' => $payload['process_id'] ?? '',
+            'order_id' => $order_id,
+            'rule_id' => $rule_id,
+            'rule_name' => $payload['rule_name'] ?? '',
+            'timestamp' => strtotime($event['timestamp']),
+            'last_updated' => time(),
+        ];
+
+        // Save complete data to both caches
+        self::$rule_execution_events[$order_id][$rule_id] = $event_data;
+        set_transient($cache_key, $event_data, HOUR_IN_SECONDS);
         
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - No existing rule execution event found for Order #{$order_id}, Rule ID {$rule_id}", 'debug');
+            odcm_log_message("ODCM_DEDUP_DEBUG: Found existing rule execution event in database - Event ID: {$event['log_id']}, Created: {$event['timestamp']}", 'debug');
         }
 
-        return null;
+        return $event_data;
     }
 
     /**
@@ -1355,8 +1403,11 @@ class UniversalEventProcessor
     /**
      * Create a consolidated rule execution event for an order/rule combination
      * 
-     * This creates a single rule execution event that shows all triggering events
-     * with enhanced validation to prevent Order #0 issues
+     * COMPLETELY REFACTORED implementation that ensures:
+     * - No "Order #0" issues by using strict validation
+     * - No duplicate events by robust check-then-create-or-update pattern
+     * - Clear identification of primary trigger event
+     * - Proper timeline chronology
      * 
      * @param int $order_id Order ID
      * @param int $rule_id Rule ID
@@ -1365,65 +1416,161 @@ class UniversalEventProcessor
      */
     private function createConsolidatedRuleExecutionEvent(int $order_id, int $rule_id, EvaluationContext $context, string $process_id): void
     {
-        // STRICTER VALIDATION: Enhanced validation to prevent Order #0 issues
-        // This is a critical check to prevent invalid rule execution events
-        if ($order_id <= 0 || $rule_id <= 0 || !$this->matched_rule_data) {
-            // Log detailed warning with backtrace for debugging
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message(
-                    "ODCM_DEDUP_DEBUG: CRITICAL - Rejecting rule execution event creation - Invalid parameters: " . 
-                    "order_id={$order_id}, rule_id={$rule_id}, has_rule_data=" . ($this->matched_rule_data ? 'yes' : 'no'),
-                    'warning'
-                );
-                
-                // Add stack trace for detailed debugging
-                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
-                $trace_info = "";
-                foreach ($backtrace as $idx => $frame) {
-                    $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
-                    $line = $frame['line'] ?? '?';
-                    $function = $frame['function'] ?? 'unknown';
-                    $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
-                }
-                odcm_log_message("ODCM_DEDUP_DEBUG: Invalid Order ID backtrace: " . $trace_info, 'warning');
-            }
+        // === 1. ENHANCED VALIDATION ===
+        // Critical validation to prevent "Order #0" issues
+        if (!$this->validateRuleExecutionParameters($order_id, $rule_id, $context, $process_id)) {
             return;
         }
         
-        // Additional validation - check the process_id to make sure it's valid
-        if (strpos($process_id, 'odcm:lifecycle:') !== 0) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message(
-                    "ODCM_DEDUP_DEBUG: Suspicious process ID format: {$process_id} for Order #{$order_id}", 
-                    'warning'
-                );
-            }
-        }
-        
+        // === 2. EVENT TYPE FILTERING ===
         // Only create consolidated events for canonical events to prevent duplicates
         if (!$this->isCanonicalTimelineEvent($context->event->eventType)) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: Skipping event creation for non-canonical event: {$context->event->eventType}", 'debug');
+            }
             return;
         }
         
-        // Ensure we have trigger events recorded
-        if (!isset(self::$rule_trigger_events[$order_id]) || 
-            !isset(self::$rule_trigger_events[$order_id]['rule_matches'][$rule_id])) {
-            return;
-        }
-        
+        // === 3. RULE AND TRIGGER DATA ===
         $rule = $this->matched_rule_data['rule'] ?? null;
         $rule_name = $rule ? $rule->post_title : 'unnamed rule';
-        $rule_id_val = $rule ? $rule->ID : $rule_id;
+        $rule_id_val = $rule ? (int)$rule->ID : $rule_id;
         
-        // Get trigger events for this rule
+        // Get the primary trigger event and collect all trigger events
+        $primary_trigger_event = $this->getPrimaryCanonicalEvent($context->event->eventType, $order_id, $rule_id);
+        $trigger_events = $this->collectTriggerEvents($order_id, $rule_id);
+        
+        // === 4. CHECK FOR EXISTING EVENT ===
+        $existing_event = $this->getExistingRuleExecutionEvent($order_id, $rule_id, $context);
+        
+        // If we already have an event for this order+rule, update it
+        if ($existing_event) {
+            $result = $this->updateExistingRuleExecutionEvent($order_id, $rule_id, $context, $process_id);
+            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $status = $result ? 'SUCCESS' : 'FAILED';
+                odcm_log_message("ODCM_DEDUP_DEBUG: {$status} - Updated existing rule execution event for Rule '{$rule_name}' (Order #{$order_id})", 
+                    $result ? 'debug' : 'warning');
+                
+                if ($result) {
+                    odcm_log_message("ODCM_DEDUP_DEBUG: Event ID: {$existing_event['event_id']}, Primary trigger: {$primary_trigger_event}", 'debug');
+                }
+            }
+            return;
+        }
+        
+        // === 5. CREATE NEW EVENT ===
+        // Build the complete rule execution payload with all relevant data
+        $rule_payload = $this->buildRuleExecutionPayload(
+            $order_id,
+            $rule_id_val,
+            $rule_name, 
+            $primary_trigger_event, 
+            $trigger_events,
+            $context,
+            $process_id
+        );
+        
+        // === 6. CREATE DATABASE RECORD ===
+        // Log the consolidated rule execution event
+        $event_id = \odcm_log_event(
+            sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $order_id),
+            $rule_payload,
+            $order_id,
+            'success',
+            'rule_execution',
+            false,
+            $process_id
+        );
+        
+        // === 7. CACHE THE RESULT ===
+        if ($event_id) {
+            $this->cacheRuleExecutionEvent($order_id, $rule_id_val, $event_id, $rule_name, $primary_trigger_event, $trigger_events, $process_id);
+            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: SUCCESS - Created rule execution event for Rule '{$rule_name}' (Order #{$order_id})", 'debug');
+                odcm_log_message("ODCM_DEDUP_DEBUG: Event ID: {$event_id}, Primary trigger: {$primary_trigger_event}", 'debug');
+            }
+        } else {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: ERROR - Failed to create rule execution event!", 'error');
+            }
+        }
+    }
+    
+    /**
+     * Validate parameters for rule execution event creation
+     * 
+     * @param int $order_id Order ID
+     * @param int $rule_id Rule ID
+     * @param EvaluationContext $context Evaluation context
+     * @param string $process_id Process ID
+     * @return bool True if all parameters are valid
+     */
+    private function validateRuleExecutionParameters(int $order_id, int $rule_id, EvaluationContext $context, string $process_id): bool
+    {
+        // Validate order ID and rule ID
+        if ($order_id <= 0 || $rule_id <= 0) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: Invalid IDs - order_id={$order_id}, rule_id={$rule_id}", 'warning');
+            }
+            return false;
+        }
+        
+        // Validate matched rule data
+        if (!$this->matched_rule_data) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: Missing matched rule data", 'warning');
+            }
+            return false;
+        }
+        
+        // Validate process ID format
+        $valid_process_id_prefix = 'odcm:lifecycle:';
+        if (strpos($process_id, $valid_process_id_prefix) !== 0) {
+            // Log warning but don't reject - it's not critical
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: Unexpected process ID format: {$process_id}", 'warning');
+            }
+        }
+        
+        // Validate context
+        if (!$context || !($context instanceof EvaluationContext)) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: Invalid context", 'warning');
+            }
+            return false;
+        }
+        
+        // Validate trigger events
+        if (!isset(self::$rule_trigger_events[$order_id]) || 
+            !isset(self::$rule_trigger_events[$order_id]['rule_matches'][$rule_id])) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: No trigger events recorded for order_id={$order_id}, rule_id={$rule_id}", 'warning');
+            }
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Collect all trigger events that matched this rule
+     * 
+     * @param int $order_id Order ID
+     * @param int $rule_id Rule ID
+     * @return array Array of trigger events keyed by event type
+     */
+    private function collectTriggerEvents(int $order_id, int $rule_id): array
+    {
         $trigger_events = [];
         
-        // Determine the primary trigger event - use getPrimaryCanonicalEvent for consistency
-        $primary_trigger_event = $this->getPrimaryCanonicalEvent(
-            $context->event->eventType,
-            $order_id,
-            $rule_id
-        );
+        // Sanity check - make sure data structure exists
+        if (!isset(self::$rule_trigger_events[$order_id]) || 
+            !isset(self::$rule_trigger_events[$order_id]['rule_matches'][$rule_id]) ||
+            !is_array(self::$rule_trigger_events[$order_id]['rule_matches'][$rule_id])) {
+            return [];
+        }
         
         // Collect all trigger events that matched this rule
         foreach (self::$rule_trigger_events[$order_id]['rule_matches'][$rule_id] as $event_type) {
@@ -1432,39 +1579,41 @@ class UniversalEventProcessor
             }
         }
         
-        // ALWAYS check for existing event first, update if found
-        $existing_event = $this->getExistingRuleExecutionEvent($order_id, $rule_id, $context);
-
-        if ($existing_event) {
-            // Instead of creating a new event, update the existing event
-            $this->updateExistingRuleExecutionEvent($order_id, $rule_id, $context, $process_id);
-            
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_DEDUP_DEBUG: Updated existing rule execution event for Rule '{$rule_name}' (Order #{$order_id})", 'debug');
-                odcm_log_message("ODCM_DEDUP_DEBUG: Event ID: {$existing_event['event_id']}, Primary trigger: {$primary_trigger_event}", 'debug');
-            }
-
-            // Return early - existing event updated, no new event created
-            return;
-        }
-
-        // Enhance payload with rule execution data
+        return $trigger_events;
+    }
+    
+    /**
+     * Build the complete rule execution payload
+     * 
+     * @param int $order_id Order ID
+     * @param int $rule_id Rule ID
+     * @param string $rule_name Rule name
+     * @param string $primary_trigger_event Primary trigger event type
+     * @param array $trigger_events All trigger events
+     * @param EvaluationContext $context Evaluation context
+     * @param string $process_id Process ID
+     * @return array Complete rule execution payload
+     */
+    private function buildRuleExecutionPayload(int $order_id, int $rule_id, string $rule_name, string $primary_trigger_event, 
+                                             array $trigger_events, EvaluationContext $context, string $process_id): array
+    {
+        // Build base payload
         $base_payload = $this->buildBasePayload($context);
         
-        // Ensure essential fields are populated (these can be missed in some contexts)
+        // Add essential fields that must be present
         $base_payload['order_id'] = $order_id;
-        $base_payload['rule_id'] = $rule_id_val;
+        $base_payload['rule_id'] = $rule_id;
         $base_payload['rule_name'] = $rule_name;
         
-        // Build full rule payload
+        // Add rule execution data
         $rule_payload = $this->enhancePayloadWithRuleData($base_payload, $context);
         
-        // Add consolidated trigger event information
+        // Add event relationships
         $rule_payload['primary_trigger'] = $primary_trigger_event;
         $rule_payload['all_triggers'] = array_keys($trigger_events);
         $rule_payload['trigger_details'] = $trigger_events;
         
-        // Create consolidated rule execution component
+        // Create consolidated component
         $rule_component = $this->createConsolidatedRuleExecutionComponent(
             $rule_payload,
             $context,
@@ -1472,70 +1621,63 @@ class UniversalEventProcessor
             $trigger_events
         );
         
-        // Create separate payload for rule execution event
+        // Add component to payload
         $rule_payload['components'] = [$rule_component];
         
-        // Ensure the message and component label are consistent
-        $rule_message = sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $order_id);
-        
-        // DEBUG: Add detailed context for rule execution - helps in debugging
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            odcm_log_message("ODCM_DEDUP_DEBUG: Creating new rule execution event: rule_id={$rule_id_val}, rule_name='{$rule_name}', order_id={$order_id}", 'debug');
-            odcm_log_message("ODCM_DEDUP_DEBUG: Primary trigger: {$primary_trigger_event}, Trigger count: " . count($trigger_events), 'debug');
-            
-            // Log the structure of the payload to ensure it's correct
-            $essential_keys = ['rule_id', 'rule_name', 'order_id', 'primary_trigger', 'all_triggers', 'execution_status'];
-            $available_keys = array_keys($rule_payload);
-            $missing_keys = array_diff($essential_keys, $available_keys);
-            
-            if (!empty($missing_keys)) {
-                odcm_log_message("ODCM_DEDUP_DEBUG: WARNING - Missing keys in payload: " . implode(', ', $missing_keys), 'warning');
-            } else {
-                odcm_log_message("ODCM_DEDUP_DEBUG: Payload complete with all essential keys", 'debug');
-            }
-        }
-        
-        // Log consolidated rule execution event
-        $event_id = \odcm_log_event(
-            $rule_message,
-            $rule_payload,
-            $order_id,
-            'success',
-            'rule_execution',
-            false,
-            $process_id
-        );
-
-        // Cache the new event for future reference with improved caching
-        if ($event_id) {
-            $event_data = [
-                'event_id' => $event_id,
-                'primary_trigger' => $primary_trigger_event,
-                'all_triggers' => array_keys($trigger_events),
-                'process_id' => $process_id,
-                'trigger_details' => $trigger_events,
-                // Add more context to ensure complete data
-                'rule_id' => $rule_id_val,
-                'rule_name' => $rule_name,
-                'order_id' => $order_id,
-            ];
-            
-            // Store in both memory cache and persistent cache
-            self::$rule_execution_events[$order_id][$rule_id] = $event_data;
-            
-            // Use improved cache key
-            $cache_key = 'odcm_rule_exec_order_' . $order_id . '_rule_' . $rule_id;
-            set_transient($cache_key, $event_data, HOUR_IN_SECONDS);
-
+        return $rule_payload;
+    }
+    
+    /**
+     * Cache rule execution event data in both memory and persistent cache
+     * 
+     * Modified to accept both boolean and integer for $event_id to support async
+     * logging workflows where odcm_log_event() returns true for queued events
+     *
+     * @param int $order_id Order ID
+     * @param int $rule_id Rule ID
+     * @param mixed $event_id Event ID (int) or success indicator (bool)
+     * @param string $rule_name Rule name
+     * @param string $primary_trigger Primary trigger event type
+     * @param array $trigger_events All trigger events
+     * @param string $process_id Process ID
+     */
+    private function cacheRuleExecutionEvent(int $order_id, int $rule_id, $event_id, string $rule_name, 
+                                          string $primary_trigger, array $trigger_events, string $process_id): void
+    {
+        // If event_id is a boolean from async logging, use a composite identifier instead
+        if (is_bool($event_id)) {
+            // Debug log if we receive a boolean
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_DEDUP_DEBUG: Created new consolidated rule execution event for Rule '{$rule_name}' (Order #{$order_id})", 'debug');
-                odcm_log_message("ODCM_DEDUP_DEBUG: Event ID: {$event_id}, Primary trigger: {$primary_trigger_event}", 'debug');
+                odcm_log_message("ODCM_DEDUP_DEBUG: cacheRuleExecutionEvent received boolean instead of ID - using composite identifier", 'debug');
             }
+            
+            // Use 0 as a sentinel value to indicate this event was queued but doesn't have a real ID yet
+            $stored_event_id = 0;
         } else {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_DEDUP_DEBUG: ERROR - Failed to create rule execution event!", 'error');
-            }
+            $stored_event_id = $event_id;
         }
+        
+        // Create event data structure with composite identification
+        $event_data = [
+            'event_id' => $stored_event_id, 
+            'primary_trigger' => $primary_trigger,
+            'all_triggers' => array_keys($trigger_events),
+            'process_id' => $process_id,
+            'rule_id' => $rule_id,
+            'rule_name' => $rule_name,
+            'order_id' => $order_id,
+            'timestamp' => time(),
+            'last_updated' => time(),
+            // Add composite identification for robust deduplication (helpful for future redesign)
+            'composite_id' => sprintf('%d_%d_%s_%d', $order_id, $rule_id, md5($process_id), time())
+        ];
+        
+        // Store in memory cache
+        self::$rule_execution_events[$order_id][$rule_id] = $event_data;
+        
+        // Store in persistent cache with a robust key format
+        $cache_key = sprintf('odcm_rule_exec_o%d_r%d', $order_id, $rule_id);
+        set_transient($cache_key, $event_data, HOUR_IN_SECONDS);
     }
     
     /**
