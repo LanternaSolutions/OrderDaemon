@@ -78,7 +78,8 @@ class OrderRenderer extends BaseRenderer
         $this->logDebugMessage("ODCM DEBUG - Checking switch for event_type: '$event_type'");
         switch ($event_type) {
             case 'status_changed':
-                $this->logDebugMessage("ODCM DEBUG - Routing to renderStatusChange");
+            case 'order_status_changed': // Add explicit handler for order_status_changed
+                $this->logDebugMessage("ODCM DEBUG - Routing to renderStatusChange for event: '$event_type'");
                 return $this->renderStatusChange($data, $toolkit);
 
             case 'order_loaded':
@@ -126,12 +127,59 @@ class OrderRenderer extends BaseRenderer
     {
         switch ($event_type) {
             case 'status_changed':
+            case 'order_status_changed': // Add explicit support for order_status_changed events
                 // Extract nested data the same way renderStatusChange() does
                 $component_data = $payload['data'] ?? $payload;
-                $from = ucfirst($component_data['from'] ?? 'unknown');
-                $to = ucfirst($component_data['to'] ?? 'unknown');
-                $to_display = $this->formatStatusForDisplay($to);
-                return "Status Changed to {$to_display}";
+                
+                // Enhanced debugging to understand payload structure
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM DEBUG - OrderRenderer::getLabel payload keys for '{$event_type}': " . 
+                        implode(', ', array_keys($payload)), 'debug');
+                    
+                    // Check for technical_details, event_data_summary, rawData
+                    if (isset($payload['technical_details'])) {
+                        $this->logDebugMessage("ODCM DEBUG - Has technical_details", 'debug');
+                    }
+                    
+                    if (isset($payload['event_data_summary'])) {
+                        $this->logDebugMessage("ODCM DEBUG - Has event_data_summary", 'debug');
+                    }
+                    
+                    if (isset($payload['rawData'])) {
+                        $this->logDebugMessage("ODCM DEBUG - Has rawData with keys: " . 
+                            implode(', ', array_keys($payload['rawData'])), 'debug');
+                    }
+                }
+                
+                // More robust extraction of status data
+                $from = null;
+                $to = null;
+                
+                // Try direct component data first
+                if (isset($component_data['from']) && isset($component_data['to'])) {
+                    $from = $component_data['from'];
+                    $to = $component_data['to'];
+                } 
+                // Try rawData next - common for universal events
+                else if (isset($payload['rawData']['from_status']) && isset($payload['rawData']['to_status'])) {
+                    $from = $payload['rawData']['from_status'];
+                    $to = $payload['rawData']['to_status'];
+                }
+                // Try technical details section
+                else if (isset($payload['technical_details']['status_transition'])) {
+                    $from = $payload['technical_details']['status_transition']['from_status'] ?? null;
+                    $to = $payload['technical_details']['status_transition']['to_status'] ?? null;
+                }
+                
+                // If we got status info, use it
+                if ($from && $to) {
+                    $from_display = $this->formatStatusForDisplay(ucfirst($from));
+                    $to_display = $this->formatStatusForDisplay(ucfirst($to));
+                    return "Status Changed from {$from_display} to {$to_display}";
+                }
+                
+                // Basic fallback label
+                return "Order Status Changed";
 
             case 'order_loaded':
                 $component_data = $payload['data'] ?? $payload;
@@ -216,6 +264,39 @@ class OrderRenderer extends BaseRenderer
      * @param string $event_type The type of event
      * @return string Theme identifier
      */
+    protected function getTheme(string $event_type): string
+    {
+        // All WooCommerce related events use the woocommerce theme
+        // This includes order_status_changed, checkout_processed, etc.
+        return 'woocommerce';
+    }
+    
+    /**
+     * Check if an event is debug-only and not part of the normal business flow
+     *
+     * @param array $data The component data
+     * @return bool True if this is a debug-only event
+     */
+    protected function isDebugEvent(array $data): bool
+    {
+        // Debug-only events have level=debug or explicitly set debug=true
+        if (isset($data['level']) && $data['level'] === 'debug') {
+            return true;
+        }
+        
+        if (isset($data['debug']) && $data['debug'] === true) {
+            return true;
+        }
+        
+        // Status evaluation events are also debug-only
+        if (isset($data['event_type']) && $data['event_type'] === '_status_evaluation') {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    
     /**
      * Render Status Change
      *
@@ -227,17 +308,69 @@ class OrderRenderer extends BaseRenderer
      */
     private function renderStatusChange(array $data, PayloadComponentUIToolkit $toolkit): string
     {
-        $from_status = $data['from'] ?? 'pending';
-        $to_status = $data['to'] ?? '';
+        // Enhanced debugging to understand data structure
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage("ODCM DEBUG - renderStatusChange data keys: " . implode(', ', array_keys($data)), 'debug');
+            
+            // Check for common patterns in the data
+            if (isset($data['rawData'])) {
+                $this->logDebugMessage("ODCM DEBUG - rawData keys: " . implode(', ', array_keys($data['rawData'])), 'debug');
+            }
+            if (isset($data['technical_details'])) {
+                $this->logDebugMessage("ODCM DEBUG - technical_details keys: " . implode(', ', array_keys($data['technical_details'])), 'debug');
+            }
+            if (isset($data['event_data_summary'])) {
+                $this->logDebugMessage("ODCM DEBUG - event_data_summary keys: " . implode(', ', array_keys($data['event_data_summary'])), 'debug');
+            }
+        }
+
+        // More robust extraction of status data from multiple possible locations
+        $from_status = null;
+        $to_status = null;
+        $order_id = null;
         
-        // Convert "checkout-draft" to more readable format
+        // Try direct data fields first - most common for status_changed events
+        if (isset($data['from']) && isset($data['to'])) {
+            $from_status = $data['from'];
+            $to_status = $data['to'];
+            $order_id = $data['order_id'] ?? null;
+        }
+        // Try order_status_changed format from universal_event_processing
+        else if (isset($data['rawData']['from_status']) && isset($data['rawData']['to_status'])) {
+            $from_status = $data['rawData']['from_status'];
+            $to_status = $data['rawData']['to_status'];
+            $order_id = $data['primary_object_id'] ?? $data['order_id'] ?? null;
+        }
+        // Try technical_details section - sometimes used for universal events
+        else if (isset($data['technical_details']['status_transition'])) {
+            $from_status = $data['technical_details']['status_transition']['from_status'] ?? null;
+            $to_status = $data['technical_details']['status_transition']['to_status'] ?? null;
+            $order_id = $data['primary_object_id'] ?? $data['order_id'] ?? null;
+        }
+        
+        // If we still don't have status data, try looking in event_data_summary
+        if ((!$from_status || !$to_status) && isset($data['event_data_summary'])) {
+            $summary = $data['event_data_summary'];
+            if (isset($summary['from_status']) && isset($summary['to_status'])) {
+                $from_status = $summary['from_status'];
+                $to_status = $summary['to_status'];
+                $order_id = $summary['primary_object_id'] ?? $summary['order_id'] ?? null;
+            }
+        }
+        
+        // Final fallback - use defaults
+        if (!$from_status) $from_status = 'pending';
+        if (!$to_status) $to_status = $from_status; // Safe fallback
+        
+        // Convert to more readable format
         $from_display = $this->formatStatusForDisplay($from_status);
         $to_display = $this->formatStatusForDisplay($to_status);
-
+        
+        // Build status data for display
         $status_data = [
             'From' => $from_display,
             'To' => $to_display,
-            'Order' => isset($data['order_id']) ? '#' . $data['order_id'] : '',
+            'Order' => $order_id ? '#' . $order_id : '',
         ];
 
         // Extract manual change attribution from components data
@@ -352,30 +485,105 @@ class OrderRenderer extends BaseRenderer
      */
     private function renderBlockCheckout(array $payload, PayloadComponentUIToolkit $toolkit): string
     {
-        // DEBUG: Log what we're receiving
+        // DEBUG: Log what we're receiving with more detail
         $this->logDebugMessage("ODCM DEBUG - renderBlockCheckout called");
         $this->logDebugMessage("ODCM DEBUG - Payload keys: " . implode(', ', array_keys($payload)));
         $this->logDebugMessage("ODCM DEBUG - rawData exists: " . (isset($payload['rawData']) ? 'YES' : 'NO'));
+        
         if (isset($payload['rawData'])) {
             $this->logDebugMessage("ODCM DEBUG - rawData keys: " . implode(', ', array_keys($payload['rawData'])));
             $this->logDebugMessage("ODCM DEBUG - rawData empty: " . (empty($payload['rawData']) ? 'YES' : 'NO'));
+        }
+        
+        // Check for components
+        if (isset($payload['components']) && is_array($payload['components'])) {
+            $this->logDebugMessage("ODCM DEBUG - Has " . count($payload['components']) . " components");
+            foreach ($payload['components'] as $index => $component) {
+                if (isset($component['event_type'])) {
+                    $this->logDebugMessage("ODCM DEBUG - Component {$index} has event_type: {$component['event_type']}");
+                }
+            }
         }
 
         // --- 1. Main Business Content ---
         // The primary component data is still expected in the 'data' sub-array.
         $data = $payload['data'] ?? $payload;
+        
+        // Enhanced debugging to identify missing values
+        $this->logDebugMessage("ODCM DEBUG - data keys: " . implode(', ', array_keys($data)));
+        
+        // Try various places to find important data fields
+        $order_id = $data['order_id'] ?? $data['primary_object_id'] ?? null;
+        $status = $data['status'] ?? null;
+        $payment_method = $data['payment_method'] ?? null;
+        $total = $data['total'] ?? $data['amount'] ?? null;
+        $currency = $data['currency'] ?? null;
+        
+        // Check component data for missing fields
+        if (isset($payload['components']) && is_array($payload['components'])) {
+            foreach ($payload['components'] as $component) {
+                if (isset($component['data']) && is_array($component['data'])) {
+                    if (!$order_id && isset($component['data']['order_id'])) {
+                        $order_id = $component['data']['order_id'];
+                    }
+                    if (!$status && isset($component['data']['status'])) {
+                        $status = $component['data']['status'];
+                    }
+                    if (!$payment_method && isset($component['data']['payment_method'])) {
+                        $payment_method = $component['data']['payment_method'];
+                    }
+                    if (!$total && isset($component['data']['total'])) {
+                        $total = $component['data']['total'];
+                    }
+                    if (!$currency && isset($component['data']['currency'])) {
+                        $currency = $component['data']['currency'];
+                    }
+                }
+            }
+        }
+        
+        // Also check technical details and event summary if available
+        if (isset($data['technical_details'])) {
+            $tech = $data['technical_details'];
+            if (!$order_id && isset($tech['order_id'])) {
+                $order_id = $tech['order_id'];
+            }
+            if (!$payment_method && isset($tech['payment_method'])) {
+                $payment_method = $tech['payment_method'];
+            }
+        }
+        
+        if (isset($data['event_data_summary'])) {
+            $summary = $data['event_data_summary'];
+            if (!$order_id && isset($summary['primary_object_id'])) {
+                $order_id = $summary['primary_object_id'];
+            }
+            if (!$payment_method && isset($summary['payment_method'])) {
+                $payment_method = $summary['payment_method'];
+            }
+        }
+        
+        // Format the total with currency symbol
         $total_display = '';
-        if (isset($data['total'], $data['currency'])) {
-            $currency_symbol = html_entity_decode(get_woocommerce_currency_symbol($data['currency']));
-            $total_display = $currency_symbol . number_format((float)$data['total'], 2);
+        if ($total && $currency) {
+            $currency_symbol = function_exists('get_woocommerce_currency_symbol') ? 
+                html_entity_decode(get_woocommerce_currency_symbol($currency)) : 
+                strtoupper($currency);
+            $total_display = $currency_symbol . number_format((float)$total, 2);
         }
 
         $checkout_data = [
-            'Order ID'       => isset($data['order_id']) ? '#' . $data['order_id'] : '',
-            'Status'         => ucfirst($data['status'] ?? ''),
-            'Payment Method' => $data['payment_method'] ?? '',
+            'Order ID'       => $order_id ? '#' . $order_id : '',
+            'Status'         => $status ? ucfirst($status) : '',
+            'Payment Method' => $payment_method ?: '',
             'Total'          => $total_display,
         ];
+        
+        // Only include non-empty values
+        $checkout_data = array_filter($checkout_data, function($value) {
+            return $value !== '';
+        });
+        
         $content = $toolkit->render_key_value_list($checkout_data, 'Checkout Completed');
 
         // --- 2. Expandable Technical Details Section ---

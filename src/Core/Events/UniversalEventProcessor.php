@@ -216,14 +216,29 @@ class UniversalEventProcessor
     /**
      * Create business-friendly error message from technical error
      * 
-     * Converts technical error messages into user-friendly versions that
-     * are appropriate for display in the timeline.
+     * Creates a simple error message by prefixing the original message with
+     * the gateway name to provide context.
      * 
      * @param string $technical_message The technical error message
      * @param string $gateway The payment gateway name
      * @return string Business-friendly error message
      */
     public function createBusinessErrorMessage(string $technical_message, string $gateway): string
+    {
+        // Simple implementation: prefix with gateway name for context
+        return "{$gateway} processing error: {$technical_message}";
+    }
+    
+    /**
+     * Validate event data for processing
+     * 
+     * Checks that the event data has all required fields and the correct format.
+     * 
+     * @param array $event_data Event data to validate
+     * @param string $process_id Process ID for logging reference
+     * @return bool True if valid, false otherwise
+     */
+    private function validateEventData(array $event_data, string $process_id): bool
     {
         // Required fields for UniversalEvent
         $required_fields = [
@@ -238,47 +253,62 @@ class UniversalEventProcessor
 
         // DEBUG: Log validation start
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            odcm_log_message("ODCM_VALIDATION_DEBUG: Starting validateEventData for process_id: $process_id", 'info');
-            odcm_log_message("ODCM_VALIDATION_DEBUG: Event data keys: " . implode(', ', array_keys($event_data)), 'info');
+            odcm_log_message("ODCM_VALIDATION_DEBUG: Starting validateEventData for process_id: {$process_id}", 'info');
+            
+            // Add null check before using array_keys
+            if (is_array($event_data)) {
+                odcm_log_message("ODCM_VALIDATION_DEBUG: Event data keys: " . implode(', ', array_keys($event_data)), 'info');
+            } else {
+                odcm_log_message("ODCM_VALIDATION_DEBUG: WARNING - event_data is not an array!", 'error');
+                return false;
+            }
         }
 
-        foreach ($required_fields as $field) {
-            if (!isset($event_data[$field])) {
+        try {
+            foreach ($required_fields as $field) {
+                if (!isset($event_data[$field])) {
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        odcm_log_message("ODCM_VALIDATION_DEBUG: FAIL - Missing required field: {$field}", 'error');
+                    }
+                    return false;
+                }
+                
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    odcm_log_message("ODCM_VALIDATION_DEBUG: FAIL - Missing required field: $field", 'error');
+                    $value = $event_data[$field];
+                    $type = gettype($value);
+                    $display_value = is_null($value) ? 'NULL' : (is_string($value) ? "\"{$value}\"" : (is_scalar($value) ? (string) $value : '[complex]'));
+                    odcm_log_message("ODCM_VALIDATION_DEBUG: OK - Field '{$field}': {$display_value} (type: {$type})", 'info');
+                }
+            }
+
+            // Validate event type format
+            if (!is_string($event_data['eventType']) || empty($event_data['eventType'])) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_VALIDATION_DEBUG: FAIL - eventType validation failed.", 'error');
                 }
                 return false;
             }
-            
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $value = $event_data[$field];
-                $type = gettype($value);
-                $display_value = is_null($value) ? 'NULL' : (is_string($value) ? "\"$value\"" : (is_scalar($value) ? (string) $value : '[complex]'));
-                odcm_log_message("ODCM_VALIDATION_DEBUG: OK - Field '$field': $display_value (type: $type)", 'info');
-            }
-        }
 
-        // Validate event type format
-        if (!is_string($event_data['eventType']) || empty($event_data['eventType'])) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_VALIDATION_DEBUG: FAIL - eventType validation failed.", 'error');
+            // Validate idempotency key
+            if (!is_string($event_data['idempotencyKey']) || empty($event_data['idempotencyKey'])) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_VALIDATION_DEBUG: FAIL - idempotencyKey validation failed.", 'error');
+                }
+                return false;
             }
-            return false;
-        }
 
-        // Validate idempotency key
-        if (!is_string($event_data['idempotencyKey']) || empty($event_data['idempotencyKey'])) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_VALIDATION_DEBUG: FAIL - idempotencyKey validation failed.", 'error');
+                odcm_log_message("ODCM_VALIDATION_DEBUG: SUCCESS - All initial validation passed. Moving to UniversalEvent constructor...", 'info');
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            // Log any errors that occur during validation
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_VALIDATION_DEBUG: EXCEPTION - {$e->getMessage()}", 'error');
             }
             return false;
         }
-
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            odcm_log_message("ODCM_VALIDATION_DEBUG: SUCCESS - All initial validation passed. Moving to UniversalEvent constructor...", 'info');
-        }
-
-        return true;
     }
 
     /**
@@ -1227,6 +1257,11 @@ class UniversalEventProcessor
             return false;
         }
 
+        // Get essential rule information
+        $rule = $this->matched_rule_data['rule'] ?? null;
+        $rule_name = $rule ? $rule->post_title : 'unnamed rule';
+        $rule_id_val = $rule ? $rule->ID : $rule_id;
+
         // Get the current trigger events for this rule
         $trigger_events = [];
         $primary_trigger_event = $context->event->eventType;
@@ -1242,8 +1277,16 @@ class UniversalEventProcessor
         // Add the new trigger to existing triggers
         $all_triggers = array_unique(array_merge($existing_event['all_triggers'], array_keys($trigger_events)));
 
-        // Build updated payload
-        $rule_payload = $this->enhancePayloadWithRuleData($this->buildBasePayload($context), $context);
+        // Build base payload
+        $base_payload = $this->buildBasePayload($context);
+
+        // Ensure essential fields are populated (these can be missed in some contexts)
+        $base_payload['order_id'] = $order_id;
+        $base_payload['rule_id'] = $rule_id_val;
+        $base_payload['rule_name'] = $rule_name;
+
+        // Build full rule payload
+        $rule_payload = $this->enhancePayloadWithRuleData($base_payload, $context);
 
         // Add consolidated trigger event information
         $rule_payload['primary_trigger'] = $primary_trigger_event;
@@ -1260,6 +1303,22 @@ class UniversalEventProcessor
 
         // Create separate payload for rule execution event
         $rule_payload['components'] = [$rule_component];
+        
+        // DEBUG: Add detailed context for rule event update - helps in debugging
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("ODCM_DEDUP_DEBUG: Updating rule execution event: event_id={$existing_event['event_id']}, rule_id={$rule_id_val}, order_id={$order_id}", 'debug');
+            
+            // Log the structure of the payload to ensure it's correct
+            $essential_keys = ['rule_id', 'rule_name', 'order_id', 'primary_trigger', 'all_triggers', 'execution_status'];
+            $available_keys = array_keys($rule_payload);
+            $missing_keys = array_diff($essential_keys, $available_keys);
+            
+            if (!empty($missing_keys)) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: WARNING - Missing keys in update payload: " . implode(', ', $missing_keys), 'warning');
+            } else {
+                odcm_log_message("ODCM_DEDUP_DEBUG: Update payload complete with all essential keys", 'debug');
+            }
+        }
 
         // Update the existing event using WordPress transient API for robustness
         $transient_key = 'odcm_rule_execution_update_' . $existing_event['event_id'];
@@ -1268,7 +1327,7 @@ class UniversalEventProcessor
             'payload' => $rule_payload,
             'timestamp' => current_time('mysql'),
             'order_id' => $order_id,
-            'rule_id' => $rule_id,
+            'rule_id' => $rule_id_val,
             'process_id' => $process_id,
         ];
 
@@ -1278,12 +1337,16 @@ class UniversalEventProcessor
         // Also trigger immediate update via action hook for real-time processing
         do_action('odcm_update_rule_execution_event', $existing_event['event_id'], $rule_payload);
 
-        // Update our in-memory cache
+        // Update our in-memory cache with complete data
         self::$rule_execution_events[$order_id][$rule_id] = [
             'event_id' => $existing_event['event_id'],
             'primary_trigger' => $primary_trigger_event,
             'all_triggers' => $all_triggers,
             'process_id' => $process_id,
+            // Add more context to ensure complete data
+            'rule_id' => $rule_id_val,
+            'rule_name' => $rule_name,
+            'order_id' => $order_id,
         ];
 
         return true;
@@ -1302,16 +1365,39 @@ class UniversalEventProcessor
      */
     private function createConsolidatedRuleExecutionEvent(int $order_id, int $rule_id, EvaluationContext $context, string $process_id): void
     {
-        // ENHANCED VALIDATION: Stricter checks to prevent Order #0 issues
+        // STRICTER VALIDATION: Enhanced validation to prevent Order #0 issues
+        // This is a critical check to prevent invalid rule execution events
         if ($order_id <= 0 || $rule_id <= 0 || !$this->matched_rule_data) {
+            // Log detailed warning with backtrace for debugging
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 odcm_log_message(
-                    "ODCM_DEDUP_DEBUG: Rejecting rule execution event creation - Invalid parameters: " . 
+                    "ODCM_DEDUP_DEBUG: CRITICAL - Rejecting rule execution event creation - Invalid parameters: " . 
                     "order_id={$order_id}, rule_id={$rule_id}, has_rule_data=" . ($this->matched_rule_data ? 'yes' : 'no'),
                     'warning'
                 );
+                
+                // Add stack trace for detailed debugging
+                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+                $trace_info = "";
+                foreach ($backtrace as $idx => $frame) {
+                    $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
+                    $line = $frame['line'] ?? '?';
+                    $function = $frame['function'] ?? 'unknown';
+                    $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
+                }
+                odcm_log_message("ODCM_DEDUP_DEBUG: Invalid Order ID backtrace: " . $trace_info, 'warning');
             }
             return;
+        }
+        
+        // Additional validation - check the process_id to make sure it's valid
+        if (strpos($process_id, 'odcm:lifecycle:') !== 0) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message(
+                    "ODCM_DEDUP_DEBUG: Suspicious process ID format: {$process_id} for Order #{$order_id}", 
+                    'warning'
+                );
+            }
         }
         
         // Only create consolidated events for canonical events to prevent duplicates
@@ -1325,7 +1411,9 @@ class UniversalEventProcessor
             return;
         }
         
-        $rule_name = $this->matched_rule_data['rule']->post_title ?? 'unnamed rule';
+        $rule = $this->matched_rule_data['rule'] ?? null;
+        $rule_name = $rule ? $rule->post_title : 'unnamed rule';
+        $rule_id_val = $rule ? $rule->ID : $rule_id;
         
         // Get trigger events for this rule
         $trigger_events = [];
@@ -1361,7 +1449,15 @@ class UniversalEventProcessor
         }
 
         // Enhance payload with rule execution data
-        $rule_payload = $this->enhancePayloadWithRuleData($this->buildBasePayload($context), $context);
+        $base_payload = $this->buildBasePayload($context);
+        
+        // Ensure essential fields are populated (these can be missed in some contexts)
+        $base_payload['order_id'] = $order_id;
+        $base_payload['rule_id'] = $rule_id_val;
+        $base_payload['rule_name'] = $rule_name;
+        
+        // Build full rule payload
+        $rule_payload = $this->enhancePayloadWithRuleData($base_payload, $context);
         
         // Add consolidated trigger event information
         $rule_payload['primary_trigger'] = $primary_trigger_event;
@@ -1379,13 +1475,31 @@ class UniversalEventProcessor
         // Create separate payload for rule execution event
         $rule_payload['components'] = [$rule_component];
         
-        // Log consolidated rule execution event
-        $rule_message = sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $context->getOrderId());
+        // Ensure the message and component label are consistent
+        $rule_message = sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $order_id);
         
+        // DEBUG: Add detailed context for rule execution - helps in debugging
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("ODCM_DEDUP_DEBUG: Creating new rule execution event: rule_id={$rule_id_val}, rule_name='{$rule_name}', order_id={$order_id}", 'debug');
+            odcm_log_message("ODCM_DEDUP_DEBUG: Primary trigger: {$primary_trigger_event}, Trigger count: " . count($trigger_events), 'debug');
+            
+            // Log the structure of the payload to ensure it's correct
+            $essential_keys = ['rule_id', 'rule_name', 'order_id', 'primary_trigger', 'all_triggers', 'execution_status'];
+            $available_keys = array_keys($rule_payload);
+            $missing_keys = array_diff($essential_keys, $available_keys);
+            
+            if (!empty($missing_keys)) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: WARNING - Missing keys in payload: " . implode(', ', $missing_keys), 'warning');
+            } else {
+                odcm_log_message("ODCM_DEDUP_DEBUG: Payload complete with all essential keys", 'debug');
+            }
+        }
+        
+        // Log consolidated rule execution event
         $event_id = \odcm_log_event(
             $rule_message,
             $rule_payload,
-            $context->getOrderId(),
+            $order_id,
             'success',
             'rule_execution',
             false,
@@ -1400,6 +1514,10 @@ class UniversalEventProcessor
                 'all_triggers' => array_keys($trigger_events),
                 'process_id' => $process_id,
                 'trigger_details' => $trigger_events,
+                // Add more context to ensure complete data
+                'rule_id' => $rule_id_val,
+                'rule_name' => $rule_name,
+                'order_id' => $order_id,
             ];
             
             // Store in both memory cache and persistent cache
@@ -1412,6 +1530,10 @@ class UniversalEventProcessor
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 odcm_log_message("ODCM_DEDUP_DEBUG: Created new consolidated rule execution event for Rule '{$rule_name}' (Order #{$order_id})", 'debug');
                 odcm_log_message("ODCM_DEDUP_DEBUG: Event ID: {$event_id}, Primary trigger: {$primary_trigger_event}", 'debug');
+            }
+        } else {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEDUP_DEBUG: ERROR - Failed to create rule execution event!", 'error');
             }
         }
     }
@@ -1875,7 +1997,7 @@ class UniversalEventProcessor
         $trigger_summary = $this->getTriggerSummary($primary_trigger, $all_triggers);
         
         // Create comprehensive execution summary
-        $execution_summary = self::getExecutionSummary($context, $payload);
+        $execution_summary = $this->getExecutionSummary($context, $payload);
         
         // Create proper component label
         $label = sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $order_id);
@@ -1965,19 +2087,93 @@ class UniversalEventProcessor
     }
     
     /**
-     * Update an existing rule execution event with additional trigger information
-     *
-
-        if (strpos($message_lower, 'duplicate') !== false) {
-            return "$gateway processing notice: Duplicate event detected";
+     * Format conditions for display in UI
+     * 
+     * @param array $conditions Array of condition results
+     * @return array Formatted conditions for display
+     */
+    private function formatConditionsForDisplay(array $conditions): array
+    {
+        $formatted = [];
+        
+        foreach ($conditions as $condition) {
+            $formatted[] = [
+                'type' => $condition['component_id'] ?? 'unknown',
+                'label' => $condition['label'] ?? 'Unknown Condition',
+                'result' => strtoupper($condition['result'] ?? 'unknown'),
+            ];
         }
-
-        if (strpos($message_lower, 'not found') !== false) {
-            return "$gateway processing error: Referenced order not found";
+        
+        return $formatted;
+    }
+    
+    /**
+     * Get execution summary for rule
+     * 
+     * @param EvaluationContext $context Evaluation context
+     * @param array $payload Enhanced payload with rule data
+     * @return string Execution summary
+     */
+    private function getExecutionSummary(EvaluationContext $context, array $payload): string
+    {
+        // If we have status transition information, show that first
+        if (isset($context->event->rawData['from_status']) && isset($context->event->rawData['to_status'])) {
+            $from = ucfirst($context->event->rawData['from_status']);
+            $to = ucfirst($context->event->rawData['to_status']);
+            
+            return sprintf('Completed Order (status changed from %s → %s)', $from, $to);
         }
-
-        // Generic fallback for unknown errors
-        return "$gateway event processing error: Unable to process event";
+        
+        // Otherwise, use a generic completion message
+        if (isset($context->event->eventType) && $context->event->eventType === 'payment_completed') {
+            return 'Completed Order (payment processed successfully)';
+        }
+        
+        return 'Completed Order';
+    }
+    
+    /**
+     * Get trigger summary for display in rule execution component
+     * 
+     * Creates a user-friendly description of what triggered the rule
+     * 
+     * @param string $primary_trigger The primary trigger event type
+     * @param array $all_triggers All trigger events for this rule
+     * @return string User-friendly trigger summary
+     */
+    private function getTriggerSummary(string $primary_trigger, array $all_triggers): string
+    {
+        // If we have specific data for the primary trigger, use that
+        if (isset($all_triggers[$primary_trigger])) {
+            $trigger_data = $all_triggers[$primary_trigger];
+            
+            // Create context-specific trigger descriptions
+            switch ($primary_trigger) {
+                case 'payment_completed':
+                    $gateway = ucfirst($trigger_data['source_gateway'] ?? 'payment gateway');
+                    if (!empty($trigger_data['amount']) && !empty($trigger_data['currency'])) {
+                        $amount = $this->formatAmount((float)$trigger_data['amount'], $trigger_data['currency']);
+                        return "Payment completion ({$gateway}: {$amount})";
+                    }
+                    return "Payment completion via {$gateway}";
+                    
+                case 'order_status_changed':
+                    $from = ucfirst($trigger_data['status_from'] ?? 'previous status');
+                    $to = ucfirst($trigger_data['status_to'] ?? 'new status');
+                    return "Status change: {$from} → {$to}";
+                    
+                case 'checkout_processed':
+                    $gateway = ucfirst($trigger_data['source_gateway'] ?? 'payment gateway');
+                    return "Checkout completion via {$gateway}";
+                    
+                case 'order_created':
+                    return "Order creation";
+            }
+        }
+        
+        // Generic fallback based on event type name
+        $event_name = str_replace('_', ' ', $primary_trigger);
+        return ucfirst($event_name);
     }
 
     /**

@@ -40,22 +40,47 @@ final class ProcessIdManager
      */
     public function get_or_create_process_id(int $order_id): ?string
     {
-        // STRICTER VALIDATION: Ensure order ID is valid to prevent Order #0 issues
-        // This enhanced validation completely prevents process IDs for invalid order IDs
+        // STRICTER VALIDATION: Enhanced validation to ensure only valid order IDs receive process IDs
+        // This is a critical protection against the "Order #0" issue
+        
+        // First check: Order ID must be greater than 0
         if ($order_id <= 0) {
-            // Log detailed warning when invalid order ID is provided
+            // Log detailed warning with stack trace to identify problematic code paths
             if (defined('ODCM_DEBUG') && ODCM_DEBUG && function_exists('odcm_log_message')) {
-                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
-                $caller = isset($backtrace[1]) ? $backtrace[1]['function'] : 'unknown';
-                $file = isset($backtrace[0]) ? basename($backtrace[0]['file']) : 'unknown';
-                $line = isset($backtrace[0]) ? $backtrace[0]['line'] : '?';
+                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
                 
-                odcm_log_message("PROCESS_ID_WARNING: Invalid order ID {$order_id} rejected in {$file}:{$line} (called from {$caller})", 'warning');
+                // Build a more comprehensive trace including multiple levels
+                $trace_info = "";
+                foreach ($backtrace as $idx => $frame) {
+                    $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
+                    $line = isset($frame['line']) ? $frame['line'] : '?';
+                    $function = isset($frame['function']) ? $frame['function'] : 'unknown';
+                    $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
+                }
+                
+                // Enhanced warning message with detailed context
+                odcm_log_message("PROCESS_ID_CRITICAL: Invalid order ID {$order_id} REJECTED. Complete backtrace: " . $trace_info, 'warning');
             }
             
             // Return null instead of a fallback process ID to force callers to handle this case
             // This prevents Order #0 events by making the absence of a valid process ID explicit
             return null;
+        }
+        
+        // Second check: Verify the order actually exists in WooCommerce
+        // Only do this check if WC is available to avoid errors in testing environments
+        if (function_exists('wc_get_order')) {
+            $order = wc_get_order($order_id);
+            if (!$order) {
+                // Order doesn't exist in WooCommerce
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG && function_exists('odcm_log_message')) {
+                    $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+                    $caller = isset($backtrace[1]) ? $backtrace[1]['function'] : 'unknown';
+                    
+                    odcm_log_message("PROCESS_ID_CRITICAL: Order #{$order_id} does not exist in WooCommerce (called from {$caller})", 'warning');
+                }
+                return null;
+            }
         }
 
         // Check for existing active process ID in order meta

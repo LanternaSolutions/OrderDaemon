@@ -283,12 +283,38 @@ final class ProcessLogger
                 'metrics' => $envelope['metrics']
             ];
             
+            // Additional validation to prevent Order #0 issues - never log events for invalid order IDs
+            if (isset($this->context['order_id']) && (empty($this->context['order_id']) || (int)$this->context['order_id'] <= 0)) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->critical_log('CRITICAL: Preventing timeline event creation for invalid order ID: ' . 
+                        (isset($this->context['order_id']) ? (int)$this->context['order_id'] : 'null'));
+                    
+                    // Add stack trace for detailed debugging
+                    $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+                    $trace_info = "";
+                    foreach ($backtrace as $idx => $frame) {
+                        $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
+                        $line = $frame['line'] ?? '?';
+                        $function = $frame['function'] ?? 'unknown';
+                        $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
+                    }
+                    $this->critical_log('Invalid Order ID backtrace: ' . $trace_info);
+                }
+                return false;
+            }
+            
             // Check if universal event context is active - if so, skip timeline event creation
             // since UniversalEventProcessor will create enhanced events instead
             if (self::$universal_event_context) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->critical_log('Skipping timeline event creation due to universal event context');
+                    $trace_source = '';
+                    if ($this->context['order_id']) {
+                        $trace_source = " for Order #{$this->context['order_id']}";
+                    }
+                    $this->critical_log('Skipping timeline event creation due to universal event context' . $trace_source);
                 }
+                // CRITICAL FIX: ALWAYS Return false during universal_event_context instead of correlation_id
+                // This prevents Order #0 issues by avoiding the inclusion of process_id in logging calls
                 return false;
             }
             
@@ -328,8 +354,30 @@ final class ProcessLogger
      */
     private function build_correlation_id(string $type, ?int $order_id): string
     {
-        $primary = $order_id ?: 'na';
-        return sprintf('%s:%d', (string)$primary, time()); // Optimized format
+        // Enhanced validation for order ID
+        if ($order_id === null || $order_id <= 0) {
+            // Use an explicit non-numeric prefix to avoid 'na' being interpreted as Order #0
+            $primary = 'invalid_order_id';
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->critical_log("WARNING: Building correlation ID with invalid order ID: " . 
+                    (is_null($order_id) ? 'null' : $order_id));
+                
+                // Add stack trace for detailed debugging
+                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+                $trace_info = "";
+                foreach ($backtrace as $idx => $frame) {
+                    $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
+                    $line = $frame['line'] ?? '?';
+                    $function = $frame['function'] ?? 'unknown';
+                    $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
+                }
+                $this->critical_log('Invalid Order ID correlation_id backtrace: ' . $trace_info);
+            }
+        } else {
+            $primary = (string)$order_id;
+        }
+        
+        return sprintf('%s:%d', $primary, time()); // Optimized format
     }
 
     /**
