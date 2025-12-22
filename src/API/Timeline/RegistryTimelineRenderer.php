@@ -24,33 +24,16 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
             return;
         }
-        
+
         // Use WordPress logging function if available
         if (function_exists('odcm_log_message')) {
             odcm_log_message($message, $level);
             return;
         }
-        
+
         // Use WordPress debug log function if available
         if (function_exists('wp_debug_log')) {
             wp_debug_log($message);
-            return;
-        }
-        
-        // Use WordPress action hook if available for centralized error handling
-        if (function_exists('do_action')) {
-            do_action('odcm_log_' . $level, $message);
-            return;
-        }
-        
-        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-            $debug_file = WP_CONTENT_DIR . '/debug.log';
-            @file_put_contents(
-                $debug_file,
-                '[' . gmdate('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
-                FILE_APPEND
-            );
             return;
         }
     }
@@ -60,86 +43,259 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     public function renderTimeline(TimelineData $timeline): string
     {
         if (!$timeline->hasComponents()) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Timeline has no components, rendering empty timeline", 'debug');
-                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Timeline metadata: " . json_encode($timeline->metadata), 'debug');
-            }
             return $this->renderEmptyTimeline($timeline);
         }
-        
+
         // Load the existing registry system
         $this->ensureRegistryLoaded();
-        
-        // Order event tracking
-        $isOrderEvent = false;
-        $eventType = '';
-        if (isset($timeline->metadata['event_type']) && is_string($timeline->metadata['event_type'])) {
-            $eventType = $timeline->metadata['event_type'];
-            $isOrderEvent = strpos($eventType, 'checkout') !== false || 
-                            strpos($eventType, 'order_') !== false || 
-                            strpos($eventType, 'complete') !== false ||
-                            strpos($eventType, 'completion') !== false ||
-                            strpos($eventType, 'order_completed') !== false ||
-                            strpos($eventType, 'checkout_processed') !== false ||
-                            strpos($eventType, 'checkout_completed') !== false;
-            
-            if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Rendering order timeline for event: " . $eventType, 'debug');
-                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Timeline has " . count($timeline->components) . " components", 'debug');
-            }
-        }
-        
+
+        // Build parent-child relationship map for hierarchy visualization
+        $hierarchyMap = $this->buildHierarchyMap($timeline->components);
+
         $html = '<div class="odcm-narrative-timeline">';
         $renderedComponentCount = 0;
-        
+
         foreach ($timeline->components as $idx => $component) {
             try {
-                if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Processing component #" . $idx, 'debug');
-                    if (isset($component['event_type'])) {
-                        $this->logDebugMessage("ODCM DEBUG: Component event_type: " . $component['event_type'], 'debug');
-                    }
-                }
-                $renderedComponent = $this->renderComponent($component);
+                // Get hierarchy info for this component
+                $isParent = isset($hierarchyMap['parents'][$idx]);
+                $isChild = isset($hierarchyMap['children'][$idx]);
+
+                $renderedComponent = $this->renderComponent($component, $isParent, $isChild);
             } catch (\Throwable $e) {
                 // Never let a single component break the whole timeline
-                $this->logDebugMessage("ODCM TIMELINE DEBUG: Component render threw exception: " . $e->getMessage(), 'error');
-                $this->logDebugMessage("ODCM TIMELINE DEBUG: Exception stack trace: " . $e->getTraceAsString(), 'error');
-                
-                // For order events, add fallback rendering instead of empty content
-                if ($isOrderEvent) {
-                    $this->logDebugMessage("ODCM DEBUG: Providing fallback for order event with exception: " . $e->getMessage(), 'warning');
-                    $renderedComponent = $this->generateOrderEventFallback($component, $eventType);
-                } else {
-                    $renderedComponent = '';
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM TIMELINE DEBUG: Component render threw exception: " . $e->getMessage(), 'error');
+                    $this->logDebugMessage("ODCM TIMELINE DEBUG: Exception stack trace: " . $e->getTraceAsString(), 'error');
                 }
+
+                $renderedComponent = '';
             }
-            
+
             if (!empty($renderedComponent)) {
                 $html .= $renderedComponent;
                 $renderedComponentCount++;
-            } else if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - Component #" . $idx . " rendered empty content", 'warning');
-                
-                // For order events with empty rendering, add a basic fallback
-                if ($isOrderEvent) {
-                    $this->logDebugMessage("ODCM DEBUG: Adding fallback for empty order component render", 'warning');
-                    $fallback = $this->generateOrderEventFallback($component, $eventType);
-                    $html .= $fallback;
-                    $renderedComponentCount++;
+            }
+        }
+
+        $html .= '</div>';
+
+        return $html;
+    }
+    
+    /**
+     * Build parent-child relationship map from timeline components
+     * 
+     * @param array $components The timeline components
+     * @return array Map with 'parents' and 'children' indexes
+     */
+    private function buildHierarchyMap(array $components): array
+    {
+        $hierarchyMap = [
+            'parents' => [], // component index => array of child indexes
+            'children' => [] // component index => parent index
+        ];
+        
+        // Add debug output when in debug mode
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: Building hierarchy map for " . count($components) . " components", 'debug');
+        }
+        
+        // Map component IDs to their array indexes for faster lookup
+        $idToIndexMap = [];
+        foreach ($components as $idx => $component) {
+            // First check for direct ID field
+            if (isset($component['id']) && $component['id'] !== null) {
+                $idToIndexMap[$component['id']] = $idx;
+            }
+            // Also check log_id which is often used
+            if (isset($component['log_id']) && $component['log_id'] !== null) {
+                $idToIndexMap[$component['log_id']] = $idx;
+            }
+            // Some components use event_id
+            if (isset($component['event_id']) && $component['event_id'] !== null) {
+                $idToIndexMap[$component['event_id']] = $idx;
+            }
+            // Check nested data structure too
+            if (isset($component['data']['id']) && $component['data']['id'] !== null) {
+                $idToIndexMap[$component['data']['id']] = $idx;
+            }
+        }
+        
+        // Build parent-child relationships based on parent_id field and other related fields
+        foreach ($components as $idx => $component) {
+            // 1. Check for direct parent_id field at the top level
+            $parentId = $component['parent_id'] ?? null;
+            
+            // 2. Check for parent_id in data array if available
+            if (!$parentId && isset($component['data']['parent_id'])) {
+                $parentId = $component['data']['parent_id'];
+            }
+            
+            // 3. Check for parent_event_id field which is sometimes used
+            if (!$parentId && isset($component['parent_event_id'])) {
+                $parentId = $component['parent_event_id'];
+            }
+            
+            // 4. Check for related_event_id field which is also used for hierarchy
+            if (!$parentId && isset($component['related_event_id'])) {
+                $parentId = $component['related_event_id'];
+            }
+            
+            // 5. For rule executions, check for triggered_by_event
+            if (!$parentId && isset($component['data']['triggered_by_event'])) {
+                $parentId = $component['data']['triggered_by_event'];
+            }
+            
+            // 6. Check the relation between status_changed and rule_execution events
+            if (!$parentId && 
+                isset($component['event_type']) && 
+                $component['event_type'] === 'rule_execution' && 
+                isset($component['data']['source_event_id'])) {
+                $parentId = $component['data']['source_event_id'];
+            }
+            
+            // If any valid parent ID was found
+            if ($parentId) {
+                // Try fast lookup using the id-to-index map
+                if (isset($idToIndexMap[$parentId])) {
+                    $parentIdx = $idToIndexMap[$parentId];
+                    
+                    // Mark this component as a child
+                    $hierarchyMap['children'][$idx] = $parentIdx;
+                    
+                    // Mark the parent as having children
+                    if (!isset($hierarchyMap['parents'][$parentIdx])) {
+                        $hierarchyMap['parents'][$parentIdx] = [];
+                    }
+                    $hierarchyMap['parents'][$parentIdx][] = $idx;
+                    
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage("ODCM TIMELINE DEBUG: Established parent-child: parent_idx=$parentIdx, child_idx=$idx", 'debug');
+                    }
+                } else {
+                    // Fallback to full scan if not found in map - might be a different ID format
+                    foreach ($components as $parentIdx => $parentComponent) {
+                        // Try different ID fields to find a match
+                        $componentId = $parentComponent['id'] ?? $parentComponent['log_id'] ?? 
+                                       $parentComponent['event_id'] ?? 
+                                       ($parentComponent['data']['id'] ?? null);
+                        
+                        if ($componentId && $componentId == $parentId) {
+                            // Mark this component as a child
+                            $hierarchyMap['children'][$idx] = $parentIdx;
+                            
+                            // Mark the parent as having children
+                            if (!isset($hierarchyMap['parents'][$parentIdx])) {
+                                $hierarchyMap['parents'][$parentIdx] = [];
+                            }
+                            $hierarchyMap['parents'][$parentIdx][] = $idx;
+                            
+                            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                                $this->logDebugMessage("ODCM TIMELINE DEBUG: Found parent via full scan: parent_idx=$parentIdx, child_idx=$idx", 'debug');
+                            }
+                            break;
+                        }
+                    }
                 }
             }
         }
         
-        $html .= '</div>';
+        // 7. Use heuristics for components that don't have explicit parent IDs
+        // For example: Rules executed right after a status change are likely related
         
-        // If we didn't render any components for an order event, provide a zero-error fallback
-        if ($isOrderEvent && $renderedComponentCount == 0) {
-            $this->logDebugMessage("ODCM DEBUG: No components rendered for order event, providing zero-error fallback", 'warning');
-            return $this->generateEmptyOrderFallback($eventType, $timeline->metadata);
+        // Create timestamp-based index to match events happening in sequence
+        $timeBasedComponents = [];
+        foreach ($components as $idx => $component) {
+            $ts = $component['ts'] ?? null;
+            if ($ts) {
+                if (!isset($timeBasedComponents[$ts])) {
+                    $timeBasedComponents[$ts] = [];
+                }
+                $timeBasedComponents[$ts][] = $idx;
+            }
         }
         
-        return $html;
+        // Process components chronologically
+        $orderedTimestamps = array_keys($timeBasedComponents);
+        sort($orderedTimestamps);
+        
+        $lastStatusChangeIdx = null;
+        $lastCheckoutProcessedIdx = null;
+        $lastOrderEventIdx = null;
+        
+        foreach ($orderedTimestamps as $ts) {
+            foreach ($timeBasedComponents[$ts] as $idx) {
+                $component = $components[$idx];
+                $eventType = $component['event_type'] ?? '';
+                
+                // Skip components that already have a parent
+                if (isset($hierarchyMap['children'][$idx])) {
+                    continue;
+                }
+                
+                // Track status change events
+                if (strpos($eventType, 'status_changed') !== false) {
+                    $lastStatusChangeIdx = $idx;
+                }
+                
+                // Track checkout processed events
+                if (strpos($eventType, 'checkout_processed') !== false) {
+                    $lastCheckoutProcessedIdx = $idx;
+                }
+                
+                // Track order events
+                if (strpos($eventType, 'order_') !== false) {
+                    $lastOrderEventIdx = $idx;
+                }
+                
+                // Connect rule executions to status changes
+                if (strpos($eventType, 'rule_execution') !== false && $lastStatusChangeIdx !== null &&
+                    !isset($hierarchyMap['children'][$idx])) {
+                    
+                    // Check if the rule is responding to the last status change
+                    $ruleCreatedTime = $component['ts'] ?? 0;
+                    $statusChangeTime = $components[$lastStatusChangeIdx]['ts'] ?? 0;
+                    
+                    // If rule was executed right after a status change (within 5 seconds)
+                    if (abs($ruleCreatedTime - $statusChangeTime) <= 5) {
+                        $hierarchyMap['children'][$idx] = $lastStatusChangeIdx;
+                        
+                        if (!isset($hierarchyMap['parents'][$lastStatusChangeIdx])) {
+                            $hierarchyMap['parents'][$lastStatusChangeIdx] = [];
+                        }
+                        $hierarchyMap['parents'][$lastStatusChangeIdx][] = $idx;
+                        
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            $this->logDebugMessage("ODCM TIMELINE DEBUG: Inferred rule-status relationship: parent=$lastStatusChangeIdx, child=$idx", 'debug');
+                        }
+                    }
+                }
+                
+                // Connect payment processing to checkout events
+                if (strpos($eventType, 'payment') !== false && $lastCheckoutProcessedIdx !== null &&
+                    !isset($hierarchyMap['children'][$idx])) {
+                    
+                    $hierarchyMap['children'][$idx] = $lastCheckoutProcessedIdx;
+                    
+                    if (!isset($hierarchyMap['parents'][$lastCheckoutProcessedIdx])) {
+                        $hierarchyMap['parents'][$lastCheckoutProcessedIdx] = [];
+                    }
+                    $hierarchyMap['parents'][$lastCheckoutProcessedIdx][] = $idx;
+                    
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage("ODCM TIMELINE DEBUG: Inferred payment-checkout relationship: parent=$lastCheckoutProcessedIdx, child=$idx", 'debug');
+                    }
+                }
+            }
+        }
+        
+        // Log the final hierarchy map for debugging
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: Final hierarchy map - Parents: " . count($hierarchyMap['parents']) . ", Children: " . count($hierarchyMap['children']), 'debug');
+        }
+        
+        return $hierarchyMap;
     }
     
     /**
@@ -242,35 +398,27 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     }
     
     /**
-     * Render individual component using registry system with debug filtering
+     * Render individual component using registry system with debug filtering and hierarchy support
+     * 
+     * @param array $payload The component payload data
+     * @param bool $isParent Whether this component is a parent (has children)
+     * @param bool $isChild Whether this component is a child (has parent_id)
+     * @return string Rendered HTML with hierarchy CSS classes applied
      */
-    private function renderComponent(array $payload): string
+    private function renderComponent(array $payload, bool $isParent = false, bool $isChild = false): string
     {
-        // Enhanced debugging for specific event types
-        $isOrderEvent = false;
-        if (isset($payload['event_type'])) {
-            $eventType = $payload['event_type'];
-            $isOrderEvent = strpos($eventType, 'checkout') !== false || 
-                            strpos($eventType, 'order_') !== false || 
-                            strpos($eventType, 'complete') !== false ||
-                            strpos($eventType, 'completion') !== false;
-            
-            if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM DEBUG: RegistryTimelineRenderer - renderComponent for order event: " . $eventType, 'debug');
-                $this->logDebugMessage("ODCM DEBUG: Order event payload keys: " . implode(', ', array_keys($payload)), 'debug');
-            }
-        }
-        
         // Debug Event Filtering - hide debug events in production
         if ($this->shouldFilterDebugEvent($payload)) {
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - Debug event hidden in production mode");
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - Debug event hidden in production mode");
+            }
             return ''; // Hide debug events in production
         }
-        
+
         // The $payload is the full log entry. The renderer needs the component data,
         // which is often nested inside the 'data' key.
         $data = $payload['data'] ?? $payload;
-        
+
         // If this is a universal event, extract the real event type from the data
         if (isset($data['event_type'])) {
             $event_type = $data['event_type'];
@@ -279,110 +427,54 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             $event_type = $payload['event_type'] ?? 'info';
             $label = $payload['label'] ?? ucfirst($event_type);
         }
-        
+
         $ts = $payload['ts'] ?? null;
         $level = $payload['level'] ?? 'info';
-        
-        // Enhanced debug logging for component rendering
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: ========== RENDERING COMPONENT ==========");
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Component event_type: '$event_type'");
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Component label: '$label'");
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Component level: '$level'");
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Component timestamp: " . ($ts ?? 'null'));
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Data keys: " . implode(', ', array_keys($data)));
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Data empty: " . (empty($data) ? 'YES' : 'NO'));
-        if (!empty($data)) {
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: Data sample: " . substr(json_encode($data), 0, 300) . (strlen(json_encode($data)) > 300 ? '...' : ''));
-        }
-        
+
         // Skip components with empty data, but pass the full payload if it's not empty.
         if (empty($data) && empty($payload)) {
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: SKIPPING - Component has empty data");
             return '';
         }
-        
-        // Use new direct mapping system
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Getting renderer for event_type: '$event_type'");
 
         // Resolve renderer class safely even if registry function is unavailable
         if (function_exists('odcm_get_renderer_for_event_type')) {
             try {
                 $rendererClass = odcm_get_renderer_for_event_type($event_type);
-                
-                // Special debug logging for order events
-                if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM DEBUG: Order event renderer mapping - event_type: '$event_type' -> renderer: '$rendererClass'", 'debug');
-                }
             } catch (\Throwable $e) {
-                $this->logDebugMessage("ODCM TIMELINE DEBUG: Registry lookup failed: " . $e->getMessage(), 'error');
-                if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM DEBUG: Order event renderer lookup FAILED: " . $e->getMessage(), 'error');
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM TIMELINE DEBUG: Registry lookup failed: " . $e->getMessage(), 'error');
                 }
                 $rendererClass = '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer';
             }
         } else {
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: Registry function missing, using FallbackRenderer", 'warning');
-            if ($isOrderEvent && defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM DEBUG: Order event failed - odcm_get_renderer_for_event_type function missing", 'error');
-            }
             $rendererClass = '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer';
         }
-        $originalRendererClass = $rendererClass;
-        
-        // Debug logging for renderer selection result
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Renderer class selected: '$rendererClass'");
-        
+
         // Ensure full namespace if not provided
         if (strpos($rendererClass, '\\') === false) {
             $rendererClass = 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\' . $rendererClass;
         }
-        
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Original renderer class: '$originalRendererClass'");
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Full renderer class: '$rendererClass'");
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Checking if class exists...");
 
         if (!class_exists($rendererClass)) {
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: ERROR - Renderer class '$rendererClass' does not exist", 'error');
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: Using fallback renderer");
-            
-            if ($isOrderEvent) {
-                $this->logDebugMessage("ODCM DEBUG: Class not found for order event renderer: " . $rendererClass, 'error');
-                
-                // For order events, use the OrderRenderer as first fallback before using the generic fallback
-                $orderRendererClass = '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\OrderRenderer';
-                if (class_exists($orderRendererClass)) {
-                    $this->logDebugMessage("ODCM DEBUG: Using OrderRenderer as fallback", 'debug');
-                    $renderer = new $orderRendererClass();
-                } else {
-                    $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
-                }
-            } else {
-                $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: ERROR - Renderer class '$rendererClass' does not exist", 'error');
             }
-            
+
+            $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
             $timeline = [
                 'label' => $label,
                 'ts' => $ts,
                 'level' => $level
             ];
-            return $renderer->render($payload, $event_type, $timeline);
+            $result = $renderer->render($payload, $event_type, $timeline);
+            return $this->applyHierarchyClasses($result, $isParent, $isChild);
         }
-        
-        $this->logDebugMessage("ODCM TIMELINE DEBUG: Renderer class exists, attempting instantiation...");
 
         try {
             $renderer = new $rendererClass();
-            
-            $has_renderTimelineItem = method_exists($renderer, 'renderTimelineItem');
-            $has_render = method_exists($renderer, 'render');
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: Renderer instantiated successfully");
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: Has renderTimelineItem(): " . ($has_renderTimelineItem ? 'YES' : 'NO'));
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: Has render(): " . ($has_render ? 'YES' : 'NO'));
-            
+
             // Use unified render method with timeline data
             if (method_exists($renderer, 'render')) {
-                $this->logDebugMessage("ODCM TIMELINE DEBUG: Using render() method with timeline data");
-
                 $timeline = [
                     'label' => $label,
                     'ts' => $ts,
@@ -390,79 +482,35 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 ];
 
                 $result = $renderer->render($payload, $event_type, $timeline);
-                
-                $result_length = strlen($result);
-                $this->logDebugMessage("ODCM TIMELINE DEBUG: render() completed, result length: $result_length");
-                if ($result_length > 0) {
-                    $this->logDebugMessage("ODCM TIMELINE DEBUG: SUCCESS - Component rendered with timeline data");
-                } else {
-                    $this->logDebugMessage("ODCM TIMELINE DEBUG: WARNING - Renderer returned empty result", 'warning');
-                    // For order events, provide a fallback instead of returning empty
-                    if ($isOrderEvent) {
-                        $this->logDebugMessage("ODCM TIMELINE DEBUG: Providing fallback for empty order event render", 'warning');
-                        if ($rendererClass !== '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer' &&
-                            class_exists('\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\OrderRenderer')) {
-                            // Try OrderRenderer as a fallback
-                            $fallbackRenderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\OrderRenderer();
-                            $fallbackResult = $fallbackRenderer->render($payload, $event_type, $timeline);
-                            if (!empty($fallbackResult)) {
-                                return $fallbackResult;
-                            }
-                        }
-                        // If OrderRenderer also fails, use the generic fallback
-                        $fallbackRenderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
-                        return $fallbackRenderer->render($payload, $event_type, $timeline);
-                    }
+
+                if (!empty($result)) {
+                    // Apply hierarchy CSS classes to the rendered component
+                    return $this->applyHierarchyClasses($result, $isParent, $isChild);
                 }
-                
-                return $result;
             }
-            
+
             // Fallback if renderer doesn't have expected methods
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: ERROR - Renderer '$rendererClass' has no render methods", 'error');
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: Using fallback renderer");
             $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
             $timeline = [
                 'label' => $label,
                 'ts' => $ts,
                 'level' => $level
             ];
-            return $renderer->render($payload, $event_type, $timeline);
-            
+            $result = $renderer->render($payload, $event_type, $timeline);
+            return $this->applyHierarchyClasses($result, $isParent, $isChild);
+
         } catch (\Throwable $e) {
             // Log error and use fallback
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: EXCEPTION - Renderer instantiation/execution failed", 'error');
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: Exception: " . $e->getMessage(), 'error');
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: Exception file: " . $e->getFile() . ":" . $e->getLine(), 'error');
-            $this->logDebugMessage("ODCM TIMELINE DEBUG: Using fallback renderer");
-            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: EXCEPTION - Renderer instantiation/execution failed", 'error');
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: Exception: " . $e->getMessage(), 'error');
+            }
+
             // Always log renderer errors regardless of debug mode
             if (function_exists('wp_debug_log')) {
                 wp_debug_log("ODCM Timeline Renderer Error for {$rendererClass}: " . $e->getMessage());
             }
-            
-            // For order events, use OrderRenderer as fallback before generic fallback
-            if ($isOrderEvent && 
-                $rendererClass !== '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\OrderRenderer' &&
-                $rendererClass !== '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer' &&
-                class_exists('\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\OrderRenderer')) {
-                try {
-                    $this->logDebugMessage("ODCM DEBUG: Attempting OrderRenderer as exception fallback");
-                    $orderRenderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\OrderRenderer();
-                    $timeline = [
-                        'label' => $label,
-                        'ts' => $ts,
-                        'level' => $level
-                    ];
-                    $result = $orderRenderer->render($payload, $event_type, $timeline);
-                    if (!empty($result)) {
-                        return $result;
-                    }
-                } catch (\Throwable $orderExp) {
-                    $this->logDebugMessage("ODCM DEBUG: OrderRenderer fallback also failed: " . $orderExp->getMessage(), 'error');
-                }
-            }
-            
+
             // Final fallback is FallbackRenderer
             $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
             $timeline = [
@@ -470,7 +518,8 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'ts' => $ts,
                 'level' => $level
             ];
-            return $renderer->render($payload, $event_type, $timeline);
+            $result = $renderer->render($payload, $event_type, $timeline);
+            return $this->applyHierarchyClasses($result, $isParent, $isChild);
         }
     }
     
@@ -530,6 +579,135 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 $this->logDebugMessage('ODCM TIMELINE DEBUG: Failed to load OrderRenderer.php: ' . $e->getMessage(), 'error');
             }
         }
+    }
+    
+    /**
+     * Apply hierarchy CSS classes to rendered timeline component HTML
+     * 
+     * @param string $html The rendered HTML to modify
+     * @param bool $isParent Whether this component is a parent (has children)
+     * @param bool $isChild Whether this component is a child (has parent_id)
+     * @return string The HTML with hierarchy CSS classes applied
+     */
+    private function applyHierarchyClasses(string $html, bool $isParent, bool $isChild): string
+    {
+        // If neither parent nor child, return original HTML
+        if (!$isParent && !$isChild) {
+            return $html;
+        }
+        
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: Applying hierarchy classes - isParent: " . ($isParent ? 'YES' : 'NO') . ", isChild: " . ($isChild ? 'YES' : 'NO'), 'debug');
+        }
+        
+        // Build classes to add
+        $hierarchyClasses = [];
+        if ($isParent) {
+            $hierarchyClasses[] = 'is-parent';
+        }
+        if ($isChild) {
+            $hierarchyClasses[] = 'is-child';
+        }
+        
+        // Convert classes array to string
+        $classString = implode(' ', $hierarchyClasses);
+        
+        // Look for component containers to add classes to
+        // The main pattern is: <div class="odcm-component ...">
+        $pattern = '/(<div[^>]*class="[^"]*odcm-component[^"]*")/i';
+        
+        $html = preg_replace_callback($pattern, function($matches) use ($classString) {
+            $openingTag = $matches[1];
+            
+            // Add hierarchy classes to the existing class attribute
+            $modifiedTag = preg_replace(
+                '/(class="[^"]*)"/',
+                '$1 ' . $classString . '"',
+                $openingTag
+            );
+            
+            return $modifiedTag;
+        }, $html);
+        
+        // Add debug output after regex replacement attempt
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $result = (strpos($html, 'is-parent') !== false || strpos($html, 'is-child') !== false);
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: First regex replacement result: " . ($result ? 'SUCCESS' : 'FAILED'), 'debug');
+            
+            // Debug the HTML pattern we're trying to match
+            $debug_pattern = preg_match('/class="[^"]*odcm-component[^"]*"/i', $html);
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: HTML contains odcm-component class: " . ($debug_pattern ? 'YES' : 'NO'), 'debug');
+            
+            // Output a sample of the HTML for debugging
+            $htmlSample = substr($html, 0, 200) . '...';
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: HTML sample: " . $htmlSample, 'debug');
+        }
+        
+        // Fallback: if no odcm-component found, look for any component or timeline container
+        if (strpos($html, 'is-parent') === false && strpos($html, 'is-child') === false) {
+            // Try broader patterns for other component containers
+            $patterns = [
+                '/(<div[^>]*class="[^"]*component[^"]*")/i',
+                '/(<div[^>]*class="[^"]*timeline[^"]*")/i',
+                '/(<div[^>]*class="[^"]*odcm-[^"]*")/i'
+            ];
+            
+            foreach ($patterns as $pattern) {
+                $html = preg_replace_callback($pattern, function($matches) use ($classString) {
+                    $openingTag = $matches[1];
+                    
+                    // Add hierarchy classes to the existing class attribute
+                    $modifiedTag = preg_replace(
+                        '/(class="[^"]*)"/',
+                        '$1 ' . $classString . '"',
+                        $openingTag
+                    );
+                    
+                    return $modifiedTag;
+                }, $html);
+                
+                // If we successfully added classes, break out of the loop
+                if (strpos($html, 'is-parent') !== false || strpos($html, 'is-child') !== false) {
+                    break;
+                }
+            }
+        }
+        
+        // Final fallback: if still no classes applied, wrap the entire content
+        if (strpos($html, 'is-parent') === false && strpos($html, 'is-child') === false) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: All regex patterns failed, using wrapper fallback", 'debug');
+            }
+            
+            // Final desperate attempt - directly inject the classes into the first div
+            if (preg_match('/<div[^>]*class="[^"]*"/', $html)) {
+                $html = preg_replace(
+                    '/<div([^>]*?)class="([^"]*)"/', 
+                    '<div$1class="$2 ' . $classString . '"', 
+                    $html, 
+                    1  // Replace only the first occurrence
+                );
+                
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $result = (strpos($html, 'is-parent') !== false || strpos($html, 'is-child') !== false);
+                    $this->logDebugMessage("ODCM TIMELINE DEBUG: Direct class injection: " . ($result ? 'SUCCESS' : 'FAILED'), 'debug');
+                }
+            }
+            
+            // If still nothing worked, wrap everything
+            if (strpos($html, 'is-parent') === false && strpos($html, 'is-child') === false) {
+                $wrapperClasses = 'odcm-component ' . $classString;
+                $html = '<div class="' . esc_attr($wrapperClasses) . '">' . $html . '</div>';
+                
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM TIMELINE DEBUG: Applied wrapper div with classes", 'debug');
+                }
+            }
+        } else if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: Successfully applied hierarchy classes", 'debug');
+        }
+        
+        return $html;
     }
     
     /**

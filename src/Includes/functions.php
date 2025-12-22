@@ -1135,7 +1135,8 @@ function odcm_log_event(
     string $status = 'info',
     string $event_type = 'event',
     bool $is_test = false,
-    ?string $process_id = null
+    ?string $process_id = null,
+    ?string $parent_event_type = null
 ): bool {
     global $wpdb;
     
@@ -1213,6 +1214,7 @@ function odcm_log_event(
         'source' => 'logger',
         'timestamp' => current_time('mysql'),
         'data' => $data,
+        'parent_event_type' => $parent_event_type,
     ];
     
     // Add process ID if provided or auto-detect
@@ -1256,7 +1258,7 @@ function odcm_log_event(
         
         // Cache the successfully queued event to prevent duplicates
         // Use a longer cache time to prevent duplicate processing during high load
-        wp_cache_set($duplicate_prevention_key, 'queued', '', HOUR_IN_SECONDS);
+        wp_cache_set($duplicate_prevention_key, 'queued', '', defined('HOUR_IN_SECONDS') ? HOUR_IN_SECONDS : 3600);
     } else {
         // This event is already being processed or was recently queued
         $debug_enabled = (defined('ODCM_DEBUG') && ODCM_DEBUG) || get_option('odcm_dev_debug_override', 0);

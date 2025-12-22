@@ -14,7 +14,7 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
     /**
      * Extract normalized components from raw payload data
      */
-    public function extractComponents(array $rawPayload, bool $includeDebug): array
+    public function extractComponents(array $rawPayload, bool $includeDebug, array $logEntryContext = []): array
     {
         // Enhanced error reporting for order events
         if (isset($rawPayload['event_type'])) {
@@ -34,7 +34,7 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
         
         // Check if this is ProcessLogger format
         if ($this->isProcessLoggerFormat($rawPayload)) {
-            return $this->extractProcessLoggerComponents($rawPayload, $includeDebug);
+            return $this->extractProcessLoggerComponents($rawPayload, $includeDebug, $logEntryContext);
         }
         
         // For non-ProcessLogger format, we'll handle this in the synthetic component creation
@@ -238,7 +238,7 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
     /**
      * Extract components from ProcessLogger format payload
      */
-    private function extractProcessLoggerComponents(array $rawPayload, bool $includeDebug): array
+    private function extractProcessLoggerComponents(array $rawPayload, bool $includeDebug, array $logEntryContext = []): array
     {
         $components = $rawPayload['components'];
         $extractedComponents = [];
@@ -301,8 +301,8 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
                 continue;
             }
 
-            // Normalize component structure, passing the full raw payload to allow merging of top-level data
-            $normalizedComponent = $this->normalizeComponent($component, $rawPayload);
+            // Normalize component structure, passing the full raw payload and log entry context to allow merging of top-level data
+            $normalizedComponent = $this->normalizeComponent($component, $rawPayload, $logEntryContext);
             $extractedComponents[] = $normalizedComponent;
         }
         
@@ -382,7 +382,7 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
      * Normalize component structure to ensure consistency and inject top-level data.
      * This ensures a "wide pipeline" with complete context for renderers.
      */
-    private function normalizeComponent(array $component, array $rawPayload): array
+    private function normalizeComponent(array $component, array $rawPayload, array $logEntryContext = []): array
     {
         $ts = $component['ts'] ?? microtime(true);
 
@@ -457,6 +457,17 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
         // Ensure order_id is accessible at top-level if present in data
         if (isset($normalizedComponent['data']['order_id']) && !isset($normalizedComponent['order_id'])) {
             $normalizedComponent['order_id'] = $normalizedComponent['data']['order_id'];
+        }
+
+        // PARENT-CHILD HIERARCHY VISUALIZATION: 
+        // Inject parent_id from log entry context into each component
+        // This enables the RegistryTimelineRenderer to build the hierarchy map correctly
+        if (!empty($logEntryContext['parent_id'])) {
+            $normalizedComponent['parent_id'] = $logEntryContext['parent_id'];
+            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log('ODCM DEBUG: Injected parent_id=' . $logEntryContext['parent_id'] . ' into component: ' . $component['event_type']);
+            }
         }
 
         // Display/Raw two-layer scaffolding (non-breaking defaults)

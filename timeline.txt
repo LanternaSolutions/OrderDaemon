@@ -1,31 +1,31 @@
 Order Created
-(order_created)December 14, 2025 3:51 pm :29
+(order_created)December 22, 2025 8:16 pm :22
 
 Order ID
-    #76
+    #91
 Amount
     $10.00
 Customer ID
     1
 
 Status Changed from Checkout-draft to Pending
-(status_changed)December 14, 2025 3:51 pm :29
+(status_changed)December 22, 2025 8:16 pm :22
 
 From
     Checkout Draft
 To
     Pending
 Order
-    #76
+    #91
 Type
     Automatic
 
 Checkout Completed
 PROCESSED
-(checkout_processed)December 14, 2025 3:51 pm :29
+(checkout_processed)December 22, 2025 8:16 pm :22
 
 Order ID
-    #76
+    #91
 Status
     Checkout-draft
 Payment Method
@@ -42,18 +42,18 @@ Source
     manual
 
 Real Checkout Timestamp
-    1765727489
+    1766430982
 
 Queued At
-    2025-12-14T15:51:40+00:00
+    2025-12-22T20:16:25+01:00
 
 Processed From Queue
     1
 
 {
     "checkout_type": "block_checkout",
-    "capture_timestamp": "2025-12-14T15:51:40+00:00",
-    "order_id": 76,
+    "capture_timestamp": "2025-12-22T20:16:25+01:00",
+    "order_id": 91,
     "cart_analysis": {
         "total_items": 1,
         "product_types": [
@@ -115,7 +115,7 @@ Processed From Queue
 
 Payment Event
 COMPLETED
-(payment.stripe.checkout_processed)December 14, 2025 3:51 pm :29
+(payment.stripe.checkout_processed)December 22, 2025 8:16 pm :22
 
 Gateway
     Stripe
@@ -131,18 +131,18 @@ Source
     manual
 
 Real Checkout Timestamp
-    1765727489
+    1766430982
 
 Queued At
-    2025-12-14T15:51:40+00:00
+    2025-12-22T20:16:25+01:00
 
 Processed From Queue
     1
 
 {
     "checkout_type": "block_checkout",
-    "capture_timestamp": "2025-12-14T15:51:40+00:00",
-    "order_id": 76,
+    "capture_timestamp": "2025-12-22T20:16:25+01:00",
+    "order_id": 91,
     "cart_analysis": {
         "total_items": 1,
         "product_types": [
@@ -204,14 +204,14 @@ Processed From Queue
 
 Status Evaluation
 DEBUG
-(_status_evaluation)December 14, 2025 3:51 pm :40
+(_status_evaluation)December 22, 2025 8:16 pm :25
 
 Event type
     _status_evaluation
 Label
-    Status change evaluation: Order #76 (checkout-draft → pending)
+    Status change evaluation: Order #91 (checkout-draft → pending)
 Ts
-    1765727500
+    1766430985
 Level
     debug
 
@@ -222,22 +222,40 @@ Data
     "to": "pending",
     "debug_mode": true,
     "evaluation_details": {
-        "timestamp": "2025-12-14T15:51:40+00:00",
+        "timestamp": "2025-12-22T20:16:25+01:00",
         "source": "manual",
         "purpose": "This event provides debugging information about status change evaluations but is excluded from the main timeline to reduce noise"
     }
 }
 
+Display sections
+
+[
+    {
+        "title": "Summary",
+        "items": [
+            {
+                "key": "Summary",
+                "value": "Status change evaluation: Order #91 (checkout-draft \u2192 pending)"
+            },
+            {
+                "key": "Event",
+                "value": "_status_evaluation"
+            }
+        ]
+    }
+]
+
 Status Evaluation
 DEBUG
-(_status_evaluation)December 14, 2025 3:51 pm :40
+(_status_evaluation)December 22, 2025 8:16 pm :25
 
 Event type
     _status_evaluation
 Label
-    Status change evaluation: Order #76 (pending → completed)
+    Status change evaluation: Order #91 (pending → completed)
 Ts
-    1765727500
+    1766430985
 Level
     debug
 
@@ -248,36 +266,54 @@ Data
     "to": "completed",
     "debug_mode": true,
     "evaluation_details": {
-        "timestamp": "2025-12-14T15:51:40+00:00",
+        "timestamp": "2025-12-22T20:16:25+01:00",
         "source": "manual",
         "purpose": "This event provides debugging information about status change evaluations but is excluded from the main timeline to reduce noise"
     }
 }
 
+Display sections
+
+[
+    {
+        "title": "Summary",
+        "items": [
+            {
+                "key": "Summary",
+                "value": "Status change evaluation: Order #91 (pending \u2192 completed)"
+            },
+            {
+                "key": "Event",
+                "value": "_status_evaluation"
+            }
+        ]
+    }
+]
+
 Status Changed from Pending to Completed
-(status_changed)December 14, 2025 3:51 pm :40
+(status_changed)December 22, 2025 8:16 pm :25
 
 From
     Pending
 To
     Completed
 Order
-    #76
+    #91
 Type
     Automatic
 
 Rule evaluation completed for Order #0
 EXECUTED
-(rule_execution)December 14, 2025 3:51 pm :40
+(rule_execution)December 22, 2025 8:16 pm :25
 
 Technical Execution Details
 
 Correlation ID
-    odcm:lifecyc...820.55841800
+    odcm:lifecyc...4a3.34754705
 
-Rule "virtual rule" evaluated successfully for Order #76
+Rule "virtual rule" evaluated successfully for Order #91
 EXECUTED
-(rule_execution)December 14, 2025 3:51 pm :40
+(rule_execution)December 22, 2025 8:16 pm :25
 
 Execution Summary
     Completed Order (status changed from Pending → Completed)
@@ -316,10 +352,10 @@ Event Channel
     System
 
 Event Time
-    2025-12-14 15:51:40
+    2025-12-22 19:16:25
 
 Event ID
-    status_c...65727500
+    status_c...66430985
 
 From Status
     Pending
@@ -339,7 +375,7 @@ Trigger Type
     order_processing
 
 Evaluation Time
-    280.00 ms
+    250.00 ms
 
 First Match Wins
     Yes
@@ -348,14 +384,14 @@ Rule Position
     #1
 
 Event Idempotency Key
-    status_chang...d_1765727500
+    status_chang...d_1766430985
 
 Primary Action Result
     Success
 
 Rule Evaluation Check
 DEBUG
-(order_check_scheduled)December 14, 2025 3:52 pm :05
+(order_check_scheduled)December 22, 2025 8:16 pm :48
 
 Order ID
 Purpose
@@ -399,7 +435,7 @@ Additional Event Data
     "debug_context": {
         "event_source": "stripe",
         "event_channel": "system",
-        "order_id": 76,
+        "order_id": 91,
         "customer_id": 1,
         "rule_evaluation_context": "This debug entry helps trace rule evaluation for events that were not known when the original code was written"
     }

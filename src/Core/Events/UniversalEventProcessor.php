@@ -1472,7 +1472,8 @@ class UniversalEventProcessor
         );
         
         // === 6. CREATE DATABASE RECORD ===
-        // Log the consolidated rule execution event
+        // Log the consolidated rule execution event with hierarchy support
+        // Use the primary trigger as the parent event type to establish parent-child relationships
         $event_id = \odcm_log_event(
             sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $order_id),
             $rule_payload,
@@ -1480,7 +1481,8 @@ class UniversalEventProcessor
             'success',
             'rule_execution',
             false,
-            $process_id
+            $process_id,
+            $primary_trigger_event // Parent event type for hierarchy visualization
         );
         
         // === 7. CACHE THE RESULT ===

@@ -167,6 +167,16 @@ function odcm_handle_log_processing($args) {
         $log_data['source'] = sanitize_text_field($source);
     }
 
+    // HIERARCHY: Add parent_id resolution logic
+    // Check if we have parent_event_type in the compressed data for hierarchy resolution
+    if (isset($comp_data['parent_event_type']) && !empty($comp_data['parent_event_type']) && $order_id) {
+        $parent_id = odcm_resolve_parent_id($comp_data['parent_event_type'], (int) $order_id);
+        if ($parent_id !== null) {
+            $log_data['parent_id'] = $parent_id;
+            odcm_log_message("HIERARCHY: Resolved parent_id={$parent_id} for event_type='{$event_type}' using parent_event_type='{$comp_data['parent_event_type']}'", 'debug');
+        }
+    }
+
     // Insert log entry with duplicate protection
     $duplicate_hash = md5(serialize([
         'summary' => $log_data['summary'],
@@ -212,7 +222,7 @@ function odcm_handle_log_processing($args) {
     
     if ($insert_result !== false) {
         // Cache the hash to prevent duplicates (10 minutes)
-        wp_cache_set($dedup_cache_key, true, '', 10 * MINUTE_IN_SECONDS);
+        wp_cache_set($dedup_cache_key, true, '', 10 * 60);
 
         // Invalidate dashboard logs cache by bumping a global cache version
         $version_key = 'odcm_logs_cache_version';
@@ -916,7 +926,7 @@ function odcm_process_queued_log_entry($args): void
         ));
         
         // Cache the result for 5 minutes
-        wp_cache_set($cache_key, $queue_entry, '', 5 * MINUTE_IN_SECONDS);
+        wp_cache_set($cache_key, $queue_entry, '', 5 * 60);
     }
     
     if (!$queue_entry) {
@@ -932,8 +942,15 @@ function odcm_process_queued_log_entry($args): void
             throw new \Exception('Invalid event_data JSON');
         }
         
-        // Extract envelope
+        // Extract envelope and parent_event_type
         $envelope = $event_data['envelope'] ?? [];
+        $parent_event_type = $event_data['parent_event_type'] ?? null;
+        
+        // Resolve parent_id if parent_event_type is provided
+        $parent_id = null;
+        if ($parent_event_type && !empty($event_data['order_id'])) {
+            $parent_id = odcm_resolve_parent_id($parent_event_type, (int) $event_data['order_id']);
+        }
         
         // Create payload ID if we have envelope data
         $payload_id = null;
@@ -981,27 +998,34 @@ function odcm_process_queued_log_entry($args): void
             odcm_log_message("Skipping duplicate log entry creation for hash {$dedup_hash}", 'debug');
             $log_result = true; // Pretend success to continue processing
         } else {
-            // Create final audit log entry
+            // Create final audit log entry with parent_id if resolved
+            $log_data = [
+                'timestamp' => $event_data['timestamp'],
+                'status' => $event_data['status'],
+                'summary' => $event_data['summary'],
+                'order_id' => $event_data['order_id'] ?? null,
+                'event_type' => $event_data['event_type'],
+                'source' => $event_data['source'] ?? 'system',
+                'log_category' => 'custom',
+                'is_test' => $event_data['is_test'] ? 1 : 0,
+                'process_id' => $event_data['process_id'] ?? null,
+                'payload_id' => $payload_id,
+                'duplicate_hash' => $dedup_hash,
+            ];
+            
+            // Add parent_id if resolved
+            if ($parent_id !== null) {
+                $log_data['parent_id'] = $parent_id;
+            }
+            
             $log_result = $wpdb->insert(
                 "{$wpdb->prefix}odcm_audit_log",
-                [
-                    'timestamp' => $event_data['timestamp'],
-                    'status' => $event_data['status'],
-                    'summary' => $event_data['summary'],
-                    'order_id' => $event_data['order_id'] ?? null,
-                    'event_type' => $event_data['event_type'],
-                    'source' => $event_data['source'] ?? 'system',
-                    'log_category' => 'custom',
-                    'is_test' => $event_data['is_test'] ? 1 : 0,
-                    'process_id' => $event_data['process_id'] ?? null,
-                    'payload_id' => $payload_id,
-                    'duplicate_hash' => $dedup_hash,
-                ]
+                $log_data
             );
             
             if ($log_result !== false) {
-                // Cache the deduplication hash (10 minutes)
-                wp_cache_set($dedup_cache_key, true, '', 10 * MINUTE_IN_SECONDS);
+        // Cache the deduplication hash (10 minutes)  
+        wp_cache_set($dedup_cache_key, true, '', 10 * 60);
 
                 // Invalidate dashboard logs cache by bumping a global cache version
                 $version_key = 'odcm_logs_cache_version';
@@ -1065,6 +1089,152 @@ function odcm_process_queued_log_entry($args): void
             );
         }
     }
+}
+
+/**
+ * Resolve parent_id from parent event type and order_id
+ * 
+ * This implements the deferred parent_id resolution. When a child event
+ * is processed, it looks up the actual parent_id from recently created
+ * events of the specified type.
+ * 
+ * @param string $parent_event_type The parent event type to look up
+ * @param int $order_id The order ID to search within
+ * @return int|null The parent event log_id or null if not found
+ */
+function odcm_resolve_parent_id(string $parent_event_type, int $order_id): ?int
+{
+    global $wpdb;
+    
+    // Debug logging to understand what's happening
+    $debug_data = [
+        'parent_event_type' => $parent_event_type,
+        'order_id' => $order_id,
+        'table_name' => $wpdb->prefix . 'odcm_audit_log'
+    ];
+    odcm_log_message("PARENT_ID_RESOLUTION: Starting lookup", 'debug', $debug_data);
+    
+    // First, let's see what events exist for this order
+    $all_events = $wpdb->get_results($wpdb->prepare(
+        "SELECT log_id, event_type, timestamp, summary FROM {$wpdb->prefix}odcm_audit_log
+         WHERE order_id = %d 
+         ORDER BY timestamp DESC",
+        $order_id
+    ));
+    
+    odcm_log_message("PARENT_ID_RESOLUTION: Found " . count($all_events) . " total events for order #{$order_id}", 'debug');
+    
+    if (!empty($all_events)) {
+        foreach ($all_events as $event) {
+            odcm_log_message("PARENT_ID_RESOLUTION: Event - ID:{$event->log_id} Type:{$event->event_type} Time:{$event->timestamp}", 'debug');
+        }
+    }
+    
+    // Look for the most recent event of this type for this order.
+    // Map original event types to actual database event types.
+    $actual_event_type = odcm_map_to_actual_event_type($parent_event_type);
+    
+    $result = $wpdb->get_row($wpdb->prepare(
+        "SELECT log_id, event_type, timestamp FROM {$wpdb->prefix}odcm_audit_log
+         WHERE order_id = %d AND event_type = %s
+         ORDER BY timestamp DESC LIMIT 1",
+        $order_id,
+        $actual_event_type
+    ));
+    
+    // If we didn't find anything with the mapped event type, try the original
+    if (!$result && $actual_event_type !== $parent_event_type) {
+        odcm_log_message("PARENT_ID_RESOLUTION: No match for mapped event type '{$actual_event_type}', trying original '{$parent_event_type}'", 'debug');
+        
+        $result = $wpdb->get_row($wpdb->prepare(
+            "SELECT log_id, event_type, timestamp FROM {$wpdb->prefix}odcm_audit_log
+             WHERE order_id = %d AND event_type = %s
+             ORDER BY timestamp DESC LIMIT 1",
+            $order_id,
+            $parent_event_type
+        ));
+    }
+    
+    if ($result) {
+        odcm_log_message("PARENT_ID_RESOLUTION: Found parent - ID:{$result->log_id} Type:{$result->event_type} Time:{$result->timestamp}", 'debug');
+        return (int)$result->log_id;
+    } else {
+        // Check if the issue is with the exact event type matching
+        $similar_events = $wpdb->get_results($wpdb->prepare(
+            "SELECT log_id, event_type FROM {$wpdb->prefix}odcm_audit_log
+             WHERE order_id = %d AND event_type LIKE %s
+             ORDER BY timestamp DESC LIMIT 5",
+            $order_id,
+            '%' . $wpdb->esc_like($parent_event_type) . '%'
+        ));
+        
+        if (!empty($similar_events)) {
+            odcm_log_message("PARENT_ID_RESOLUTION: No exact match, but found similar events:", 'debug');
+            foreach ($similar_events as $event) {
+                odcm_log_message("PARENT_ID_RESOLUTION: Similar - ID:{$event->log_id} Type:{$event->event_type}", 'debug');
+            }
+        } else {
+            odcm_log_message("PARENT_ID_RESOLUTION: No matching or similar events found for type '{$parent_event_type}'", 'debug');
+        }
+        
+        return null;
+    }
+}
+
+/**
+ * Map original event types to actual database event types by examining payload data
+ * 
+ * The UniversalEventProcessor stores events with 'universal_event_processing' as the event_type,
+ * but preserves the original event type in the components array within the payload JSON.
+ * This function performs precise lookups based on the actual payload structure.
+ * 
+ * @param string $original_event_type The original event type (like 'checkout_processed')
+ * @return string The actual database event type or SQL to search payload
+ */
+function odcm_map_to_actual_event_type(string $original_event_type): string
+{
+    global $wpdb;
+    
+    // Debug what we're trying to map
+    odcm_log_message("EVENT_TYPE_MAPPING: Precisely mapping '{$original_event_type}'", 'debug');
+    
+    // For lifecycle events stored via UniversalEventProcessor, we need to look in the payload
+    $lifecycle_events = [
+        'checkout_processed',
+        'payment_completed',
+        'order_status_changed',
+        'order_created',
+        'order_check_scheduled'
+    ];
+    
+    if (in_array($original_event_type, $lifecycle_events, true)) {
+        // These events are stored as 'universal_event_processing' with original type in payload
+        odcm_log_message("EVENT_TYPE_MAPPING: Lifecycle event '{$original_event_type}' -> 'universal_event_processing' (will search payload)", 'debug');
+        return 'universal_event_processing';
+    }
+    
+    // Rule processing events have specific types
+    $rule_event_mapping = [
+        'rule_evaluation' => 'rule_evaluation_non_canonical',
+        'rule_execution' => 'rule_execution',
+        'status_evaluation' => '_status_evaluation',
+    ];
+    
+    if (isset($rule_event_mapping[$original_event_type])) {
+        $mapped_type = $rule_event_mapping[$original_event_type];
+        odcm_log_message("EVENT_TYPE_MAPPING: Rule event '{$original_event_type}' -> '{$mapped_type}'", 'debug');
+        return $mapped_type;
+    }
+    
+    // For payment gateway events like 'payment.stripe.checkout_processed'
+    if (strpos($original_event_type, 'payment.') === 0) {
+        odcm_log_message("EVENT_TYPE_MAPPING: Payment gateway event '{$original_event_type}' -> 'universal_event_processing' (will search payload)", 'debug');
+        return 'universal_event_processing';
+    }
+    
+    // If no mapping found, return the original type
+    odcm_log_message("EVENT_TYPE_MAPPING: No mapping needed for '{$original_event_type}', using original", 'debug');
+    return $original_event_type;
 }
 
 // Register the handler

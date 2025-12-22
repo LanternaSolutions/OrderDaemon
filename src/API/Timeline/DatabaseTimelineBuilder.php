@@ -704,8 +704,8 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
             $payloadData['log_id'] = $logEntry['log_id'];
         }
 
-        // Extract components using the component extractor
-        $components = $this->extractor->extractComponents($payloadData, $includeDebug);
+        // Extract components using the component extractor, passing log entry context for hierarchy data
+        $components = $this->extractor->extractComponents($payloadData, $includeDebug, $logEntry);
 
         // If no components extracted from payload, create synthetic component
         if (empty($components)) {

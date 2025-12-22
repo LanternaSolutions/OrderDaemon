@@ -2841,35 +2841,32 @@ label.odcm-retention-option {
    - Pure CSS implementation for performance and simplicity
    ====================================================================== */
 
-/* Parent event styling - adds space for hierarchy indicators */
-.odcm-log-entry.is-parent {
+/* Parent component styling - should look like normal components */
+.odcm-component.is-parent {
+    /* Remove all special styling to make parents look normal */
     position: relative;
-    padding-left: 24px;
+    border-left: none;
+    padding-left: 0;
 }
 
-/* Vertical connection line for parent events */
-.odcm-log-entry.is-parent:before {
-    content: '';
-    position: absolute;
-    left: 12px;
-    top: 32px;
-    bottom: 0;
-    width: 2px;
-    background: var(--odcm-theme-grey-300);
+/* Remove vertical connection line for parent components */
+.odcm-component.is-parent:before {
+    content: none;
 }
 
-/* Child event styling - indented with connection */
-.odcm-log-entry.is-child {
-    padding-left: 36px;
-    margin-left: 12px;
+/* Child component styling - indented with connection for visual distinction */
+.odcm-component.is-child {
+    margin-left: var(--odcm-theme-spacing-lg);
     position: relative;
+    border-left: 2px dashed var(--odcm-theme-grey-300);
+    background-color: var(--odcm-theme-grey-100);
 }
 
 /* Horizontal connector from parent to child */
-.odcm-log-entry.is-child:before {
+.odcm-component.is-child:before {
     content: '';
     position: absolute;
-    left: 24px;
+    left: -10px;
     top: 16px;
     width: 12px;
     height: 2px;
@@ -2877,10 +2874,10 @@ label.odcm-retention-option {
 }
 
 /* Connection dot at child events */
-.odcm-log-entry.is-child:after {
+.odcm-component.is-child:after {
     content: '';
     position: absolute;
-    left: 24px;
+    left: -10px;
     top: 14px;
     width: 8px;
     height: 8px;
@@ -2890,7 +2887,7 @@ label.odcm-retention-option {
     box-shadow: 0 0 0 2px var(--odcm-theme-grey-300);
 }
 
-/* Expand/collapse indicator for parent events */
+/* Expand/collapse indicator for parent components */
 .odcm-hierarchy-toggle {
     position: absolute;
     left: 8px;
@@ -2910,19 +2907,8 @@ label.odcm-retention-option {
     content: '▼';
 }
 
-.odcm-log-entry.is-collapsed .odcm-hierarchy-toggle:before {
+.odcm-component.is-collapsed .odcm-hierarchy-toggle:before {
     content: '▲';
-}
-
-/* Ensure legacy events maintain current appearance */
-.odcm-log-entry.legacy-event {
-    /* Current styling preserved exactly */
-    border: 1px solid var(--odcm-component-border-color);
-    border-radius: var(--odcm-component-border-radius);
-    margin-bottom: var(--odcm-theme-spacing-sm);
-    padding: var(--odcm-theme-spacing-xs) var(--odcm-theme-spacing-md);
-    background: var(--odcm-theme-white);
-    padding-left: var(--odcm-theme-spacing-md); /* No extra indentation */
 }
 
 /* Container for mixed timelines (both hierarchical and flat events) */
@@ -2932,20 +2918,20 @@ label.odcm-retention-option {
     gap: var(--odcm-theme-spacing-xs);
 }
 
-/* Hierarchy status indicators for different event types */
-.odcm-log-entry.is-parent.is-success .odcm-hierarchy-toggle {
+/* Hierarchy status indicators for different component types */
+.odcm-component.is-parent.is-success .odcm-hierarchy-toggle {
     color: var(--odcm-theme-green-700);
 }
 
-.odcm-log-entry.is-parent.is-error .odcm-hierarchy-toggle {
+.odcm-component.is-parent.is-error .odcm-hierarchy-toggle {
     color: var(--odcm-theme-red-700);
 }
 
-.odcm-log-entry.is-parent.is-warning .odcm-hierarchy-toggle {
+.odcm-component.is-parent.is-warning .odcm-hierarchy-toggle {
     color: var(--odcm-theme-yellow-700);
 }
 
-.odcm-log-entry.is-parent.is-info .odcm-hierarchy-toggle {
+.odcm-component.is-parent.is-info .odcm-hierarchy-toggle {
     color: var(--odcm-theme-blue-700);
 }
 
@@ -2955,30 +2941,30 @@ label.odcm-retention-option {
     to { opacity: 1; transform: translateY(0); }
 }
 
-.odcm-log-entry.is-child {
+.odcm-component.is-child {
     animation: odcm-hierarchy-fade 0.2s ease-out;
 }
 
 /* Responsive adjustments for hierarchy on smaller screens */
 @media (max-width: 768px) {
-    .odcm-log-entry.is-parent {
+    .odcm-component.is-parent {
         padding-left: 16px;
     }
 
-    .odcm-log-entry.is-parent:before {
+    .odcm-component.is-parent:before {
         left: 8px;
     }
 
-    .odcm-log-entry.is-child {
+    .odcm-component.is-child {
         padding-left: 28px;
         margin-left: 8px;
     }
 
-    .odcm-log-entry.is-child:before {
+    .odcm-component.is-child:before {
         left: 16px;
     }
 
-    .odcm-log-entry.is-child:after {
+    .odcm-component.is-child:after {
         left: 16px;
     }
 

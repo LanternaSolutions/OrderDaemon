@@ -16,9 +16,10 @@ interface ComponentExtractorInterface
      * 
      * @param array $rawPayload Raw payload data from database
      * @param bool $includeDebug Whether to include debug-level components
+     * @param array $logEntryContext Complete log entry context (for parent_id, etc.)
      * @return array Array of normalized component arrays
      */
-    public function extractComponents(array $rawPayload, bool $includeDebug): array;
+    public function extractComponents(array $rawPayload, bool $includeDebug, array $logEntryContext = []): array;
     
     /**
      * Check if payload contains ProcessLogger format data
