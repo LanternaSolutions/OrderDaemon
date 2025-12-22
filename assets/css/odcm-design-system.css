@@ -108,7 +108,7 @@
   --odcm-theme-value-bg: var(--odcm-theme-grey-200);
 
   /* --- Border Radius --- */
-  --odcm-theme-border-radius: 3px;
+  --odcm-theme-border-radius: 6px;
 
   /* --- Shadows --- */
   --odcm-theme-shadow: inset 0 0 5px 0 rgba(0, 0, 0, 0.25);

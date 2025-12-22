@@ -110,7 +110,7 @@
   --odcm-theme-value-bg: var(--odcm-theme-grey-200);
 
   /* --- Border Radius --- */
-  --odcm-theme-border-radius: 3px;
+  --odcm-theme-border-radius: 6px;
 
   /* --- Shadows --- */
   --odcm-theme-shadow: inset 0 0 5px 0 rgba(0, 0, 0, 0.25);
@@ -130,10 +130,10 @@
   --odcm-component-text-color-header: var(--odcm-theme-grey-900);
   --odcm-component-text-color-body: var(--odcm-theme-grey-800);
   --odcm-component-padding: var(--odcm-theme-spacing-sm);
-  --odcm-component-margin: var(--odcm-theme-spacing-sm);
+  --odcm-component-margin: var(--odcm-theme-spacing-md);
   --odcm-component-border-width: 1px;
   --odcm-component-border-radius: var(--odcm-theme-border-radius);
-  --odcm-component-section-margin: var(--odcm-theme-spacing-xs);
+  --odcm-component-section-margin: var(--odcm-theme-spacing-md);
   --odcm-component-value-bg: var(--odcm-theme-grey-300);
   --odcm-component-code-border-color: var(--odcm-theme-grey-300);
   --odcm-component-transition: all 0.3s ease;
@@ -667,6 +667,7 @@
 .odcm-filter-group select {
     width: 100%;
     max-width: none;
+    border-radius: var(--odcm-component-border-radius);
 }
 
 /* Premium Filter Group */
@@ -749,6 +750,7 @@
 
 .odcm-filter-actions button {
     flex: 1;
+    border-radius: var(--odcm-component-border-radius) !important;
 }
 
 /* ==========================================================================
@@ -1512,7 +1514,7 @@ label.odcm-retention-option {
     justify-content: flex-start !important;
     gap: 6px;
     padding: 8px 10px;
-    border-radius: var(--odcm-component-border-radius);
+    border-radius: var(--odcm-component-border-radius) !important;
     background: var(--odcm-theme-white);
     border: 1px solid var(--odcm-component-border-color);
     color: var(--odcm-theme-grey-700);
@@ -1674,7 +1676,7 @@ label.odcm-retention-option {
     width: 32px;
     padding: 0px;
     border: 1px solid var(--odcm-theme-grey-400);
-    border-radius: 2px;
+    border-radius: var(--odcm-component-border-radius);
     text-align: center;
     font-size: var(--odcm-theme-font-size-sm);
     background: var(--odcm-theme-white);
@@ -2036,10 +2038,10 @@ label.odcm-retention-option {
     height: auto; /* Content-based sizing */
     border: var(--odcm-component-border-width) solid var(--odcm-component-border-color);
     border-radius: var(--odcm-component-border-radius);
-    padding: 0px;
-    margin-bottom: var(--odcm-theme-spacing-md);
+    padding: 0;
+    margin-bottom: var(--odcm-theme-spacing-sm);
     //* overflow: hidden; */
-    background-color: var(--odcm-theme-white);
+    background-color: var(--odcm-theme-grey-300);
     transition: var(--odcm-component-transition);
 }
 
@@ -2068,6 +2070,7 @@ label.odcm-retention-option {
     padding-bottom: 0px;
     position: relative;
     background-color: var(--odcm-theme-grey-100);
+    border-radius: var(--odcm-component-border-radius) var(--odcm-component-border-radius) 0 0;
 }
 
 /* Top row: icon + title on left, status pill on right */
@@ -2242,6 +2245,7 @@ label.odcm-retention-option {
     background-color: var(--odcm-theme-grey-100);
     scrollbar-width: auto; /* Firefox */
     scrollbar-color: var(--odcm-theme-grey-400) transparent; /* Firefox */
+    border-radius: 0 0 var(--odcm-component-border-radius) var(--odcm-component-border-radius);
 }
 
 /* Webkit scrollbar styling */
@@ -2465,13 +2469,14 @@ label.odcm-retention-option {
 
 /* Unified Payload Component Base - Matches Alpine.js Dashboard UI */
 .odcm-component {
-    --odcm-component-bg: var(--odcm-theme-white);
+    --odcm-component-bg: var(--odcm-theme-grey-300);
     --odcm-component-border-color: var(--odcm-theme-grey-300);
     --odcm-component-header-border-color: var(--odcm-theme-grey-300);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
     --odcm-component-text-color-body: var(--odcm-theme-grey-800);
     --odcm-component-value-bg: var(--odcm-theme-grey-100);
     --odcm-key-bg: var(--odcm-theme-white);
+    --odcm-border-radius: var(--odcm-theme-border-radius);
 }
 
 /* Rule Events Theme */
@@ -2828,6 +2833,158 @@ label.odcm-retention-option {
     text-align: left;
     width: 80%;
     margin: 0 auto;
+}
+
+/* ======================================================================
+   PARENT-CHILD HIERARCHY VISUALIZATION
+   - Visual hierarchy for timeline events with parent-child relationships
+   - Pure CSS implementation for performance and simplicity
+   ====================================================================== */
+
+/* Parent event styling - adds space for hierarchy indicators */
+.odcm-log-entry.is-parent {
+    position: relative;
+    padding-left: 24px;
+}
+
+/* Vertical connection line for parent events */
+.odcm-log-entry.is-parent:before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 32px;
+    bottom: 0;
+    width: 2px;
+    background: var(--odcm-theme-grey-300);
+}
+
+/* Child event styling - indented with connection */
+.odcm-log-entry.is-child {
+    padding-left: 36px;
+    margin-left: 12px;
+    position: relative;
+}
+
+/* Horizontal connector from parent to child */
+.odcm-log-entry.is-child:before {
+    content: '';
+    position: absolute;
+    left: 24px;
+    top: 16px;
+    width: 12px;
+    height: 2px;
+    background: var(--odcm-theme-grey-300);
+}
+
+/* Connection dot at child events */
+.odcm-log-entry.is-child:after {
+    content: '';
+    position: absolute;
+    left: 24px;
+    top: 14px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--odcm-theme-grey-400);
+    border: 2px solid var(--odcm-theme-white);
+    box-shadow: 0 0 0 2px var(--odcm-theme-grey-300);
+}
+
+/* Expand/collapse indicator for parent events */
+.odcm-hierarchy-toggle {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--odcm-theme-grey-600);
+    font-size: 10px;
+    z-index: 1;
+}
+
+.odcm-hierarchy-toggle:before {
+    content: '▼';
+}
+
+.odcm-log-entry.is-collapsed .odcm-hierarchy-toggle:before {
+    content: '▲';
+}
+
+/* Ensure legacy events maintain current appearance */
+.odcm-log-entry.legacy-event {
+    /* Current styling preserved exactly */
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    margin-bottom: var(--odcm-theme-spacing-sm);
+    padding: var(--odcm-theme-spacing-xs) var(--odcm-theme-spacing-md);
+    background: var(--odcm-theme-white);
+    padding-left: var(--odcm-theme-spacing-md); /* No extra indentation */
+}
+
+/* Container for mixed timelines (both hierarchical and flat events) */
+.odcm-timeline-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-xs);
+}
+
+/* Hierarchy status indicators for different event types */
+.odcm-log-entry.is-parent.is-success .odcm-hierarchy-toggle {
+    color: var(--odcm-theme-green-700);
+}
+
+.odcm-log-entry.is-parent.is-error .odcm-hierarchy-toggle {
+    color: var(--odcm-theme-red-700);
+}
+
+.odcm-log-entry.is-parent.is-warning .odcm-hierarchy-toggle {
+    color: var(--odcm-theme-yellow-700);
+}
+
+.odcm-log-entry.is-parent.is-info .odcm-hierarchy-toggle {
+    color: var(--odcm-theme-blue-700);
+}
+
+/* Animation for hierarchy interactions */
+@keyframes odcm-hierarchy-fade {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.odcm-log-entry.is-child {
+    animation: odcm-hierarchy-fade 0.2s ease-out;
+}
+
+/* Responsive adjustments for hierarchy on smaller screens */
+@media (max-width: 768px) {
+    .odcm-log-entry.is-parent {
+        padding-left: 16px;
+    }
+
+    .odcm-log-entry.is-parent:before {
+        left: 8px;
+    }
+
+    .odcm-log-entry.is-child {
+        padding-left: 28px;
+        margin-left: 8px;
+    }
+
+    .odcm-log-entry.is-child:before {
+        left: 16px;
+    }
+
+    .odcm-log-entry.is-child:after {
+        left: 16px;
+    }
+
+    .odcm-hierarchy-toggle {
+        left: 4px;
+    }
 }
 
 /*** ODCM STREAM VIEW TOGGLE — SEGMENTED SLIDER ************************************/

@@ -291,9 +291,9 @@ main() {
 
     local normalized_version=""
 
-    if [[ "$requested_version" =~ ^major|minor|patch$ && -n "$current_version" ]]; then
-        normalized_version="$(get_incremented_version "$current_version")"
-        echo "Bumping patch version."
+    if [[ "$requested_version" =~ ^(major|minor|patch)$ && -n "$current_version" ]]; then
+        normalized_version="$(get_incremented_version "$current_version" "$requested_version")"
+        echo "Bumping $requested_version version."
     else
         normalized_version="$requested_version"
     fi

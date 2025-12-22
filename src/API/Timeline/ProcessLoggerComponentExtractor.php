@@ -459,7 +459,57 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             $normalizedComponent['order_id'] = $normalizedComponent['data']['order_id'];
         }
 
+        // Display/Raw two-layer scaffolding (non-breaking defaults)
+        // These fields enable the redesigned renderer to present structured data while maintaining backward compatibility.
+        if (!isset($normalizedComponent['display_sections']) || !is_array($normalizedComponent['display_sections'])) {
+            $normalizedComponent['display_sections'] = $this->buildBasicDisplaySections($normalizedComponent);
+        }
+        if (!isset($normalizedComponent['detail_sections']) || !is_array($normalizedComponent['detail_sections'])) {
+            $normalizedComponent['detail_sections'] = [];
+        }
+        if (!isset($normalizedComponent['tech_data']) || !is_array($normalizedComponent['tech_data'])) {
+            $normalizedComponent['tech_data'] = [];
+        }
+        if (!isset($normalizedComponent['actions_taken']) || !is_array($normalizedComponent['actions_taken'])) {
+            $normalizedComponent['actions_taken'] = [];
+        }
+
         return $normalizedComponent;
+    }
+
+    /**
+     * Build a minimal display section set from a normalized component
+     * This provides a human-friendly fallback without changing existing rendering.
+     */
+    private function buildBasicDisplaySections(array $normalizedComponent): array
+    {
+        $sections = [];
+
+        // Summary section
+        $summaryItems = [];
+        $label = $normalizedComponent['label'] ?? null;
+        if (is_string($label) && $label !== '') {
+            $summaryItems[] = ['key' => 'Summary', 'value' => $label];
+        }
+
+        $eventType = $normalizedComponent['event_type'] ?? null;
+        if (is_string($eventType) && $eventType !== '') {
+            $summaryItems[] = ['key' => 'Event', 'value' => $eventType];
+        }
+
+        $orderId = $normalizedComponent['order_id'] ?? ($normalizedComponent['data']['order_id'] ?? null);
+        if (!empty($orderId)) {
+            $summaryItems[] = ['key' => 'Order', 'value' => '#' . (string) $orderId];
+        }
+
+        if (!empty($summaryItems)) {
+            $sections[] = [
+                'title' => 'Summary',
+                'items' => $summaryItems,
+            ];
+        }
+
+        return $sections;
     }
     
 }

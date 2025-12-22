@@ -1211,6 +1211,9 @@ class AuditLogEndpoint extends WP_REST_Controller
                     l.payload_id,
                     l.is_test,
                     l.process_id,
+                    l.parent_id,
+                    l.display_data,
+                    l.dedupe_key,
                     COALESCE(p.payload, l.details, %s) as payload
                 FROM " . $logTableName . " l
                     LEFT JOIN " . $payloadTableName . " p ON l.payload_id = p.payload_id
@@ -1959,6 +1962,19 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Add payload_id if available (for rendering components)
             if (!empty($log['payload_id'])) {
                 $formatted_log['payload_id'] = (int) $log['payload_id'];
+            }
+
+            // Add timeline redesign fields
+            if (isset($log['parent_id']) && $log['parent_id'] !== null) {
+                $formatted_log['parent_id'] = (int) $log['parent_id'];
+            }
+
+            if (isset($log['display_data']) && !empty($log['display_data'])) {
+                $formatted_log['display_data'] = json_decode($log['display_data'], true);
+            }
+
+            if (isset($log['dedupe_key']) && !empty($log['dedupe_key'])) {
+                $formatted_log['dedupe_key'] = $log['dedupe_key'];
             }
 
             // Add debug information for consolidated entries
