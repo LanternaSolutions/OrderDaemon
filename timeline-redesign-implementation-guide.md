@@ -841,23 +841,392 @@ Add autoloading for new adapter classes in appropriate composer.json or bootstra
 
 ---
 
-## WordPress Compliance Notes
+## WordPress Compliance & Best Practices
 
-### **Security Requirements**
-- All output must use `esc_html()`, `esc_attr()`, or `wp_kses_post()`  
-- All database queries must use `$wpdb->prepare()`
-- All user inputs must be sanitized
+### **Security Requirements (Critical)**
 
-### **Coding Standards**
-- Follow WordPress coding standards
-- Use proper PHPDoc blocks
-- Implement proper error handling
-- Follow naming conventions
+#### **Output Escaping (XSS Prevention)**
+```php
+// HTML content - use esc_html() for text
+$html .= '<span class="odcm-component__title">' . esc_html($title) . '</span>';
 
-### **Performance**
-- Minimize database queries
-- Use appropriate caching where needed
-- Avoid N+1 query patterns
+// Attributes - use esc_attr() for attributes
+$html .= '<div class="' . esc_attr($cssClass) . '" data-id="' . esc_attr($eventId) . '">';
+
+// URL escaping - use esc_url() for links
+$html .= '<a href="' . esc_url($adminUrl) . '">View Order</a>';
+
+// JSON data - use wp_json_encode() (already properly escaped)
+$html .= '<script>var data = ' . wp_json_encode($data) . ';</script>';
+
+// Rich content (if needed) - use wp_kses_post() sparingly
+$html .= '<div>' . wp_kses_post($richContent) . '</div>';
+```
+
+#### **Input Sanitization**
+```php
+// Text fields
+$orderid = sanitize_text_field($_POST['order_id'] ?? '');
+
+// Email addresses  
+$email = sanitize_email($_POST['email'] ?? '');
+
+// URLs
+$webhook_url = esc_url_raw($_POST['webhook_url'] ?? '');
+
+// Array data
+$filters = array_map('sanitize_text_field', $_POST['filters'] ?? []);
+```
+
+#### **Nonce Security**
+```php
+// Generate nonces for AJAX calls
+wp_nonce_field('odcm_timeline_refresh', 'odcm_timeline_nonce');
+
+// Verify nonces in handlers
+if (!wp_verify_nonce($_POST['odcm_timeline_nonce'], 'odcm_timeline_refresh')) {
+    wp_die('Security check failed');
+}
+```
+
+#### **Capability Checks**
+```php
+// Admin access required for timeline management
+if (!current_user_can('manage_woocommerce')) {
+    wp_die(__('Insufficient permissions.', 'order-daemon'));
+}
+
+// Different capabilities for different actions
+if (!current_user_can('manage_options')) {
+    wp_die(__('You do not have permission to manage settings.', 'order-daemon'));
+}
+```
+
+#### **Database Security**
+```php
+// Always use prepared statements
+$results = $wpdb->get_results($wpdb->prepare(
+    "SELECT * FROM {$wpdb->prefix}odcm_audit_log WHERE order_id = %d AND created_at > %s",
+    $order_id,
+    $start_date
+));
+
+// Never use direct concatenation
+// BAD: "SELECT * FROM table WHERE id = " . $id
+// GOOD: $wpdb->prepare("SELECT * FROM table WHERE id = %d", $id)
+```
+
+### **Performance Standards**
+
+#### **Database Query Optimization**
+```php
+// Use transients for expensive queries (5-15 minute cache)
+$cache_key = 'odcm_timeline_' . md5($order_id . $filters);
+$timeline_data = get_transient($cache_key);
+
+if (false === $timeline_data) {
+    $timeline_data = $this->queryTimelineData($order_id, $filters);
+    set_transient($cache_key, $timeline_data, 5 * MINUTE_IN_SECONDS);
+}
+
+// Prevent N+1 queries by batching
+$order_ids = wp_list_pluck($events, 'order_id');
+$orders = wc_get_orders(['include' => array_unique($order_ids)]);
+```
+
+#### **Asset Loading (Conditional)**
+```php
+// Only load assets on plugin pages
+add_action('admin_enqueue_scripts', function($hook) {
+    if ('woocommerce_page_odcm-insight-dashboard' !== $hook) {
+        return;
+    }
+    
+    wp_enqueue_script(
+        'odcm-timeline-ui',
+        plugin_dir_url(__FILE__) . 'assets/js/timeline-ui.js',
+        ['jquery'],
+        ODCM_VERSION,
+        true
+    );
+    
+    // Localize script with nonces and AJAX URLs
+    wp_localize_script('odcm-timeline-ui', 'odcmAjax', [
+        'ajaxurl' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('odcm_timeline_refresh'),
+        'strings' => [
+            'loading' => __('Loading timeline...', 'order-daemon'),
+            'error' => __('Failed to load timeline data.', 'order-daemon')
+        ]
+    ]);
+});
+```
+
+#### **Memory Management**
+```php
+// Process large datasets in chunks
+$chunk_size = 100;
+$offset = 0;
+
+do {
+    $events = $this->getEventsChunk($offset, $chunk_size);
+    foreach ($events as $event) {
+        $this->processEvent($event);
+        unset($event); // Free memory explicitly
+    }
+    $offset += $chunk_size;
+    
+    // Prevent memory exhaustion
+    if (memory_get_usage() > (128 * 1024 * 1024)) { // 128MB limit
+        break;
+    }
+} while (count($events) === $chunk_size);
+```
+
+### **WordPress Coding Standards**
+
+#### **Naming Conventions**
+```php
+// Class names: PascalCase
+class RuleExecutionAdapter extends DisplayAdapter {}
+
+// Method names: camelCase  
+public function extractOrderId(array $payload): int {}
+
+// Variable names: snake_case
+$order_id = $payload['order_id'];
+$event_type = 'rule_execution';
+
+// Constants: SCREAMING_SNAKE_CASE
+define('ODCM_VERSION', '1.0.0');
+
+// Hook names: lowercase with underscores
+add_action('odcm_timeline_before_render', [$this, 'beforeRender']);
+add_filter('odcm_timeline_display_data', [$this, 'filterDisplayData']);
+```
+
+#### **PHPDoc Standards**
+```php
+/**
+ * Enhanced order ID extraction specifically for rule execution events.
+ *
+ * This method implements a priority-based search through multiple payload
+ * locations to find the most reliable order ID for rule execution contexts.
+ *
+ * @since 1.0.0
+ * 
+ * @param array $payload The event payload containing rule execution data.
+ * @return int The extracted order ID, or 0 if none found.
+ * 
+ * @example
+ * $order_id = $adapter->extractRuleExecutionOrderId($payload);
+ * if ($order_id > 0) {
+ *     // Process order-specific logic
+ * }
+ */
+private function extractRuleExecutionOrderId(array $payload): int
+```
+
+#### **Error Handling & Logging**
+```php
+// Use WordPress logging functions
+if (defined('WP_DEBUG') && WP_DEBUG) {
+    error_log('ODCM Timeline: Failed to extract order ID from payload');
+}
+
+// Use WooCommerce logging for production
+$logger = wc_get_logger();
+$logger->error('Timeline rendering failed', [
+    'source' => 'order-daemon-timeline',
+    'payload_keys' => array_keys($payload),
+    'adapter_class' => get_class($adapter)
+]);
+
+// Graceful degradation
+try {
+    $displayData = $adapter->extractDisplayData($payload);
+} catch (Exception $e) {
+    $logger->error('Display adapter failed: ' . $e->getMessage(), ['source' => 'order-daemon']);
+    $displayData = $this->getFallbackDisplayData($payload);
+}
+```
+
+### **Internationalization (i18n)**
+
+#### **Text Domain Usage**
+```php
+// All user-facing strings must be translatable
+$title = __('Rule Execution Timeline', 'order-daemon');
+$description = __('View detailed timeline for order processing rules.', 'order-daemon');
+
+// With variables (sprintf for complex strings)
+$message = sprintf(
+    __('Rule "%s" executed successfully for Order #%d', 'order-daemon'),
+    esc_html($rule_name),
+    $order_id
+);
+
+// Pluralization
+$count_text = sprintf(
+    _n('%d event processed', '%d events processed', $event_count, 'order-daemon'),
+    $event_count
+);
+
+// Context for translators (disambiguation)
+$status = _x('Pending', 'order status', 'order-daemon');
+$status = _x('Pending', 'rule execution status', 'order-daemon');
+```
+
+#### **JavaScript i18n**
+```php
+// In PHP - provide translations for JavaScript
+wp_localize_script('odcm-timeline-ui', 'odcmStrings', [
+    'loading' => __('Loading...', 'order-daemon'),
+    'showDetails' => __('Show Details', 'order-daemon'),
+    'hideDetails' => __('Hide Details', 'order-daemon'),
+    'showTechnical' => __('Show Technical Details', 'order-daemon'),
+    'hideTechnical' => __('Hide Technical Details', 'order-daemon')
+]);
+```
+
+### **Accessibility Standards (WCAG 2.1 AA)**
+
+#### **Keyboard Navigation**
+```javascript
+// Ensure all interactive elements are keyboard accessible
+$(document).on('keydown', '.tier-toggle', function(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        $(this).click();
+    }
+});
+
+// Focus management for dynamic content
+function showTier($tier, $toggle) {
+    $tier.slideDown(200, function() {
+        // Move focus to first focusable element in expanded content
+        $tier.find('button, input, select, textarea, a[href]').first().focus();
+    });
+}
+```
+
+#### **ARIA Labels and Roles**
+```php
+// Screen reader announcements
+$html .= '<button type="button" class="tier-toggle" ';
+$html .= 'aria-expanded="false" ';
+$html .= 'aria-controls="technical-tier-' . esc_attr($event_id) . '" ';
+$html .= 'data-target="technical">';
+$html .= __('Show Technical Details', 'order-daemon');
+$html .= '</button>';
+
+// Descriptive labels
+$html .= '<div id="technical-tier-' . esc_attr($event_id) . '" ';
+$html .= 'class="technical-tier expandable-tier" ';
+$html .= 'aria-labelledby="technical-toggle-' . esc_attr($event_id) . '">';
+```
+
+#### **Color and Contrast**
+```css
+/* Ensure sufficient color contrast (4.5:1 minimum) */
+.odcm-status-pill--error {
+    background: var(--odcm-theme-red-700); /* High contrast background */
+    color: var(--odcm-theme-white); /* 7:1 contrast ratio */
+}
+
+/* Focus indicators for keyboard users */
+.tier-toggle:focus {
+    outline: 2px solid var(--odcm-theme-blue-700);
+    outline-offset: 2px;
+}
+```
+
+### **WooCommerce Integration Standards**
+
+#### **HPOS Compatibility**
+```php
+// Use WooCommerce order methods (HPOS-compatible)
+$order = wc_get_order($order_id);
+if ($order) {
+    $order_status = $order->get_status();
+    $order_total = $order->get_total();
+    $order_meta = $order->get_meta('_odcm_rule_data', true);
+}
+
+// Avoid direct post/meta queries
+// BAD: get_post_meta($order_id, '_some_meta', true)
+// GOOD: $order->get_meta('_some_meta', true)
+```
+
+#### **Action Scheduler Integration**
+```php
+// Use Action Scheduler for background processing
+as_schedule_single_action(
+    time() + 300, // 5 minutes delay
+    'odcm_process_timeline_cleanup',
+    [$order_id, $retention_days],
+    'order-daemon'
+);
+
+// Hook implementation
+add_action('odcm_process_timeline_cleanup', [$this, 'processTimelineCleanup'], 10, 2);
+```
+
+### **Development & Debugging Standards**
+
+#### **Debug Mode Support**
+```php
+// Conditional debug output
+if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+    $debug_info = [
+        'adapter_class' => get_class($adapter),
+        'extraction_time' => microtime(true) - $start_time,
+        'order_id_sources' => $this->getOrderIdSources($payload)
+    ];
+    
+    echo '<!-- ODCM Debug: ' . wp_json_encode($debug_info) . ' -->';
+}
+```
+
+#### **Testing Hooks**
+```php
+// Provide hooks for automated testing
+do_action('odcm_before_timeline_render', $payload, $adapter);
+$display_data = apply_filters('odcm_timeline_display_data', $display_data, $payload);
+do_action('odcm_after_timeline_render', $html, $display_data);
+```
+
+### **Compliance Checklist**
+
+**Before Implementation:**
+- [ ] All user inputs sanitized using WordPress functions
+- [ ] All outputs escaped with appropriate functions
+- [ ] Database queries use prepared statements
+- [ ] Capability checks implemented for admin functions
+- [ ] Nonces implemented for AJAX/form submissions
+
+**Code Quality:**
+- [ ] PHPDoc blocks for all public methods
+- [ ] WordPress naming conventions followed
+- [ ] Error handling with graceful degradation
+- [ ] Memory usage optimized for large datasets
+- [ ] Transient caching implemented for expensive operations
+
+**User Experience:**
+- [ ] All strings marked for translation
+- [ ] ARIA labels and keyboard navigation implemented
+- [ ] Color contrast meets WCAG AA standards
+- [ ] Loading states and error messages user-friendly
+- [ ] Responsive design works on mobile devices
+
+**WordPress Integration:**
+- [ ] HPOS compatibility verified
+- [ ] Action Scheduler used for background tasks
+- [ ] WordPress hooks used appropriately
+- [ ] Plugin deactivation/uninstall hooks implemented
+- [ ] No conflicts with other plugins tested
+
+This comprehensive compliance framework ensures the timeline redesign meets WordPress standards for security, performance, accessibility, and maintainability.
 
 ---
 
