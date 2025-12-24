@@ -1,0 +1,463 @@
+<?php
+declare(strict_types=1);
+
+namespace OrderDaemon\CompletionManager\API\Timeline;
+
+/**
+ * Order Event Display Adapter
+ *
+ * Specialized adapter for order-related events that extracts and organizes
+ * order-specific data for consistent display. Handles status changes, order
+ * creation, updates, and other order lifecycle events.
+ *
+ * @package OrderDaemon\CompletionManager\API\Timeline
+ * @since   1.2.0
+ */
+class OrderEventAdapter extends DisplayAdapter
+{
+    /**
+     * Extract specialized fields for order-related events
+     *
+     * @since 1.2.0
+     *
+     * @param array $payload The event payload
+     * @return array Extracted specialized fields
+     */
+    protected function extractSpecializedFields(array $payload): array
+    {
+        $fields = [];
+        
+        // Extract event type for processing
+        $eventType = $payload['event_type'] ?? $payload['data']['event_type'] ?? 'order_event';
+        
+        // Event description
+        $fields['event_description'] = [
+            'label' => $this->translate('Event'),
+            'value' => $this->formatEventDescription($eventType, $payload),
+            'section' => 'primary'
+        ];
+        
+        // Order ID - use enhanced extraction from base class
+        $order_id = $this->extractOrderId($payload);
+        if ($order_id > 0) {
+            $fields['order_id'] = [
+                'label' => $this->translate('Order'),
+                'value' => '#' . $order_id,
+                'section' => 'primary'
+            ];
+        }
+        
+        // Status change specifics
+        if (strpos($eventType, 'status_changed') !== false) {
+            $this->addStatusChangeFields($fields, $payload);
+        }
+        
+        // Order creation specifics
+        if (strpos($eventType, 'order_created') !== false) {
+            $this->addOrderCreationFields($fields, $payload);
+        }
+        
+        // Order update specifics
+        if (strpos($eventType, 'order_updated') !== false) {
+            $this->addOrderUpdateFields($fields, $payload);
+        }
+        
+        // Common order details
+        $this->addCommonOrderFields($fields, $payload);
+        
+        return $fields;
+    }
+    
+    /**
+     * Format event description based on event type and payload
+     *
+     * @since 1.2.0
+     *
+     * @param string $eventType The event type
+     * @param array $payload The event payload
+     * @return string Formatted event description
+     */
+    private function formatEventDescription(string $eventType, array $payload): string
+    {
+        $eventLabels = [
+            'status_changed' => $this->translate('Order Status Changed'),
+            'order_created' => $this->translate('Order Created'),
+            'order_updated' => $this->translate('Order Updated'),
+            'order_completed' => $this->translate('Order Completed'),
+            'order_cancelled' => $this->translate('Order Cancelled'),
+            'order_refunded' => $this->translate('Order Refunded'),
+            'order_processing' => $this->translate('Order Processing'),
+            'order_on_hold' => $this->translate('Order On Hold'),
+            'order_pending' => $this->translate('Order Pending'),
+            'order_failed' => $this->translate('Order Failed'),
+        ];
+
+        if (isset($eventLabels[$eventType])) {
+            return $eventLabels[$eventType];
+        }
+
+        // For status-specific events, try to extract status from event type
+        if (strpos($eventType, 'order_') === 0) {
+            $status = str_replace('order_', '', $eventType);
+            return sprintf($this->translate('Order %s'), ucfirst(str_replace('_', ' ', $status)));
+        }
+
+        return ucfirst(str_replace('_', ' ', $eventType));
+    }
+    
+    /**
+     * Add status change specific fields
+     *
+     * @since 1.2.0
+     *
+     * @param array &$fields Reference to fields array
+     * @param array $payload The event payload
+     * @return void
+     */
+    private function addStatusChangeFields(array &$fields, array $payload): void
+    {
+        // Extract status change information
+        $fromStatus = $this->extractStatusValue($payload, 'from');
+        $toStatus = $this->extractStatusValue($payload, 'to');
+        
+        if ($fromStatus && $toStatus) {
+            $fields['status_change'] = [
+                'label' => $this->translate('Status Change'),
+                'value' => sprintf('%s → %s', ucfirst($fromStatus), ucfirst($toStatus)),
+                'section' => 'primary'
+            ];
+        } elseif ($toStatus) {
+            $fields['new_status'] = [
+                'label' => $this->translate('New Status'),
+                'value' => ucfirst($toStatus),
+                'section' => 'primary'
+            ];
+        }
+        
+        // Status change reason if available
+        $reason = $payload['status_change_reason'] ?? 
+                 $payload['data']['reason'] ?? 
+                 $payload['change_reason'] ?? null;
+
+        if ($reason) {
+            $fields['change_reason'] = [
+                'label' => $this->translate('Reason'),
+                'value' => $reason,
+                'section' => 'order_details'
+            ];
+        }
+        
+        // Who made the change
+        $changedBy = $payload['changed_by'] ?? 
+                    $payload['data']['changed_by'] ?? 
+                    $payload['user_id'] ?? null;
+
+        if ($changedBy) {
+            $fields['changed_by'] = [
+                'label' => $this->translate('Changed By'),
+                'value' => $this->formatUserReference($changedBy),
+                'section' => 'order_details'
+            ];
+        }
+    }
+    
+    /**
+     * Add order creation specific fields
+     *
+     * @since 1.2.0
+     *
+     * @param array &$fields Reference to fields array
+     * @param array $payload The event payload
+     * @return void
+     */
+    private function addOrderCreationFields(array &$fields, array $payload): void
+    {
+        // Customer information
+        $customerId = $payload['customer_id'] ?? 
+                     $payload['data']['customer_id'] ?? 
+                     $payload['order_data']['customer_id'] ?? null;
+
+        if ($customerId) {
+            $fields['customer'] = [
+                'label' => $this->translate('Customer'),
+                'value' => $this->formatCustomerReference($customerId, $payload),
+                'section' => 'primary'
+            ];
+        }
+        
+        // Payment method
+        $paymentMethod = $payload['payment_method'] ?? 
+                        $payload['data']['payment_method'] ?? 
+                        $payload['order_data']['payment_method'] ?? null;
+
+        if ($paymentMethod) {
+            $fields['payment_method'] = [
+                'label' => $this->translate('Payment Method'),
+                'value' => $this->formatPaymentMethod($paymentMethod),
+                'section' => 'primary'
+            ];
+        }
+    }
+    
+    /**
+     * Add order update specific fields
+     *
+     * @since 1.2.0
+     *
+     * @param array &$fields Reference to fields array
+     * @param array $payload The event payload
+     * @return void
+     */
+    private function addOrderUpdateFields(array &$fields, array $payload): void
+    {
+        // What was updated
+        $updatedFields = $payload['updated_fields'] ?? 
+                        $payload['data']['updated_fields'] ?? 
+                        $payload['changes'] ?? [];
+
+        if (!empty($updatedFields)) {
+            if (is_array($updatedFields)) {
+                $fields['updated_fields'] = [
+                    'label' => $this->translate('Updated Fields'),
+                    'value' => implode(', ', array_keys($updatedFields)),
+                    'section' => 'primary'
+                ];
+            } else {
+                $fields['update_type'] = [
+                    'label' => $this->translate('Update Type'),
+                    'value' => (string)$updatedFields,
+                    'section' => 'primary'
+                ];
+            }
+        }
+        
+        // Update source
+        $updateSource = $payload['update_source'] ?? 
+                       $payload['data']['source'] ?? 
+                       $payload['source'] ?? null;
+
+        if ($updateSource) {
+            $fields['update_source'] = [
+                'label' => $this->translate('Update Source'),
+                'value' => ucfirst($updateSource),
+                'section' => 'order_details'
+            ];
+        }
+    }
+    
+    /**
+     * Add common order fields that apply to all order events
+     *
+     * @since 1.2.0
+     *
+     * @param array &$fields Reference to fields array
+     * @param array $payload The event payload
+     * @return void
+     */
+    private function addCommonOrderFields(array &$fields, array $payload): void
+    {
+        // Order total
+        $total = $payload['order_total'] ?? 
+                $payload['data']['order_total'] ?? 
+                $payload['order_data']['total'] ?? 
+                $payload['total'] ?? null;
+
+        if ($total) {
+            $fields['order_total'] = [
+                'label' => $this->translate('Order Total'),
+                'value' => $this->formatCurrency($total),
+                'section' => 'order_details'
+            ];
+        }
+        
+        // Order status (current)
+        $currentStatus = $payload['order_status'] ?? 
+                        $payload['data']['order_status'] ?? 
+                        $payload['status'] ?? 
+                        $payload['to_status'] ?? null;
+
+        if ($currentStatus) {
+            $fields['current_status'] = [
+                'label' => $this->translate('Current Status'),
+                'value' => ucfirst($currentStatus),
+                'section' => 'order_details'
+            ];
+        }
+        
+        // Order date
+        $orderDate = $payload['order_date'] ?? 
+                    $payload['data']['order_date'] ?? 
+                    $payload['order_data']['date_created'] ?? null;
+
+        if ($orderDate) {
+            $fields['order_date'] = [
+                'label' => $this->translate('Order Date'),
+                'value' => $this->formatDateTime($orderDate),
+                'section' => 'order_details'
+            ];
+        }
+        
+        // Item count
+        $itemCount = $payload['item_count'] ?? 
+                    $payload['data']['item_count'] ?? 
+                    $payload['order_data']['item_count'] ?? null;
+
+        if ($itemCount) {
+            $fields['item_count'] = [
+                'label' => $this->translate('Items'),
+                'value' => $this->pluralize('%d item', '%d items', $itemCount),
+                'section' => 'order_details'
+            ];
+        }
+    }
+    
+    /**
+     * Extract status value from various payload locations
+     *
+     * @since 1.2.0
+     *
+     * @param array $payload The event payload
+     * @param string $direction 'from' or 'to'
+     * @return string|null The status value or null
+     */
+    private function extractStatusValue(array $payload, string $direction): ?string
+    {
+        $field = $direction . '_status';
+        
+        return $payload[$field] ?? 
+               $payload['data'][$field] ?? 
+               $payload['status_change'][$field] ?? 
+               $payload['order_data'][$field] ?? null;
+    }
+    
+    /**
+     * Format currency value for display
+     *
+     * @since 1.2.0
+     *
+     * @param mixed $amount The currency amount
+     * @return string Formatted currency
+     */
+    private function formatCurrency($amount): string
+    {
+        if (is_numeric($amount)) {
+            // Use WooCommerce formatting if available with defensive check
+            if (function_exists('wc_price')) {
+                try {
+                    return strip_tags(wc_price((float)$amount));
+                } catch (\Throwable $e) {
+                    // Fallback if WooCommerce function fails
+                    return '$' . number_format((float)$amount, 2);
+                }
+            }
+
+            // Fallback formatting
+            return '$' . number_format((float)$amount, 2);
+        }
+
+        return (string)$amount;
+    }
+    
+    /**
+     * Format datetime for display
+     *
+     * @since 1.2.0
+     *
+     * @param mixed $datetime The datetime value
+     * @return string Formatted datetime
+     */
+    private function formatDateTime($datetime): string
+    {
+        if (is_numeric($datetime)) {
+            return gmdate('Y-m-d H:i:s', (int)$datetime);
+        }
+        
+        if (is_string($datetime)) {
+            $timestamp = strtotime($datetime);
+            if ($timestamp !== false) {
+                return gmdate('Y-m-d H:i:s', $timestamp);
+            }
+            return $datetime;
+        }
+        
+        return (string)$datetime;
+    }
+    
+    /**
+     * Format user reference for display
+     *
+     * @since 1.2.0
+     *
+     * @param mixed $userRef The user reference (ID, email, etc.)
+     * @return string Formatted user reference
+     */
+    private function formatUserReference($userRef): string
+    {
+        if (is_numeric($userRef)) {
+            // Try to get user info if WordPress functions are available with defensive check
+            if (function_exists('get_userdata')) {
+                try {
+                    $user = get_userdata((int)$userRef);
+                    if ($user) {
+                        return $user->display_name . ' (' . $user->user_email . ')';
+                    }
+                } catch (\Throwable $e) {
+                    // Fallback if WordPress function fails
+                    return $this->translate('User ID: ') . $userRef;
+                }
+            }
+            return $this->translate('User ID: ') . $userRef;
+        }
+
+        return (string)$userRef;
+    }
+    
+    /**
+     * Format customer reference for display
+     *
+     * @since 1.2.0
+     *
+     * @param mixed $customerId The customer ID
+     * @param array $payload The full payload (for additional customer data)
+     * @return string Formatted customer reference
+     */
+    private function formatCustomerReference($customerId, array $payload): string
+    {
+        // Try to get customer email from payload
+        $customerEmail = $payload['customer_email'] ?? 
+                        $payload['data']['customer_email'] ?? 
+                        $payload['order_data']['customer_email'] ?? null;
+
+        if ($customerEmail) {
+            return sprintf($this->translate('Customer %s (%s)'), $customerId, $customerEmail);
+        }
+
+        if (is_numeric($customerId)) {
+            return sprintf($this->translate('Customer ID: %s'), $customerId);
+        }
+
+        return (string)$customerId;
+    }
+    
+    /**
+     * Format payment method for display
+     *
+     * @since 1.2.0
+     *
+     * @param string $paymentMethod The payment method
+     * @return string Formatted payment method
+     */
+    private function formatPaymentMethod(string $paymentMethod): string
+    {
+        $methodLabels = [
+            'stripe' => $this->translate('Stripe'),
+            'paypal' => $this->translate('PayPal'),
+            'bacs' => $this->translate('Bank Transfer'),
+            'cheque' => $this->translate('Check Payment'),
+            'cod' => $this->translate('Cash on Delivery'),
+            'credit_card' => $this->translate('Credit Card'),
+        ];
+
+        return $methodLabels[$paymentMethod] ?? ucwords(str_replace('_', ' ', $paymentMethod));
+    }
+}

@@ -1,443 +1,604 @@
-Order Created
-(order_created)December 22, 2025 8:16 pm :22
-
-Order ID
-    #91
-Amount
-    $10.00
-Customer ID
-    1
-
-Status Changed from Checkout-draft to Pending
-(status_changed)December 22, 2025 8:16 pm :22
-
-From
-    Checkout Draft
-To
-    Pending
-Order
-    #91
-Type
-    Automatic
-
-Checkout Completed
-PROCESSED
-(checkout_processed)December 22, 2025 8:16 pm :22
-
-Order ID
-    #91
-Status
-    Checkout-draft
-Payment Method
-    Credit / Debit Card
-Total
-    $10.00
-
-Technical Details
-
-Checkout Type
-    block_checkout
-
-Source
-    manual
-
-Real Checkout Timestamp
-    1766430982
-
-Queued At
-    2025-12-22T20:16:25+01:00
-
-Processed From Queue
-    1
-
-{
-    "checkout_type": "block_checkout",
-    "capture_timestamp": "2025-12-22T20:16:25+01:00",
-    "order_id": 91,
-    "cart_analysis": {
-        "total_items": 1,
-        "product_types": [
-            "simple"
-        ],
-        "requires_shipping": false,
-        "has_virtual_products": true,
-        "has_downloadable_products": false,
-        "mixed_cart": false
-    },
-    "payment_context": {
-        "payment_method": "stripe",
-        "payment_method_title": "Credit / Debit Card",
-        "payment_status": "checkout-draft",
-        "transaction_id": "",
-        "currency": "USD",
-        "total_amount": 10,
-        "gateway_context": {
-            "payment_method": "stripe",
-            "gateway_id": "stripe",
-            "gateway_title": "Credit / Debit Card",
-            "gateway_class": "WC_Stripe_UPE_Payment_Gateway",
-            "supports": [
-                "products",
-                "refunds",
-                "tokenization",
-                "add_payment_method"
-            ]
-        }
-    },
-    "shipping_analysis": {
-        "requires_shipping": false,
-        "shipping_methods": [],
-        "has_shipping_address": true,
-        "shipping_address": {
-            "country": "US",
-            "state": "CA",
-            "postcode": "45345",
-            "city": "dfghdth"
-        }
-    },
-    "customer_context": {
-        "is_guest": false,
-        "user_id": 1,
-        "email": "yakir@lanterntech.io",
-        "first_name": "dfghdrt",
-        "last_name": "drthdrt",
-        "billing_phone": "1234567897"
-    },
-    "technical_context": {
-        "wp_version": "6.9",
-        "wc_version": "10.3.5",
-        "wc_blocks_version": "11.8.0-dev",
-        "checkout_type": "block_checkout",
-        "is_store_api": false,
-        "theme": "Twenty Twenty-Five"
-    }
-}
-
-Payment Event
-COMPLETED
-(payment.stripe.checkout_processed)December 22, 2025 8:16 pm :22
-
-Gateway
-    Stripe
-Event Type
-    checkout_processed
-
-Technical Details
-
-Checkout Type
-    block_checkout
-
-Source
-    manual
-
-Real Checkout Timestamp
-    1766430982
-
-Queued At
-    2025-12-22T20:16:25+01:00
-
-Processed From Queue
-    1
-
-{
-    "checkout_type": "block_checkout",
-    "capture_timestamp": "2025-12-22T20:16:25+01:00",
-    "order_id": 91,
-    "cart_analysis": {
-        "total_items": 1,
-        "product_types": [
-            "simple"
-        ],
-        "requires_shipping": false,
-        "has_virtual_products": true,
-        "has_downloadable_products": false,
-        "mixed_cart": false
-    },
-    "payment_context": {
-        "payment_method": "stripe",
-        "payment_method_title": "Credit / Debit Card",
-        "payment_status": "checkout-draft",
-        "transaction_id": "",
-        "currency": "USD",
-        "total_amount": 10,
-        "gateway_context": {
-            "payment_method": "stripe",
-            "gateway_id": "stripe",
-            "gateway_title": "Credit / Debit Card",
-            "gateway_class": "WC_Stripe_UPE_Payment_Gateway",
-            "supports": [
-                "products",
-                "refunds",
-                "tokenization",
-                "add_payment_method"
-            ]
-        }
-    },
-    "shipping_analysis": {
-        "requires_shipping": false,
-        "shipping_methods": [],
-        "has_shipping_address": true,
-        "shipping_address": {
-            "country": "US",
-            "state": "CA",
-            "postcode": "45345",
-            "city": "dfghdth"
-        }
-    },
-    "customer_context": {
-        "is_guest": false,
-        "user_id": 1,
-        "email": "yakir@lanterntech.io",
-        "first_name": "dfghdrt",
-        "last_name": "drthdrt",
-        "billing_phone": "1234567897"
-    },
-    "technical_context": {
-        "wp_version": "6.9",
-        "wc_version": "10.3.5",
-        "wc_blocks_version": "11.8.0-dev",
-        "checkout_type": "block_checkout",
-        "is_store_api": false,
-        "theme": "Twenty Twenty-Five"
-    }
-}
-
-Status Evaluation
-DEBUG
-(_status_evaluation)December 22, 2025 8:16 pm :25
-
-Event type
-    _status_evaluation
-Label
-    Status change evaluation: Order #91 (checkout-draft → pending)
-Ts
-    1766430985
-Level
-    debug
-
-Data
-
-{
-    "from": "checkout-draft",
-    "to": "pending",
-    "debug_mode": true,
-    "evaluation_details": {
-        "timestamp": "2025-12-22T20:16:25+01:00",
-        "source": "manual",
-        "purpose": "This event provides debugging information about status change evaluations but is excluded from the main timeline to reduce noise"
-    }
-}
-
-Display sections
-
-[
-    {
-        "title": "Summary",
-        "items": [
-            {
-                "key": "Summary",
-                "value": "Status change evaluation: Order #91 (checkout-draft \u2192 pending)"
-            },
-            {
-                "key": "Event",
-                "value": "_status_evaluation"
-            }
-        ]
-    }
-]
-
-Status Evaluation
-DEBUG
-(_status_evaluation)December 22, 2025 8:16 pm :25
-
-Event type
-    _status_evaluation
-Label
-    Status change evaluation: Order #91 (pending → completed)
-Ts
-    1766430985
-Level
-    debug
-
-Data
-
-{
-    "from": "pending",
-    "to": "completed",
-    "debug_mode": true,
-    "evaluation_details": {
-        "timestamp": "2025-12-22T20:16:25+01:00",
-        "source": "manual",
-        "purpose": "This event provides debugging information about status change evaluations but is excluded from the main timeline to reduce noise"
-    }
-}
-
-Display sections
-
-[
-    {
-        "title": "Summary",
-        "items": [
-            {
-                "key": "Summary",
-                "value": "Status change evaluation: Order #91 (pending \u2192 completed)"
-            },
-            {
-                "key": "Event",
-                "value": "_status_evaluation"
-            }
-        ]
-    }
-]
-
-Status Changed from Pending to Completed
-(status_changed)December 22, 2025 8:16 pm :25
-
-From
-    Pending
-To
-    Completed
-Order
-    #91
-Type
-    Automatic
-
-Rule evaluation completed for Order #0
-EXECUTED
-(rule_execution)December 22, 2025 8:16 pm :25
-
-Technical Execution Details
-
-Correlation ID
-    odcm:lifecyc...4a3.34754705
-
-Rule "virtual rule" evaluated successfully for Order #91
-EXECUTED
-(rule_execution)December 22, 2025 8:16 pm :25
-
-Execution Summary
-    Completed Order (status changed from Pending → Completed)
-Trigger
-    payment completion via Stripe
-Actions
-    Change Status to 'Completed'
-
-Rule Evaluation Summary
-
-Evaluation Result
-    1/1 conditions passed
-
-Evaluation Logic
-    ALL conditions must pass
-
-Order Status
-    Completed
-
-Order Total
-    USD 10.00
-
-Payment Method
-    Credit / Debit Card
-
-Customer Type
-    Registered
-
-Event Type
-    payment_completed
-
-Event Source
-    Stripe
-
-Event Channel
-    System
-
-Event Time
-    2025-12-22 19:16:25
-
-Event ID
-    status_c...66430985
-
-From Status
-    Pending
-
-To Status
-    Completed
-
-Conditions
-    Product Type: PASS
-
-Technical Execution Details
-
-Rule ID
-    #13
-
-Trigger Type
-    order_processing
-
-Evaluation Time
-    250.00 ms
-
-First Match Wins
-    Yes
-
-Rule Position
-    #1
-
-Event Idempotency Key
-    status_chang...d_1766430985
-
-Primary Action Result
-    Success
-
-Rule Evaluation Check
-DEBUG
-(order_check_scheduled)December 22, 2025 8:16 pm :48
-
-Order ID
-Purpose
-    Automated Rule Evaluation
-Trigger
-    System Event
-Source
-    System
-
-What This Means
-    Order Daemon will asynchronously evaluate completion rules against this order
-When It Runs
-    Scheduled for background processing via Action Scheduler
-Expected Outcome
-    Rules may trigger order status changes or other automated actions
-
-Processing Time
-    N/A
-Channel
-    Unknown
-Object Type
-    order
-Processing Result
-    Pending
-
-Technical Details
-
-{
-    "event_type": "order_check_scheduled"
-}
-
-Additional Event Data
-
-{
-    "rule_name": "virtual rule",
-    "explanation": "This rule evaluated a order_check_scheduled event. This is a debug entry showing rule evaluation behavior for non-standard event types.",
-    "purpose": "Helps developers understand when rules evaluate different event types",
-    "note": "This entry appears in debug mode to provide visibility into rule evaluation",
-    "canonical_event": false,
-    "timeline_behavior": "Debug entry created for visibility",
-    "debug_context": {
-        "event_source": "stripe",
-        "event_channel": "system",
-        "order_id": 91,
-        "customer_id": 1,
-        "rule_evaluation_context": "This debug entry helps trace rule evaluation for events that were not known when the original code was written"
-    }
-}
-
+<div class="odcm-timeline-list"><div class="odcm-component contextual-expanded"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><div class="odcm-component__title">order_created <span class="odcm-status-pill">#100</span></div></div></div><div class="odcm-component__header-bottom"><span class="odcm-component__ts">2025-12-23 18:01:29</span></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">order_created</div><div class="odcm-key">Timestamp</div><div class="odcm-value">2025-12-23 21:29:33</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="contextual" aria-expanded="true">Hide Details</button><div class="odcm-tier-content" style="display: block; opacity: 1; max-height: none; overflow: visible; transition: 0.3s;"><div class="odcm-detail-section"><h4 class="odcm-section-title">Primary</h4><div class="odcm-key-value-list"><div class="odcm-key">Event</div><div class="odcm-value">Order Created</div><div class="odcm-key">Order</div><div class="odcm-value">#100</div><div class="odcm-key">Customer</div><div class="odcm-value">Customer ID: 1</div><div class="odcm-key">Payment Method</div><div class="odcm-value">Stripe</div></div></div><div class="odcm-detail-section"><h4 class="odcm-section-title">Additional Details</h4><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">order_created</div><div class="odcm-key">Data Order Id</div><div class="odcm-value">100</div><div class="odcm-key">Data Status</div><div class="odcm-value">pending</div><div class="odcm-key">Data Amount</div><div class="odcm-value">10</div><div class="odcm-key">Data Currency</div><div class="odcm-value">USD</div><div class="odcm-key">Data Customer Id</div><div class="odcm-value">1</div><div class="odcm-key">Data Payment Method</div><div class="odcm-value">stripe</div><div class="odcm-key">RawData Order Status</div><div class="odcm-value">pending</div><div class="odcm-key">RawData Customer Id</div><div class="odcm-value">1</div><div class="odcm-key">Order Id</div><div class="odcm-value">100</div></div></div></div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show Technical Details</button><div class="odcm-tier-content" style="display: none;"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"order_created"</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Order Created"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766512889</span><span class="token punctuation">,</span>
+    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
+    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+        <span class="token property">"status"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
+        <span class="token property">"amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+        <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
+        <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+        <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"order_status"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
+        <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+    <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token punctuation">{</span>
+            <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+            <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Order Created"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"order_created"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#100"</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">]</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><div class="odcm-component__title">status_changed <span class="odcm-status-pill">#100</span></div></div></div><div class="odcm-component__header-bottom"><span class="odcm-component__ts">2025-12-23 18:01:29</span></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">status_changed</div><div class="odcm-key">Timestamp</div><div class="odcm-value">2025-12-23 21:29:33</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="contextual" aria-expanded="false">Show Details</button><div class="odcm-tier-content" style="display: none;"><div class="odcm-detail-section"><h4 class="odcm-section-title">Primary</h4><div class="odcm-key-value-list"><div class="odcm-key">Event</div><div class="odcm-value">Order Status Changed</div><div class="odcm-key">Order</div><div class="odcm-value">#100</div></div></div><div class="odcm-detail-section"><h4 class="odcm-section-title">Additional Details</h4><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">status_changed</div><div class="odcm-key">Data Order Id</div><div class="odcm-value">100</div><div class="odcm-key">Data Change Type</div><div class="odcm-value">automatic</div><div class="odcm-key">RawData From Status</div><div class="odcm-value">checkout-draft</div><div class="odcm-key">RawData To Status</div><div class="odcm-value">pending</div><div class="odcm-key">RawData Attribution Request Type</div><div class="odcm-value">rest</div><div class="odcm-key">RawData Attribution Source Plugin Type</div><div class="odcm-value">unknown</div><div class="odcm-key">RawData Order Total</div><div class="odcm-value">10.00</div><div class="odcm-key">RawData Customer Id</div><div class="odcm-value">1</div><div class="odcm-key">Order Id</div><div class="odcm-value">100</div></div></div></div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show Technical Details</button><div class="odcm-tier-content" style="display: none;"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"status_changed"</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Status changed"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766512889</span><span class="token punctuation">,</span>
+    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
+    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"from"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
+        <span class="token property">"to"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+        <span class="token property">"change_type"</span><span class="token operator">:</span> <span class="token string">"automatic"</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"from_status"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
+        <span class="token property">"to_status"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
+        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span><span class="token punctuation">,</span>
+        <span class="token property">"attribution"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"request_type"</span><span class="token operator">:</span> <span class="token string">"rest"</span><span class="token punctuation">,</span>
+            <span class="token property">"user_logged_in"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+            <span class="token property">"source_plugin"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"type"</span><span class="token operator">:</span> <span class="token string">"unknown"</span><span class="token punctuation">,</span>
+                <span class="token property">"slug"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+                <span class="token property">"file"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+                <span class="token property">"frame"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+                <span class="token property">"confidence"</span><span class="token operator">:</span> <span class="token number">0</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"external_service"</span><span class="token operator">:</span> <span class="token string">""</span>
+        <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        <span class="token property">"order_total"</span><span class="token operator">:</span> <span class="token string">"10.00"</span><span class="token punctuation">,</span>
+        <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+        <span class="token property">"real_occurrence_timestamp"</span><span class="token operator">:</span> <span class="token number">1766512889</span><span class="token punctuation">,</span>
+        <span class="token property">"processing_timestamp"</span><span class="token operator">:</span> <span class="token number">1766512916.275951</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+    <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token punctuation">{</span>
+            <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+            <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Status changed"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"status_changed"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#100"</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">]</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><div class="odcm-component__title">checkout_processed <span class="odcm-status-pill">#100</span></div></div></div><div class="odcm-component__header-bottom"><span class="odcm-component__ts">2025-12-23 18:01:29</span></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">checkout_processed</div><div class="odcm-key">Timestamp</div><div class="odcm-value">2025-12-23 21:29:33</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="contextual" aria-expanded="false">Show Details</button><div class="odcm-tier-content" style="display: none;"><div class="odcm-detail-section"><h4 class="odcm-section-title">Primary</h4><div class="odcm-key-value-list"><div class="odcm-key">Event</div><div class="odcm-value">Checkout Processed</div><div class="odcm-key">Order</div><div class="odcm-value">#100</div><div class="odcm-key">Payment Method</div><div class="odcm-value">Credit / Debit Card</div><div class="odcm-key">Payment Status</div><div class="odcm-value">Checkout-draft</div></div></div><div class="odcm-detail-section"><h4 class="odcm-section-title">Payment Details</h4><div class="odcm-key-value-list"><div class="odcm-key">Currency</div><div class="odcm-value">USD</div></div></div><div class="odcm-detail-section"><h4 class="odcm-section-title">Additional Details</h4><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">checkout_processed</div><div class="odcm-key">Data Order Id</div><div class="odcm-value">100</div><div class="odcm-key">Data Status</div><div class="odcm-value">checkout-draft</div><div class="odcm-key">Data Payment Method</div><div class="odcm-value">Credit / Debit Card</div><div class="odcm-key">Data Total</div><div class="odcm-value">10</div><div class="odcm-key">Data Currency</div><div class="odcm-value">USD</div><div class="odcm-key">Data Checkout Type</div><div class="odcm-value">block_checkout</div><div class="odcm-key">RawData Checkout Type</div><div class="odcm-value">block_checkout</div><div class="odcm-key">RawData Checkout Context Checkout Type</div><div class="odcm-value">block_checkout</div><div class="odcm-key">RawData Checkout Context Order Id</div><div class="odcm-value">100</div><div class="odcm-key">RawData Checkout Context Cart Analysis Total Items</div><div class="odcm-value">1</div><div class="odcm-key">RawData Checkout Context Payment Context Payment Method</div><div class="odcm-value">stripe</div><div class="odcm-key">RawData Checkout Context Payment Context Payment Method Title</div><div class="odcm-value">Credit / Debit Card</div><div class="odcm-key">RawData Checkout Context Payment Context Payment Status</div><div class="odcm-value">checkout-draft</div><div class="odcm-key">RawData Checkout Context Payment Context Currency</div><div class="odcm-value">USD</div><div class="odcm-key">RawData Checkout Context Payment Context Total Amount</div><div class="odcm-value">10</div><div class="odcm-key">RawData Checkout Context Payment Context Gateway Context Payment Method</div><div class="odcm-value">stripe</div><div class="odcm-key">RawData Checkout Context Payment Context Gateway Context Gateway Id</div><div class="odcm-value">stripe</div><div class="odcm-key">RawData Checkout Context Shipping Analysis Has Shipping Address</div><div class="odcm-value">1</div><div class="odcm-key">RawData Checkout Context Shipping Analysis Shipping Address State</div><div class="odcm-value">CA</div><div class="odcm-key">RawData Checkout Context Shipping Analysis Shipping Address Postcode</div><div class="odcm-value">45345</div><div class="odcm-key">RawData Checkout Context Customer Context User Id</div><div class="odcm-value">1</div><div class="odcm-key">RawData Checkout Context Customer Context Email</div><div class="odcm-value">yakir@lanterntech.io</div><div class="odcm-key">RawData Checkout Context Technical Context Checkout Type</div><div class="odcm-value">block_checkout</div><div class="odcm-key">Order Id</div><div class="odcm-value">100</div></div></div></div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show Technical Details</button><div class="odcm-tier-content" style="display: none;"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"checkout_processed"</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Checkout Completed"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766512889</span><span class="token punctuation">,</span>
+    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
+    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+        <span class="token property">"status"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
+        <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
+        <span class="token property">"total"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+        <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
+        <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
+        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span><span class="token punctuation">,</span>
+        <span class="token property">"real_checkout_timestamp"</span><span class="token operator">:</span> <span class="token number">1766512889</span><span class="token punctuation">,</span>
+        <span class="token property">"queued_at"</span><span class="token operator">:</span> <span class="token string">"2025-12-23T19:01:56+01:00"</span><span class="token punctuation">,</span>
+        <span class="token property">"processed_from_queue"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        <span class="token property">"checkout_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
+            <span class="token property">"capture_timestamp"</span><span class="token operator">:</span> <span class="token string">"2025-12-23T19:01:56+01:00"</span><span class="token punctuation">,</span>
+            <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+            <span class="token property">"cart_analysis"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"total_items"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+                <span class="token property">"product_types"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                    <span class="token string">"simple"</span>
+                <span class="token punctuation">]</span><span class="token punctuation">,</span>
+                <span class="token property">"requires_shipping"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+                <span class="token property">"has_virtual_products"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+                <span class="token property">"has_downloadable_products"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+                <span class="token property">"mixed_cart"</span><span class="token operator">:</span> <span class="token boolean">false</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"payment_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+                <span class="token property">"payment_method_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
+                <span class="token property">"payment_status"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
+                <span class="token property">"transaction_id"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+                <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
+                <span class="token property">"total_amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+                <span class="token property">"gateway_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                    <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+                    <span class="token property">"gateway_id"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+                    <span class="token property">"gateway_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
+                    <span class="token property">"gateway_class"</span><span class="token operator">:</span> <span class="token string">"WC_Stripe_UPE_Payment_Gateway"</span><span class="token punctuation">,</span>
+                    <span class="token property">"supports"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                        <span class="token string">"products"</span><span class="token punctuation">,</span>
+                        <span class="token string">"refunds"</span><span class="token punctuation">,</span>
+                        <span class="token string">"tokenization"</span><span class="token punctuation">,</span>
+                        <span class="token string">"add_payment_method"</span>
+                    <span class="token punctuation">]</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"shipping_analysis"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"requires_shipping"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+                <span class="token property">"shipping_methods"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+                <span class="token property">"has_shipping_address"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+                <span class="token property">"shipping_address"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                    <span class="token property">"country"</span><span class="token operator">:</span> <span class="token string">"US"</span><span class="token punctuation">,</span>
+                    <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"CA"</span><span class="token punctuation">,</span>
+                    <span class="token property">"postcode"</span><span class="token operator">:</span> <span class="token string">"45345"</span><span class="token punctuation">,</span>
+                    <span class="token property">"city"</span><span class="token operator">:</span> <span class="token string">"dfghdth"</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"customer_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"is_guest"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+                <span class="token property">"user_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+                <span class="token property">"email"</span><span class="token operator">:</span> <span class="token string">"yakir@lanterntech.io"</span><span class="token punctuation">,</span>
+                <span class="token property">"first_name"</span><span class="token operator">:</span> <span class="token string">"dfghdrt"</span><span class="token punctuation">,</span>
+                <span class="token property">"last_name"</span><span class="token operator">:</span> <span class="token string">"drthdrt"</span><span class="token punctuation">,</span>
+                <span class="token property">"billing_phone"</span><span class="token operator">:</span> <span class="token string">"1234567897"</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"technical_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"wp_version"</span><span class="token operator">:</span> <span class="token string">"6.9"</span><span class="token punctuation">,</span>
+                <span class="token property">"wc_version"</span><span class="token operator">:</span> <span class="token string">"10.3.5"</span><span class="token punctuation">,</span>
+                <span class="token property">"wc_blocks_version"</span><span class="token operator">:</span> <span class="token string">"11.8.0-dev"</span><span class="token punctuation">,</span>
+                <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
+                <span class="token property">"is_store_api"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+                <span class="token property">"theme"</span><span class="token operator">:</span> <span class="token string">"Twenty Twenty-Five"</span>
+            <span class="token punctuation">}</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+    <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token punctuation">{</span>
+            <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+            <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Checkout Completed"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"checkout_processed"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#100"</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">]</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component is-parent is-child technical-expanded contextual-expanded"><div class="odcm-component__header is-parent is-child"><div class="odcm-component__header-top is-parent is-child"><div class="odcm-component__header-left is-parent is-child"><div class="odcm-component__title is-parent is-child">payment.stripe.checkout_processed</div></div></div><div class="odcm-component__header-bottom is-parent is-child"><span class="odcm-component__ts">2025-12-23 18:01:29</span></div></div><div class="odcm-component__body is-parent is-child"><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">payment.stripe.checkout_processed</div><div class="odcm-key">Timestamp</div><div class="odcm-value">2025-12-23 21:29:33</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="contextual" aria-expanded="true">Hide Details</button><div class="odcm-tier-content" style="display: block; opacity: 1; max-height: none; overflow: visible; transition: 0.3s;"><div class="odcm-detail-section"><h4 class="odcm-section-title">Primary</h4><div class="odcm-key-value-list"><div class="odcm-key">Event</div><div class="odcm-value">Payment.stripe.checkout processed</div><div class="odcm-key">Payment Method</div><div class="odcm-value">Stripe</div></div></div><div class="odcm-detail-section"><h4 class="odcm-section-title">Payment Details</h4><div class="odcm-key-value-list"><div class="odcm-key">Currency</div><div class="odcm-value">USD</div></div></div><div class="odcm-detail-section"><h4 class="odcm-section-title">Additional Details</h4><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">payment.stripe.checkout_processed</div><div class="odcm-key">Data Payment Method</div><div class="odcm-value">stripe</div><div class="odcm-key">Data Payment Method Title</div><div class="odcm-value">Credit / Debit Card</div><div class="odcm-key">Data Payment Status</div><div class="odcm-value">checkout-draft</div><div class="odcm-key">Data Currency</div><div class="odcm-value">USD</div><div class="odcm-key">Data Total Amount</div><div class="odcm-value">10</div><div class="odcm-key">Data Gateway Context Payment Method</div><div class="odcm-value">stripe</div><div class="odcm-key">Data Gateway Context Gateway Id</div><div class="odcm-value">stripe</div><div class="odcm-key">RawData Checkout Type</div><div class="odcm-value">block_checkout</div><div class="odcm-key">RawData Checkout Context Checkout Type</div><div class="odcm-value">block_checkout</div><div class="odcm-key">RawData Checkout Context Order Id</div><div class="odcm-value">100</div><div class="odcm-key">RawData Checkout Context Cart Analysis Total Items</div><div class="odcm-value">1</div><div class="odcm-key">RawData Checkout Context Payment Context Payment Method</div><div class="odcm-value">stripe</div><div class="odcm-key">RawData Checkout Context Payment Context Payment Method Title</div><div class="odcm-value">Credit / Debit Card</div><div class="odcm-key">RawData Checkout Context Payment Context Payment Status</div><div class="odcm-value">checkout-draft</div><div class="odcm-key">RawData Checkout Context Payment Context Currency</div><div class="odcm-value">USD</div><div class="odcm-key">RawData Checkout Context Payment Context Total Amount</div><div class="odcm-value">10</div><div class="odcm-key">RawData Checkout Context Payment Context Gateway Context Payment Method</div><div class="odcm-value">stripe</div><div class="odcm-key">RawData Checkout Context Payment Context Gateway Context Gateway Id</div><div class="odcm-value">stripe</div><div class="odcm-key">RawData Checkout Context Shipping Analysis Has Shipping Address</div><div class="odcm-value">1</div><div class="odcm-key">RawData Checkout Context Shipping Analysis Shipping Address State</div><div class="odcm-value">CA</div><div class="odcm-key">RawData Checkout Context Shipping Analysis Shipping Address Postcode</div><div class="odcm-value">45345</div><div class="odcm-key">RawData Checkout Context Customer Context User Id</div><div class="odcm-value">1</div><div class="odcm-key">RawData Checkout Context Customer Context Email</div><div class="odcm-value">yakir@lanterntech.io</div><div class="odcm-key">RawData Checkout Context Technical Context Checkout Type</div><div class="odcm-value">block_checkout</div></div></div></div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="true">Hide Technical Details</button><div class="odcm-tier-content" style="display: block; opacity: 1; max-height: none; overflow: visible; transition: 0.3s;"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"payment.stripe.checkout_processed"</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Payment Event"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766512889</span><span class="token punctuation">,</span>
+    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
+    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+        <span class="token property">"payment_method_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
+        <span class="token property">"payment_status"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
+        <span class="token property">"transaction_id"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+        <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
+        <span class="token property">"total_amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+        <span class="token property">"gateway_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+            <span class="token property">"gateway_id"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+            <span class="token property">"gateway_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
+            <span class="token property">"gateway_class"</span><span class="token operator">:</span> <span class="token string">"WC_Stripe_UPE_Payment_Gateway"</span><span class="token punctuation">,</span>
+            <span class="token property">"supports"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                <span class="token string">"products"</span><span class="token punctuation">,</span>
+                <span class="token string">"refunds"</span><span class="token punctuation">,</span>
+                <span class="token string">"tokenization"</span><span class="token punctuation">,</span>
+                <span class="token string">"add_payment_method"</span>
+            <span class="token punctuation">]</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
+        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span><span class="token punctuation">,</span>
+        <span class="token property">"real_checkout_timestamp"</span><span class="token operator">:</span> <span class="token number">1766512889</span><span class="token punctuation">,</span>
+        <span class="token property">"queued_at"</span><span class="token operator">:</span> <span class="token string">"2025-12-23T19:01:56+01:00"</span><span class="token punctuation">,</span>
+        <span class="token property">"processed_from_queue"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        <span class="token property">"checkout_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
+            <span class="token property">"capture_timestamp"</span><span class="token operator">:</span> <span class="token string">"2025-12-23T19:01:56+01:00"</span><span class="token punctuation">,</span>
+            <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+            <span class="token property">"cart_analysis"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"total_items"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+                <span class="token property">"product_types"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                    <span class="token string">"simple"</span>
+                <span class="token punctuation">]</span><span class="token punctuation">,</span>
+                <span class="token property">"requires_shipping"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+                <span class="token property">"has_virtual_products"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+                <span class="token property">"has_downloadable_products"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+                <span class="token property">"mixed_cart"</span><span class="token operator">:</span> <span class="token boolean">false</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"payment_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+                <span class="token property">"payment_method_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
+                <span class="token property">"payment_status"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
+                <span class="token property">"transaction_id"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+                <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
+                <span class="token property">"total_amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+                <span class="token property">"gateway_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                    <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+                    <span class="token property">"gateway_id"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+                    <span class="token property">"gateway_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
+                    <span class="token property">"gateway_class"</span><span class="token operator">:</span> <span class="token string">"WC_Stripe_UPE_Payment_Gateway"</span><span class="token punctuation">,</span>
+                    <span class="token property">"supports"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                        <span class="token string">"products"</span><span class="token punctuation">,</span>
+                        <span class="token string">"refunds"</span><span class="token punctuation">,</span>
+                        <span class="token string">"tokenization"</span><span class="token punctuation">,</span>
+                        <span class="token string">"add_payment_method"</span>
+                    <span class="token punctuation">]</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"shipping_analysis"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"requires_shipping"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+                <span class="token property">"shipping_methods"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+                <span class="token property">"has_shipping_address"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+                <span class="token property">"shipping_address"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                    <span class="token property">"country"</span><span class="token operator">:</span> <span class="token string">"US"</span><span class="token punctuation">,</span>
+                    <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"CA"</span><span class="token punctuation">,</span>
+                    <span class="token property">"postcode"</span><span class="token operator">:</span> <span class="token string">"45345"</span><span class="token punctuation">,</span>
+                    <span class="token property">"city"</span><span class="token operator">:</span> <span class="token string">"dfghdth"</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"customer_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"is_guest"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+                <span class="token property">"user_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+                <span class="token property">"email"</span><span class="token operator">:</span> <span class="token string">"yakir@lanterntech.io"</span><span class="token punctuation">,</span>
+                <span class="token property">"first_name"</span><span class="token operator">:</span> <span class="token string">"dfghdrt"</span><span class="token punctuation">,</span>
+                <span class="token property">"last_name"</span><span class="token operator">:</span> <span class="token string">"drthdrt"</span><span class="token punctuation">,</span>
+                <span class="token property">"billing_phone"</span><span class="token operator">:</span> <span class="token string">"1234567897"</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"technical_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"wp_version"</span><span class="token operator">:</span> <span class="token string">"6.9"</span><span class="token punctuation">,</span>
+                <span class="token property">"wc_version"</span><span class="token operator">:</span> <span class="token string">"10.3.5"</span><span class="token punctuation">,</span>
+                <span class="token property">"wc_blocks_version"</span><span class="token operator">:</span> <span class="token string">"11.8.0-dev"</span><span class="token punctuation">,</span>
+                <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
+                <span class="token property">"is_store_api"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
+                <span class="token property">"theme"</span><span class="token operator">:</span> <span class="token string">"Twenty Twenty-Five"</span>
+            <span class="token punctuation">}</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token punctuation">{</span>
+            <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+            <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Payment Event"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"payment.stripe.checkout_processed"</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">]</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component is-parent technical-expanded contextual-expanded"><div class="odcm-component__header is-parent"><div class="odcm-component__header-top is-parent"><div class="odcm-component__header-left is-parent"><div class="odcm-component__title is-parent">status_changed <span class="odcm-status-pill">#100</span></div></div></div><div class="odcm-component__header-bottom is-parent"><span class="odcm-component__ts">2025-12-23 18:01:56</span></div></div><div class="odcm-component__body is-parent"><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">status_changed</div><div class="odcm-key">Timestamp</div><div class="odcm-value">2025-12-23 21:29:33</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="contextual" aria-expanded="true">Hide Details</button><div class="odcm-tier-content" style="display: block; opacity: 1; max-height: none; overflow: visible; transition: 0.3s;"><div class="odcm-detail-section"><h4 class="odcm-section-title">Primary</h4><div class="odcm-key-value-list"><div class="odcm-key">Event</div><div class="odcm-value">Order Status Changed</div><div class="odcm-key">Order</div><div class="odcm-value">#100</div></div></div><div class="odcm-detail-section"><h4 class="odcm-section-title">Additional Details</h4><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">status_changed</div><div class="odcm-key">Data Order Id</div><div class="odcm-value">100</div><div class="odcm-key">Data Change Type</div><div class="odcm-value">automatic</div><div class="odcm-key">RawData From Status</div><div class="odcm-value">pending</div><div class="odcm-key">RawData To Status</div><div class="odcm-value">completed</div><div class="odcm-key">RawData Attribution Request Type</div><div class="odcm-value">rest</div><div class="odcm-key">RawData Attribution Source Plugin Type</div><div class="odcm-value">unknown</div><div class="odcm-key">RawData Order Total</div><div class="odcm-value">10.00</div><div class="odcm-key">RawData Customer Id</div><div class="odcm-value">1</div><div class="odcm-key">Order Id</div><div class="odcm-value">100</div></div></div></div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="true">Hide Technical Details</button><div class="odcm-tier-content" style="display: block; opacity: 1; max-height: none; overflow: visible; transition: 0.3s;"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"status_changed"</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Status changed"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766512916</span><span class="token punctuation">,</span>
+    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
+    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"from"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
+        <span class="token property">"to"</span><span class="token operator">:</span> <span class="token string">"completed"</span><span class="token punctuation">,</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+        <span class="token property">"change_type"</span><span class="token operator">:</span> <span class="token string">"automatic"</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"from_status"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
+        <span class="token property">"to_status"</span><span class="token operator">:</span> <span class="token string">"completed"</span><span class="token punctuation">,</span>
+        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span><span class="token punctuation">,</span>
+        <span class="token property">"attribution"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"request_type"</span><span class="token operator">:</span> <span class="token string">"rest"</span><span class="token punctuation">,</span>
+            <span class="token property">"user_logged_in"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+            <span class="token property">"source_plugin"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"type"</span><span class="token operator">:</span> <span class="token string">"unknown"</span><span class="token punctuation">,</span>
+                <span class="token property">"slug"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+                <span class="token property">"file"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+                <span class="token property">"frame"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+                <span class="token property">"confidence"</span><span class="token operator">:</span> <span class="token number">0</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"external_service"</span><span class="token operator">:</span> <span class="token string">""</span>
+        <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        <span class="token property">"order_total"</span><span class="token operator">:</span> <span class="token string">"10.00"</span><span class="token punctuation">,</span>
+        <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+        <span class="token property">"real_occurrence_timestamp"</span><span class="token operator">:</span> <span class="token number">1766512916</span><span class="token punctuation">,</span>
+        <span class="token property">"processing_timestamp"</span><span class="token operator">:</span> <span class="token number">1766512916.381603</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+    <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token punctuation">{</span>
+            <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+            <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Status changed"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"status_changed"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#100"</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">]</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component is-child technical-expanded contextual-expanded"><div class="odcm-component__header is-child"><div class="odcm-component__header-top is-child"><div class="odcm-component__header-left is-child"><div class="odcm-component__title is-child">rule_execution</div></div></div><div class="odcm-component__header-bottom is-child"><span class="odcm-component__ts">2025-12-23 18:01:56</span></div></div><div class="odcm-component__body is-child"><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">rule_execution</div><div class="odcm-key">Timestamp</div><div class="odcm-value">2025-12-23 21:29:33</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="contextual" aria-expanded="true">Hide Details</button><div class="odcm-tier-content" style="display: block; opacity: 1; max-height: none; overflow: visible; transition: 0.3s;"><div class="odcm-detail-section"><h4 class="odcm-section-title">Primary</h4><div class="odcm-key-value-list"><div class="odcm-key">Event</div><div class="odcm-value">Rule "Unknown Rule" executed</div><div class="odcm-key">Rule</div><div class="odcm-value">Unknown Rule</div><div class="odcm-key">Status</div><div class="odcm-value">Executed</div></div></div><div class="odcm-detail-section"><h4 class="odcm-section-title">Additional Details</h4><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">rule_execution</div><div class="odcm-key">Data Process Type</div><div class="odcm-value">rule_execution</div><div class="odcm-key">Data Correlation Id</div><div class="odcm-value">odcm:lifecycle:100:1766512916:694ad9143e28a1.43737909</div><div class="odcm-key">Data Status</div><div class="odcm-value">success</div></div></div></div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="true">Hide Technical Details</button><div class="odcm-tier-content" style="display: block; opacity: 1; max-height: none; overflow: visible; transition: 0.3s;"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"rule_execution"</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Rule \"virtual rule\" evaluated successfully for Order #100"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766512916</span><span class="token punctuation">,</span>
+    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
+    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"process_type"</span><span class="token operator">:</span> <span class="token string">"rule_execution"</span><span class="token punctuation">,</span>
+        <span class="token property">"correlation_id"</span><span class="token operator">:</span> <span class="token string">"odcm:lifecycle:100:1766512916:694ad9143e28a1.43737909"</span><span class="token punctuation">,</span>
+        <span class="token property">"status"</span><span class="token operator">:</span> <span class="token string">"success"</span><span class="token punctuation">,</span>
+        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"api"</span><span class="token punctuation">,</span>
+        <span class="token property">"component_count"</span><span class="token operator">:</span> <span class="token number">2</span><span class="token punctuation">,</span>
+        <span class="token property">"actor"</span><span class="token operator">:</span> <span class="token string">"system"</span><span class="token punctuation">,</span>
+        <span class="token property">"metrics"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"attribution_capture_ms"</span><span class="token operator">:</span> <span class="token number">0.0019073486328125</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token punctuation">{</span>
+            <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+            <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Rule \"virtual rule\" evaluated successfully for Order #100"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"rule_execution"</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">]</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component is-child technical-expanded contextual-expanded"><div class="odcm-component__header is-child"><div class="odcm-component__header-top is-child"><div class="odcm-component__header-left is-child"><div class="odcm-component__title is-child">rule_execution <span class="odcm-status-pill">#100</span></div></div></div><div class="odcm-component__header-bottom is-child"><span class="odcm-component__ts">2025-12-23 18:01:56</span></div></div><div class="odcm-component__body is-child"><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">rule_execution</div><div class="odcm-key">Timestamp</div><div class="odcm-value">2025-12-23 21:29:33</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="contextual" aria-expanded="true">Hide Details</button><div class="odcm-tier-content" style="display: block; opacity: 1; max-height: none; overflow: visible; transition: 0.3s;"><div class="odcm-detail-section"><h4 class="odcm-section-title">Primary</h4><div class="odcm-key-value-list"><div class="odcm-key">Event</div><div class="odcm-value">Rule "virtual rule" executed</div><div class="odcm-key">Order</div><div class="odcm-value">#100</div><div class="odcm-key">Rule</div><div class="odcm-value">virtual rule</div><div class="odcm-key">Status</div><div class="odcm-value">Executed</div></div></div><div class="odcm-detail-section"><h4 class="odcm-section-title">Additional Details</h4><div class="odcm-key-value-list"><div class="odcm-key">Event Type</div><div class="odcm-value">rule_execution</div><div class="odcm-key">Data Event Type</div><div class="odcm-value">rule_execution</div><div class="odcm-key">Data Primary Object Type</div><div class="odcm-value">order</div><div class="odcm-key">Data Primary Object Id</div><div class="odcm-value">100</div><div class="odcm-key">Data Order Id</div><div class="odcm-value">100</div><div class="odcm-key">Data Rule Id</div><div class="odcm-value">13</div><div class="odcm-key">Data Execution Status</div><div class="odcm-value">EXECUTED</div><div class="odcm-key">Data Evaluation Summary Order Status</div><div class="odcm-value">Completed</div><div class="odcm-key">Data Evaluation Summary Order Total</div><div class="odcm-value">USD 10.00</div><div class="odcm-key">Data Evaluation Summary Payment Method</div><div class="odcm-value">Credit / Debit Card</div><div class="odcm-key">Data Evaluation Summary Customer Type</div><div class="odcm-value">Registered</div><div class="odcm-key">Data Evaluation Summary Event Type</div><div class="odcm-value">payment_completed</div><div class="odcm-key">Data Evaluation Summary Event Id</div><div class="odcm-value">status_change_1...</div><div class="odcm-key">Data From Status</div><div class="odcm-value">Pending</div><div class="odcm-key">Data To Status</div><div class="odcm-value">Completed</div><div class="odcm-key">Data Conditions 0 Type</div><div class="odcm-value">unknown</div><div class="odcm-key">Data Technical Details Rule Id</div><div class="odcm-value">13</div><div class="odcm-key">Data Technical Details Trigger Type</div><div class="odcm-value">order_processing</div><div class="odcm-key">Data Technical Details Event Idempotency Key</div><div class="odcm-value">status_change_100_pending_completed_1766512916</div><div class="odcm-key">Data Amount</div><div class="odcm-value">10</div><div class="odcm-key">Data Currency</div><div class="odcm-value">USD</div><div class="odcm-key">Data Customer Id</div><div class="odcm-value">1</div><div class="odcm-key">Data Idempotency Key</div><div class="odcm-value">status_change_100_pending_completed_1766512916</div><div class="odcm-key">Data Trigger Details Order Status Changed Event Type</div><div class="odcm-value">order_status_changed</div><div class="odcm-key">Data Trigger Details Order Status Changed Amount</div><div class="odcm-value">10</div><div class="odcm-key">Data Trigger Details Order Status Changed Currency</div><div class="odcm-value">USD</div><div class="odcm-key">Data Trigger Details Order Status Changed Status From</div><div class="odcm-value">checkout-draft</div><div class="odcm-key">Data Trigger Details Order Status Changed Status To</div><div class="odcm-value">pending</div><div class="odcm-key">Data Trigger Details Order Status Changed Idempotency Key</div><div class="odcm-value">status_change_100_checkout-draft_pending_1766512916</div><div class="odcm-key">Data Trigger Details Order Status Changed Customer Type</div><div class="odcm-value">registered</div><div class="odcm-key">Data Trigger Details Order Status Changed Payment Method</div><div class="odcm-value">Credit / Debit Card</div><div class="odcm-key">Data Trigger Details Payment Completed Event Type</div><div class="odcm-value">payment_completed</div><div class="odcm-key">Data Trigger Details Payment Completed Amount</div><div class="odcm-value">10</div><div class="odcm-key">Data Trigger Details Payment Completed Currency</div><div class="odcm-value">USD</div><div class="odcm-key">Data Trigger Details Payment Completed Status From</div><div class="odcm-value">pending</div><div class="odcm-key">Data Trigger Details Payment Completed Status To</div><div class="odcm-value">completed</div><div class="odcm-key">Data Trigger Details Payment Completed Idempotency Key</div><div class="odcm-value">status_change_100_pending_completed_1766512916</div><div class="odcm-key">Data Trigger Details Payment Completed Customer Type</div><div class="odcm-value">registered</div><div class="odcm-key">Data Trigger Details Payment Completed Payment Method</div><div class="odcm-value">Credit / Debit Card</div><div class="odcm-key">Order Id</div><div class="odcm-value">100</div></div></div></div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="true">Hide Technical Details</button><div class="odcm-tier-content" style="display: block; opacity: 1; max-height: none; overflow: visible; transition: 0.3s;"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"rule_execution"</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Rule \"virtual rule\" evaluated successfully for Order #100"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766512916.387824</span><span class="token punctuation">,</span>
+    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
+    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"rule_execution"</span><span class="token punctuation">,</span>
+        <span class="token property">"primary_object_type"</span><span class="token operator">:</span> <span class="token string">"order"</span><span class="token punctuation">,</span>
+        <span class="token property">"primary_object_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+        <span class="token property">"rule_name"</span><span class="token operator">:</span> <span class="token string">"virtual rule"</span><span class="token punctuation">,</span>
+        <span class="token property">"rule_id"</span><span class="token operator">:</span> <span class="token number">13</span><span class="token punctuation">,</span>
+        <span class="token property">"execution_summary"</span><span class="token operator">:</span> <span class="token string">"Completed Order (status changed from Pending \u2192 Completed)"</span><span class="token punctuation">,</span>
+        <span class="token property">"trigger"</span><span class="token operator">:</span> <span class="token string">"Payment completion (Stripe: $10.00)"</span><span class="token punctuation">,</span>
+        <span class="token property">"actions"</span><span class="token operator">:</span> <span class="token string">"Change Status to 'Completed'"</span><span class="token punctuation">,</span>
+        <span class="token property">"execution_status"</span><span class="token operator">:</span> <span class="token string">"EXECUTED"</span><span class="token punctuation">,</span>
+        <span class="token property">"evaluation_summary"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"result"</span><span class="token operator">:</span> <span class="token string">"1\/1 conditions passed"</span><span class="token punctuation">,</span>
+            <span class="token property">"logic"</span><span class="token operator">:</span> <span class="token string">"ALL conditions must pass"</span><span class="token punctuation">,</span>
+            <span class="token property">"order_status"</span><span class="token operator">:</span> <span class="token string">"Completed"</span><span class="token punctuation">,</span>
+            <span class="token property">"order_total"</span><span class="token operator">:</span> <span class="token string">"USD 10.00"</span><span class="token punctuation">,</span>
+            <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
+            <span class="token property">"customer_type"</span><span class="token operator">:</span> <span class="token string">"Registered"</span><span class="token punctuation">,</span>
+            <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"payment_completed"</span><span class="token punctuation">,</span>
+            <span class="token property">"event_source"</span><span class="token operator">:</span> <span class="token string">"Stripe"</span><span class="token punctuation">,</span>
+            <span class="token property">"event_channel"</span><span class="token operator">:</span> <span class="token string">"System"</span><span class="token punctuation">,</span>
+            <span class="token property">"event_time"</span><span class="token operator">:</span> <span class="token string">"1970-01-01 00:33:45"</span><span class="token punctuation">,</span>
+            <span class="token property">"event_id"</span><span class="token operator">:</span> <span class="token string">"status_change_1..."</span>
+        <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        <span class="token property">"from_status"</span><span class="token operator">:</span> <span class="token string">"Pending"</span><span class="token punctuation">,</span>
+        <span class="token property">"to_status"</span><span class="token operator">:</span> <span class="token string">"Completed"</span><span class="token punctuation">,</span>
+        <span class="token property">"conditions"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+            <span class="token punctuation">{</span>
+                <span class="token property">"type"</span><span class="token operator">:</span> <span class="token string">"unknown"</span><span class="token punctuation">,</span>
+                <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Product Type"</span><span class="token punctuation">,</span>
+                <span class="token property">"result"</span><span class="token operator">:</span> <span class="token string">"PASS"</span>
+            <span class="token punctuation">}</span>
+        <span class="token punctuation">]</span><span class="token punctuation">,</span>
+        <span class="token property">"technical_details"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"rule_id"</span><span class="token operator">:</span> <span class="token number">13</span><span class="token punctuation">,</span>
+            <span class="token property">"trigger_type"</span><span class="token operator">:</span> <span class="token string">"order_processing"</span><span class="token punctuation">,</span>
+            <span class="token property">"evaluation_time"</span><span class="token operator">:</span> <span class="token number">240</span><span class="token punctuation">,</span>
+            <span class="token property">"first_match_wins"</span><span class="token operator">:</span> <span class="token string">"Yes"</span><span class="token punctuation">,</span>
+            <span class="token property">"rule_position"</span><span class="token operator">:</span> <span class="token string">"#1"</span><span class="token punctuation">,</span>
+            <span class="token property">"event_idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_100_pending_completed_1766512916"</span><span class="token punctuation">,</span>
+            <span class="token property">"primary_action_result"</span><span class="token operator">:</span> <span class="token string">"Success"</span>
+        <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        <span class="token property">"amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+        <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
+        <span class="token property">"processing_result"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+        <span class="token property">"transaction_id"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+        <span class="token property">"source_gateway"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+        <span class="token property">"channel"</span><span class="token operator">:</span> <span class="token string">"system"</span><span class="token punctuation">,</span>
+        <span class="token property">"execution_time_ms"</span><span class="token operator">:</span> <span class="token number">240</span><span class="token punctuation">,</span>
+        <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_100_pending_completed_1766512916"</span><span class="token punctuation">,</span>
+        <span class="token property">"has_order"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        <span class="token property">"all_matching_triggers"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+            <span class="token string">"order_status_changed"</span><span class="token punctuation">,</span>
+            <span class="token string">"payment_completed"</span>
+        <span class="token punctuation">]</span><span class="token punctuation">,</span>
+        <span class="token property">"trigger_details"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"order_status_changed"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"order_status_changed"</span><span class="token punctuation">,</span>
+                <span class="token property">"source_gateway"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+                <span class="token property">"timestamp"</span><span class="token operator">:</span> <span class="token string">"2025-12-23T19:01:56+01:00"</span><span class="token punctuation">,</span>
+                <span class="token property">"amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+                <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
+                <span class="token property">"status_from"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
+                <span class="token property">"status_to"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
+                <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_100_checkout-draft_pending_1766512916"</span><span class="token punctuation">,</span>
+                <span class="token property">"customer_type"</span><span class="token operator">:</span> <span class="token string">"registered"</span><span class="token punctuation">,</span>
+                <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"payment_completed"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"payment_completed"</span><span class="token punctuation">,</span>
+                <span class="token property">"source_gateway"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+                <span class="token property">"timestamp"</span><span class="token operator">:</span> <span class="token string">"2025-12-23T19:01:56+01:00"</span><span class="token punctuation">,</span>
+                <span class="token property">"amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+                <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
+                <span class="token property">"status_from"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
+                <span class="token property">"status_to"</span><span class="token operator">:</span> <span class="token string">"completed"</span><span class="token punctuation">,</span>
+                <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_100_pending_completed_1766512916"</span><span class="token punctuation">,</span>
+                <span class="token property">"customer_type"</span><span class="token operator">:</span> <span class="token string">"registered"</span><span class="token punctuation">,</span>
+                <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span>
+            <span class="token punctuation">}</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"from_status"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
+        <span class="token property">"to_status"</span><span class="token operator">:</span> <span class="token string">"completed"</span><span class="token punctuation">,</span>
+        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span><span class="token punctuation">,</span>
+        <span class="token property">"attribution"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"request_type"</span><span class="token operator">:</span> <span class="token string">"rest"</span><span class="token punctuation">,</span>
+            <span class="token property">"user_logged_in"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+            <span class="token property">"source_plugin"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"type"</span><span class="token operator">:</span> <span class="token string">"unknown"</span><span class="token punctuation">,</span>
+                <span class="token property">"slug"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+                <span class="token property">"file"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+                <span class="token property">"frame"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
+                <span class="token property">"confidence"</span><span class="token operator">:</span> <span class="token number">0</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"external_service"</span><span class="token operator">:</span> <span class="token string">""</span>
+        <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        <span class="token property">"order_total"</span><span class="token operator">:</span> <span class="token string">"10.00"</span><span class="token punctuation">,</span>
+        <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+        <span class="token property">"real_occurrence_timestamp"</span><span class="token operator">:</span> <span class="token number">1766512916</span><span class="token punctuation">,</span>
+        <span class="token property">"processing_timestamp"</span><span class="token operator">:</span> <span class="token number">1766512916.381603</span><span class="token punctuation">,</span>
+        <span class="token property">"rule_execution"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"rule_configuration"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"rule_id"</span><span class="token operator">:</span> <span class="token number">13</span><span class="token punctuation">,</span>
+                <span class="token property">"rule_name"</span><span class="token operator">:</span> <span class="token string">"virtual rule"</span><span class="token punctuation">,</span>
+                <span class="token property">"rule_status"</span><span class="token operator">:</span> <span class="token string">"publish"</span><span class="token punctuation">,</span>
+                <span class="token property">"trigger_type"</span><span class="token operator">:</span> <span class="token string">"order_processing"</span><span class="token punctuation">,</span>
+                <span class="token property">"trigger_settings"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"condition_evaluation"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"total_conditions"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+                <span class="token property">"conditions_passed"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+                <span class="token property">"evaluation_logic"</span><span class="token operator">:</span> <span class="token string">"ALL"</span><span class="token punctuation">,</span>
+                <span class="token property">"condition_details"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                    <span class="token punctuation">{</span>
+                        <span class="token property">"condition_type"</span><span class="token operator">:</span> <span class="token string">"unknown"</span><span class="token punctuation">,</span>
+                        <span class="token property">"condition_label"</span><span class="token operator">:</span> <span class="token string">"Product Type"</span><span class="token punctuation">,</span>
+                        <span class="token property">"result"</span><span class="token operator">:</span> <span class="token string">"PASS"</span><span class="token punctuation">,</span>
+                        <span class="token property">"evaluation_reason"</span><span class="token operator">:</span> <span class="token string">"No details available"</span>
+                    <span class="token punctuation">}</span>
+                <span class="token punctuation">]</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"order_evaluation_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+                <span class="token property">"order_status"</span><span class="token operator">:</span> <span class="token string">"completed"</span><span class="token punctuation">,</span>
+                <span class="token property">"order_total"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
+                <span class="token property">"order_currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
+                <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+                <span class="token property">"customer_type"</span><span class="token operator">:</span> <span class="token string">"registered"</span><span class="token punctuation">,</span>
+                <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+                <span class="token property">"payment_method_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
+                <span class="token property">"billing_country"</span><span class="token operator">:</span> <span class="token string">"US"</span><span class="token punctuation">,</span>
+                <span class="token property">"shipping_country"</span><span class="token operator">:</span> <span class="token string">"US"</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"trigger_event_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"triggering_event"</span><span class="token operator">:</span> <span class="token string">"payment_completed"</span><span class="token punctuation">,</span>
+                <span class="token property">"event_source"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
+                <span class="token property">"event_channel"</span><span class="token operator">:</span> <span class="token string">"system"</span><span class="token punctuation">,</span>
+                <span class="token property">"event_timestamp"</span><span class="token operator">:</span> <span class="token string">"2025-12-23T19:01:56+01:00"</span><span class="token punctuation">,</span>
+                <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_100_pending_completed_1766512916"</span><span class="token punctuation">,</span>
+                <span class="token property">"status_transition"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                    <span class="token property">"from_status"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
+                    <span class="token property">"to_status"</span><span class="token operator">:</span> <span class="token string">"completed"</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"action_execution"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"primary_action"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                    <span class="token property">"action_id"</span><span class="token operator">:</span> <span class="token string">"change_status_to_completed"</span><span class="token punctuation">,</span>
+                    <span class="token property">"action_label"</span><span class="token operator">:</span> <span class="token string">"Change Status to 'Completed'"</span><span class="token punctuation">,</span>
+                    <span class="token property">"action_settings"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+                    <span class="token property">"execution_result"</span><span class="token operator">:</span> <span class="token string">"success"</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"execution_metrics"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"evaluation_time_ms"</span><span class="token operator">:</span> <span class="token number">240</span><span class="token punctuation">,</span>
+                <span class="token property">"rule_position_in_queue"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
+                <span class="token property">"first_match_wins"</span><span class="token operator">:</span> <span class="token boolean">true</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token property">"full_evaluation_trace"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+                <span class="token property">"matched"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+                <span class="token property">"conditions"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                    <span class="token punctuation">{</span>
+                        <span class="token property">"id"</span><span class="token operator">:</span> <span class="token string">"product_type"</span><span class="token punctuation">,</span>
+                        <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Product Type"</span><span class="token punctuation">,</span>
+                        <span class="token property">"result"</span><span class="token operator">:</span> <span class="token string">"pass"</span>
+                    <span class="token punctuation">}</span>
+                <span class="token punctuation">]</span>
+            <span class="token punctuation">}</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">100</span><span class="token punctuation">,</span>
+    <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token punctuation">{</span>
+            <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+            <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Rule \"virtual rule\" evaluated successfully for Order #100"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"rule_execution"</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">{</span>
+                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#100"</span>
+                <span class="token punctuation">}</span>
+            <span class="token punctuation">]</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div></div>

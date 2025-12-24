@@ -130,7 +130,7 @@
   --odcm-component-text-color-header: var(--odcm-theme-grey-900);
   --odcm-component-text-color-body: var(--odcm-theme-grey-800);
   --odcm-component-padding: var(--odcm-theme-spacing-sm);
-  --odcm-component-margin: var(--odcm-theme-spacing-md);
+  --odcm-component-margin: var(--odcm-theme-spacing-sm);
   --odcm-component-border-width: 1px;
   --odcm-component-border-radius: var(--odcm-theme-border-radius);
   --odcm-component-section-margin: var(--odcm-theme-spacing-md);
@@ -141,7 +141,7 @@
 
   /* --- Key-Value Component Blueprint --- */
   --odcm-key-value-layout: grid;
-  --odcm-key-value-columns: auto 1fr;
+  --odcm-key-value-columns: minmax(100px, auto) minmax(100px, 1fr);
   --odcm-key-value-gap: var(--odcm-theme-key-value-gap);
   --odcm-key-value-row-gap: var(--odcm-theme-key-value-row-gap);
   --odcm-key-padding: var(--odcm-theme-spacing-xs);
@@ -2278,7 +2278,7 @@ label.odcm-retention-option {
 .odcm-key-value-list {
     display: var(--odcm-key-value-layout);
     grid-template-columns: var(--odcm-key-value-columns);
-    gap: 0px;
+    gap: var(--odcm-key-value-gap);
     row-gap: var(--odcm-key-value-row-gap);
     margin-top: var(--odcm-section-margin-top);
     margin-bottom: var(--odcm-section-margin-bottom);
@@ -2341,8 +2341,8 @@ label.odcm-retention-option {
     font-weight: var(--odcm-section-title-font-weight);
     color: var(--odcm-component-text-color-header);
     margin-bottom: var(--odcm-section-margin-bottom);
-    padding: 0 0 var(--odcm-theme-spacing-sm) 0;
-    border-bottom: 1px solid var(--odcm-component-border-color);
+    margin-top: var(--odcm-section-margin-top);
+    padding: 0;
 }
 
 /* ==========================================================================
@@ -2350,8 +2350,10 @@ label.odcm-retention-option {
    ========================================================================== */
 
 .odcm-code-block {
+    /*
     background-color: var(--odcm-theme-grey-200);
     border: 1px solid var(--odcm-component-code-border-color);
+    */
     border-radius: var(--odcm-component-border-radius);
     padding: var(--odcm-theme-spacing-md);
     margin: var(--odcm-theme-spacing-xs) 0;
@@ -2836,25 +2838,183 @@ label.odcm-retention-option {
 }
 
 /* ======================================================================
+   THREE-TIER TIMELINE ARCHITECTURE
+   - Enhanced expandable sections for contextual and technical details
+   - Smooth animations and proper accessibility support
+   ====================================================================== */
+
+/* Three-tier expandable sections */
+.odcm-expandable-section {
+    padding-top: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-expandable-section:first-child {
+    margin-top: 0;
+    border-top: none;
+    padding-top: 0;
+}
+
+/* Hide tier content by default */
+.odcm-tier-content {
+    display: none;
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+}
+
+/* Show tier content when expanded */
+.odcm-expandable-section[aria-expanded="true"] .odcm-tier-content {
+    display: block;
+    opacity: 1;
+    max-height: none;
+    overflow: visible;
+}
+
+/* Tier toggle buttons using unified icon button system */
+.odcm-tier-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--odcm-icon-button-padding);
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-icon-button-transition);
+    color: var(--odcm-icon-button-color);
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--odcm-theme-spacing-xs);
+    min-width: auto;
+    font-size: var(--odcm-theme-font-size-sm);
+    font-weight: var(--odcm-theme-font-weight-str);
+    margin-bottom: var(--odcm-theme-spacing-xs);
+    visibility: visible;
+    opacity: 1;
+    display: flex;
+}
+
+.odcm-tier-toggle:hover {
+    background-color: var(--odcm-icon-button-hover-bg);
+    color: var(--odcm-icon-button-hover-color);
+    text-decoration: none;
+}
+
+.odcm-tier-toggle:focus {
+    outline: var(--odcm-icon-button-focus-outline);
+    outline-offset: var(--odcm-icon-button-focus-offset);
+    text-decoration: none;
+}
+
+/* Add expand/collapse icons */
+.odcm-tier-toggle::before {
+    content: '▶';
+    font-size: var(--odcm-theme-font-size-xs);
+    margin-right: var(--odcm-theme-spacing-xs);
+    transition: transform 0.3s ease;
+    display: inline-block;
+    width: 12px;
+    text-align: center;
+}
+
+.odcm-tier-toggle[aria-expanded="true"]::before {
+    content: '▼';
+}
+
+/* Tier content containers */
+.odcm-tier-content {
+    margin-top: var(--odcm-theme-spacing-sm);
+    padding: 0;
+    background: var(--odcm-theme-grey-100);
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+/* Detail sections within tier content */
+.odcm-detail-section {
+    margin: var(--odcm-theme-spacing-sm);
+}
+
+/* Technical tier specific styling for raw payload display */
+.odcm-expandable-section .odcm-code-block {
+    margin: 0;
+    background: var(--odcm-theme-grey-200);
+    border: 1px solid var(--odcm-component-border-color);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.odcm-expandable-section .odcm-code-block pre {
+    margin: 0;
+    padding: var(--odcm-theme-spacing-md);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: var(--odcm-theme-font-size-sm);
+    line-height: 1.4;
+}
+
+/* Component expanded state classes */
+.odcm-component.contextual-expanded {
+    /* Optional: Add styling when contextual tier is expanded */
+}
+
+.odcm-component.technical-expanded {
+    /* Optional: Add styling when technical tier is expanded */
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+    .odcm-tier-toggle,
+    .odcm-tier-content,
+    .odcm-tier-toggle::before {
+        transition: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+    .odcm-tier-toggle {
+        border: 1px solid currentColor;
+        padding: var(--odcm-theme-spacing-xs);
+    }
+    
+    .odcm-tier-content {
+        border-width: 2px;
+    }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .odcm-tier-content {
+        padding: var(--odcm-theme-spacing-sm);
+    }
+    
+    .odcm-tier-toggle {
+        font-size: var(--odcm-theme-font-size-md);
+        padding: var(--odcm-theme-spacing-sm);
+    }
+}
+
+/* ======================================================================
    PARENT-CHILD HIERARCHY VISUALIZATION
    - Visual hierarchy for timeline events with parent-child relationships
    - Pure CSS implementation for performance and simplicity
    ====================================================================== */
 
-/* Parent component styling - should look like normal components */
+/* Parent component styling - should look like normal components *
 .odcm-component.is-parent {
-    /* Remove all special styling to make parents look normal */
+    /* Remove all special styling to make parents look normal *
     position: relative;
     border-left: none;
     padding-left: 0;
 }
 
-/* Remove vertical connection line for parent components */
+/* Remove vertical connection line for parent components *
 .odcm-component.is-parent:before {
     content: none;
 }
 
-/* Child component styling - indented with connection for visual distinction */
+/* Child component styling - indented with connection for visual distinction *
 .odcm-component.is-child {
     margin-left: var(--odcm-theme-spacing-lg);
     position: relative;
@@ -2862,7 +3022,7 @@ label.odcm-retention-option {
     background-color: var(--odcm-theme-grey-100);
 }
 
-/* Horizontal connector from parent to child */
+/* Horizontal connector from parent to child *
 .odcm-component.is-child:before {
     content: '';
     position: absolute;
@@ -2873,7 +3033,7 @@ label.odcm-retention-option {
     background: var(--odcm-theme-grey-300);
 }
 
-/* Connection dot at child events */
+/* Connection dot at child events *
 .odcm-component.is-child:after {
     content: '';
     position: absolute;

@@ -520,26 +520,6 @@ class AuditLogEndpoint extends WP_REST_Controller
             return false;
         }
 
-        // Log successful delete permission check for audit trail
-        if (function_exists('odcm_log_event')) {
-            odcm_log_event(
-                'Delete permission granted for audit logs',
-                [
-                    'user_id' => get_current_user_id(),
-                    'user_roles' => wp_get_current_user()->roles ?? [],
-                    'request_method' => $request->get_method(),
-                    'request_route' => $request->get_route(),
-                ],
-                null,
-                'info',
-                'security_delete_permission'
-            );
-        }
-
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            $this->logDebugMessage('ODCM API Delete: Permission check passed');
-        }
-
         return true;
     }
 

@@ -52,7 +52,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         // Build parent-child relationship map for hierarchy visualization
         $hierarchyMap = $this->buildHierarchyMap($timeline->components);
 
-        $html = '<div class="odcm-narrative-timeline">';
+        $html = '<div class="odcm-timeline-list">';
         $renderedComponentCount = 0;
 
         foreach ($timeline->components as $idx => $component) {
@@ -312,13 +312,18 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $level = $component['level'] ?? 'info';
         $orderId = $component['order_id'] ?? ($component['data']['order_id'] ?? null);
         
-        $html = '<div class="odcm-timeline-component odcm-level-' . esc_attr($level) . ' odcm-fallback">';
-        $html .= '<div class="odcm-timeline-header">';
-        $html .= '<div class="odcm-timeline-timestamp">' . esc_html($timestamp) . '</div>';
-        $html .= '<div class="odcm-timeline-title">' . esc_html($label) . ' <span class="odcm-fallback-badge">Fallback View</span></div>';
+        $html = '<div class="odcm-component odcm-level-' . esc_attr($level) . ' odcm-fallback">';
+        $html .= '<div class="odcm-component__header">';
+        $html .= '<div class="odcm-component__header-top">';
+        $html .= '<div class="odcm-component__header-left">';
+        $html .= '<div class="odcm-component__title">' . esc_html($label) . ' <span class="odcm-fallback-badge">Fallback View</span></div>';
         $html .= '</div>';
-        $html .= '<div class="odcm-timeline-body">';
-        $html .= '<div class="odcm-timeline-message">';
+        $html .= '</div>';
+        $html .= '<div class="odcm-component__header-bottom">';
+        $html .= '<span class="odcm-component__ts">' . esc_html($timestamp) . '</span>';
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '<div class="odcm-component__body">';
         
         // Show order ID if available
         if ($orderId) {
@@ -351,14 +356,19 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $orderId = $metadata['order_id'] ?? null;
         $label = odcm_get_component_label($eventType) ?? ucfirst(str_replace('_', ' ', $eventType));
         
-        $html = '<div class="odcm-narrative-timeline">';
-        $html .= '<div class="odcm-timeline-component odcm-level-info odcm-zero-error-fallback">';
-        $html .= '<div class="odcm-timeline-header">';
-        $html .= '<div class="odcm-timeline-timestamp">' . gmdate('Y-m-d H:i:s') . '</div>';
-        $html .= '<div class="odcm-timeline-title">' . esc_html($label) . ' <span class="odcm-fallback-badge">Zero-Error Fallback</span></div>';
+        $html = '<div class="odcm-timeline-list">';
+        $html .= '<div class="odcm-component odcm-level-info odcm-zero-error-fallback">';
+        $html .= '<div class="odcm-component__header">';
+        $html .= '<div class="odcm-component__header-top">';
+        $html .= '<div class="odcm-component__header-left">';
+        $html .= '<div class="odcm-component__title">' . esc_html($label) . ' <span class="odcm-fallback-badge">Zero-Error Fallback</span></div>';
         $html .= '</div>';
-        $html .= '<div class="odcm-timeline-body">';
-        $html .= '<div class="odcm-timeline-message">';
+        $html .= '</div>';
+        $html .= '<div class="odcm-component__header-bottom">';
+        $html .= '<span class="odcm-component__ts">' . gmdate('Y-m-d H:i:s') . '</span>';
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '<div class="odcm-component__body">';
         
         if ($orderId) {
             $html .= '<p><strong>Order ID:</strong> ' . esc_html($orderId) . '</p>';
@@ -372,7 +382,6 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             $html .= '<p><strong>Timestamp:</strong> ' . esc_html($metadata['timestamp']) . '</p>';
         }
         
-        $html .= '</div>';
         $html .= '</div>';
         $html .= '</div>';
         $html .= '</div>';
@@ -398,8 +407,8 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     }
     
     /**
-     * Render individual component using registry system with debug filtering and hierarchy support
-     * 
+     * Render individual component using DisplayAdapter system with three-tier architecture
+     *
      * @param array $payload The component payload data
      * @param bool $isParent Whether this component is a parent (has children)
      * @param bool $isChild Whether this component is a child (has parent_id)
@@ -412,115 +421,225 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - Debug event hidden in production mode");
             }
-            return ''; // Hide debug events in production
-        }
-
-        // The $payload is the full log entry. The renderer needs the component data,
-        // which is often nested inside the 'data' key.
-        $data = $payload['data'] ?? $payload;
-
-        // If this is a universal event, extract the real event type from the data
-        if (isset($data['event_type'])) {
-            $event_type = $data['event_type'];
-            $label = ucfirst(str_replace('_', ' ', $event_type));
-        } else {
-            $event_type = $payload['event_type'] ?? 'info';
-            $label = $payload['label'] ?? ucfirst($event_type);
-        }
-
-        $ts = $payload['ts'] ?? null;
-        $level = $payload['level'] ?? 'info';
-
-        // Skip components with empty data, but pass the full payload if it's not empty.
-        if (empty($data) && empty($payload)) {
             return '';
         }
 
-        // Resolve renderer class safely even if registry function is unavailable
-        if (function_exists('odcm_get_renderer_for_event_type')) {
-            try {
-                $rendererClass = odcm_get_renderer_for_event_type($event_type);
-            } catch (\Throwable $e) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM TIMELINE DEBUG: Registry lookup failed: " . $e->getMessage(), 'error');
-                }
-                $rendererClass = '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer';
-            }
-        } else {
-            $rendererClass = '\\OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer';
-        }
+        // Extract event type for debugging
+        $eventType = $payload['event_type'] ?? $payload['data']['event_type'] ?? 'unknown';
+        $this->logDebugMessage("ODCM TIMELINE DEBUG: Processing event type: {$eventType}", 'debug');
 
-        // Ensure full namespace if not provided
-        if (strpos($rendererClass, '\\') === false) {
-            $rendererClass = 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\' . $rendererClass;
-        }
-
-        if (!class_exists($rendererClass)) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM TIMELINE DEBUG: ERROR - Renderer class '$rendererClass' does not exist", 'error');
-            }
-
-            $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
-            $timeline = [
-                'label' => $label,
-                'ts' => $ts,
-                'level' => $level
-            ];
-            $result = $renderer->render($payload, $event_type, $timeline);
-            return $this->applyHierarchyClasses($result, $isParent, $isChild);
-        }
-
+        // NEW: Get appropriate adapter and extract standardized data
         try {
-            $renderer = new $rendererClass();
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: Calling AdapterRegistry::getAdapterForEvent()", 'debug');
+            $adapter = AdapterRegistry::getAdapterForEvent($payload);
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: Got adapter: " . get_class($adapter), 'debug');
 
-            // Use unified render method with timeline data
-            if (method_exists($renderer, 'render')) {
-                $timeline = [
-                    'label' => $label,
-                    'ts' => $ts,
-                    'level' => $level
-                ];
-
-                $result = $renderer->render($payload, $event_type, $timeline);
-
-                if (!empty($result)) {
-                    // Apply hierarchy CSS classes to the rendered component
-                    return $this->applyHierarchyClasses($result, $isParent, $isChild);
-                }
-            }
-
-            // Fallback if renderer doesn't have expected methods
-            $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
-            $timeline = [
-                'label' => $label,
-                'ts' => $ts,
-                'level' => $level
-            ];
-            $result = $renderer->render($payload, $event_type, $timeline);
-            return $this->applyHierarchyClasses($result, $isParent, $isChild);
-
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: Calling extractDisplayData()", 'debug');
+            $displayData = $adapter->extractDisplayData($payload);
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: Successfully extracted display data", 'debug');
         } catch (\Throwable $e) {
-            // Log error and use fallback
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM TIMELINE DEBUG: EXCEPTION - Renderer instantiation/execution failed", 'error');
-                $this->logDebugMessage("ODCM TIMELINE DEBUG: Exception: " . $e->getMessage(), 'error');
-            }
-
-            // Always log renderer errors regardless of debug mode
-            if (function_exists('wp_debug_log')) {
-                wp_debug_log("ODCM Timeline Renderer Error for {$rendererClass}: " . $e->getMessage());
-            }
-
-            // Final fallback is FallbackRenderer
-            $renderer = new \OrderDaemon\CompletionManager\View\PayloadRenderer\FallbackRenderer();
-            $timeline = [
-                'label' => $label,
-                'ts' => $ts,
-                'level' => $level
-            ];
-            $result = $renderer->render($payload, $event_type, $timeline);
-            return $this->applyHierarchyClasses($result, $isParent, $isChild);
+            $this->logDebugMessage('Failed to extract display data: ' . $e->getMessage(), 'error');
+            $this->logDebugMessage('Exception trace: ' . $e->getTraceAsString(), 'error');
+            return $this->renderFallbackComponent($payload, $isParent, $isChild);
         }
+
+        // NEW: Render using three-tier architecture
+        $result = $this->renderThreeTierComponent($displayData, $payload);
+
+        // EXISTING: Apply hierarchy classes
+        return $this->applyHierarchyClasses($result, $isParent, $isChild);
+    }
+
+    /**
+     * Render component using three-tier architecture
+     *
+     * @param array $displayData The extracted display data from adapter
+     * @param array $rawPayload The original event payload
+     * @return string Rendered HTML component
+     */
+    private function renderThreeTierComponent(array $displayData, array $rawPayload): string
+    {
+        $html = '<div class="odcm-component">';
+        
+        // Extract basic info
+        $timestamp = $this->formatTimestamp($rawPayload['ts'] ?? time());
+        $level = $rawPayload['level'] ?? 'info';
+        
+        // Header with component header structure
+        $html .= '<div class="odcm-component__header">';
+        $html .= '<div class="odcm-component__header-top">';
+        $html .= '<div class="odcm-component__header-left">';
+        $html .= '<div class="odcm-component__title">' . $this->renderPrimaryInfo($displayData) . '</div>';
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '<div class="odcm-component__header-bottom">';
+        $html .= '<span class="odcm-component__ts">' . esc_html($timestamp) . '</span>';
+        $html .= '</div>';
+        $html .= '</div>';
+        
+        // Body with three tiers
+        $html .= '<div class="odcm-component__body">';
+        
+        // Tier 1: Primary (always visible)
+        $html .= $this->renderPrimaryTier($displayData['display_sections'] ?? []);
+        
+        // Tier 2: Contextual (expandable)
+        if (!empty($displayData['detail_sections'])) {
+            $html .= $this->renderContextualTier($displayData['detail_sections']);
+        }
+        
+        // Tier 3: Technical (expandable)
+        $html .= $this->renderTechnicalTier($rawPayload);
+        
+        $html .= '</div>';
+        $html .= '</div>';
+        
+        return $html;
+    }
+
+    /**
+     * Render primary information for header
+     *
+     * @param array $displayData The display data from adapter
+     * @return string Rendered primary info HTML
+     */
+    private function renderPrimaryInfo(array $displayData): string
+    {
+        $sections = $displayData['display_sections'] ?? [];
+        
+        // Extract key information for header
+        $title = $sections['event_description']['value'] ?? 
+                $sections['event_type']['value'] ?? 
+                __('Timeline Event', 'order-daemon');
+        $orderId = $sections['order_id']['value'] ?? null;
+        
+        $html = esc_html($title);
+        if ($orderId && $orderId !== 0) {
+            $orderDisplay = is_numeric($orderId) ? '#' . $orderId : $orderId;
+            $html .= ' <span class="odcm-status-pill">' . esc_html($orderDisplay) . '</span>';
+        }
+        
+        return $html;
+    }
+
+    /**
+     * Render primary tier (always visible)
+     *
+     * @param array $displaySections The display sections
+     * @return string Rendered primary tier HTML
+     */
+    private function renderPrimaryTier(array $displaySections): string
+    {
+        if (empty($displaySections)) {
+            return '';
+        }
+        
+        $html = '<div class="odcm-key-value-list">';
+        
+        foreach ($displaySections as $key => $section) {
+            if ($key === 'event_description' || $key === 'order_id') {
+                continue; // Already shown in header
+            }
+            
+            $html .= '<div class="odcm-key">' . esc_html($section['label']) . '</div>';
+            $html .= '<div class="odcm-value">' . esc_html($section['value']) . '</div>';
+        }
+        
+        $html .= '</div>';
+        
+        return $html;
+    }
+
+    /**
+     * Render contextual tier (expandable)
+     *
+     * @param array $detailSections The detail sections
+     * @return string Rendered contextual tier HTML
+     */
+    private function renderContextualTier(array $detailSections): string
+    {
+        $html = '<div class="odcm-expandable-section">';
+        $html .= '<button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="contextual" aria-expanded="false">' . 
+                 esc_html__('Show Details', 'order-daemon') . '</button>';
+        $html .= '<div class="odcm-tier-content" style="display: none;">';
+        
+        foreach ($detailSections as $sectionKey => $section) {
+            $html .= '<div class="odcm-detail-section">';
+            $html .= '<h4 class="odcm-section-title">' . esc_html($section['label']) . '</h4>';
+            
+            if (!empty($section['data'])) {
+                $html .= '<div class="odcm-key-value-list">';
+                foreach ($section['data'] as $field) {
+                    $html .= '<div class="odcm-key">' . esc_html($field['label']) . '</div>';
+                    $html .= '<div class="odcm-value">' . esc_html($field['value']) . '</div>';
+                }
+                $html .= '</div>';
+            }
+            
+            $html .= '</div>';
+        }
+        
+        $html .= '</div>';
+        $html .= '</div>';
+        
+        return $html;
+    }
+
+    /**
+     * Render technical tier (expandable)
+     *
+     * @param array $rawPayload The raw event payload
+     * @return string Rendered technical tier HTML
+     */
+    private function renderTechnicalTier(array $rawPayload): string
+    {
+        $html = '<div class="odcm-expandable-section">';
+        $html .= '<button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">' .
+                 esc_html__('Show Technical Details', 'order-daemon') . '</button>';
+        $html .= '<div class="odcm-tier-content" style="display: none;">';
+        
+        // Format raw payload as JSON with proper prism.js classes
+        $jsonPayload = wp_json_encode($rawPayload, JSON_PRETTY_PRINT);
+        $html .= '<div class="odcm-code-block"><pre><code class="language-json">' . esc_html($jsonPayload) . '</code></pre></div>';
+        
+        $html .= '</div>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Render fallback component when adapter fails
+     *
+     * @param array $payload The component payload data
+     * @param bool $isParent Whether this component is a parent
+     * @param bool $isChild Whether this component is a child
+     * @return string Rendered fallback HTML
+     */
+    private function renderFallbackComponent(array $payload, bool $isParent, bool $isChild): string
+    {
+        $label = $payload['label'] ?? $payload['event_type'] ?? __('Timeline Event', 'order-daemon');
+        $timestamp = $this->formatTimestamp($payload['ts'] ?? time());
+        $level = $payload['level'] ?? 'info';
+        
+        $html = '<div class="odcm-component odcm-fallback">';
+        $html .= '<div class="odcm-component__header">';
+        $html .= '<div class="odcm-component__header-top">';
+        $html .= '<div class="odcm-component__header-left">';
+        $html .= '<div class="odcm-component__title">' . esc_html($label) . 
+                 ' <span class="odcm-fallback-badge">' . esc_html__('Fallback View', 'order-daemon') . '</span></div>';
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '<div class="odcm-component__header-bottom">';
+        $html .= '<span class="odcm-component__ts">' . esc_html($timestamp) . '</span>';
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '<div class="odcm-component__body">';
+        $html .= '<p>' . esc_html__('Event data is available but could not be processed normally.', 'order-daemon') . '</p>';
+        $html .= '</div>';
+        $html .= '</div>';
+        
+        return $this->applyHierarchyClasses($html, $isParent, $isChild);
     }
     
     

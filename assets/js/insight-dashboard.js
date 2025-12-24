@@ -2119,6 +2119,210 @@ function insightDashboard() {
         
 
         // =================================================================
+        // THREE-TIER EXPAND/COLLAPSE FUNCTIONALITY
+        // =================================================================
+
+        /**
+         * Initialize three-tier expand/collapse system for timeline components
+         */
+        initThreeTierToggles() {
+            // Remove any existing handlers to prevent duplicates
+            document.removeEventListener('click', this.handleTierToggleClick);
+            document.removeEventListener('keydown', this.handleTierToggleKeydown);
+            
+            // Add event listeners for three-tier toggles
+            document.addEventListener('click', this.handleTierToggleClick.bind(this));
+            document.addEventListener('keydown', this.handleTierToggleKeydown.bind(this));
+            
+            if (odcmIsDebug()) {
+                console.log('ODCM: Three-tier toggle handlers initialized');
+            }
+        },
+
+        /**
+         * Handle tier toggle button clicks
+         */
+        handleTierToggleClick(event) {
+            // Check if the clicked element is a tier toggle button
+            if (!event.target.classList.contains('odcm-tier-toggle')) {
+                return;
+            }
+
+            event.preventDefault();
+            this.toggleTier(event.target);
+        },
+
+        /**
+         * Handle keyboard navigation for tier toggles
+         */
+        handleTierToggleKeydown(event) {
+            if (!event.target.classList.contains('odcm-tier-toggle')) {
+                return;
+            }
+
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                this.toggleTier(event.target);
+            }
+        },
+
+        /**
+         * Toggle a specific tier (contextual or technical)
+         */
+        toggleTier(toggleButton) {
+            try {
+                const target = toggleButton.dataset.target;
+                if (!target) {
+                    if (odcmIsDebug()) {
+                        console.warn('ODCM: Tier toggle button missing data-target attribute');
+                    }
+                    return;
+                }
+
+                const expandableSection = toggleButton.closest('.odcm-expandable-section');
+                if (!expandableSection) {
+                    if (odcmIsDebug()) {
+                        console.warn('ODCM: Could not find expandable section for tier toggle');
+                    }
+                    return;
+                }
+
+                const tierContent = expandableSection.querySelector('.odcm-tier-content');
+                if (!tierContent) {
+                    if (odcmIsDebug()) {
+                        console.warn('ODCM: Could not find tier content for toggle');
+                    }
+                    return;
+                }
+
+                const component = toggleButton.closest('.odcm-component');
+                const isExpanded = tierContent.style.display !== 'none' && tierContent.style.display !== '';
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Toggling tier:', {
+                        target: target,
+                        isExpanded: isExpanded,
+                        componentId: component?.id || 'unknown'
+                    });
+                }
+
+                if (isExpanded) {
+                    // Collapse the tier
+                    this.collapseTier(tierContent, toggleButton, target, component);
+                } else {
+                    // Expand the tier
+                    this.expandTier(tierContent, toggleButton, target, component);
+                }
+
+            } catch (error) {
+                console.error('ODCM: Error toggling tier:', error);
+                if (odcmIsDebug()) {
+                    console.error('ODCM: Tier toggle error details:', {
+                        target: toggleButton.dataset.target,
+                        buttonText: toggleButton.textContent,
+                        error: error.message
+                    });
+                }
+            }
+        },
+
+        /**
+         * Expand a tier with smooth animation
+         */
+        expandTier(tierContent, toggleButton, target, component) {
+            // Show the content
+            tierContent.style.display = 'block';
+            
+            // Set initial state for animation
+            tierContent.style.opacity = '0';
+            tierContent.style.maxHeight = '0px';
+            tierContent.style.overflow = 'hidden';
+            tierContent.style.transition = 'all 0.3s ease';
+
+            // Force reflow before animation
+            tierContent.offsetHeight;
+
+            // Animate to expanded state
+            tierContent.style.opacity = '1';
+            tierContent.style.maxHeight = '1000px';
+
+            // Update button text based on tier type
+            const showText = toggleButton.textContent;
+            if (target === 'contextual') {
+                toggleButton.textContent = showText.replace('Show', 'Hide');
+                toggleButton.setAttribute('aria-expanded', 'true');
+            } else if (target === 'technical') {
+                toggleButton.textContent = showText.replace('Show', 'Hide');
+                toggleButton.setAttribute('aria-expanded', 'true');
+            }
+
+            // Add expanded class to component
+            if (component) {
+                component.classList.add(`${target}-expanded`);
+            }
+
+            // Clean up after animation
+            setTimeout(() => {
+                tierContent.style.maxHeight = 'none';
+                tierContent.style.overflow = 'visible';
+
+                // Re-highlight code blocks in expanded technical details
+                if (target === 'technical') {
+                    this.highlightCodeBlocks(tierContent);
+                }
+            }, 300);
+
+            if (odcmIsDebug()) {
+                console.log(`ODCM: Expanded ${target} tier`);
+            }
+        },
+
+        /**
+         * Collapse a tier with smooth animation
+         */
+        collapseTier(tierContent, toggleButton, target, component) {
+            // Set up for animation
+            tierContent.style.maxHeight = tierContent.scrollHeight + 'px';
+            tierContent.style.overflow = 'hidden';
+            tierContent.style.transition = 'all 0.3s ease';
+
+            // Force reflow
+            tierContent.offsetHeight;
+
+            // Animate to collapsed state
+            tierContent.style.opacity = '0';
+            tierContent.style.maxHeight = '0px';
+
+            // Update button text based on tier type
+            const hideText = toggleButton.textContent;
+            if (target === 'contextual') {
+                toggleButton.textContent = hideText.replace('Hide', 'Show');
+                toggleButton.setAttribute('aria-expanded', 'false');
+            } else if (target === 'technical') {
+                toggleButton.textContent = hideText.replace('Hide', 'Show');
+                toggleButton.setAttribute('aria-expanded', 'false');
+            }
+
+            // Remove expanded class from component
+            if (component) {
+                component.classList.remove(`${target}-expanded`);
+            }
+
+            // Hide completely after animation
+            setTimeout(() => {
+                tierContent.style.display = 'none';
+                tierContent.style.transition = '';
+                tierContent.style.maxHeight = '';
+                tierContent.style.overflow = '';
+                tierContent.style.opacity = '';
+            }, 300);
+
+            if (odcmIsDebug()) {
+                console.log(`ODCM: Collapsed ${target} tier`);
+            }
+        },
+
+        // =================================================================
         // DETAIL PANE
         // =================================================================
         async selectLog(log) {
@@ -2143,7 +2347,11 @@ function insightDashboard() {
             this.detailLoading = false;
             this.$nextTick(() => {
                 const detailPane = document.querySelector('.odcm-detail-content');
-                if (detailPane) this.highlightCodeBlocks(detailPane);
+                if (detailPane) {
+                    this.highlightCodeBlocks(detailPane);
+                    // Initialize three-tier toggles for newly loaded content
+                    this.initThreeTierToggles();
+                }
             });
         },
 

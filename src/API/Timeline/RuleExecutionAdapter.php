@@ -7,7 +7,8 @@ namespace OrderDaemon\CompletionManager\API\Timeline;
  * Rule Execution Display Adapter
  *
  * Specialized adapter for rule execution events that extracts and organizes
- * rule-specific data for consistent display.
+ * rule-specific data for consistent display. Implements enhanced order ID
+ * extraction to solve the "Order #0" issue.
  *
  * @package OrderDaemon\CompletionManager\API\Timeline
  * @since   1.0.0
@@ -24,85 +25,258 @@ class RuleExecutionAdapter extends DisplayAdapter
     {
         $fields = [];
 
-        // Extract rule execution data
-        $ruleExecution = $payload['rule_execution'] ?? [];
-        $ruleConfig = $ruleExecution['rule_configuration'] ?? [];
-        $triggerContext = $ruleExecution['trigger_event_context'] ?? [];
-        $actionExecution = $ruleExecution['action_execution'] ?? [];
-        $conditionEval = $ruleExecution['condition_evaluation'] ?? [];
+        // Enhanced order ID extraction specifically for rule executions
+        $order_id = $this->extractRuleExecutionOrderId($payload);
 
-        // Rule information (main section)
-        if (!empty($ruleConfig['rule_name'])) {
-            $fields['rule_name'] = [
-                'label' => 'Rule Name',
-                'value' => $ruleConfig['rule_name'],
-                'section' => 'main'
-            ];
-        }
-
-        if (!empty($ruleConfig['rule_id'])) {
-            $fields['rule_id'] = [
-                'label' => 'Rule ID',
-                'value' => '#' . $ruleConfig['rule_id'],
-                'section' => 'main'
-            ];
-        }
-
-        // Trigger information (main section)
-        if (!empty($triggerContext['triggering_event'])) {
-            $triggerEvent = $triggerContext['triggering_event'];
-            $triggerLabel = $this->formatTriggerEvent($triggerEvent);
-            $fields['trigger_event'] = [
-                'label' => 'Trigger',
-                'value' => $triggerLabel,
-                'section' => 'main'
-            ];
-        }
-
-        // Execution status (main section)
-        $executionStatus = $payload['execution_status'] ?? $payload['status'] ?? 'executed';
-        $fields['execution_status'] = [
-            'label' => 'Status',
-            'value' => ucfirst($executionStatus),
-            'section' => 'main'
+        // Event description with context
+        $ruleName = $this->extractRuleName($payload);
+        $fields['event_description'] = [
+            'label' => $this->translate('Event'),
+            'value' => sprintf($this->translate('Automation: %s rule executed'), $ruleName),
+            'section' => 'primary'
         ];
 
-        // Actions taken (main section)
-        if (!empty($actionExecution['primary_action']['action_label'])) {
-            $primaryAction = $actionExecution['primary_action']['action_label'];
-            $fields['primary_action'] = [
-                'label' => 'Primary Action',
-                'value' => $primaryAction,
-                'section' => 'main'
+        // Order ID (critical for fixing Order #0)
+        if ($order_id > 0) {
+            $fields['order_id'] = [
+                'label' => $this->translate('Order'),
+                'value' => '#' . $order_id,
+                'section' => 'primary'
             ];
         }
 
-        // Additional details (detail sections)
+        // Rule name
+        $fields['rule_name'] = [
+            'label' => $this->translate('Rule'),
+            'value' => $ruleName,
+            'section' => 'primary'
+        ];
+
+        // Actions taken
+        $actions = $this->extractActionsTaken($payload);
+        if (!empty($actions)) {
+            $fields['actions_taken'] = [
+                'label' => $this->translate('Action Taken'),
+                'value' => implode(', ', $actions),
+                'section' => 'primary'
+            ];
+        }
+
+        // Execution status
+        $status = $payload['rule_execution']['status'] ?? 
+                 $payload['execution_status'] ?? 
+                 $payload['status'] ?? 
+                 'EXECUTED';
+        $fields['execution_status'] = [
+            'label' => $this->translate('Execution Status'),
+            'value' => ucfirst(strtolower($status)),
+            'section' => 'primary'
+        ];
+
+        // Status changes with context
+        $fields['status_change'] = [
+            'label' => $this->translate('Status Change'),
+            'value' => sprintf(
+                $this->translate('%s → %s'),
+                $this->translate('Pending', 'order-daemon'),
+                $this->translate('Completed', 'order-daemon')
+            ),
+            'section' => 'primary'
+        ];
+
+        // Additional rule execution details (detail sections)
+        $this->addRuleExecutionDetails($fields, $payload);
+
+        return $fields;
+    }
+    
+    /**
+     * Enhanced order ID extraction specifically for rule execution events
+     *
+     * This method implements a priority-based search through multiple payload
+     * locations to find the most reliable order ID for rule execution contexts.
+     *
+     * @since 1.2.0
+     * 
+     * @param array $payload The event payload containing rule execution data.
+     * @return int The extracted order ID, or 0 if none found.
+     */
+    private function extractRuleExecutionOrderId(array $payload): int
+    {
+        // Extended sources list for rule executions - implementing the guide's enhanced extraction
+        $sources = [
+            // Priority 1: Rule execution context (most reliable for rule events)
+            $payload['rule_execution']['order_evaluation_context']['order_id'] ?? null,
+            $payload['rule_execution']['trigger_event_context']['order_id'] ?? null,
+            $payload['rule_execution']['context']['order_id'] ?? null,
+            
+            // Priority 2: Event trigger context  
+            $payload['trigger_event_context']['order_id'] ?? null,
+            $payload['trigger_context']['order_id'] ?? null,
+            
+            // Priority 3: Direct payload
+            $payload['order_id'] ?? null,
+            $payload['primary_object_id'] ?? null,
+            
+            // Priority 4: Data nested
+            ($payload['data'] ?? [])['order_id'] ?? null,
+            ($payload['data'] ?? [])['primary_object_id'] ?? null,
+            
+            // Priority 5: Technical details
+            ($payload['technical_details'] ?? [])['order_id'] ?? null,
+            
+            // Priority 6: Event data summary
+            ($payload['event_data_summary'] ?? [])['order_id'] ?? null,
+            
+            // Priority 7: Rule-specific locations
+            ($payload['rule_execution'] ?? [])['rule_configuration']['target_order_id'] ?? null,
+            ($payload['rule_execution'] ?? [])['evaluation_context']['order'] ?? null,
+        ];
+        
+        foreach ($sources as $source) {
+            if (is_numeric($source) && (int)$source > 0) {
+                return (int)$source;
+            }
+            // Handle case where order ID might be in an object/array format
+            if (is_array($source) && isset($source['id']) && is_numeric($source['id']) && (int)$source['id'] > 0) {
+                return (int)$source['id'];
+            }
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * Extract rule name from payload
+     *
+     * @param array $payload The event payload
+     * @return string The rule name
+     */
+    private function extractRuleName(array $payload): string
+    {
+        return $payload['rule_execution']['rule_name'] ?? 
+               $payload['rule_execution']['rule_configuration']['rule_name'] ?? 
+               $payload['rule_name'] ?? 
+               $payload['data']['rule_name'] ?? 
+               $this->translate('Unknown Rule', 'order-daemon');
+    }
+    
+    /**
+     * Extract actions taken by the rule
+     *
+     * @param array $payload The event payload
+     * @return array Array of action descriptions
+     */
+    private function extractActionsTaken(array $payload): array
+    {
+        $actions = [];
+        
+        // Check various locations for actions
+        $actionData = $payload['rule_execution']['actions'] ?? 
+                     $payload['rule_execution']['action_execution'] ?? 
+                     $payload['actions_taken'] ?? 
+                     $payload['data']['actions'] ?? 
+                     [];
+        
+        if (is_array($actionData)) {
+            // Handle different action data formats
+            if (isset($actionData['primary_action'])) {
+                $primaryAction = $actionData['primary_action'];
+                if (is_string($primaryAction)) {
+                    $actions[] = $primaryAction;
+                } elseif (is_array($primaryAction)) {
+                    $actions[] = $primaryAction['action_label'] ?? 
+                                $primaryAction['description'] ?? 
+                                $primaryAction['type'] ?? 
+                                $this->translate('Action Executed');
+                }
+            } else {
+                // Handle flat array of actions
+                foreach ($actionData as $action) {
+                    if (is_string($action)) {
+                        $actions[] = $action;
+                    } elseif (is_array($action)) {
+                        $actions[] = $action['description'] ?? 
+                                    $action['action_label'] ?? 
+                                    $action['type'] ?? 
+                                    $this->translate('Action Executed');
+                    }
+                }
+            }
+        }
+        
+        // Fallback: if no actions found, try to infer from rule execution status
+        if (empty($actions)) {
+            $status = $payload['rule_execution']['status'] ?? 
+                     $payload['execution_status'] ?? 
+                     $payload['status'] ?? '';
+            
+            if (strtolower($status) === 'executed' || strtolower($status) === 'success') {
+                $actions[] = $this->translate('Rule Actions Executed');
+            }
+        }
+        
+        return array_unique($actions);
+    }
+
+    /**
+     * Add detailed rule execution information to detail sections
+     *
+     * @param array &$fields Reference to fields array to add details to
+     * @param array $payload The event payload
+     * @return void
+     */
+    private function addRuleExecutionDetails(array &$fields, array $payload): void
+    {
+        $ruleExecution = $payload['rule_execution'] ?? [];
+        $triggerContext = $ruleExecution['trigger_event_context'] ?? [];
+        $conditionEval = $ruleExecution['condition_evaluation'] ?? [];
+        $actionExecution = $ruleExecution['action_execution'] ?? [];
+
+        // Trigger details section
+        if (!empty($triggerContext['triggering_event'])) {
+            $fields['trigger_event'] = [
+                'label' => $this->translate('Trigger Event'),
+                'value' => $this->formatTriggerEvent($triggerContext['triggering_event']),
+                'section' => 'trigger_details'
+            ];
+        }
+
         if (!empty($triggerContext['event_source'])) {
             $fields['event_source'] = [
-                'label' => 'Event Source',
+                'label' => $this->translate('Event Source'),
                 'value' => ucfirst($triggerContext['event_source']),
                 'section' => 'trigger_details'
             ];
         }
 
+        // Condition evaluation section
         if (!empty($conditionEval['conditions_passed']) && !empty($conditionEval['total_conditions'])) {
             $fields['condition_summary'] = [
-                'label' => 'Conditions Passed',
+                'label' => $this->translate('Conditions Passed'),
                 'value' => $conditionEval['conditions_passed'] . '/' . $conditionEval['total_conditions'],
                 'section' => 'evaluation_details'
             ];
         }
 
+        // Action execution section
         if (!empty($actionExecution['primary_action']['execution_result'])) {
             $fields['action_result'] = [
-                'label' => 'Action Result',
+                'label' => $this->translate('Action Result'),
                 'value' => ucfirst($actionExecution['primary_action']['execution_result']),
                 'section' => 'action_details'
             ];
         }
 
-        return $fields;
+        // Rule configuration details
+        $ruleConfig = $ruleExecution['rule_configuration'] ?? [];
+        if (!empty($ruleConfig['rule_id'])) {
+            $fields['rule_id'] = [
+                'label' => $this->translate('Rule ID'),
+                'value' => '#' . $ruleConfig['rule_id'],
+                'section' => 'rule_details'
+            ];
+        }
     }
 
     /**
@@ -113,17 +287,15 @@ class RuleExecutionAdapter extends DisplayAdapter
      */
     private function formatTriggerEvent(string $triggerEvent): string
     {
-        switch ($triggerEvent) {
-            case 'payment_completed':
-                return 'Payment Completed';
-            case 'order_status_changed':
-                return 'Order Status Changed';
-            case 'checkout_completed':
-                return 'Checkout Completed';
-            case 'order_created':
-                return 'Order Created';
-            default:
-                return ucwords(str_replace('_', ' ', $triggerEvent));
-        }
+        $eventLabels = [
+            'payment_completed' => $this->translate('Payment Completed'),
+            'order_status_changed' => $this->translate('Order Status Changed'),
+            'checkout_completed' => $this->translate('Checkout Completed'),
+            'order_created' => $this->translate('Order Created'),
+            'order_updated' => $this->translate('Order Updated'),
+            'status_changed' => $this->translate('Status Changed'),
+        ];
+
+        return $eventLabels[$triggerEvent] ?? ucwords(str_replace('_', ' ', $triggerEvent));
     }
 }

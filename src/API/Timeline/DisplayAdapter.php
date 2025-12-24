@@ -117,7 +117,9 @@ abstract class DisplayAdapter
     protected function recursiveScan(array $data, array &$result, array $patterns, string $prefix = ''): void
     {
         foreach ($data as $key => $value) {
-            $currentPath = empty($prefix) ? $key : $prefix . '.' . $key;
+            // Convert key to string to handle numeric keys
+            $keyString = is_int($key) ? (string)$key : $key;
+            $currentPath = empty($prefix) ? $keyString : $prefix . '.' . $keyString;
 
             // Skip if this is a complex object that should be handled by specialized methods
             if (is_array($value) && $this->isComplexObject($value)) {
@@ -127,7 +129,7 @@ abstract class DisplayAdapter
             // Check if this key matches any interesting pattern
             $matchesPattern = false;
             foreach ($patterns as $pattern) {
-                if (strpos($key, $pattern) !== false) {
+                if (strpos($keyString, $pattern) !== false) {
                     $matchesPattern = true;
                     break;
                 }
@@ -197,7 +199,7 @@ abstract class DisplayAdapter
                 $label = $config['label'];
                 $value = $config['value'];
 
-                if ($section === 'main') {
+                if ($section === 'main' || $section === 'primary') {
                     $display_sections[$key] = [
                         'label' => $label,
                         'value' => $value
@@ -220,7 +222,7 @@ abstract class DisplayAdapter
         // Add additional fields to detail sections
         if (!empty($additionalFields)) {
             $detail_sections['additional_details'] = [
-                'label' => 'Additional Details',
+                'label' => $this->translate('Additional Details', 'order-daemon'),
                 'data' => []
             ];
 
@@ -248,13 +250,27 @@ abstract class DisplayAdapter
      */
     protected function formatFieldLabel(string $key): string
     {
-        // Replace underscores and dots with spaces
-        $label = str_replace(['_', '.'], ' ', $key);
+        $labelMappings = [
+            'data.order_id' => $this->translate('Order', 'order-daemon'),
+            'data.status' => $this->translate('Status', 'order-daemon'),
+            'data.amount' => $this->translate('Amount', 'order-daemon'),
+            'data.currency' => $this->translate('Currency', 'order-daemon'),
+            'data.customer_id' => $this->translate('Customer', 'order-daemon'),
+            'data.payment_method' => $this->translate('Payment Method', 'order-daemon'),
+            'rawData.from_status' => $this->translate('Previous Status', 'order-daemon'),
+            'rawData.to_status' => $this->translate('New Status', 'order-daemon'),
+            'rawData.attribution.request_type' => $this->translate('Triggered By', 'order-daemon'),
+            'rawData.order_total' => $this->translate('Order Total', 'order-daemon'),
+        ];
 
-        // Capitalize words
-        $label = ucwords($label);
+        // Check for exact match first
+        if (isset($labelMappings[$key])) {
+            return $labelMappings[$key];
+        }
 
-        return $label;
+        // Remove technical prefixes and format
+        $cleaned = preg_replace('/^(data\.|rawData\.|RawData\s|Data\s)/', '', $key);
+        return ucwords(str_replace(['_', '.'], ' ', $cleaned));
     }
 
     /**
@@ -332,5 +348,100 @@ abstract class DisplayAdapter
         }
 
         return $current;
+    }
+
+    /**
+     * WordPress-compatible translation function with defensive checks
+     *
+     * This method provides safe translation fallbacks when WordPress functions
+     * are not available, preventing adapter exceptions that cause fallback views.
+     *
+     * @param string $text The text to translate
+     * @param string $domain The text domain (optional)
+     * @return string Translated text or original text as fallback
+     */
+    protected function translate(string $text, string $domain = 'order-daemon'): string
+    {
+        // Check if WordPress translation function is available
+        if (function_exists('__')) {
+            try {
+                return __($text, $domain);
+            } catch (\Throwable $e) {
+                // If translation fails, return original text
+                return $text;
+            }
+        }
+        
+        // Fallback: return original text when WordPress not available
+        return $text;
+    }
+
+    /**
+     * WordPress-compatible pluralization function with defensive checks
+     *
+     * @param string $single Singular form
+     * @param string $plural Plural form  
+     * @param int $count Count to determine singular/plural
+     * @param string $domain The text domain
+     * @return string Appropriate singular/plural form
+     */
+    protected function pluralize(string $single, string $plural, int $count, string $domain = 'order-daemon'): string
+    {
+        // Check if WordPress pluralization function is available
+        if (function_exists('_n')) {
+            try {
+                return _n($single, $plural, $count, $domain);
+            } catch (\Throwable $e) {
+                // Fallback to simple logic
+                return $count === 1 ? $single : $plural;
+            }
+        }
+        
+        // Fallback: simple pluralization logic
+        return $count === 1 ? $single : $plural;
+    }
+
+    /**
+     * WordPress-compatible HTML escaping with defensive checks
+     *
+     * @param string $text Text to escape
+     * @return string Escaped text
+     */
+    protected function escapeHtml(string $text): string
+    {
+        // Check if WordPress escaping function is available
+        if (function_exists('esc_html')) {
+            try {
+                return esc_html($text);
+            } catch (\Throwable $e) {
+                // Fallback to PHP's htmlspecialchars
+                return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+            }
+        }
+        
+        // Fallback: use PHP's built-in escaping
+        return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    }
+
+    /**
+     * WordPress-compatible attribute escaping with defensive checks
+     *
+     * @param string $text Text to escape for attributes
+     * @return string Escaped text
+     */
+    protected function escapeAttr(string $text): string
+    {
+        // Check if WordPress escaping function is available
+        if (function_exists('esc_attr')) {
+            try {
+                return esc_attr($text);
+            } catch (\Throwable $e) {
+                // Fallback to PHP's htmlspecialchars
+                return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+            }
+        }
+        
+        // Fallback: use PHP's built-in escaping
+        return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
     }
 }
