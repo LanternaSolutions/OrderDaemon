@@ -178,13 +178,21 @@ class OrderEventAdapter extends DisplayAdapter
                      $payload['order_data']['customer_id'] ?? null;
 
         if ($customerId) {
+            // Get enriched customer data by fetching from WordPress
+            $customerData = $this->getEnrichedCustomerData($customerId);
+
             $fields['customer'] = [
                 'label' => $this->translate('Customer'),
-                'value' => $this->formatCustomerReference($customerId, $payload),
+                'value' => $this->formatCleanCustomerReference(
+                    $customerId,
+                    $customerData['first_name'],
+                    $customerData['last_name'],
+                    $customerData['username']
+                ),
                 'section' => 'primary'
             ];
         }
-        
+
         // Payment method
         $paymentMethod = $payload['payment_method'] ?? 
                         $payload['data']['payment_method'] ?? 
@@ -194,6 +202,24 @@ class OrderEventAdapter extends DisplayAdapter
             $fields['payment_method'] = [
                 'label' => $this->translate('Payment Method'),
                 'value' => $this->formatPaymentMethod($paymentMethod),
+                'section' => 'primary'
+            ];
+        }
+
+        // Order total with currency - use base class method for consistent formatting
+        $amount = $payload['order_total'] ?? 
+                 $payload['data']['order_total'] ?? 
+                 $payload['order_data']['total'] ?? 
+                 $payload['total'] ?? null;
+
+        $currency = $payload['currency'] ?? 
+                   $payload['data']['currency'] ?? 
+                   $payload['order_data']['currency'] ?? 'USD';
+
+        if ($amount) {
+            $fields['amount'] = [
+                'label' => $this->translate('Amount'),
+                'value' => $this->formatCleanCurrency($amount, $currency),
                 'section' => 'primary'
             ];
         }
@@ -256,34 +282,30 @@ class OrderEventAdapter extends DisplayAdapter
      */
     private function addCommonOrderFields(array &$fields, array $payload): void
     {
-        // Order total
-        $total = $payload['order_total'] ?? 
-                $payload['data']['order_total'] ?? 
-                $payload['order_data']['total'] ?? 
-                $payload['total'] ?? null;
-
-        if ($total) {
-            $fields['order_total'] = [
-                'label' => $this->translate('Order Total'),
-                'value' => $this->formatCurrency($total),
+        // Order ID - only add to detail section if not already in primary section
+        $order_id = $this->extractOrderId($payload);
+        if ($order_id > 0 && !isset($fields['order_id'])) {
+            $fields['order_id'] = [
+                'label' => $this->translate('Order'),
+                'value' => '#' . $order_id,
                 'section' => 'order_details'
             ];
         }
-        
-        // Order status (current)
+
+        // Order status (current) - only add if not already added by status change logic
         $currentStatus = $payload['order_status'] ?? 
                         $payload['data']['order_status'] ?? 
                         $payload['status'] ?? 
                         $payload['to_status'] ?? null;
 
-        if ($currentStatus) {
+        if ($currentStatus && !isset($fields['status']) && !isset($fields['status_change'])) {
             $fields['current_status'] = [
-                'label' => $this->translate('Current Status'),
+                'label' => $this->translate('Status'),
                 'value' => ucfirst($currentStatus),
                 'section' => 'order_details'
             ];
         }
-        
+
         // Order date
         $orderDate = $payload['order_date'] ?? 
                     $payload['data']['order_date'] ?? 
@@ -296,7 +318,7 @@ class OrderEventAdapter extends DisplayAdapter
                 'section' => 'order_details'
             ];
         }
-        
+
         // Item count
         $itemCount = $payload['item_count'] ?? 
                     $payload['data']['item_count'] ?? 
@@ -412,6 +434,51 @@ class OrderEventAdapter extends DisplayAdapter
         return (string)$userRef;
     }
     
+    /**
+     * Get enriched customer data from WordPress user database
+     *
+     * This method fetches user data from WordPress to enrich the timeline display
+     * with customer names instead of just IDs.
+     *
+     * @param int $customerId The customer ID
+     * @return array Customer data with first_name, last_name, and username
+     */
+    private function getEnrichedCustomerData(int $customerId): array
+    {
+        $firstName = null;
+        $lastName = null;
+        $username = null;
+
+        // Try to get user data from WordPress
+        if (function_exists('get_user_by')) {
+            try {
+                $user = get_user_by('id', $customerId);
+
+                if ($user instanceof \WP_User) {
+                    // Get first name from user meta
+                    $firstName = $user->first_name;
+
+                    // Get last name from user meta
+                    $lastName = $user->last_name;
+
+                    // Use username as fallback if no first/last name
+                    if (empty($firstName) && empty($lastName)) {
+                        $username = $user->user_login;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // If WordPress function fails, continue with null values
+                // This ensures the adapter doesn't break if WordPress functions aren't available
+            }
+        }
+
+        return [
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'username' => $username
+        ];
+    }
+
     /**
      * Format customer reference for display
      *

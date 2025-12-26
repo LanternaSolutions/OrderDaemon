@@ -170,48 +170,78 @@ abstract class DisplayAdapter
     }
 
     /**
-     * Organize extracted fields into display sections
+     * Organize extracted fields into unified business data structure
      *
      * @param array $standardFields Standard fields
      * @param array $specializedFields Specialized fields
      * @param array $additionalFields Additional fields
-     * @return array Organized display sections
+     * @return array Organized display data with unified business structure
      */
     protected function organizeIntoSections(array $standardFields, array $specializedFields, array $additionalFields): array
     {
         $display_sections = [];
-        $detail_sections = [];
         $tech_data = [];
 
-        // Add standard fields to display sections
+        // Detect debug mode
+        $debugMode = $this->isDebugMode();
+
+        // Business-relevant fields that should be shown in main display
+        $business_relevant_fields = [
+            'timestamp', 'customer', 'payment_method', 'amount', 'currency',
+            'order_id', 'status', 'status_change', 'new_status', 'previous_status',
+            'payment_status', 'rule', 'execution_status', 'change_type',
+            'checkout_type', 'transaction_id', 'gateway', 'event_description'
+        ];
+
+        // Technical fields that should only appear in raw data section
+        $technical_fields = [
+            'event_type', 'process_id', 'correlation_id', 'source',
+            'attribution', 'metrics', 'component_count', 'actor',
+            'real_occurrence_timestamp', 'processing_timestamp',
+            'queued_at', 'processed_from_queue', 'technical_context',
+            'rule_execution', 'trigger_event_context', 'condition_evaluation',
+            'action_execution', 'order_evaluation_context', 'execution_metrics',
+            'full_evaluation_trace', 'rawData', 'data'
+        ];
+
+        // Add standard fields to display sections (filtered for business relevance)
         foreach ($standardFields as $key => $value) {
-            $label = $this->formatFieldLabel($key);
-            $display_sections[$key] = [
-                'label' => $label,
-                'value' => $value
-            ];
+            // Skip event_type in non-debug mode
+            if ($key === 'event_type' && !$debugMode) {
+                continue;
+            }
+
+            // Only add business-relevant standard fields to display
+            if (in_array($key, $business_relevant_fields)) {
+                $label = $this->formatFieldLabel($key);
+                $display_sections[$key] = [
+                    'label' => $label,
+                    'value' => $value
+                ];
+            }
         }
 
-        // Add specialized fields to appropriate sections
+        // Add specialized fields to display sections (filtered for business relevance)
         foreach ($specializedFields as $key => $config) {
-            if (isset($config['section'])) {
-                $section = $config['section'];
+            if (isset($config['label']) && isset($config['value'])) {
                 $label = $config['label'];
                 $value = $config['value'];
 
-                if ($section === 'main' || $section === 'primary') {
-                    $display_sections[$key] = [
-                        'label' => $label,
-                        'value' => $value
-                    ];
-                } else {
-                    if (!isset($detail_sections[$section])) {
-                        $detail_sections[$section] = [
-                            'label' => $this->formatSectionLabel($section),
-                            'data' => []
-                        ];
+                // Only add business-relevant specialized fields to display
+                if (in_array($key, $business_relevant_fields) ||
+                    strpos($key, 'status') !== false ||
+                    strpos($key, 'amount') !== false ||
+                    strpos($key, 'customer') !== false ||
+                    strpos($key, 'payment') !== false ||
+                    strpos($key, 'order') !== false ||
+                    strpos($key, 'rule') !== false) {
+
+                    // Skip event_description if we already have it from standard fields
+                    if ($key === 'event_description' && isset($display_sections['event_description'])) {
+                        continue;
                     }
-                    $detail_sections[$section]['data'][$key] = [
+
+                    $display_sections[$key] = [
                         'label' => $label,
                         'value' => $value
                     ];
@@ -219,25 +249,31 @@ abstract class DisplayAdapter
             }
         }
 
-        // Add additional fields to detail sections
-        if (!empty($additionalFields)) {
-            $detail_sections['additional_details'] = [
-                'label' => $this->translate('Additional Details', 'order-daemon'),
-                'data' => []
-            ];
+        // Add select additional fields that might be business-relevant
+        foreach ($additionalFields as $key => $value) {
+            // Only add fields that look like they might be business-relevant
+            if (strpos($key, 'status') !== false ||
+                strpos($key, 'amount') !== false ||
+                strpos($key, 'customer') !== false ||
+                strpos($key, 'payment') !== false ||
+                strpos($key, 'order') !== false ||
+                strpos($key, 'total') !== false ||
+                strpos($key, 'method') !== false) {
 
-            foreach ($additionalFields as $key => $value) {
-                $label = $this->formatFieldLabel($key);
-                $detail_sections['additional_details']['data'][$key] = [
-                    'label' => $label,
-                    'value' => $value
-                ];
+                // Avoid duplicates
+                if (!isset($display_sections[$key])) {
+                    $label = $this->formatFieldLabel($key);
+                    $display_sections[$key] = [
+                        'label' => $label,
+                        'value' => $value
+                    ];
+                }
             }
         }
 
         return [
             'display_sections' => $display_sections,
-            'detail_sections' => $detail_sections,
+            'detail_sections' => [], // No longer used - all business data is in display_sections
             'tech_data' => $tech_data
         ];
     }
@@ -440,8 +476,532 @@ abstract class DisplayAdapter
                 return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
             }
         }
-        
+
         // Fallback: use PHP's built-in escaping
         return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    }
+
+    /**
+     * Check if debug mode is enabled
+     *
+     * @return bool True if debug mode is enabled
+     */
+    protected function isDebugMode(): bool
+    {
+        return defined('ODCM_DEBUG') && ODCM_DEBUG;
+    }
+
+    /**
+     * Format currency with amount and currency combined
+     *
+     * @param mixed $amount The currency amount
+     * @param string $currency The currency code
+     * @return string Formatted currency string
+     */
+    protected function formatCleanCurrency($amount, string $currency): string
+    {
+        if (is_numeric($amount)) {
+            return number_format((float)$amount, 2, '.', '') . ' ' . strtoupper($currency);
+        }
+        return (string)$amount;
+    }
+
+    /**
+     * Format customer reference with name and ID
+     *
+     * @param string $customerId The customer ID
+     * @param string|null $firstName The customer first name
+     * @param string|null $lastName The customer last name
+     * @param string|null $email The customer email
+     * @return string Formatted customer reference
+     */
+    protected function formatCleanCustomerReference($customerId, ?string $firstName, ?string $lastName, ?string $email): string
+    {
+        $nameParts = [];
+        if ($firstName) $nameParts[] = $firstName;
+        if ($lastName) $nameParts[] = $lastName;
+
+        if (!empty($nameParts)) {
+            $name = implode(' ', $nameParts);
+            return sprintf('Customer: %s (ID: %s)', $name, $customerId);
+        }
+
+        if ($email) {
+            return sprintf('Customer: %s (ID: %s)', $email, $customerId);
+        }
+
+        return sprintf('Customer ID: %s', $customerId);
+    }
+
+    /**
+     * Format status change as "from → to"
+     *
+     * @param string $fromStatus The from status
+     * @param string $toStatus The to status
+     * @return string Formatted status change
+     */
+    protected function formatStatusChange(string $fromStatus, string $toStatus): string
+    {
+        return sprintf('%s → %s', ucfirst($fromStatus), ucfirst($toStatus));
+    }
+
+    /**
+     * Generate status pill HTML for timeline component headers
+     *
+     * @param string $label Display text for the status pill
+     * @param string $status_type Status type for CSS theming
+     * @return string HTML status pill element
+     */
+    protected function renderStatusPill(string $label, string $status_type): string
+    {
+        // Map semantic types to existing pill variants
+        $pill_variant_map = [
+            'error' => 'error',
+            'warning' => 'warning',
+            'success' => 'success',
+            'info' => 'info',
+            'completed' => 'completed',
+            'pending' => 'pending',
+            'skipped' => 'skipped'
+        ];
+
+        // Get the appropriate pill variant, default to 'info' for unknown types
+        $pill_class = $pill_variant_map[strtolower($status_type)] ?? 'info';
+
+        return '<span class="odcm-status-pill odcm-status-pill--' . esc_attr($pill_class) . '">' .
+               esc_html($label) . '</span>';
+    }
+
+    /**
+     * Map status value to appropriate status pill type
+     *
+     * @param string $eventType The event type
+     * @param string $statusValue The status value
+     * @return string Status pill type
+     */
+    protected function mapStatusToPillType(string $eventType, string $statusValue): string
+    {
+        $statusMap = [
+            // Order statuses
+            'pending' => 'info',
+            'processing' => 'info',
+            'on-hold' => 'warning',
+            'completed' => 'success',
+            'cancelled' => 'warning',
+            'refunded' => 'info',
+            'failed' => 'error',
+
+            // Payment statuses
+            'paid' => 'success',
+            'completed' => 'success',
+            'failed' => 'error',
+            'pending' => 'info',
+            'processing' => 'info',
+            'refunded' => 'info',
+            'cancelled' => 'warning',
+
+            // Rule execution statuses
+            'success' => 'success',
+            'failed' => 'error',
+            'skipped' => 'info',
+            'executed' => 'success',
+
+            // Generic statuses
+            'error' => 'error',
+            'warning' => 'warning',
+            'info' => 'info',
+            'debug' => 'info'
+        ];
+
+        return $statusMap[strtolower($statusValue)] ?? 'info';
+    }
+
+    /**
+     * Extract primary status from display data for status pill
+     *
+     * @param array $displayData The display data from adapter
+     * @param array $rawPayload The original event payload
+     * @return array|null Array with 'label' and 'type' for status pill, or null if no status
+     */
+    protected function extractPrimaryStatus(array $displayData, array $rawPayload): ?array
+    {
+        $eventType = $rawPayload['event_type'] ?? 'unknown';
+
+        // Try to extract status from display sections first
+        $statusFields = ['status', 'order_status', 'payment_status', 'execution_status', 'status_change'];
+
+        foreach ($statusFields as $field) {
+            if (isset($displayData['display_sections'][$field])) {
+                $statusValue = $displayData['display_sections'][$field]['value'] ?? '';
+
+                // Map status to pill type based on event type
+                $pillType = $this->mapStatusToPillType($eventType, $statusValue);
+
+                return [
+                    'label' => $statusValue,
+                    'type' => $pillType
+                ];
+            }
+        }
+
+        // Fallback: try to extract from raw payload
+        if (isset($rawPayload['status'])) {
+            $pillType = $this->mapStatusToPillType($eventType, $rawPayload['status']);
+            return [
+                'label' => $rawPayload['status'],
+                'type' => $pillType
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Get event type configuration
+     *
+     * @param string $event_type The event type
+     * @return array Event configuration
+     */
+    protected function getEventTypeConfig(string $event_type): array
+    {
+        $event_configs = [
+            // Order events
+            'order_created' => [
+                'dashicon' => 'dashicons-cart',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'pending',
+                'priority' => 4,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_updated' => [
+                'dashicon' => 'dashicons-update',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'updated',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_completed' => [
+                'dashicon' => 'dashicons-yes',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'completed',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_cancelled' => [
+                'dashicon' => 'dashicons-no',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'cancelled',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_refunded' => [
+                'dashicon' => 'dashicons-undo',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'refunded',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_processing' => [
+                'dashicon' => 'dashicons-update',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'processing',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_on_hold' => [
+                'dashicon' => 'dashicons-admin-generic',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'on hold',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_pending' => [
+                'dashicon' => 'dashicons-cart',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'pending',
+                'priority' => 4,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_failed' => [
+                'dashicon' => 'dashicons-warning',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'failed',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'status_changed' => [
+                'dashicon' => 'dashicons-migrate',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => '→ completed',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            // Payment events
+            'checkout_processed' => [
+                'dashicon' => 'dashicons-money-alt',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'checkout-draft',
+                'priority' => 3,
+                'category' => 'Payment'
+            ],
+            'payment_completed' => [
+                'dashicon' => 'dashicons-payment',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'completed',
+                'priority' => 3,
+                'category' => 'Payment'
+            ],
+            'payment_failed' => [
+                'dashicon' => 'dashicons-payment',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'failed',
+                'priority' => 3,
+                'category' => 'Payment'
+            ],
+            // Rule execution events
+            'rule_execution' => [
+                'dashicon' => 'dashicons-admin-generic',
+                'theme_class' => 'odcm-component--rule',
+                'primary_color' => 'blue-700',
+                'status_display' => 'success',
+                'priority' => 2,
+                'category' => 'Rule'
+            ],
+            'rule_evaluation_non_canonical' => [
+                'dashicon' => 'dashicons-admin-generic',
+                'theme_class' => 'odcm-component--rule',
+                'primary_color' => 'blue-700',
+                'status_display' => 'non-canonical',
+                'priority' => 2,
+                'category' => 'Rule'
+            ],
+            // System events
+            'admin_action' => [
+                'dashicon' => 'dashicons-admin-tools',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'admin',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'process_started' => [
+                'dashicon' => 'dashicons-admin-tools',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'started',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'info' => [
+                'dashicon' => 'dashicons-admin-tools',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'info',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'metrics' => [
+                'dashicon' => 'dashicons-admin-tools',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'metrics',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'system_info' => [
+                'dashicon' => 'dashicons-admin-tools',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'system',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            // Refund events
+            'refund_created' => [
+                'dashicon' => 'dashicons-undo',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'refunded',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'refund_deleted' => [
+                'dashicon' => 'dashicons-undo',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'refund deleted',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'refund_analysis' => [
+                'dashicon' => 'dashicons-undo',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'refund analysis',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            // Subscription events
+            'subscription_created' => [
+                'dashicon' => 'dashicons-calendar-alt',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'recurring',
+                'priority' => 2,
+                'category' => 'System'
+            ],
+            // Webhook events
+            'webhook_received' => [
+                'dashicon' => 'dashicons-networking',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'webhook',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            // Condition events
+            'condition_passed' => [
+                'dashicon' => 'dashicons-yes-alt',
+                'theme_class' => 'odcm-component--rule',
+                'primary_color' => 'blue-700',
+                'status_display' => 'passed',
+                'priority' => 2,
+                'category' => 'Rule'
+            ],
+            'condition_failed' => [
+                'dashicon' => 'dashicons-no-alt',
+                'theme_class' => 'odcm-component--rule',
+                'primary_color' => 'blue-700',
+                'status_display' => 'failed',
+                'priority' => 2,
+                'category' => 'Rule'
+            ],
+            // Error/Debug events
+            'fallback' => [
+                'dashicon' => 'dashicons-warning',
+                'theme_class' => 'odcm-component--error',
+                'primary_color' => 'red-700',
+                'status_display' => 'error',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'debug' => [
+                'dashicon' => 'dashicons-warning',
+                'theme_class' => 'odcm-component--error',
+                'primary_color' => 'red-700',
+                'status_display' => 'debug',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            '_status_evaluation' => [
+                'dashicon' => 'dashicons-warning',
+                'theme_class' => 'odcm-component--error',
+                'primary_color' => 'red-700',
+                'status_display' => 'evaluation',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            // Universal events
+            'universal_event_processing' => [
+                'dashicon' => 'dashicons-admin-site',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'processed',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'universal_event_duplicate' => [
+                'dashicon' => 'dashicons-admin-site',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'duplicate',
+                'priority' => 1,
+                'category' => 'System'
+            ]
+        ];
+
+        // Check for exact match
+        if (isset($event_configs[$event_type])) {
+            return $event_configs[$event_type];
+        }
+
+        // Check for patterns
+        if (strpos($event_type, 'payment.stripe.') === 0) {
+            return [
+                'dashicon' => 'dashicons-credit-card',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'payment',
+                'priority' => 3,
+                'category' => 'Payment'
+            ];
+        }
+
+        if (strpos($event_type, 'payment.paypal.') === 0) {
+            return [
+                'dashicon' => 'dashicons-paypal',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'payment',
+                'priority' => 3,
+                'category' => 'Payment'
+            ];
+        }
+
+        if (strpos($event_type, 'payment.') === 0) {
+            return [
+                'dashicon' => 'dashicons-payment',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'payment',
+                'priority' => 3,
+                'category' => 'Payment'
+            ];
+        }
+
+        if (strpos($event_type, 'subscription_') === 0) {
+            return [
+                'dashicon' => 'dashicons-calendar-alt',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'recurring',
+                'priority' => 2,
+                'category' => 'System'
+            ];
+        }
+
+        if (strpos($event_type, 'webhook_') === 0) {
+            return [
+                'dashicon' => 'dashicons-networking',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'webhook',
+                'priority' => 1,
+                'category' => 'System'
+            ];
+        }
+
+        // Default fallback
+        return [
+            'dashicon' => 'dashicons-admin-generic',
+            'theme_class' => 'odcm-component--system',
+            'primary_color' => 'grey-700',
+            'status_display' => 'event',
+            'priority' => 1,
+            'category' => 'System'
+        ];
     }
 }

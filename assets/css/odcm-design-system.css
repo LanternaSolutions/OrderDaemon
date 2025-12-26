@@ -250,6 +250,37 @@
     color: var(--odcm-status-text-color);
     font-weight: 500;
     text-transform: capitalize;
+    margin-left: 8px;
+}
+
+/* Right-aligned status pill container */
+.odcm-component__header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+/* Component header restructuring */
+.odcm-component__header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Component header with icon integration */
+.odcm-component__header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.odcm-component-icon.dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: inherit;
 }
 
 /* Status variants override the semantic status variables */

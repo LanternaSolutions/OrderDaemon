@@ -12,30 +12,46 @@ namespace OrderDaemon\CompletionManager\API\Timeline;
 final class RegistryTimelineRenderer implements TimelineRendererInterface
 {
     /**
-     * Log a debug message using WordPress-compatible logging methods
+     * Render primary information for header with proper status pill
      *
-     * @param string $message The message to log
-     * @param string $level The log level (debug, info, warning, error)
-     * @return void
+     * @param array $displayData The display data from adapter
+     * @param array $rawPayload The original event payload
+     * @return string Rendered primary info HTML
      */
-    private function logDebugMessage(string $message, string $level = 'debug'): void
+    private function renderPrimaryInfo(array $displayData, array $rawPayload): string
     {
-        // Only log if debug mode is enabled
-        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
-            return;
+        $sections = $displayData['display_sections'] ?? [];
+
+        // Extract key information for header
+        $title = $sections['event_description']['value'] ?? 
+                $sections['event_type']['value'] ?? 
+                __('Timeline Event', 'order-daemon');
+
+        // Extract primary status for status pill
+        $statusData = $this->extractPrimaryStatus($displayData, $rawPayload);
+        $statusPill = null;
+        if ($statusData) {
+            $statusPill = $this->renderStatusPill($statusData['label'], $statusData['type']);
         }
 
-        // Use WordPress logging function if available
-        if (function_exists('odcm_log_message')) {
-            odcm_log_message($message, $level);
-            return;
+        // Get event type configuration for icon
+        $eventType = $rawPayload['event_type'] ?? 'unknown';
+        $eventConfig = $this->getEventTypeConfig($eventType);
+        $dashicon = $eventConfig['dashicon'] ?? 'dashicons-admin-generic';
+        $themeClass = $eventConfig['theme_class'] ?? 'odcm-component--system';
+
+        // Build HTML with proper structure for right-aligned status pills
+        $html = '<div class="odcm-component__header-left">';
+        $html .= '<span class="odcm-component-icon dashicons ' . esc_attr($dashicon) . '"></span>';
+        $html .= '<span class="odcm-component__title">' . esc_html($title) . '</span>';
+        $html .= '</div>';
+
+        // Add status pill in right-aligned container if available
+        if ($statusPill) {
+            $html .= '<div class="odcm-component__header-right">' . $statusPill . '</div>';
         }
 
-        // Use WordPress debug log function if available
-        if (function_exists('wp_debug_log')) {
-            wp_debug_log($message);
-            return;
-        }
+        return $html;
     }
     /**
      * Render timeline data to HTML
@@ -451,7 +467,10 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     }
 
     /**
-     * Render component using three-tier architecture
+     * Render component using unified business data architecture
+     *
+     * This method displays all business-relevant data in a single section
+     * without subtitles, and technical details are clearly labeled but separate.
      *
      * @param array $displayData The extracted display data from adapter
      * @param array $rawPayload The original event payload
@@ -460,67 +479,38 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     private function renderThreeTierComponent(array $displayData, array $rawPayload): string
     {
         $html = '<div class="odcm-component">';
-        
+
         // Extract basic info
         $timestamp = $this->formatTimestamp($rawPayload['ts'] ?? time());
         $level = $rawPayload['level'] ?? 'info';
-        
+
         // Header with component header structure
         $html .= '<div class="odcm-component__header">';
         $html .= '<div class="odcm-component__header-top">';
         $html .= '<div class="odcm-component__header-left">';
-        $html .= '<div class="odcm-component__title">' . $this->renderPrimaryInfo($displayData) . '</div>';
+        $html .= '<div class="odcm-component__title">' . $this->renderPrimaryInfo($displayData, $rawPayload) . '</div>';
         $html .= '</div>';
         $html .= '</div>';
         $html .= '<div class="odcm-component__header-bottom">';
         $html .= '<span class="odcm-component__ts">' . esc_html($timestamp) . '</span>';
         $html .= '</div>';
         $html .= '</div>';
-        
-        // Body with three tiers
+
+        // Body with unified business section and improved technical section
         $html .= '<div class="odcm-component__body">';
-        
-        // Tier 1: Primary (always visible)
-        $html .= $this->renderPrimaryTier($displayData['display_sections'] ?? []);
-        
-        // Tier 2: Contextual (expandable)
-        if (!empty($displayData['detail_sections'])) {
-            $html .= $this->renderContextualTier($displayData['detail_sections']);
-        }
-        
-        // Tier 3: Technical (expandable)
-        $html .= $this->renderTechnicalTier($rawPayload);
-        
+
+        // Unified Business Section: All business-relevant data in one clean section
+        $html .= $this->renderUnifiedBusinessSection($displayData['display_sections'] ?? []);
+
+        // Improved Technical Section: Clear labeling, complete raw data
+        $html .= $this->renderImprovedTechnicalSection($rawPayload);
+
         $html .= '</div>';
         $html .= '</div>';
-        
+
         return $html;
     }
 
-    /**
-     * Render primary information for header
-     *
-     * @param array $displayData The display data from adapter
-     * @return string Rendered primary info HTML
-     */
-    private function renderPrimaryInfo(array $displayData): string
-    {
-        $sections = $displayData['display_sections'] ?? [];
-        
-        // Extract key information for header
-        $title = $sections['event_description']['value'] ?? 
-                $sections['event_type']['value'] ?? 
-                __('Timeline Event', 'order-daemon');
-        $orderId = $sections['order_id']['value'] ?? null;
-        
-        $html = esc_html($title);
-        if ($orderId && $orderId !== 0) {
-            $orderDisplay = is_numeric($orderId) ? '#' . $orderId : $orderId;
-            $html .= ' <span class="odcm-status-pill">' . esc_html($orderDisplay) . '</span>';
-        }
-        
-        return $html;
-    }
 
     /**
      * Render primary tier (always visible)
@@ -533,40 +523,114 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         if (empty($displaySections)) {
             return '';
         }
-        
+
         $html = '<div class="odcm-key-value-list">';
-        
+
         foreach ($displaySections as $key => $section) {
             if ($key === 'event_description' || $key === 'order_id') {
                 continue; // Already shown in header
             }
-            
+
             $html .= '<div class="odcm-key">' . esc_html($section['label']) . '</div>';
             $html .= '<div class="odcm-value">' . esc_html($section['value']) . '</div>';
         }
-        
+
         $html .= '</div>';
-        
+
         return $html;
     }
 
     /**
-     * Render contextual tier (expandable)
+     * Render unified business section with all business-relevant data
      *
-     * @param array $detailSections The detail sections
-     * @return string Rendered contextual tier HTML
+     * This method creates a section that contains all business-relevant fields.
+     *
+     * @param array $displaySections The display sections containing business data
+     * @return string Rendered unified business section HTML
      */
-    private function renderContextualTier(array $detailSections): string
+    private function renderUnifiedBusinessSection(array $displaySections): string
+    {
+        if (empty($displaySections)) {
+            return '';
+        }
+
+        $html = '<div class="odcm-key-value-list">';
+
+        foreach ($displaySections as $key => $section) {
+            // Skip event_description as it's already shown in the header
+            if ($key === 'event_description' || $key === 'order_id') {
+                continue;
+            }
+
+            $html .= '<div class="odcm-key">' . esc_html($section['label']) . '</div>';
+            $html .= '<div class="odcm-value">' . esc_html($section['value']) . '</div>';
+        }
+
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Render improved technical section with clearer labeling
+     *
+     * This method creates a "Technical Information" section that clearly indicates
+     * it contains complete raw event data for debugging and analysis.
+     *
+     * @param array $rawPayload The raw event payload
+     * @return string Rendered improved technical section HTML
+     */
+    private function renderImprovedTechnicalSection(array $rawPayload): string
     {
         $html = '<div class="odcm-expandable-section">';
-        $html .= '<button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="contextual" aria-expanded="false">' . 
-                 esc_html__('Show Details', 'order-daemon') . '</button>';
+        $html .= '<button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">' .
+                 esc_html__('Show Technical Information', 'order-daemon') . '</button>';
         $html .= '<div class="odcm-tier-content" style="display: none;">';
-        
+
+        // Add clear, general header for technical information
+        $html .= '<div class="odcm-technical-header">';
+        $html .= '<h4>' . esc_html__('Technical Information', 'order-daemon') . '</h4>';
+        $html .= '<p>' . esc_html__('Complete raw event data for debugging and analysis.', 'order-daemon') . '</p>';
+        $html .= '</div>';
+
+        // Format raw payload as JSON with proper prism.js classes
+        $jsonPayload = wp_json_encode($rawPayload, JSON_PRETTY_PRINT);
+        $html .= '<div class="odcm-code-block"><pre><code class="language-json">' . esc_html($jsonPayload) . '</code></pre></div>';
+
+        $html .= '</div>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * Render business-relevant detail sections in the primary tier - DEPRECATED
+     *
+     * This method is kept for backward compatibility but no longer used.
+     * The new unified approach uses renderUnifiedBusinessSection() instead.
+     *
+     * @param array $detailSections The detail sections
+     * @return string Rendered business detail sections HTML
+     * @deprecated Use renderUnifiedBusinessSection() instead
+     */
+    private function renderBusinessDetailSections(array $detailSections): string
+    {
+        if (empty($detailSections)) {
+            return '';
+        }
+
+        $html = '<div class="odcm-business-details">';
+
         foreach ($detailSections as $sectionKey => $section) {
+            // Only show sections that contain business-relevant data
+            // Skip technical sections that should be in the expandable technical tier
+            if (isset($section['is_technical']) && $section['is_technical']) {
+                continue;
+            }
+
             $html .= '<div class="odcm-detail-section">';
             $html .= '<h4 class="odcm-section-title">' . esc_html($section['label']) . '</h4>';
-            
+
             if (!empty($section['data'])) {
                 $html .= '<div class="odcm-key-value-list">';
                 foreach ($section['data'] as $field) {
@@ -575,18 +639,31 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 }
                 $html .= '</div>';
             }
-            
+
             $html .= '</div>';
         }
-        
+
         $html .= '</div>';
-        $html .= '</div>';
-        
+
         return $html;
     }
 
     /**
-     * Render technical tier (expandable)
+     * Render contextual tier (expandable) - DEPRECATED
+     * This method is kept for backward compatibility but no longer used
+     *
+     * @param array $detailSections The detail sections
+     * @return string Rendered contextual tier HTML
+     * @deprecated Use renderBusinessDetailSections() instead
+     */
+    private function renderContextualTier(array $detailSections): string
+    {
+        // This method is now deprecated as we've consolidated to a single technical tier
+        return '';
+    }
+
+    /**
+     * Render technical tier (expandable) - consolidated to include all developer-focused details
      *
      * @param array $rawPayload The raw event payload
      * @return string Rendered technical tier HTML
@@ -597,11 +674,17 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $html .= '<button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">' .
                  esc_html__('Show Technical Details', 'order-daemon') . '</button>';
         $html .= '<div class="odcm-tier-content" style="display: none;">';
-        
+
+        // Add developer-relevant details header
+        $html .= '<div class="odcm-technical-header">';
+        $html .= '<h4>' . esc_html__('Developer Details', 'order-daemon') . '</h4>';
+        $html .= '<p>' . esc_html__('Technical information and raw data for debugging purposes.', 'order-daemon') . '</p>';
+        $html .= '</div>';
+
         // Format raw payload as JSON with proper prism.js classes
         $jsonPayload = wp_json_encode($rawPayload, JSON_PRETTY_PRINT);
         $html .= '<div class="odcm-code-block"><pre><code class="language-json">' . esc_html($jsonPayload) . '</code></pre></div>';
-        
+
         $html .= '</div>';
         $html .= '</div>';
 
@@ -854,5 +937,516 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         }
 
         return false;
+    }
+
+    /**
+     * Log debug messages using WordPress-friendly logging methods
+     *
+     * @param string $message The message to log
+     * @param string $level The log level (debug, info, warning, error)
+     * @return void
+     */
+    private function logDebugMessage(string $message, string $level = 'debug'): void
+    {
+        // Only log if debug is enabled
+        if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
+            return;
+        }
+
+        // Prefix for all debug messages from this class
+        $prefix = "ODCM TIMELINE: [{$level}] ";
+
+        // Use WordPress logging function if available
+        if (function_exists('odcm_log_message')) {
+            odcm_log_message($prefix . $message, $level);
+            return;
+        }
+
+        // Use WordPress debug log function if available
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($prefix . $message);
+            return;
+        }
+
+        // Use WordPress action hook if available for centralized error handling
+        if (function_exists('do_action')) {
+            do_action('odcm_log_' . $level, $prefix . $message);
+            return;
+        }
+
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
+            $debug_file = WP_CONTENT_DIR . '/debug.log';
+            @file_put_contents(
+                $debug_file,
+                '[' . gmdate('Y-m-d H:i:s') . '] ' . $prefix . $message . PHP_EOL,
+                FILE_APPEND
+            );
+        }
+    }
+
+    /**
+     * Generate status pill HTML for timeline component headers
+     *
+     * @param string $label Display text for the status pill
+     * @param string $status_type Status type for CSS theming
+     * @return string HTML status pill element
+     */
+    private function renderStatusPill(string $label, string $status_type): string
+    {
+        // Map semantic types to existing pill variants
+        $pill_variant_map = [
+            'error' => 'error',
+            'warning' => 'warning',
+            'success' => 'success',
+            'info' => 'info',
+            'completed' => 'completed',
+            'pending' => 'pending',
+            'skipped' => 'skipped'
+        ];
+
+        // Get the appropriate pill variant, default to 'info' for unknown types
+        $pill_class = $pill_variant_map[strtolower($status_type)] ?? 'info';
+
+        return '<span class="odcm-status-pill odcm-status-pill--' . esc_attr($pill_class) . '">' .
+               esc_html($label) . '</span>';
+    }
+
+    /**
+     * Map status value to appropriate status pill type
+     *
+     * @param string $eventType The event type
+     * @param string $statusValue The status value
+     * @return string Status pill type
+     */
+    private function mapStatusToPillType(string $eventType, string $statusValue): string
+    {
+        $statusMap = [
+            // Order statuses
+            'pending' => 'info',
+            'processing' => 'info',
+            'on-hold' => 'warning',
+            'completed' => 'success',
+            'cancelled' => 'warning',
+            'refunded' => 'info',
+            'failed' => 'error',
+
+            // Payment statuses
+            'paid' => 'success',
+            'completed' => 'success',
+            'failed' => 'error',
+            'pending' => 'info',
+            'processing' => 'info',
+            'refunded' => 'info',
+            'cancelled' => 'warning',
+
+            // Rule execution statuses
+            'success' => 'success',
+            'failed' => 'error',
+            'skipped' => 'info',
+            'executed' => 'success',
+
+            // Generic statuses
+            'error' => 'error',
+            'warning' => 'warning',
+            'info' => 'info',
+            'debug' => 'info'
+        ];
+
+        return $statusMap[strtolower($statusValue)] ?? 'info';
+    }
+
+    /**
+     * Extract primary status from display data for status pill
+     *
+     * @param array $displayData The display data from adapter
+     * @param array $rawPayload The original event payload
+     * @return array|null Array with 'label' and 'type' for status pill, or null if no status
+     */
+    private function extractPrimaryStatus(array $displayData, array $rawPayload): ?array
+    {
+        $eventType = $rawPayload['event_type'] ?? 'unknown';
+
+        // Special handling for checkout_processed events - should not show status pill per spec
+        if ($eventType === 'checkout_processed') {
+            return null;
+        }
+
+        // Try to extract status from display sections first
+        $statusFields = ['status', 'order_status', 'payment_status', 'execution_status', 'status_change'];
+
+        foreach ($statusFields as $field) {
+            if (isset($displayData['display_sections'][$field])) {
+                $statusValue = $displayData['display_sections'][$field]['value'] ?? '';
+
+                // Map status to pill type based on event type
+                $pillType = $this->mapStatusToPillType($eventType, $statusValue);
+
+                return [
+                    'label' => $statusValue,
+                    'type' => $pillType
+                ];
+            }
+        }
+
+        // Fallback: try to extract from raw payload
+        if (isset($rawPayload['status'])) {
+            $pillType = $this->mapStatusToPillType($eventType, $rawPayload['status']);
+            return [
+                'label' => $rawPayload['status'],
+                'type' => $pillType
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Get event type configuration
+     *
+     * @param string $event_type The event type
+     * @return array Event configuration
+     */
+    private function getEventTypeConfig(string $event_type): array
+    {
+        $event_configs = [
+            // Order events
+            'order_created' => [
+                'dashicon' => 'dashicons-cart',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'pending',
+                'priority' => 4,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_updated' => [
+                'dashicon' => 'dashicons-update',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'updated',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_completed' => [
+                'dashicon' => 'dashicons-yes',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'completed',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_cancelled' => [
+                'dashicon' => 'dashicons-no',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'cancelled',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_refunded' => [
+                'dashicon' => 'dashicons-undo',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'refunded',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_processing' => [
+                'dashicon' => 'dashicons-update',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'processing',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_on_hold' => [
+                'dashicon' => 'dashicons-pause',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'on hold',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_pending' => [
+                'dashicon' => 'dashicons-cart',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'pending',
+                'priority' => 4,
+                'category' => 'Order Lifecycle'
+            ],
+            'order_failed' => [
+                'dashicon' => 'dashicons-warning',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'failed',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'status_changed' => [
+                'dashicon' => 'dashicons-migrate',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => '→ completed',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            // Payment events
+            'checkout_processed' => [
+                'dashicon' => 'dashicons-cart',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'checkout-draft',
+                'priority' => 3,
+                'category' => 'Payment'
+            ],
+            'payment_completed' => [
+                'dashicon' => 'dashicons-money-alt',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'completed',
+                'priority' => 3,
+                'category' => 'Payment'
+            ],
+            'payment_failed' => [
+                'dashicon' => 'dashicons-money-alt',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'failed',
+                'priority' => 3,
+                'category' => 'Payment'
+            ],
+            // Rule execution events
+            'rule_execution' => [
+                'dashicon' => 'dashicons-yes-alt',
+                'theme_class' => 'odcm-component--rule',
+                'primary_color' => 'blue-700',
+                'status_display' => 'success',
+                'priority' => 2,
+                'category' => 'Rule'
+            ],
+            'rule_evaluation_non_canonical' => [
+                'dashicon' => 'dashicons-generic',
+                'theme_class' => 'odcm-component--rule',
+                'primary_color' => 'blue-700',
+                'status_display' => 'non-canonical',
+                'priority' => 2,
+                'category' => 'Rule'
+            ],
+            // System events
+            'admin_action' => [
+                'dashicon' => 'dashicons-admin-tools',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'admin',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'process_started' => [
+                'dashicon' => 'dashicons-admin-tools',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'started',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'info' => [
+                'dashicon' => 'dashicons-admin-tools',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'info',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'metrics' => [
+                'dashicon' => 'dashicons-admin-tools',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'metrics',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'system_info' => [
+                'dashicon' => 'dashicons-admin-tools',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'system',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            // Refund events
+            'refund_created' => [
+                'dashicon' => 'dashicons-undo',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'refunded',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'refund_deleted' => [
+                'dashicon' => 'dashicons-undo',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'refund deleted',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            'refund_analysis' => [
+                'dashicon' => 'dashicons-undo',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
+                'status_display' => 'refund analysis',
+                'priority' => 3,
+                'category' => 'Order Lifecycle'
+            ],
+            // Subscription events
+            'subscription_created' => [
+                'dashicon' => 'dashicons-calendar',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'recurring',
+                'priority' => 2,
+                'category' => 'System'
+            ],
+            // Webhook events
+            'webhook_received' => [
+                'dashicon' => 'dashicons-networking',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'webhook',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            // Condition events
+            'condition_passed' => [
+                'dashicon' => 'dashicons-yes-alt',
+                'theme_class' => 'odcm-component--rule',
+                'primary_color' => 'blue-700',
+                'status_display' => 'passed',
+                'priority' => 2,
+                'category' => 'Rule'
+            ],
+            'condition_failed' => [
+                'dashicon' => 'dashicons-no',
+                'theme_class' => 'odcm-component--rule',
+                'primary_color' => 'blue-700',
+                'status_display' => 'failed',
+                'priority' => 2,
+                'category' => 'Rule'
+            ],
+            // Error/Debug events
+            'fallback' => [
+                'dashicon' => 'dashicons-warning',
+                'theme_class' => 'odcm-component--error',
+                'primary_color' => 'red-700',
+                'status_display' => 'error',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'debug' => [
+                'dashicon' => 'dashicons-warning',
+                'theme_class' => 'odcm-component--error',
+                'primary_color' => 'red-700',
+                'status_display' => 'debug',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            '_status_evaluation' => [
+                'dashicon' => 'dashicons-warning',
+                'theme_class' => 'odcm-component--error',
+                'primary_color' => 'red-700',
+                'status_display' => 'evaluation',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            // Universal events
+            'universal_event_processing' => [
+                'dashicon' => 'dashicons-generic',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'processed',
+                'priority' => 1,
+                'category' => 'System'
+            ],
+            'universal_event_duplicate' => [
+                'dashicon' => 'dashicons-generic',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'duplicate',
+                'priority' => 1,
+                'category' => 'System'
+            ]
+        ];
+
+        // Check for exact match
+        if (isset($event_configs[$event_type])) {
+            return $event_configs[$event_type];
+        }
+
+        // Check for patterns
+        if (strpos($event_type, 'payment.stripe.') === 0) {
+            return [
+                'dashicon' => 'dashicons-money-alt',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'payment',
+                'priority' => 3,
+                'category' => 'Payment'
+            ];
+        }
+
+        if (strpos($event_type, 'payment.paypal.') === 0) {
+            return [
+                'dashicon' => 'dashicons-money-alt',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'payment',
+                'priority' => 3,
+                'category' => 'Payment'
+            ];
+        }
+
+        if (strpos($event_type, 'payment.') === 0) {
+            return [
+                'dashicon' => 'dashicons-money-alt',
+                'theme_class' => 'odcm-component--payment',
+                'primary_color' => 'green-700',
+                'status_display' => 'payment',
+                'priority' => 3,
+                'category' => 'Payment'
+            ];
+        }
+
+        if (strpos($event_type, 'subscription_') === 0) {
+            return [
+                'dashicon' => 'dashicons-calendar',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'recurring',
+                'priority' => 2,
+                'category' => 'System'
+            ];
+        }
+
+        if (strpos($event_type, 'webhook_') === 0) {
+            return [
+                'dashicon' => 'dashicons-networking',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'webhook',
+                'priority' => 1,
+                'category' => 'System'
+            ];
+        }
+
+        // Default fallback
+        return [
+            'dashicon' => 'dashicons-generic',
+            'theme_class' => 'odcm-component--system',
+            'primary_color' => 'grey-700',
+            'status_display' => 'event',
+            'priority' => 1,
+            'category' => 'System'
+        ];
     }
 }

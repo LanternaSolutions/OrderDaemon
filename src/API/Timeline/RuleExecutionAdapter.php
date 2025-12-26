@@ -73,14 +73,20 @@ class RuleExecutionAdapter extends DisplayAdapter
             'section' => 'primary'
         ];
 
-        // Status changes with context
+        // Status changes with context - use actual status data if available
+        $fromStatus = $payload['rule_execution']['order_evaluation_context']['from_status'] ?? 
+                     $payload['from_status'] ?? 
+                     $payload['data']['from_status'] ?? 
+                     'pending';
+
+        $toStatus = $payload['rule_execution']['order_evaluation_context']['to_status'] ?? 
+                   $payload['to_status'] ?? 
+                   $payload['data']['to_status'] ?? 
+                   'completed';
+
         $fields['status_change'] = [
             'label' => $this->translate('Status Change'),
-            'value' => sprintf(
-                $this->translate('%s → %s'),
-                $this->translate('Pending', 'order-daemon'),
-                $this->translate('Completed', 'order-daemon')
-            ),
+            'value' => $this->formatStatusChange($fromStatus, $toStatus),
             'section' => 'primary'
         ];
 

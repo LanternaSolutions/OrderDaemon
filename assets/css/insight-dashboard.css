@@ -1838,6 +1838,7 @@ label.odcm-retention-option {
     color: var(--odcm-status-text-color);
     font-weight: 500;
     text-transform: uppercase;
+    margin-left: auto;
 }
 
 /* Status variants override the semantic status variables */
@@ -2096,6 +2097,15 @@ label.odcm-retention-option {
     font-weight: var(--odcm-theme-font-weight-str);
 }
 
+/* Component icon styling */
+.odcm-component-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: inherit;
+}
+
 /* Bottom row: timestamp aligned with icon */
 .odcm-component__header-bottom {
     display: flex;
@@ -2117,6 +2127,19 @@ label.odcm-retention-option {
 .odcm-component__header .odcm-status-pill {
     flex-shrink: 0;
     margin: 0;
+}
+
+/* Status pill text transformation */
+.odcm-status-pill {
+    text-transform: capitalize;
+}
+
+/* Right-aligned status pill container */
+.odcm-component__header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
 }
 
 /* Details Pane Expand Toggle Button - now uses unified icon button styling */
@@ -2561,6 +2584,23 @@ label.odcm-retention-option {
     color: var(--odcm-theme-grey-600);
 }
 
+/* Component-specific icon colors */
+.odcm-component--order .odcm-component-icon {
+    color: var(--odcm-theme-purple-700);
+}
+
+.odcm-component--payment .odcm-component-icon {
+    color: var(--odcm-theme-green-700);
+}
+
+.odcm-component--rule .odcm-component-icon {
+    color: var(--odcm-theme-blue-700);
+}
+
+.odcm-component--system .odcm-component-icon {
+    color: var(--odcm-theme-grey-700);
+}
+
 .odcm-expandable-section {
     padding-top: var(--odcm-theme-spacing-md);
 }
@@ -2932,7 +2972,15 @@ label.odcm-retention-option {
 
 /* Detail sections within tier content */
 .odcm-detail-section {
-    margin: var(--odcm-theme-spacing-sm);
+    margin: 0;
+}
+
+.odcm-technical-header {
+    margin: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-technical-header h4 {
+    margin: 0;
 }
 
 /* Technical tier specific styling for raw payload display */
@@ -3001,137 +3049,6 @@ label.odcm-retention-option {
    - Pure CSS implementation for performance and simplicity
    ====================================================================== */
 
-/* Parent component styling - should look like normal components *
-.odcm-component.is-parent {
-    /* Remove all special styling to make parents look normal *
-    position: relative;
-    border-left: none;
-    padding-left: 0;
-}
-
-/* Remove vertical connection line for parent components *
-.odcm-component.is-parent:before {
-    content: none;
-}
-
-/* Child component styling - indented with connection for visual distinction *
-.odcm-component.is-child {
-    margin-left: var(--odcm-theme-spacing-lg);
-    position: relative;
-    border-left: 2px dashed var(--odcm-theme-grey-300);
-    background-color: var(--odcm-theme-grey-100);
-}
-
-/* Horizontal connector from parent to child *
-.odcm-component.is-child:before {
-    content: '';
-    position: absolute;
-    left: -10px;
-    top: 16px;
-    width: 12px;
-    height: 2px;
-    background: var(--odcm-theme-grey-300);
-}
-
-/* Connection dot at child events *
-.odcm-component.is-child:after {
-    content: '';
-    position: absolute;
-    left: -10px;
-    top: 14px;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--odcm-theme-grey-400);
-    border: 2px solid var(--odcm-theme-white);
-    box-shadow: 0 0 0 2px var(--odcm-theme-grey-300);
-}
-
-/* Expand/collapse indicator for parent components */
-.odcm-hierarchy-toggle {
-    position: absolute;
-    left: 8px;
-    top: 8px;
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--odcm-theme-grey-600);
-    font-size: 10px;
-    z-index: 1;
-}
-
-.odcm-hierarchy-toggle:before {
-    content: '▼';
-}
-
-.odcm-component.is-collapsed .odcm-hierarchy-toggle:before {
-    content: '▲';
-}
-
-/* Container for mixed timelines (both hierarchical and flat events) */
-.odcm-timeline-container {
-    display: flex;
-    flex-direction: column;
-    gap: var(--odcm-theme-spacing-xs);
-}
-
-/* Hierarchy status indicators for different component types */
-.odcm-component.is-parent.is-success .odcm-hierarchy-toggle {
-    color: var(--odcm-theme-green-700);
-}
-
-.odcm-component.is-parent.is-error .odcm-hierarchy-toggle {
-    color: var(--odcm-theme-red-700);
-}
-
-.odcm-component.is-parent.is-warning .odcm-hierarchy-toggle {
-    color: var(--odcm-theme-yellow-700);
-}
-
-.odcm-component.is-parent.is-info .odcm-hierarchy-toggle {
-    color: var(--odcm-theme-blue-700);
-}
-
-/* Animation for hierarchy interactions */
-@keyframes odcm-hierarchy-fade {
-    from { opacity: 0; transform: translateY(-4px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.odcm-component.is-child {
-    animation: odcm-hierarchy-fade 0.2s ease-out;
-}
-
-/* Responsive adjustments for hierarchy on smaller screens */
-@media (max-width: 768px) {
-    .odcm-component.is-parent {
-        padding-left: 16px;
-    }
-
-    .odcm-component.is-parent:before {
-        left: 8px;
-    }
-
-    .odcm-component.is-child {
-        padding-left: 28px;
-        margin-left: 8px;
-    }
-
-    .odcm-component.is-child:before {
-        left: 16px;
-    }
-
-    .odcm-component.is-child:after {
-        left: 16px;
-    }
-
-    .odcm-hierarchy-toggle {
-        left: 4px;
-    }
-}
 
 /*** ODCM STREAM VIEW TOGGLE — SEGMENTED SLIDER ************************************/
 /* Container fits nicely inside stream controls */

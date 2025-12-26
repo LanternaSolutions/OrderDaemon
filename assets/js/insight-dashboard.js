@@ -194,6 +194,9 @@ function insightDashboard() {
                 // Initialize Prism.js highlighting
                 this.initializePrismHighlighting();
 
+                // Initialize three-tier toggles early for immediate functionality
+                this.initThreeTierToggles();
+
                 // Load initial data in parallel, now including the welcome scenario check
                 const start = performance.now();
                 Promise.all([
@@ -222,7 +225,6 @@ function insightDashboard() {
                 this.initializeServerRetentionState();
                 this.setupPrismWatchers();
 
-
                 if (odcmIsDebug()) { console.log('ODCM Insight Dashboard: Initialized successfully'); }
             } catch (e) {
                 console.error('ODCM: init() failed:', e);
@@ -231,7 +233,6 @@ function insightDashboard() {
                 this.autoRefreshEnabled = false;
             }
         },
-
 
         async checkWelcomeScenario() {
             try {
@@ -261,7 +262,6 @@ function insightDashboard() {
                 this.isWelcomeScenario = false;
             }
         },
-
 
         setupFilterWatchers() {
             // Watch for filter changes and reset pagination
@@ -1474,7 +1474,7 @@ function insightDashboard() {
             if (this.detailPaneExpanded) classes.push('detail-pane-expanded');
             return classes.join(' ');
         },
-        
+
         // Returns true when any filter is active (including search and toggles)
         get hasActiveFilters() {
             try {
@@ -1584,9 +1584,9 @@ function insightDashboard() {
                     if (odcmIsDebug()) {
                         console.log('ODCM: ODCMToasts not available, using fallback');
                     }
-                    
+
                     this.createFallbackToast(message, type);
-                    
+
                     // Also log to console as backup
                     if (type === 'error') {
                         console.error('ODCM Toast (Error):', message);
@@ -1608,7 +1608,7 @@ function insightDashboard() {
             try {
                 // Create a simple toast notification as fallback
                 const toastContainer = document.getElementById('odcm-toast-container') || this.createToastContainer();
-                
+
                 const toast = document.createElement('div');
                 toast.className = `odcm-fallback-toast odcm-toast-${type}`;
                 toast.style.cssText = `
@@ -1624,7 +1624,7 @@ function insightDashboard() {
                     z-index: 10000;
                 `;
                 toast.textContent = message;
-                
+
                 // Auto-remove after 4 seconds
                 const timeoutId = setTimeout(() => {
                     if (toast.parentNode) {
@@ -1636,7 +1636,7 @@ function insightDashboard() {
                         }, 300);
                     }
                 }, 4000);
-                
+
                 // Allow manual dismissal
                 toast.addEventListener('click', () => {
                     clearTimeout(timeoutId);
@@ -1649,13 +1649,13 @@ function insightDashboard() {
                         }, 300);
                     }
                 });
-                
+
                 toastContainer.appendChild(toast);
-                
+
                 if (odcmIsDebug()) {
                     console.log('ODCM: Fallback toast created');
                 }
-                
+
             } catch (e) {
                 console.error('ODCM: Fallback toast creation failed:', e);
             }
@@ -1673,7 +1673,7 @@ function insightDashboard() {
                     max-width: 400px;
                     pointer-events: none;
                 `;
-                
+
                 // Add CSS animations
                 const style = document.createElement('style');
                 style.textContent = `
@@ -1687,12 +1687,12 @@ function insightDashboard() {
                     }
                     .odcm-fallback-toast { pointer-events: auto; }
                 `;
-                
+
                 if (!document.head.querySelector('#odcm-toast-animations')) {
                     style.id = 'odcm-toast-animations';
                     document.head.appendChild(style);
                 }
-                
+
                 document.body.appendChild(container);
                 return container;
             } catch (e) {
@@ -1811,8 +1811,8 @@ function insightDashboard() {
 
                 // Show info toast
                 this.showToast(
-                    format === 'csv' 
-                        ? 'Preparing CSV download...' 
+                    format === 'csv'
+                        ? 'Preparing CSV download...'
                         : 'Preparing JSON download...',
                     'info'
                 );
@@ -1889,11 +1889,11 @@ function insightDashboard() {
             // EXPAND CONSOLIDATED ENTRIES TO THEIR CONSTITUENT LOG IDS
             const expandedIds = [];
             let consolidatedEntriesExpanded = 0;
-            
+
             for (const selectedId of selectedIds) {
                 // Find the log entry in this.logs
                 const log = this.logs.find(l => l.id === selectedId);
-                
+
                 if (log && log.constituent_log_ids && Array.isArray(log.constituent_log_ids) && log.constituent_log_ids.length > 0) {
                     // This is a consolidated entry - add all constituent IDs
                     expandedIds.push(...log.constituent_log_ids);
@@ -1904,7 +1904,7 @@ function insightDashboard() {
                     expandedIds.push(selectedId);
                 }
             }
-            
+
             // Remove duplicates (in case of overlapping selections)
             const uniqueIds = [...new Set(expandedIds)];
 
@@ -1969,10 +1969,10 @@ function insightDashboard() {
                             this.logs = this.logs.filter(l => !toDelete.has(l.id));
 
                             // Show progress toast for each batch
-                            const progressMessage = chunks.length > 1 
+                            const progressMessage = chunks.length > 1
                                 ? `Batch ${chunkNumber}/${chunks.length} completed (${deletedCount} items deleted)`
                                 : `Successfully deleted ${deletedCount} log entries`;
-                            
+
                             this.showToast(progressMessage, 'success');
 
                             console.log(`ODCM: Chunk ${chunkNumber} completed successfully:`, {
@@ -1987,7 +1987,7 @@ function insightDashboard() {
                         console.error(`ODCM: Chunk ${chunkNumber} failed:`, chunkError);
                         totalFailed += chunk.length;
                         failedChunks.push({ chunk: chunkNumber, size: chunk.length, error: chunkError.message });
-                        
+
                         // Show error toast for failed chunk
                         this.showToast(`Batch ${chunkNumber} failed: ${chunkError.message}`, 'error');
                     }
@@ -2072,36 +2072,36 @@ function insightDashboard() {
         // =================================================================
         // LOG ENTRY CLASSIFICATION AND STYLING
         // =================================================================
-        
+
         /**
          * Get CSS classes for a log entry based on its properties
          */
         getLogEntryClasses(log) {
             const classes = ['odcm-log-entry'];
-            
+
             // Add consolidated entry class
             if (this.isConsolidatedEntry(log)) {
                 classes.push('is-consolidated');
             }
-            
+
             // Add process representative class
             if (log.is_process_representative) {
                 classes.push('is-process-representative');
             }
-            
+
             // Add selected state
             if (this.selectedLog && this.selectedLog.id === log.id) {
                 classes.push('is-selected');
             }
-            
+
             // Add checkbox selected state
             if (this.isLogSelected(log.id)) {
                 classes.push('is-checkbox-selected');
             }
-            
+
             return classes.join(' ');
         },
-        
+
         /**
          * Check if a log entry is consolidated (has multiple events)
          */
@@ -2110,13 +2110,11 @@ function insightDashboard() {
             if (this.viewMode === 'flat') {
                 return false;
             }
-            
-            return log.is_process_representative === true || 
+
+            return log.is_process_representative === true ||
                    (log.consolidation_data && log.consolidation_data.is_consolidated === true) ||
                    (log.process_event_count && log.process_event_count > 1);
         },
-        
-        
 
         // =================================================================
         // THREE-TIER EXPAND/COLLAPSE FUNCTIONALITY
@@ -2129,11 +2127,11 @@ function insightDashboard() {
             // Remove any existing handlers to prevent duplicates
             document.removeEventListener('click', this.handleTierToggleClick);
             document.removeEventListener('keydown', this.handleTierToggleKeydown);
-            
+
             // Add event listeners for three-tier toggles
             document.addEventListener('click', this.handleTierToggleClick.bind(this));
             document.addEventListener('keydown', this.handleTierToggleKeydown.bind(this));
-            
+
             if (odcmIsDebug()) {
                 console.log('ODCM: Three-tier toggle handlers initialized');
             }
@@ -2196,13 +2194,16 @@ function insightDashboard() {
                 }
 
                 const component = toggleButton.closest('.odcm-component');
-                const isExpanded = tierContent.style.display !== 'none' && tierContent.style.display !== '';
+                // Fixed: Check the button's aria-expanded attribute to determine expansion state
+                const isExpanded = toggleButton.getAttribute('aria-expanded') === 'true';
 
                 if (odcmIsDebug()) {
                     console.log('ODCM: Toggling tier:', {
                         target: target,
                         isExpanded: isExpanded,
-                        componentId: component?.id || 'unknown'
+                        componentId: component?.id || 'unknown',
+                        buttonAriaExpanded: toggleButton.getAttribute('aria-expanded'),
+                        sectionAriaExpanded: expandableSection.getAttribute('aria-expanded')
                     });
                 }
 
@@ -2230,21 +2231,11 @@ function insightDashboard() {
          * Expand a tier with smooth animation
          */
         expandTier(tierContent, toggleButton, target, component) {
-            // Show the content
-            tierContent.style.display = 'block';
-            
-            // Set initial state for animation
-            tierContent.style.opacity = '0';
-            tierContent.style.maxHeight = '0px';
-            tierContent.style.overflow = 'hidden';
-            tierContent.style.transition = 'all 0.3s ease';
-
-            // Force reflow before animation
-            tierContent.offsetHeight;
-
-            // Animate to expanded state
-            tierContent.style.opacity = '1';
-            tierContent.style.maxHeight = '1000px';
+            // Find the expandable section and update its aria-expanded attribute first
+            const expandableSection = toggleButton.closest('.odcm-expandable-section');
+            if (expandableSection) {
+                expandableSection.setAttribute('aria-expanded', 'true');
+            }
 
             // Update button text based on tier type
             const showText = toggleButton.textContent;
@@ -2261,16 +2252,10 @@ function insightDashboard() {
                 component.classList.add(`${target}-expanded`);
             }
 
-            // Clean up after animation
-            setTimeout(() => {
-                tierContent.style.maxHeight = 'none';
-                tierContent.style.overflow = 'visible';
-
-                // Re-highlight code blocks in expanded technical details
-                if (target === 'technical') {
-                    this.highlightCodeBlocks(tierContent);
-                }
-            }, 300);
+            // Re-highlight code blocks in expanded technical details
+            if (target === 'technical') {
+                this.highlightCodeBlocks(tierContent);
+            }
 
             if (odcmIsDebug()) {
                 console.log(`ODCM: Expanded ${target} tier`);
@@ -2281,17 +2266,11 @@ function insightDashboard() {
          * Collapse a tier with smooth animation
          */
         collapseTier(tierContent, toggleButton, target, component) {
-            // Set up for animation
-            tierContent.style.maxHeight = tierContent.scrollHeight + 'px';
-            tierContent.style.overflow = 'hidden';
-            tierContent.style.transition = 'all 0.3s ease';
-
-            // Force reflow
-            tierContent.offsetHeight;
-
-            // Animate to collapsed state
-            tierContent.style.opacity = '0';
-            tierContent.style.maxHeight = '0px';
+            // Find the expandable section and update its aria-expanded attribute first
+            const expandableSection = toggleButton.closest('.odcm-expandable-section');
+            if (expandableSection) {
+                expandableSection.setAttribute('aria-expanded', 'false');
+            }
 
             // Update button text based on tier type
             const hideText = toggleButton.textContent;
@@ -2308,14 +2287,12 @@ function insightDashboard() {
                 component.classList.remove(`${target}-expanded`);
             }
 
-            // Hide completely after animation
-            setTimeout(() => {
-                tierContent.style.display = 'none';
-                tierContent.style.transition = '';
-                tierContent.style.maxHeight = '';
-                tierContent.style.overflow = '';
-                tierContent.style.opacity = '';
-            }, 300);
+            // Clear any inline styles that might conflict with CSS
+            tierContent.style.display = '';
+            tierContent.style.opacity = '';
+            tierContent.style.maxHeight = '';
+            tierContent.style.overflow = '';
+            tierContent.style.transition = '';
 
             if (odcmIsDebug()) {
                 console.log(`ODCM: Collapsed ${target} tier`);
@@ -2357,7 +2334,6 @@ function insightDashboard() {
 
     };
 }
-
 
 // ODCM: Global error boundaries to prevent total UI breakage and surface user-friendly notices
 (function setupODCMGlobalErrorHandlers(){

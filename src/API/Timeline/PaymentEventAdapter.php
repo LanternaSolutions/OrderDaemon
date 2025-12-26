@@ -57,12 +57,16 @@ class PaymentEventAdapter extends DisplayAdapter
             ];
         }
         
-        // Transaction amount
+        // Transaction amount - use base class method for consistent formatting
         $amount = $this->extractTransactionAmount($payload);
+        $currency = $payload['currency'] ?? 
+                   $payload['data']['currency'] ?? 
+                   $payload['payment_context']['currency'] ?? 'USD';
+
         if ($amount) {
             $fields['amount'] = [
                 'label' => $this->translate('Amount'),
-                'value' => $this->formatCurrency($amount),
+                'value' => $this->formatCleanCurrency($amount, $currency),
                 'section' => 'primary'
             ];
         }
@@ -301,23 +305,10 @@ class PaymentEventAdapter extends DisplayAdapter
      */
     private function addCheckoutFields(array &$fields, array $payload): void
     {
-        // Customer information
-        $customerEmail = $payload['customer_email'] ?? 
-                        $payload['data']['customer_email'] ?? 
-                        $payload['checkout_data']['customer_email'] ?? null;
-        
-        if ($customerEmail) {
-            $fields['customer_email'] = [
-                'label' => $this->translate('Customer Email'),
-                'value' => $customerEmail,
-                'section' => 'primary'
-            ];
-        }
-        
         // Checkout method
         $checkoutMethod = $payload['checkout_method'] ?? 
                          $payload['data']['checkout_method'] ?? null;
-        
+
         if ($checkoutMethod) {
             $fields['checkout_method'] = [
                 'label' => $this->translate('Checkout Method'),
@@ -325,12 +316,12 @@ class PaymentEventAdapter extends DisplayAdapter
                 'section' => 'checkout_details'
             ];
         }
-        
+
         // Items count
         $itemCount = $payload['item_count'] ?? 
                     $payload['data']['item_count'] ?? 
                     $payload['checkout_data']['item_count'] ?? null;
-        
+
         if ($itemCount) {
             $fields['item_count'] = [
                 'label' => $this->translate('Items'),
@@ -356,7 +347,7 @@ class PaymentEventAdapter extends DisplayAdapter
                       $payload['processor'] ?? 
                       $payload['data']['gateway'] ?? 
                       $payload['payment_context']['gateway'] ?? null;
-        
+
         if ($gatewayName) {
             $fields['gateway'] = [
                 'label' => $this->translate('Payment Gateway'),
@@ -364,25 +355,28 @@ class PaymentEventAdapter extends DisplayAdapter
                 'section' => 'payment_details'
             ];
         }
-        
-        // Currency
+
+        // Currency - primary section and combined with amount
         $currency = $payload['currency'] ?? 
                    $payload['data']['currency'] ?? 
                    $payload['payment_context']['currency'] ?? null;
-        
-        if ($currency) {
-            $fields['currency'] = [
-                'label' => $this->translate('Currency'),
-                'value' => strtoupper($currency),
-                'section' => 'payment_details'
+
+        $amount = $this->extractTransactionAmount($payload);
+
+        // Only add amount field if not already added by the main extraction logic
+        if ($amount && $currency && !isset($fields['amount'])) {
+            $fields['amount'] = [
+                'label' => $this->translate('Amount'),
+                'value' => $this->formatCleanCurrency($amount, $currency),
+                'section' => 'primary'
             ];
         }
-        
+
         // Payment session ID
         $sessionId = $payload['session_id'] ?? 
                     $payload['payment_session_id'] ?? 
                     $payload['data']['session_id'] ?? null;
-        
+
         if ($sessionId) {
             $fields['session_id'] = [
                 'label' => $this->translate('Session ID'),
@@ -390,12 +384,12 @@ class PaymentEventAdapter extends DisplayAdapter
                 'section' => 'payment_details'
             ];
         }
-        
+
         // Customer IP address
         $customerIp = $payload['customer_ip'] ?? 
                      $payload['data']['customer_ip'] ?? 
                      $payload['ip_address'] ?? null;
-        
+
         if ($customerIp) {
             $fields['customer_ip'] = [
                 'label' => $this->translate('Customer IP'),
