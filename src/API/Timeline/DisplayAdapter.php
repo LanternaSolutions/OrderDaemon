@@ -59,8 +59,16 @@ abstract class DisplayAdapter
         // Extract event type
         $fields['event_type'] = $payload['event_type'] ?? 'unknown';
 
-        // Extract timestamp
-        $fields['timestamp'] = $payload['timestamp'] ?? gmdate('Y-m-d H:i:s');
+        // Extract timestamp - use 'ts' field (Unix timestamp) as primary source
+        $timestamp = $payload['ts'] ?? $payload['timestamp'] ?? null;
+
+        // Format timestamp using PayloadComponentUIToolkit for consistency and proper timezone handling
+        if ($timestamp !== null) {
+            $fields['timestamp'] = $this->formatTimestampWithToolkit($timestamp);
+        } else {
+            // If no timestamp is available, use a reasonable default
+            $fields['timestamp'] = $this->formatTimestampWithToolkit(time());
+        }
 
         // Extract process ID
         if (!empty($payload['process_id'])) {
@@ -171,6 +179,7 @@ abstract class DisplayAdapter
 
     /**
      * Organize extracted fields into unified business data structure
+     * with proper field filtering and deduplication.
      *
      * @param array $standardFields Standard fields
      * @param array $specializedFields Specialized fields
@@ -204,10 +213,37 @@ abstract class DisplayAdapter
             'full_evaluation_trace', 'rawData', 'data'
         ];
 
+        // Track which fields we've already added to avoid duplicates
+        $added_fields = [];
+
+        // Helper function to check if a field should be filtered out
+        $should_filter_field = function($key, $value) use ($debugMode, $technical_fields) {
+            // Filter out technical fields from business display
+            if (in_array($key, $technical_fields)) {
+                return true;
+            }
+
+            // Filter out empty or null values
+            if (empty($value) && $value !== 0 && $value !== '0') {
+                return true;
+            }
+
+            // Filter out event_type in non-debug mode
+            if ($key === 'event_type' && !$debugMode) {
+                return true;
+            }
+
+            // Filter out raw data fields
+            if (strpos($key, 'rawData.') === 0 || strpos($key, 'data.') === 0) {
+                return true;
+            }
+
+            return false;
+        };
+
         // Add standard fields to display sections (filtered for business relevance)
         foreach ($standardFields as $key => $value) {
-            // Skip event_type in non-debug mode
-            if ($key === 'event_type' && !$debugMode) {
+            if ($should_filter_field($key, $value)) {
                 continue;
             }
 
@@ -218,6 +254,7 @@ abstract class DisplayAdapter
                     'label' => $label,
                     'value' => $value
                 ];
+                $added_fields[$key] = true;
             }
         }
 
@@ -226,6 +263,10 @@ abstract class DisplayAdapter
             if (isset($config['label']) && isset($config['value'])) {
                 $label = $config['label'];
                 $value = $config['value'];
+
+                if ($should_filter_field($key, $value)) {
+                    continue;
+                }
 
                 // Only add business-relevant specialized fields to display
                 if (in_array($key, $business_relevant_fields) ||
@@ -241,16 +282,24 @@ abstract class DisplayAdapter
                         continue;
                     }
 
-                    $display_sections[$key] = [
-                        'label' => $label,
-                        'value' => $value
-                    ];
+                    // Skip duplicates
+                    if (!isset($added_fields[$key])) {
+                        $display_sections[$key] = [
+                            'label' => $label,
+                            'value' => $value
+                        ];
+                        $added_fields[$key] = true;
+                    }
                 }
             }
         }
 
         // Add select additional fields that might be business-relevant
         foreach ($additionalFields as $key => $value) {
+            if ($should_filter_field($key, $value)) {
+                continue;
+            }
+
             // Only add fields that look like they might be business-relevant
             if (strpos($key, 'status') !== false ||
                 strpos($key, 'amount') !== false ||
@@ -261,12 +310,13 @@ abstract class DisplayAdapter
                 strpos($key, 'method') !== false) {
 
                 // Avoid duplicates
-                if (!isset($display_sections[$key])) {
+                if (!isset($added_fields[$key])) {
                     $label = $this->formatFieldLabel($key);
                     $display_sections[$key] = [
                         'label' => $label,
                         'value' => $value
                     ];
+                    $added_fields[$key] = true;
                 }
             }
         }
@@ -492,6 +542,32 @@ abstract class DisplayAdapter
     }
 
     /**
+     * Format timestamp using PayloadComponentUIToolkit for consistency
+     *
+     * This method uses the existing UI Toolkit to format timestamps with proper
+     * WordPress timezone handling and consistent formatting across the system.
+     *
+     * @param mixed $timestamp The timestamp to format (Unix timestamp, ISO8601 string, etc.)
+     * @return string Formatted timestamp
+     */
+    protected function formatTimestampWithToolkit($timestamp): string
+    {
+        // Use PayloadComponentUIToolkit for consistent timestamp formatting
+        try {
+            $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
+            return $toolkit->format_timestamp($timestamp);
+        } catch (\Throwable $e) {
+            // Fallback to basic formatting if UI Toolkit is not available
+            if (is_numeric($timestamp)) {
+                return gmdate('Y-m-d H:i:s', (int)$timestamp);
+            } elseif (is_string($timestamp)) {
+                return $timestamp;
+            }
+            return gmdate('Y-m-d H:i:s');
+        }
+    }
+
+    /**
      * Format currency with amount and currency combined
      *
      * @param mixed $amount The currency amount
@@ -523,11 +599,11 @@ abstract class DisplayAdapter
 
         if (!empty($nameParts)) {
             $name = implode(' ', $nameParts);
-            return sprintf('Customer: %s (ID: %s)', $name, $customerId);
+            return sprintf('%s (ID: %s)', $name, $customerId);
         }
 
         if ($email) {
-            return sprintf('Customer: %s (ID: %s)', $email, $customerId);
+            return sprintf('%s (ID: %s)', $email, $customerId);
         }
 
         return sprintf('Customer ID: %s', $customerId);

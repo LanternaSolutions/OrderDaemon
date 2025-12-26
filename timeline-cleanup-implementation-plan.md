@@ -34,8 +34,7 @@ This document outlines the comprehensive implementation plan for cleaning up the
 - Modify `renderThreeTierComponent()` to merge primary and business detail sections
 - Remove "Additional Details" subtitle from business section
 - Create clean, unified business information display
-- Update technical section labeling to be clearer and more general
-- Change "Developer Details" to "Technical Information"
+- Ensure that the Show/Hide Technical Information buttons work while having no affect on each other and that they can be toggled show/hide repeatedly and separately successfully
 
 **WordPress Plugin Checker Compliance**:
 - Ensure all HTML output is properly escaped
@@ -57,7 +56,7 @@ This document outlines the comprehensive implementation plan for cleaning up the
 - Technical only: Event Type (debug mode)
 
 **RuleExecutionAdapter**:
-- Extract only: Timestamp, Rule, Execution Status, Status Change (from → to)
+- Extract only: Timestamp, Rule, Execution Status, Status Change (from → to), if there was a status change, Secondary Actions Taken - listing secondary actions, if any
 - Technical only: Event Type (debug mode)
 
 **GenericEventAdapter**:

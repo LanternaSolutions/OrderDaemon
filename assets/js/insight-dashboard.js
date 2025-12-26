@@ -2124,17 +2124,26 @@ function insightDashboard() {
          * Initialize three-tier expand/collapse system for timeline components
          */
         initThreeTierToggles() {
-            // Remove any existing handlers to prevent duplicates
-            document.removeEventListener('click', this.handleTierToggleClick);
-            document.removeEventListener('keydown', this.handleTierToggleKeydown);
+            // Don't remove existing handlers - use persistent event delegation
+            // This ensures dynamically loaded content works properly
 
-            // Add event listeners for three-tier toggles
-            document.addEventListener('click', this.handleTierToggleClick.bind(this));
-            document.addEventListener('keydown', this.handleTierToggleKeydown.bind(this));
+            // Add event listeners for three-tier toggles (only if not already added)
+            if (!document._odcmThreeTierTogglesInitialized) {
+                document.addEventListener('click', this.handleTierToggleClick.bind(this));
+                document.addEventListener('keydown', this.handleTierToggleKeydown.bind(this));
+                document._odcmThreeTierTogglesInitialized = true;
 
-            if (odcmIsDebug()) {
-                console.log('ODCM: Three-tier toggle handlers initialized');
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Three-tier toggle handlers initialized (first time)');
+                }
+            } else {
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Three-tier toggle handlers already initialized (using persistent delegation)');
+                }
             }
+
+            // Force re-initialize all existing toggle buttons to ensure proper state
+            this.reinitializeAllToggleButtons();
         },
 
         /**

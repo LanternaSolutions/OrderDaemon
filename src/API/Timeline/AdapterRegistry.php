@@ -113,7 +113,10 @@ class AdapterRegistry
                 $adapter = self::createAdapter('OrderEventAdapter', $event_type);
             }
             // Payment and checkout events
-            elseif (strpos($event_type, 'payment') !== false || strpos($event_type, 'checkout') !== false) {
+            elseif (strpos($event_type, 'payment') !== false ||
+                    strpos($event_type, 'checkout') !== false ||
+                    $event_type === 'checkout_processed' ||
+                    strpos($event_type, 'payment.') !== false) {
                 self::logDebugMessage("ODCM ADAPTER DEBUG: Selecting PaymentEventAdapter for event type: {$event_type}", 'debug');
                 $adapter = self::createAdapter('PaymentEventAdapter', $event_type);
             }

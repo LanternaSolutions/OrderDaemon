@@ -19,7 +19,8 @@ class GenericEventAdapter extends DisplayAdapter
      * Extract specialized fields for generic/unknown events
      *
      * This method provides basic field extraction that works for any event type,
-     * focusing on common patterns and graceful handling of unknown data structures.
+     * focusing on common patterns and graceful handling of unknown data structures,
+     * showing minimal essential info and relying on technical section for complete details.
      *
      * @since 1.2.0
      *
@@ -29,17 +30,17 @@ class GenericEventAdapter extends DisplayAdapter
     protected function extractSpecializedFields(array $payload): array
     {
         $fields = [];
-        
+
         // Extract event type for processing
         $eventType = $payload['event_type'] ?? $payload['data']['event_type'] ?? 'unknown_event';
-        
+
         // Event description - format the event type nicely
         $fields['event_description'] = [
             'label' => $this->translate('Event'),
             'value' => $this->formatGenericEventDescription($eventType),
             'section' => 'primary'
         ];
-        
+
         // Order ID - use enhanced extraction from base class
         $order_id = $this->extractOrderId($payload);
         if ($order_id > 0) {
@@ -49,7 +50,7 @@ class GenericEventAdapter extends DisplayAdapter
                 'section' => 'primary'
             ];
         }
-        
+
         // Extract status if available
         $status = $this->extractGenericStatus($payload);
         if ($status) {
@@ -59,7 +60,7 @@ class GenericEventAdapter extends DisplayAdapter
                 'section' => 'primary'
             ];
         }
-        
+
         // Extract any action or result information
         $action = $this->extractGenericAction($payload);
         if ($action) {
@@ -69,7 +70,7 @@ class GenericEventAdapter extends DisplayAdapter
                 'section' => 'primary'
             ];
         }
-        
+
         // Extract any message or description
         $message = $this->extractGenericMessage($payload);
         if ($message) {
@@ -79,10 +80,10 @@ class GenericEventAdapter extends DisplayAdapter
                 'section' => 'primary'
             ];
         }
-        
-        // Add common generic fields
+
+        // Add common generic fields - only essential business information
         $this->addCommonGenericFields($fields, $payload);
-        
+
         return $fields;
     }
     

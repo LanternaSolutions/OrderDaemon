@@ -90,7 +90,7 @@ class RuleExecutionAdapter extends DisplayAdapter
             'section' => 'primary'
         ];
 
-        // Additional rule execution details (detail sections)
+        // Additional rule execution details (detail sections) - only essential business information
         $this->addRuleExecutionDetails($fields, $payload);
 
         return $fields;

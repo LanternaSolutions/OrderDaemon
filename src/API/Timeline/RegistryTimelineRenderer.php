@@ -491,9 +491,6 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $html .= '<div class="odcm-component__title">' . $this->renderPrimaryInfo($displayData, $rawPayload) . '</div>';
         $html .= '</div>';
         $html .= '</div>';
-        $html .= '<div class="odcm-component__header-bottom">';
-        $html .= '<span class="odcm-component__ts">' . esc_html($timestamp) . '</span>';
-        $html .= '</div>';
         $html .= '</div>';
 
         // Body with unified business section and improved technical section
@@ -589,8 +586,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
 
         // Add clear, general header for technical information
         $html .= '<div class="odcm-technical-header">';
-        $html .= '<h4>' . esc_html__('Technical Information', 'order-daemon') . '</h4>';
-        $html .= '<p>' . esc_html__('Complete raw event data for debugging and analysis.', 'order-daemon') . '</p>';
+        $html .= '<h4>' . esc_html__('Raw event debug data for analysis', 'order-daemon') . '</h4>';
         $html .= '</div>';
 
         // Format raw payload as JSON with proper prism.js classes
@@ -1112,7 +1108,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $event_configs = [
             // Order events
             'order_created' => [
-                'dashicon' => 'dashicons-cart',
+                'dashicon' => 'dashicons-plus-alt',
                 'theme_class' => 'odcm-component--order',
                 'primary_color' => 'purple-700',
                 'status_display' => 'pending',
@@ -1226,7 +1222,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'category' => 'Rule'
             ],
             'rule_evaluation_non_canonical' => [
-                'dashicon' => 'dashicons-generic',
+                'dashicon' => 'dashicons-admin-generic',
                 'theme_class' => 'odcm-component--rule',
                 'primary_color' => 'blue-700',
                 'status_display' => 'non-canonical',
@@ -1361,7 +1357,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             ],
             // Universal events
             'universal_event_processing' => [
-                'dashicon' => 'dashicons-generic',
+                'dashicon' => 'dashicons-admin-generic',
                 'theme_class' => 'odcm-component--system',
                 'primary_color' => 'grey-700',
                 'status_display' => 'processed',
@@ -1369,7 +1365,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'category' => 'System'
             ],
             'universal_event_duplicate' => [
-                'dashicon' => 'dashicons-generic',
+                'dashicon' => 'dashicons-admin-generic',
                 'theme_class' => 'odcm-component--system',
                 'primary_color' => 'grey-700',
                 'status_display' => 'duplicate',
@@ -1441,7 +1437,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
 
         // Default fallback
         return [
-            'dashicon' => 'dashicons-generic',
+            'dashicon' => 'dashicons-admin-generic',
             'theme_class' => 'odcm-component--system',
             'primary_color' => 'grey-700',
             'status_display' => 'event',

@@ -26,17 +26,17 @@ class OrderEventAdapter extends DisplayAdapter
     protected function extractSpecializedFields(array $payload): array
     {
         $fields = [];
-        
+
         // Extract event type for processing
         $eventType = $payload['event_type'] ?? $payload['data']['event_type'] ?? 'order_event';
-        
+
         // Event description
         $fields['event_description'] = [
             'label' => $this->translate('Event'),
             'value' => $this->formatEventDescription($eventType, $payload),
             'section' => 'primary'
         ];
-        
+
         // Order ID - use enhanced extraction from base class
         $order_id = $this->extractOrderId($payload);
         if ($order_id > 0) {
@@ -46,25 +46,25 @@ class OrderEventAdapter extends DisplayAdapter
                 'section' => 'primary'
             ];
         }
-        
+
         // Status change specifics
         if (strpos($eventType, 'status_changed') !== false) {
             $this->addStatusChangeFields($fields, $payload);
         }
-        
+
         // Order creation specifics
         if (strpos($eventType, 'order_created') !== false) {
             $this->addOrderCreationFields($fields, $payload);
         }
-        
+
         // Order update specifics
         if (strpos($eventType, 'order_updated') !== false) {
             $this->addOrderUpdateFields($fields, $payload);
         }
-        
-        // Common order details
+
+        // Common order details - only add essential business information
         $this->addCommonOrderFields($fields, $payload);
-        
+
         return $fields;
     }
     
@@ -116,10 +116,18 @@ class OrderEventAdapter extends DisplayAdapter
      */
     private function addStatusChangeFields(array &$fields, array $payload): void
     {
-        // Extract status change information
+        // Extract status change information from multiple possible locations
         $fromStatus = $this->extractStatusValue($payload, 'from');
         $toStatus = $this->extractStatusValue($payload, 'to');
-        
+
+        // Fallback to rawData if not found in data
+        if (!$fromStatus && isset($payload['rawData']['from_status'])) {
+            $fromStatus = $payload['rawData']['from_status'];
+        }
+        if (!$toStatus && isset($payload['rawData']['to_status'])) {
+            $toStatus = $payload['rawData']['to_status'];
+        }
+
         if ($fromStatus && $toStatus) {
             $fields['status_change'] = [
                 'label' => $this->translate('Status Change'),
@@ -133,7 +141,7 @@ class OrderEventAdapter extends DisplayAdapter
                 'section' => 'primary'
             ];
         }
-        
+
         // Status change reason if available
         $reason = $payload['status_change_reason'] ?? 
                  $payload['data']['reason'] ?? 
@@ -146,7 +154,7 @@ class OrderEventAdapter extends DisplayAdapter
                 'section' => 'order_details'
             ];
         }
-        
+
         // Who made the change
         $changedBy = $payload['changed_by'] ?? 
                     $payload['data']['changed_by'] ?? 
@@ -172,6 +180,16 @@ class OrderEventAdapter extends DisplayAdapter
      */
     private function addOrderCreationFields(array &$fields, array $payload): void
     {
+        // Order ID - add to primary section
+        $order_id = $this->extractOrderId($payload);
+        if ($order_id > 0) {
+            $fields['order_id'] = [
+                'label' => $this->translate('Order'),
+                'value' => '#' . $order_id,
+                'section' => 'primary'
+            ];
+        }
+
         // Customer information
         $customerId = $payload['customer_id'] ?? 
                      $payload['data']['customer_id'] ?? 
@@ -210,7 +228,8 @@ class OrderEventAdapter extends DisplayAdapter
         $amount = $payload['order_total'] ?? 
                  $payload['data']['order_total'] ?? 
                  $payload['order_data']['total'] ?? 
-                 $payload['total'] ?? null;
+                 $payload['total'] ?? 
+                 $payload['data']['amount'] ?? null;
 
         $currency = $payload['currency'] ?? 
                    $payload['data']['currency'] ?? 

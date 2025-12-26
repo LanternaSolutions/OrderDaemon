@@ -2373,11 +2373,11 @@ label.odcm-retention-option {
    ========================================================================== */
 
 .odcm-code-block {
+    background-color: var(--odcm-theme-grey-100);
     /*
-    background-color: var(--odcm-theme-grey-200);
     border: 1px solid var(--odcm-component-code-border-color);
     */
-    border-radius: var(--odcm-component-border-radius);
+    border-radius: 0 0 var(--odcm-component-border-radius) var(--odcm-component-border-radius);
     padding: var(--odcm-theme-spacing-md);
     margin: var(--odcm-theme-spacing-xs) 0;
     overflow-x: auto;
@@ -2394,7 +2394,7 @@ label.odcm-retention-option {
     overflow: visible;
 }
 
-.odcm-code-block code {
+.odcm-code-block div pre code {
     background: none;
     padding: 0;
     border: none;
@@ -2986,8 +2986,8 @@ label.odcm-retention-option {
 /* Technical tier specific styling for raw payload display */
 .odcm-expandable-section .odcm-code-block {
     margin: 0;
-    background: var(--odcm-theme-grey-200);
-    border: 1px solid var(--odcm-component-border-color);
+    background: none;
+    border-top: 1px solid var(--odcm-component-border-color);
     max-height: 400px;
     overflow-y: auto;
 }

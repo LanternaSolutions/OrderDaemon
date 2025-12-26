@@ -26,17 +26,17 @@ class PaymentEventAdapter extends DisplayAdapter
     protected function extractSpecializedFields(array $payload): array
     {
         $fields = [];
-        
+
         // Extract event type for processing
         $eventType = $payload['event_type'] ?? $payload['data']['event_type'] ?? 'payment_event';
-        
+
         // Event description
         $fields['event_description'] = [
             'label' => $this->translate('Event'),
             'value' => $this->formatPaymentEventDescription($eventType, $payload),
             'section' => 'primary'
         ];
-        
+
         // Order ID - use enhanced extraction from base class
         $order_id = $this->extractOrderId($payload);
         if ($order_id > 0) {
@@ -46,7 +46,7 @@ class PaymentEventAdapter extends DisplayAdapter
                 'section' => 'primary'
             ];
         }
-        
+
         // Payment method
         $paymentMethod = $this->extractPaymentMethod($payload);
         if ($paymentMethod) {
@@ -56,7 +56,7 @@ class PaymentEventAdapter extends DisplayAdapter
                 'section' => 'primary'
             ];
         }
-        
+
         // Transaction amount - use base class method for consistent formatting
         $amount = $this->extractTransactionAmount($payload);
         $currency = $payload['currency'] ?? 
@@ -70,7 +70,7 @@ class PaymentEventAdapter extends DisplayAdapter
                 'section' => 'primary'
             ];
         }
-        
+
         // Payment status
         $paymentStatus = $this->extractPaymentStatus($payload);
         if ($paymentStatus) {
@@ -80,8 +80,8 @@ class PaymentEventAdapter extends DisplayAdapter
                 'section' => 'primary'
             ];
         }
-        
-        // Add event-specific fields
+
+        // Add event-specific fields - only essential business information
         if (strpos($eventType, 'payment_completed') !== false) {
             $this->addPaymentCompletedFields($fields, $payload);
         } elseif (strpos($eventType, 'payment_failed') !== false) {
@@ -89,10 +89,10 @@ class PaymentEventAdapter extends DisplayAdapter
         } elseif (strpos($eventType, 'checkout') !== false) {
             $this->addCheckoutFields($fields, $payload);
         }
-        
-        // Add common payment details
+
+        // Add common payment details - only essential business information
         $this->addCommonPaymentFields($fields, $payload);
-        
+
         return $fields;
     }
     
@@ -305,15 +305,17 @@ class PaymentEventAdapter extends DisplayAdapter
      */
     private function addCheckoutFields(array &$fields, array $payload): void
     {
-        // Checkout method
+        // Checkout method/type - add to primary section
         $checkoutMethod = $payload['checkout_method'] ?? 
-                         $payload['data']['checkout_method'] ?? null;
+                         $payload['data']['checkout_method'] ?? 
+                         $payload['checkout_type'] ?? 
+                         $payload['data']['checkout_type'] ?? null;
 
         if ($checkoutMethod) {
-            $fields['checkout_method'] = [
-                'label' => $this->translate('Checkout Method'),
-                'value' => ucfirst($checkoutMethod),
-                'section' => 'checkout_details'
+            $fields['checkout_type'] = [
+                'label' => $this->translate('Checkout Type'),
+                'value' => ucfirst(str_replace('_', ' ', $checkoutMethod)),
+                'section' => 'primary'
             ];
         }
 
