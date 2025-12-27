@@ -416,10 +416,21 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         if (is_numeric($ts)) {
             return gmdate('Y-m-d H:i:s', (int)$ts);
         } elseif (is_string($ts)) {
-            return $ts;
+            // Handle string timestamps - try to parse them first
+            if (is_numeric($ts)) {
+                // String representation of a number
+                return gmdate('Y-m-d H:i:s', (int)$ts);
+            } elseif (strtotime($ts) !== false) {
+                // Parseable date string
+                return gmdate('Y-m-d H:i:s', strtotime($ts));
+            } else {
+                // Fallback for unparseable strings - return as-is but this shouldn't happen with valid data
+                return $ts;
+            }
         }
 
-        return gmdate('Y-m-d H:i:s');
+        // For invalid/empty timestamps, return a placeholder instead of current time
+        return 'Invalid timestamp';
     }
     
     /**
@@ -478,7 +489,12 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
      */
     private function renderThreeTierComponent(array $displayData, array $rawPayload): string
     {
-        $html = '<div class="odcm-component">';
+        // Get event type configuration for theme class
+        $eventType = $rawPayload['event_type'] ?? 'unknown';
+        $eventConfig = $this->getEventTypeConfig($eventType);
+        $themeClass = $eventConfig['theme_class'] ?? 'odcm-component--system';
+
+        $html = '<div class="odcm-component ' . esc_attr($themeClass) . '">';
 
         // Extract basic info
         $timestamp = $this->formatTimestamp($rawPayload['ts'] ?? time());
@@ -582,7 +598,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $html = '<div class="odcm-expandable-section">';
         $html .= '<button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">' .
                  esc_html__('Show Technical Information', 'order-daemon') . '</button>';
-        $html .= '<div class="odcm-tier-content" style="display: none;">';
+        $html .= '<div class="odcm-tier-content">';
 
         // Add clear, general header for technical information
         $html .= '<div class="odcm-technical-header">';
@@ -669,7 +685,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $html = '<div class="odcm-expandable-section">';
         $html .= '<button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">' .
                  esc_html__('Show Technical Details', 'order-daemon') . '</button>';
-        $html .= '<div class="odcm-tier-content" style="display: none;">';
+        $html .= '<div class="odcm-tier-content">';
 
         // Add developer-relevant details header
         $html .= '<div class="odcm-technical-header">';
@@ -1068,6 +1084,11 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             return null;
         }
 
+        // Special handling for status_changed events - should not show status pill as it's redundant
+        if ($eventType === 'status_changed') {
+            return null;
+        }
+
         // Try to extract status from display sections first
         $statusFields = ['status', 'order_status', 'payment_status', 'execution_status', 'status_change'];
 
@@ -1187,15 +1208,15 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'priority' => 3,
                 'category' => 'Order Lifecycle'
             ],
-            // Payment events
             'checkout_processed' => [
                 'dashicon' => 'dashicons-cart',
-                'theme_class' => 'odcm-component--payment',
-                'primary_color' => 'green-700',
+                'theme_class' => 'odcm-component--order',
+                'primary_color' => 'purple-700',
                 'status_display' => 'checkout-draft',
                 'priority' => 3,
                 'category' => 'Payment'
             ],
+            // Payment events
             'payment_completed' => [
                 'dashicon' => 'dashicons-money-alt',
                 'theme_class' => 'odcm-component--payment',

@@ -7,8 +7,8 @@ namespace OrderDaemon\CompletionManager\API\Timeline;
  * Rule Execution Display Adapter
  *
  * Specialized adapter for rule execution events that extracts and organizes
- * rule-specific data for consistent display. Implements enhanced order ID
- * extraction to solve the "Order #0" issue.
+ * rule-specific data for consistent display. (Implements enhanced order ID
+ * extraction to solve the "Order #0" issue.)
  *
  * @package OrderDaemon\CompletionManager\API\Timeline
  * @since   1.0.0
@@ -32,7 +32,7 @@ class RuleExecutionAdapter extends DisplayAdapter
         $ruleName = $this->extractRuleName($payload);
         $fields['event_description'] = [
             'label' => $this->translate('Event'),
-            'value' => sprintf($this->translate('Automation: %s rule executed'), $ruleName),
+            'value' => sprintf($this->translate('Rule Executed: %s'), $ruleName),
             'section' => 'primary'
         ];
 
@@ -58,6 +58,16 @@ class RuleExecutionAdapter extends DisplayAdapter
             $fields['actions_taken'] = [
                 'label' => $this->translate('Action Taken'),
                 'value' => implode(', ', $actions),
+                'section' => 'primary'
+            ];
+        }
+
+        // Trigger information
+        $trigger = $payload['trigger'] ?? $payload['rule_execution']['trigger'] ?? '';
+        if (!empty($trigger)) {
+            $fields['trigger'] = [
+                'label' => $this->translate('Trigger'),
+                'value' => $trigger,
                 'section' => 'primary'
             ];
         }

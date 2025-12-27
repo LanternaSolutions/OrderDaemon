@@ -62,12 +62,18 @@ abstract class DisplayAdapter
         // Extract timestamp - use 'ts' field (Unix timestamp) as primary source
         $timestamp = $payload['ts'] ?? $payload['timestamp'] ?? null;
 
-        // Format timestamp using PayloadComponentUIToolkit for consistency and proper timezone handling
+        // Format timestamp with proper error handling - no fake fallbacks
         if ($timestamp !== null) {
-            $fields['timestamp'] = $this->formatTimestampWithToolkit($timestamp);
+            $formatted_timestamp = $this->formatTimestampWithToolkit($timestamp);
+            // Only use formatted timestamp if it's valid and not empty
+            if (!empty($formatted_timestamp) && $formatted_timestamp !== 'error') {
+                $fields['timestamp'] = $formatted_timestamp;
+            } else {
+                $fields['timestamp'] = 'error';
+            }
         } else {
-            // If no timestamp is available, use a reasonable default
-            $fields['timestamp'] = $this->formatTimestampWithToolkit(time());
+            // If no timestamp is available, explicitly show "no timestamp"
+            $fields['timestamp'] = 'no timestamp';
         }
 
         // Extract process ID
@@ -199,7 +205,8 @@ abstract class DisplayAdapter
             'timestamp', 'customer', 'payment_method', 'amount', 'currency',
             'order_id', 'status', 'status_change', 'new_status', 'previous_status',
             'payment_status', 'rule', 'execution_status', 'change_type',
-            'checkout_type', 'transaction_id', 'gateway', 'event_description'
+            'checkout_type', 'transaction_id', 'gateway', 'event_description',
+            'trigger', 'actions_taken'
         ];
 
         // Technical fields that should only appear in raw data section
@@ -223,8 +230,8 @@ abstract class DisplayAdapter
                 return true;
             }
 
-            // Filter out empty or null values
-            if (empty($value) && $value !== 0 && $value !== '0') {
+            // Filter out empty or null values, but allow "no timestamp" and "error" messages
+            if (empty($value) && $value !== 0 && $value !== '0' && $value !== 'no timestamp' && $value !== 'error') {
                 return true;
             }
 
@@ -548,22 +555,28 @@ abstract class DisplayAdapter
      * WordPress timezone handling and consistent formatting across the system.
      *
      * @param mixed $timestamp The timestamp to format (Unix timestamp, ISO8601 string, etc.)
-     * @return string Formatted timestamp
+     * @return string Formatted timestamp or "error" if formatting fails
      */
     protected function formatTimestampWithToolkit($timestamp): string
     {
         // Use PayloadComponentUIToolkit for consistent timestamp formatting
         try {
             $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
-            return $toolkit->format_timestamp($timestamp);
-        } catch (\Throwable $e) {
-            // Fallback to basic formatting if UI Toolkit is not available
-            if (is_numeric($timestamp)) {
-                return gmdate('Y-m-d H:i:s', (int)$timestamp);
-            } elseif (is_string($timestamp)) {
-                return $timestamp;
+            $formatted = $toolkit->format_timestamp($timestamp);
+
+            // Simple validation - only reject if it's empty or clearly an epoch error
+            if (!empty($formatted) && $formatted !== '1970-01-01 00:00:00') {
+                return $formatted;
+            } elseif (!empty($formatted)) {
+                // If it's not empty but is an epoch error, return "error"
+                return 'error';
+            } else {
+                // If it's empty, return "error"
+                return 'error';
             }
-            return gmdate('Y-m-d H:i:s');
+        } catch (\Throwable $e) {
+            // No fallback to fake timestamps - return "error" if formatting fails
+            return 'error';
         }
     }
 

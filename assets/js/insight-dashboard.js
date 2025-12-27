@@ -2147,6 +2147,132 @@ function insightDashboard() {
         },
 
         /**
+         * Reinitialize all toggle buttons in the DOM to ensure proper state synchronization
+         * This is called after dynamic content loading to fix any inconsistencies
+         */
+        reinitializeAllToggleButtons() {
+            try {
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Reinitializing all toggle buttons...');
+                }
+
+                // Find all tier toggle buttons in the DOM
+                const toggleButtons = document.querySelectorAll('.odcm-tier-toggle');
+                if (odcmIsDebug()) {
+                    console.log(`ODCM: Found ${toggleButtons.length} toggle buttons in DOM`);
+                }
+
+                let buttonsProcessed = 0;
+                let buttonsWithIssues = 0;
+
+                toggleButtons.forEach((button, index) => {
+                    try {
+                        // Validate required attributes
+                        if (!button.dataset.target) {
+                            if (odcmIsDebug()) {
+                                console.warn(`ODCM: Toggle button at index ${index} missing data-target attribute`, button);
+                            }
+                            buttonsWithIssues++;
+                            return;
+                        }
+
+                        // Find parent elements
+                        const expandableSection = button.closest('.odcm-expandable-section');
+                        const tierContent = expandableSection ? expandableSection.querySelector('.odcm-tier-content') : null;
+                        const component = button.closest('.odcm-component');
+
+                        if (!expandableSection || !tierContent) {
+                            if (odcmIsDebug()) {
+                                console.warn(`ODCM: Could not find required parent elements for toggle button ${index}`, {
+                                    hasExpandableSection: !!expandableSection,
+                                    hasTierContent: !!tierContent,
+                                    button: button
+                                });
+                            }
+                            buttonsWithIssues++;
+                            return;
+                        }
+
+                        // Synchronize ARIA attributes with actual DOM state
+                        const target = button.dataset.target;
+                        const isCurrentlyExpanded = expandableSection.getAttribute('aria-expanded') === 'true';
+                        const buttonAriaExpanded = button.getAttribute('aria-expanded');
+
+                        // Fix inconsistencies
+                        if (isCurrentlyExpanded !== (buttonAriaExpanded === 'true')) {
+                            button.setAttribute('aria-expanded', isCurrentlyExpanded.toString());
+                            if (odcmIsDebug()) {
+                                console.log(`ODCM: Fixed ARIA inconsistency for button ${index} - section:${isCurrentlyExpanded}, button:${buttonAriaExpanded}`);
+                            }
+                        }
+
+                        // Ensure proper button text based on expansion state
+                        const currentText = button.textContent.trim();
+                        const expectedText = isCurrentlyExpanded
+                            ? currentText.replace('Show', 'Hide')
+                            : currentText.replace('Hide', 'Show');
+
+                        if (currentText !== expectedText) {
+                            button.textContent = expectedText;
+                            if (odcmIsDebug()) {
+                                console.log(`ODCM: Fixed button text for button ${index}: "${currentText}" -> "${expectedText}"`);
+                            }
+                        }
+
+                        // Ensure component has proper expanded class
+                        if (component) {
+                            const expectedClass = `${target}-expanded`;
+                            const hasClass = component.classList.contains(expectedClass);
+
+                            if (isCurrentlyExpanded && !hasClass) {
+                                component.classList.add(expectedClass);
+                                if (odcmIsDebug()) {
+                                    console.log(`ODCM: Added ${expectedClass} class to component for button ${index}`);
+                                }
+                            } else if (!isCurrentlyExpanded && hasClass) {
+                                component.classList.remove(expectedClass);
+                                if (odcmIsDebug()) {
+                                    console.log(`ODCM: Removed ${expectedClass} class from component for button ${index}`);
+                                }
+                            }
+                        }
+
+                        buttonsProcessed++;
+
+                    } catch (error) {
+                        if (odcmIsDebug()) {
+                            console.error(`ODCM: Error processing toggle button ${index}:`, error);
+                        }
+                        buttonsWithIssues++;
+                    }
+                });
+
+                if (odcmIsDebug()) {
+                    console.log(`ODCM: Toggle button reinitialization complete - Processed: ${buttonsProcessed}, Issues: ${buttonsWithIssues}, Total: ${toggleButtons.length}`);
+                }
+
+                // If no buttons were found, that's expected when no log is selected yet
+                // Toggle buttons appear dynamically when logs are selected
+                // Event delegation handles clicks on dynamically loaded buttons automatically
+                if (toggleButtons.length === 0) {
+                    if (odcmIsDebug()) {
+                        console.log('ODCM: No toggle buttons found in DOM - this is expected when no log entry is selected');
+                    }
+                }
+
+            } catch (error) {
+                console.error('ODCM: Error in reinitializeAllToggleButtons:', error);
+                if (odcmIsDebug()) {
+                    console.error('ODCM: Full error details:', {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack
+                    });
+                }
+            }
+        },
+
+        /**
          * Handle tier toggle button clicks
          */
         handleTierToggleClick(event) {
@@ -2203,8 +2329,17 @@ function insightDashboard() {
                 }
 
                 const component = toggleButton.closest('.odcm-component');
-                // Fixed: Check the button's aria-expanded attribute to determine expansion state
-                const isExpanded = toggleButton.getAttribute('aria-expanded') === 'true';
+                // Fixed: Check the expandable section's aria-expanded attribute for more reliable state detection
+                // The section's attribute is more authoritative than the button's attribute
+                const sectionAriaExpanded = expandableSection.getAttribute('aria-expanded');
+                const buttonAriaExpanded = toggleButton.getAttribute('aria-expanded');
+
+                // Use section state as primary indicator, with button state as fallback
+                const isExpanded = sectionAriaExpanded === 'true' || buttonAriaExpanded === 'true';
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: State detection - Section:', sectionAriaExpanded, 'Button:', buttonAriaExpanded, 'Final:', isExpanded);
+                }
 
                 if (odcmIsDebug()) {
                     console.log('ODCM: Toggling tier:', {
