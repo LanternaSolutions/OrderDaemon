@@ -2551,6 +2551,16 @@ label.odcm-retention-option {
     --odcm-component-value-bg: var(--odcm-theme-white);
 }
 
+/* Error Events Theme */
+.odcm-component--debug {
+    --odcm-component-bg: var(--odcm-theme-yellow-200);
+    --odcm-component-border-color: var(--odcm-theme-yellow-700);
+    --odcm-component-header-border-color: var(--odcm-theme-yellow-700);
+    --odcm-component-text-color-header: var(--odcm-theme-grey-900);
+    --odcm-component-text-color-body: var(--odcm-theme-grey-900);
+    --odcm-component-value-bg: var(--odcm-theme-white);
+}
+
 /* Default Theme (Fallback) */
 .odcm-component--default {
     --odcm-component-bg: var(--odcm-theme-grey-200);
@@ -2599,6 +2609,10 @@ label.odcm-retention-option {
 
 .odcm-component--system .odcm-component-icon {
     color: var(--odcm-theme-grey-700);
+}
+
+.odcm-component--debug .odcm-component-icon {
+    color: var(--odcm-theme-yellow-700);
 }
 
 .odcm-expandable-section {
@@ -2964,7 +2978,7 @@ label.odcm-retention-option {
     margin-top: var(--odcm-theme-spacing-sm);
     padding: 0;
     background: var(--odcm-theme-grey-100);
-    border: 1px solid var(--odcm-component-border-color);
+    border: 0;
     border-radius: var(--odcm-component-border-radius);
     overflow: hidden;
     transition: all 0.3s ease;
@@ -2987,7 +3001,7 @@ label.odcm-retention-option {
 .odcm-expandable-section .odcm-code-block {
     margin: 0;
     background: none;
-    border-top: 1px solid var(--odcm-component-border-color);
+    border: 0;
     max-height: 400px;
     overflow-y: auto;
 }

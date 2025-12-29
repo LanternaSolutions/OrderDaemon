@@ -1746,7 +1746,7 @@ class InsightDashboard
                         
                         <div class="odcm-log-entry-content" @click="log && selectLog(log)">
                             <div class="odcm-log-entry-header">
-                                <div class="odcm-log-timestamp" x-text="formatTimestamp(log?.timestamp)"></div>
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)"></div>
                                 <div x-show="log?.order_id">
                                     Order #<span x-text="log.order_id"></span>
                                 </div>

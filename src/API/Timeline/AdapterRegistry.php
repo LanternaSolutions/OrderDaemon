@@ -32,6 +32,14 @@ class AdapterRegistry
     private static $logger = null;
 
     /**
+     * Check if debug mode is enabled (static version)
+     */
+    private static function isDebugMode(): bool
+    {
+        return (defined('WP_DEBUG') && WP_DEBUG) || (defined('ODCM_DEBUG') && ODCM_DEBUG);
+    }
+
+    /**
      * Get appropriate adapter for event payload with WordPress compliance
      *
      * Implements proper input validation, error handling, and WordPress hooks
@@ -93,6 +101,23 @@ class AdapterRegistry
             } catch (\Throwable $e) {
                 // Fallback: continue with original event type
             }
+        }
+
+        // Check if this might be an incomplete rule event
+        $event_type = $payload['event_type'] ?? '';
+        $isPotentialIncompleteRule = (strpos($event_type, 'rule_execution') !== false) &&
+                                    empty($payload['rule_execution']['rule_name']) &&
+                                    empty($payload['rule_name']) &&
+                                    empty($payload['data']['rule_name']);
+
+        if ($isPotentialIncompleteRule) {
+            // In non-debug mode, return fallback adapter which will return empty fields
+            if (!self::isDebugMode()) {
+                self::logDebugMessage("ODCM ADAPTER DEBUG: Skipping incomplete rule event in production mode", 'debug');
+                return self::getFallbackAdapter();
+            }
+
+            self::logDebugMessage("ODCM ADAPTER DEBUG: Processing incomplete rule event in debug mode", 'debug');
         }
 
         // Priority-based adapter selection with error handling
@@ -226,7 +251,7 @@ class AdapterRegistry
     {
         // Use anonymous class as last resort fallback
         return new class extends DisplayAdapter {
-            protected function extractSpecializedFields(array $payload): array
+            protected function extractSpecializedFields(array &$payload): array
             {
                 $fields = [];
 

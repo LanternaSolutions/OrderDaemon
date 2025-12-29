@@ -16,13 +16,103 @@ namespace OrderDaemon\CompletionManager\API\Timeline;
 class RuleExecutionAdapter extends DisplayAdapter
 {
     /**
+     * Check if debug mode is enabled
+     */
+    protected function isDebugMode(): bool
+    {
+        return defined('ODCM_DEBUG') && ODCM_DEBUG;
+    }
+
+    /**
+     * Check if this is an incomplete rule event
+     */
+    private function isIncompleteRuleEvent(array $payload): bool
+    {
+        // Must be a rule execution event
+        if (strpos($payload['event_type'] ?? '', 'rule_execution') === false) {
+            return false;
+        }
+
+        // Check for complete rule data
+        $hasCompleteData = !empty($payload['rule_execution']['rule_name']) ||
+                          !empty($payload['rule_execution']['rule_configuration']['rule_name']) ||
+                          !empty($payload['rule_name']) ||
+                          !empty($payload['data']['rule_name']);
+
+        // If no complete rule data but has processing metadata, it's incomplete
+        $hasProcessingData = !empty($payload['data']['correlation_id']) ||
+                            !empty($payload['data']['process_type']) ||
+                            !empty($payload['data']['status']);
+
+        return !$hasCompleteData && $hasProcessingData;
+    }
+
+    /**
+     * Extract fields for incomplete rule events (debug only)
+     */
+    private function extractProcessingStartedFields(array $payload): array
+    {
+        $fields = [];
+
+        // Event description - clearly indicate this is a processing event
+        $fields['event_description'] = [
+            'label' => $this->translate('Event'),
+            'value' => $this->translate('Rule Processing Started'),
+            'section' => 'primary'
+        ];
+
+        // Extract order ID if available
+        $order_id = $this->extractRuleExecutionOrderId($payload);
+        if ($order_id > 0) {
+            $fields['order_id'] = [
+                'label' => $this->translate('Order'),
+                'value' => '#' . $order_id,
+                'section' => 'primary'
+            ];
+        }
+
+        // Add correlation ID for tracking
+        if (!empty($payload['data']['correlation_id'])) {
+            $fields['correlation_id'] = [
+                'label' => $this->translate('Processing ID'),
+                'value' => $payload['data']['correlation_id'],
+                'section' => 'primary'
+            ];
+        }
+
+        // Processing status
+        $fields['processing_status'] = [
+            'label' => $this->translate('Status'),
+            'value' => $this->translate('Processing'),
+            'section' => 'primary'
+        ];
+
+        // Add debug indicator
+        $fields['debug_indicator'] = [
+            'label' => $this->translate('Type'),
+            'value' => $this->translate('Debug Event'),
+            'section' => 'primary'
+        ];
+
+        return $fields;
+    }
+
+    /**
      * Extract specialized fields for rule execution events
      *
      * @param array $payload The event payload
      * @return array Extracted specialized fields
      */
-    protected function extractSpecializedFields(array $payload): array
+    protected function extractSpecializedFields(array &$payload): array
     {
+        // Check if this is an incomplete processing event
+        if ($this->isIncompleteRuleEvent($payload)) {
+            // Add debug flag to payload for filtering
+            $payload['debug_only'] = true;
+            return $this->extractProcessingStartedFields($payload);
+        }
+
+        // Original logic for complete rule execution events
         $fields = [];
 
         // Enhanced order ID extraction specifically for rule executions
@@ -105,7 +195,7 @@ class RuleExecutionAdapter extends DisplayAdapter
 
         return $fields;
     }
-    
+
     /**
      * Enhanced order ID extraction specifically for rule execution events
      *
@@ -113,7 +203,7 @@ class RuleExecutionAdapter extends DisplayAdapter
      * locations to find the most reliable order ID for rule execution contexts.
      *
      * @since 1.2.0
-     * 
+     *
      * @param array $payload The event payload containing rule execution data.
      * @return int The extracted order ID, or 0 if none found.
      */
@@ -125,30 +215,30 @@ class RuleExecutionAdapter extends DisplayAdapter
             $payload['rule_execution']['order_evaluation_context']['order_id'] ?? null,
             $payload['rule_execution']['trigger_event_context']['order_id'] ?? null,
             $payload['rule_execution']['context']['order_id'] ?? null,
-            
-            // Priority 2: Event trigger context  
+
+            // Priority 2: Event trigger context
             $payload['trigger_event_context']['order_id'] ?? null,
             $payload['trigger_context']['order_id'] ?? null,
-            
+
             // Priority 3: Direct payload
             $payload['order_id'] ?? null,
             $payload['primary_object_id'] ?? null,
-            
+
             // Priority 4: Data nested
             ($payload['data'] ?? [])['order_id'] ?? null,
             ($payload['data'] ?? [])['primary_object_id'] ?? null,
-            
+
             // Priority 5: Technical details
             ($payload['technical_details'] ?? [])['order_id'] ?? null,
-            
+
             // Priority 6: Event data summary
             ($payload['event_data_summary'] ?? [])['order_id'] ?? null,
-            
+
             // Priority 7: Rule-specific locations
             ($payload['rule_execution'] ?? [])['rule_configuration']['target_order_id'] ?? null,
             ($payload['rule_execution'] ?? [])['evaluation_context']['order'] ?? null,
         ];
-        
+
         foreach ($sources as $source) {
             if (is_numeric($source) && (int)$source > 0) {
                 return (int)$source;
@@ -158,10 +248,10 @@ class RuleExecutionAdapter extends DisplayAdapter
                 return (int)$source['id'];
             }
         }
-        
+
         return 0;
     }
-    
+
     /**
      * Extract rule name from payload
      *
@@ -176,7 +266,7 @@ class RuleExecutionAdapter extends DisplayAdapter
                $payload['data']['rule_name'] ?? 
                $this->translate('Unknown Rule', 'order-daemon');
     }
-    
+
     /**
      * Extract actions taken by the rule
      *
@@ -186,14 +276,14 @@ class RuleExecutionAdapter extends DisplayAdapter
     private function extractActionsTaken(array $payload): array
     {
         $actions = [];
-        
+
         // Check various locations for actions
         $actionData = $payload['rule_execution']['actions'] ?? 
                      $payload['rule_execution']['action_execution'] ?? 
                      $payload['actions_taken'] ?? 
                      $payload['data']['actions'] ?? 
                      [];
-        
+
         if (is_array($actionData)) {
             // Handle different action data formats
             if (isset($actionData['primary_action'])) {
@@ -220,18 +310,18 @@ class RuleExecutionAdapter extends DisplayAdapter
                 }
             }
         }
-        
+
         // Fallback: if no actions found, try to infer from rule execution status
         if (empty($actions)) {
             $status = $payload['rule_execution']['status'] ?? 
                      $payload['execution_status'] ?? 
                      $payload['status'] ?? '';
-            
+
             if (strtolower($status) === 'executed' || strtolower($status) === 'success') {
                 $actions[] = $this->translate('Rule Actions Executed');
             }
         }
-        
+
         return array_unique($actions);
     }
 

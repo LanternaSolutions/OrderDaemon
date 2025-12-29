@@ -40,16 +40,16 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $dashicon = $eventConfig['dashicon'] ?? 'dashicons-admin-generic';
         $themeClass = $eventConfig['theme_class'] ?? 'odcm-component--system';
 
-        // Build HTML with proper structure for right-aligned status pills
         $html = '<div class="odcm-component__header-left">';
         $html .= '<span class="odcm-component-icon dashicons ' . esc_attr($dashicon) . '"></span>';
         $html .= '<span class="odcm-component__title">' . esc_html($title) . '</span>';
-        $html .= '</div>';
 
         // Add status pill in right-aligned container if available
         if ($statusPill) {
             $html .= '<div class="odcm-component__header-right">' . $statusPill . '</div>';
         }
+
+        $html .= '</div>';
 
         return $html;
     }
@@ -494,18 +494,22 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $eventConfig = $this->getEventTypeConfig($eventType);
         $themeClass = $eventConfig['theme_class'] ?? 'odcm-component--system';
 
+        // Override theme class for incomplete rule events
+        if ($this->isIncompleteRuleEvent($rawPayload)) {
+            $themeClass = 'odcm-component--debug';
+        }
+
         $html = '<div class="odcm-component ' . esc_attr($themeClass) . '">';
 
         // Extract basic info
         $timestamp = $this->formatTimestamp($rawPayload['ts'] ?? time());
         $level = $rawPayload['level'] ?? 'info';
 
-        // Header with component header structure
+        // Header with component header structure without redundant nesting
         $html .= '<div class="odcm-component__header">';
         $html .= '<div class="odcm-component__header-top">';
-        $html .= '<div class="odcm-component__header-left">';
-        $html .= '<div class="odcm-component__title">' . $this->renderPrimaryInfo($displayData, $rawPayload) . '</div>';
-        $html .= '</div>';
+        // Call renderPrimaryInfo() directly without wrapping
+        $html .= $this->renderPrimaryInfo($displayData, $rawPayload);
         $html .= '</div>';
         $html .= '</div>';
 
@@ -587,7 +591,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     /**
      * Render improved technical section with clearer labeling
      *
-     * This method creates a "Technical Information" section that clearly indicates
+     * This method creates a "raw event json" section that clearly indicates
      * it contains complete raw event data for debugging and analysis.
      *
      * @param array $rawPayload The raw event payload
@@ -597,13 +601,8 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     {
         $html = '<div class="odcm-expandable-section">';
         $html .= '<button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">' .
-                 esc_html__('Show Technical Information', 'order-daemon') . '</button>';
+                 esc_html__('Show raw event json', 'order-daemon') . '</button>';
         $html .= '<div class="odcm-tier-content">';
-
-        // Add clear, general header for technical information
-        $html .= '<div class="odcm-technical-header">';
-        $html .= '<h4>' . esc_html__('Raw event debug data for analysis', 'order-daemon') . '</h4>';
-        $html .= '</div>';
 
         // Format raw payload as JSON with proper prism.js classes
         $jsonPayload = wp_json_encode($rawPayload, JSON_PRETTY_PRINT);
@@ -684,14 +683,8 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     {
         $html = '<div class="odcm-expandable-section">';
         $html .= '<button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">' .
-                 esc_html__('Show Technical Details', 'order-daemon') . '</button>';
+                 esc_html__('Show raw event json', 'order-daemon') . '</button>';
         $html .= '<div class="odcm-tier-content">';
-
-        // Add developer-relevant details header
-        $html .= '<div class="odcm-technical-header">';
-        $html .= '<h4>' . esc_html__('Developer Details', 'order-daemon') . '</h4>';
-        $html .= '<p>' . esc_html__('Technical information and raw data for debugging purposes.', 'order-daemon') . '</p>';
-        $html .= '</div>';
 
         // Format raw payload as JSON with proper prism.js classes
         $jsonPayload = wp_json_encode($rawPayload, JSON_PRETTY_PRINT);
@@ -925,7 +918,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     }
     
     /**
-     * Simple debug event filtering - hide obvious debug events unless debug mode is on
+     * Enhanced debug event filtering - check both event type and completeness
      */
     private function shouldFilterDebugEvent(array $payload): bool
     {
@@ -934,10 +927,15 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             return false;
         }
 
+        // 3. Check for debug_only flag set by adapters (highest priority)
+        if (!empty($payload['debug_only']) && $payload['debug_only'] === true) {
+            return true;
+        }
+
         // Get event type
         $event_type = $payload['data']['event_type'] ?? $payload['event_type'] ?? '';
 
-        // Hide ONLY truly technical debug events (not business events)
+        // 1. Check for known debug-only event types (not business events)
         if (in_array($event_type, [
             'order_check_scheduled',  // Internal scheduling, not business-relevant
             'rule_evaluation_non_canonical', // Debug traces for rule evaluation
@@ -946,6 +944,25 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             'order_loaded'           // Purely technical loading event
         ])) {
             return true;
+        }
+
+        // 2. Check for incomplete rule execution events
+        // These have event_type "rule_execution" but lack complete rule data
+        if ($event_type === 'rule_execution') {
+            // Check if this is an incomplete rule processing event
+            $hasCompleteRuleData = !empty($payload['rule_execution']['rule_name']) ||
+                                  !empty($payload['rule_execution']['rule_configuration']['rule_name']) ||
+                                  !empty($payload['rule_name']) ||
+                                  !empty($payload['data']['rule_name']);
+
+            $hasProcessingMetadata = !empty($payload['data']['correlation_id']) ||
+                                   !empty($payload['data']['process_type']) ||
+                                   !empty($payload['data']['status']);
+
+            // It's incomplete if it has processing data but lacks complete rule data
+            if ($hasProcessingMetadata && !$hasCompleteRuleData) {
+                return true;
+            }
         }
 
         return false;
@@ -1014,7 +1031,8 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             'info' => 'info',
             'completed' => 'completed',
             'pending' => 'pending',
-            'skipped' => 'skipped'
+            'skipped' => 'skipped',
+            'debug' => 'debug'
         ];
 
         // Get the appropriate pill variant, default to 'info' for unknown types
@@ -1062,8 +1080,13 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             'error' => 'error',
             'warning' => 'warning',
             'info' => 'info',
-            'debug' => 'info'
+            'debug' => 'debug'
         ];
+
+        // Special handling for debug events - use debug status pill
+        if (in_array($eventType, ['_status_evaluation', 'rule_evaluation_non_canonical', 'debug'])) {
+            return 'debug';
+        }
 
         return $statusMap[strtolower($statusValue)] ?? 'info';
     }
@@ -1087,6 +1110,22 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         // Special handling for status_changed events - should not show status pill as it's redundant
         if ($eventType === 'status_changed') {
             return null;
+        }
+
+        // Special handling for debug events - they should always have a debug status pill
+        if (in_array($eventType, ['_status_evaluation', 'rule_evaluation_non_canonical', 'debug', 'process_started', 'order_loaded'])) {
+            return [
+                'label' => 'debug',
+                'type' => 'debug'
+            ];
+        }
+
+        // Special handling for incomplete rule events (Rule Processing Started) - they should have debug status pills
+        if ($this->isIncompleteRuleEvent($rawPayload)) {
+            return [
+                'label' => 'debug',
+                'type' => 'debug'
+            ];
         }
 
         // Try to extract status from display sections first
@@ -1116,6 +1155,34 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         }
 
         return null;
+    }
+
+    /**
+     * Check if this is an incomplete rule event (processing started)
+     * These events should use debug styling instead of rule styling
+     *
+     * @param array $payload The event payload
+     * @return bool True if this is an incomplete rule event
+     */
+    private function isIncompleteRuleEvent(array $payload): bool
+    {
+        // Must be a rule execution event
+        if (strpos($payload['event_type'] ?? '', 'rule_execution') === false) {
+            return false;
+        }
+
+        // Check for complete rule data
+        $hasCompleteData = !empty($payload['rule_execution']['rule_name']) ||
+                          !empty($payload['rule_execution']['rule_configuration']['rule_name']) ||
+                          !empty($payload['rule_name']) ||
+                          !empty($payload['data']['rule_name']);
+
+        // If no complete rule data but has processing metadata, it's incomplete
+        $hasProcessingData = !empty($payload['data']['correlation_id']) ||
+                            !empty($payload['data']['process_type']) ||
+                            !empty($payload['data']['status']);
+
+        return !$hasCompleteData && $hasProcessingData;
     }
 
     /**
@@ -1242,14 +1309,6 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'priority' => 2,
                 'category' => 'Rule'
             ],
-            'rule_evaluation_non_canonical' => [
-                'dashicon' => 'dashicons-admin-generic',
-                'theme_class' => 'odcm-component--rule',
-                'primary_color' => 'blue-700',
-                'status_display' => 'non-canonical',
-                'priority' => 2,
-                'category' => 'Rule'
-            ],
             // System events
             'admin_action' => [
                 'dashicon' => 'dashicons-admin-tools',
@@ -1268,7 +1327,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'category' => 'System'
             ],
             'info' => [
-                'dashicon' => 'dashicons-admin-tools',
+                'dashicon' => 'dashicons-info-outline',
                 'theme_class' => 'odcm-component--system',
                 'primary_color' => 'grey-700',
                 'status_display' => 'info',
@@ -1323,7 +1382,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'primary_color' => 'grey-700',
                 'status_display' => 'recurring',
                 'priority' => 2,
-                'category' => 'System'
+                'category' => 'Order Lifecycle'
             ],
             // Webhook events
             'webhook_received' => [
@@ -1361,20 +1420,28 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'category' => 'System'
             ],
             'debug' => [
-                'dashicon' => 'dashicons-warning',
-                'theme_class' => 'odcm-component--error',
-                'primary_color' => 'red-700',
+                'dashicon' => 'dashicons-info',
+                'theme_class' => 'odcm-component--debug',
+                'primary_color' => 'yellow-700',
                 'status_display' => 'debug',
                 'priority' => 1,
                 'category' => 'System'
             ],
             '_status_evaluation' => [
-                'dashicon' => 'dashicons-warning',
-                'theme_class' => 'odcm-component--error',
-                'primary_color' => 'red-700',
+                'dashicon' => 'dashicons-info-outline',
+                'theme_class' => 'odcm-component--debug',
+                'primary_color' => 'yellow-700',
                 'status_display' => 'evaluation',
                 'priority' => 1,
-                'category' => 'System'
+                'category' => 'Rule'
+            ],
+            'rule_evaluation_non_canonical' => [
+                'dashicon' => 'dashicons-controls-play',
+                'theme_class' => 'odcm-component--debug',
+                'primary_color' => 'yellow-700',
+                'status_display' => 'non-canonical',
+                'priority' => 2,
+                'category' => 'Rule'
             ],
             // Universal events
             'universal_event_processing' => [

@@ -1894,11 +1894,49 @@ function insightDashboard() {
                 // Find the log entry in this.logs
                 const log = this.logs.find(l => l.id === selectedId);
 
-                if (log && log.constituent_log_ids && Array.isArray(log.constituent_log_ids) && log.constituent_log_ids.length > 0) {
-                    // This is a consolidated entry - add all constituent IDs
-                    expandedIds.push(...log.constituent_log_ids);
-                    consolidatedEntriesExpanded++;
-                    console.log(`ODCM: Expanded consolidated entry ${selectedId} to ${log.constituent_log_ids.length} constituent IDs:`, log.constituent_log_ids);
+                if (log && log.is_process_group === true) {
+                    // This is a consolidated entry - fetch constituent logs from the process endpoint
+                    try {
+                        console.log(`ODCM: Found consolidated entry ${selectedId}, fetching constituent logs...`);
+
+                        // Use the process endpoint to get all logs for this process
+                        const processResponse = await fetch(`${this.config.apiUrl}process/${log.process_id}/`, {
+                            headers: {
+                                'X-WP-Nonce': this.config.nonce
+                            }
+                        });
+
+                        if (processResponse.ok) {
+                            const processData = await processResponse.json();
+
+                            if (processData.logs && Array.isArray(processData.logs) && processData.logs.length > 0) {
+                                // Extract all log IDs from the constituent logs
+                                const constituentIds = processData.logs.map(l => l.id).filter(id => id);
+
+                                if (constituentIds.length > 0) {
+                                    expandedIds.push(...constituentIds);
+                                    consolidatedEntriesExpanded++;
+                                    console.log(`ODCM: Expanded consolidated entry ${selectedId} to ${constituentIds.length} constituent IDs:`, constituentIds);
+                                } else {
+                                    console.warn(`ODCM: Consolidated entry ${selectedId} had no valid constituent IDs`);
+                                    // Fall back to deleting the placeholder ID
+                                    expandedIds.push(selectedId);
+                                }
+                            } else {
+                                console.warn(`ODCM: Process endpoint returned no logs for process_id ${log.process_id}`);
+                                // Fall back to deleting the placeholder ID
+                                expandedIds.push(selectedId);
+                            }
+                        } else {
+                            console.error(`ODCM: Failed to fetch constituent logs for process_id ${log.process_id}: ${processResponse.status}`);
+                            // Fall back to deleting the placeholder ID
+                            expandedIds.push(selectedId);
+                        }
+                    } catch (error) {
+                        console.error(`ODCM: Error fetching constituent logs for consolidated entry ${selectedId}:`, error);
+                        // Fall back to deleting the placeholder ID
+                        expandedIds.push(selectedId);
+                    }
                 } else {
                     // Regular individual entry - add its ID
                     expandedIds.push(selectedId);
@@ -2044,11 +2082,47 @@ function insightDashboard() {
             this.currentPage = p;
             this.fetchLogs();
         },
-        formatTimestamp(ts) {
+        formatTimestamp(ts, element = null) {
             try {
+                // If element is provided and doesn't have the js-format-timestamp class,
+                // return the timestamp as-is (for timeline components and any non-log-stream timestamps)
+                if (element && !element.classList.contains('js-format-timestamp')) {
+                    // Return raw timestamp for non-log-stream elements
+                    return typeof ts === 'string' ? ts : String(ts);
+                }
+
                 const cfg = this.config.dateTimeConfig || {};
-                const d = new Date(ts);
+                let timestamp = ts;
+
+                // Handle string timestamps and unit conversion
+                if (typeof timestamp === 'string') {
+                    // Check if it's a numeric string (possibly with milliseconds)
+                    if (/^\d+(\.\d+)?$/.test(timestamp)) {
+                        // Convert to number
+                        timestamp = parseFloat(timestamp);
+
+                        // If it's a Unix timestamp in seconds (10 digits), convert to milliseconds
+                        if (timestamp > 1000000000 && timestamp < 9999999999) {
+                            timestamp = timestamp * 1000;
+                        }
+                    } else {
+                        // Try to parse as ISO date string
+                        const parsedDate = new Date(timestamp);
+                        if (!isNaN(parsedDate.getTime())) {
+                            timestamp = parsedDate.getTime();
+                        }
+                    }
+                } else if (typeof timestamp === 'number') {
+                    // If it's a Unix timestamp in seconds (10 digits), convert to milliseconds
+                    if (timestamp > 1000000000 && timestamp < 9999999999) {
+                        timestamp = timestamp * 1000;
+                    }
+                }
+
+                // Create Date object with properly formatted timestamp
+                const d = new Date(timestamp);
                 const mode = this.timestampDisplayMode || 'dateTime';
+
                 if (mode === 'timeOnly') {
                     return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
                 }
@@ -2059,13 +2133,17 @@ function insightDashboard() {
                     if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
                     return `${Math.floor(diff/86400)}d ago`;
                 }
+
                 // date & time
                 return d.toLocaleString(undefined, {
                     year: 'numeric', month: 'short', day: '2-digit',
                     hour: '2-digit', minute: '2-digit'
                 });
+
             } catch (e) {
-                return String(ts || '');
+                console.warn('ODCM: Timestamp formatting error:', e);
+                // Return a formatted error message instead of raw timestamp
+                return 'invalid: ' + String(ts || '');
             }
         },
 

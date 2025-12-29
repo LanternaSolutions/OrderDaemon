@@ -27,7 +27,7 @@ class GenericEventAdapter extends DisplayAdapter
      * @param array $payload The event payload
      * @return array Extracted specialized fields
      */
-    protected function extractSpecializedFields(array $payload): array
+    protected function extractSpecializedFields(array &$payload): array
     {
         $fields = [];
 

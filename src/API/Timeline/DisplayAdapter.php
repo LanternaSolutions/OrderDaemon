@@ -95,7 +95,7 @@ abstract class DisplayAdapter
      * @param array $payload The event payload
      * @return array Extracted specialized fields
      */
-    abstract protected function extractSpecializedFields(array $payload): array;
+    abstract protected function extractSpecializedFields(array &$payload): array;
 
     /**
      * Auto-detect potentially useful fields
@@ -651,7 +651,8 @@ abstract class DisplayAdapter
             'info' => 'info',
             'completed' => 'completed',
             'pending' => 'pending',
-            'skipped' => 'skipped'
+            'skipped' => 'skipped',
+            'debug' => 'debug'
         ];
 
         // Get the appropriate pill variant, default to 'info' for unknown types
@@ -699,8 +700,13 @@ abstract class DisplayAdapter
             'error' => 'error',
             'warning' => 'warning',
             'info' => 'info',
-            'debug' => 'info'
+            'debug' => 'debug'
         ];
+
+        // Special handling for debug events - use debug status pill
+        if (in_array($eventType, ['_status_evaluation', 'rule_evaluation_non_canonical', 'debug'])) {
+            return 'debug';
+        }
 
         return $statusMap[strtolower($statusValue)] ?? 'info';
     }
@@ -863,7 +869,7 @@ abstract class DisplayAdapter
             // Rule execution events
             'rule_execution' => [
                 'dashicon' => 'dashicons-admin-generic',
-                'theme_class' => 'odcm-component--rule',
+                'theme_class' => 'odcm-component--rule', // Default to rule styling
                 'primary_color' => 'blue-700',
                 'status_display' => 'success',
                 'priority' => 2,
@@ -871,11 +877,11 @@ abstract class DisplayAdapter
             ],
             'rule_evaluation_non_canonical' => [
                 'dashicon' => 'dashicons-admin-generic',
-                'theme_class' => 'odcm-component--rule',
-                'primary_color' => 'blue-700',
-                'status_display' => 'non-canonical',
-                'priority' => 2,
-                'category' => 'Rule'
+                'theme_class' => 'odcm-component--debug',
+                'primary_color' => 'yellow-700',
+                'status_display' => 'debug',
+                'priority' => 1,
+                'category' => 'Debug'
             ],
             // System events
             'admin_action' => [

@@ -49,7 +49,7 @@
         var comp = Array.isArray(cfg.comparison) ? cfg.comparison : [];
         if (comp.length){
             var $table = $('<table class="odcm-upgrade-compare" />');
-            $table.append('<thead><tr><th>'+escHtml('Feature')+'</th><th>'+escHtml('Core')+'</th><th>'+escHtml('Premium')+'</th></tr></thead>');
+            $table.append('<thead><tr><th>'+escHtml('Feature')+'</th><th>'+escHtml('Core')+'</th><th>'+escHtml('Pro')+'</th></tr></thead>');
             var $tb = $('<tbody/>');
             comp.forEach(function(row){
                 var f = escHtml(row.feature || '');

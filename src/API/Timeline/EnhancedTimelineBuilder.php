@@ -71,6 +71,21 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         // Convert TimelineEvent to component format for backward compatibility
         $component = $this->convertTimelineEventToComponent($timelineEvent, $includeDebug);
 
+        // If the component is null (filtered out as debug-only), return empty timeline
+        if ($component === null) {
+            $metadata = [
+                'type' => 'individual',
+                'log_id' => (int) $logEntry['log_id'],
+                'timestamp' => $logEntry['timestamp'],
+                'order_id' => !empty($logEntry['order_id']) ? (int) $logEntry['order_id'] : null,
+                'event_type' => $logEntry['event_type'] ?? null,
+                'source' => $logEntry['source'] ?? null,
+                'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) wp_unslash($_SERVER['REQUEST_TIME_FLOAT']) : microtime(true)),
+                'filtered_out' => 'Event filtered out as debug-only in non-debug mode',
+            ];
+            return TimelineData::individual((int) $logEntry['log_id'], [], $metadata);
+        }
+
         $metadata = [
             'type' => 'individual',
             'log_id' => (int) $logEntry['log_id'],
@@ -115,7 +130,9 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         // Convert TimelineEvents to components
         foreach ($timelineEvents as $timelineEvent) {
             $component = $this->convertTimelineEventToComponent($timelineEvent, $includeDebug);
-            $components[] = $component;
+            if ($component !== null) {
+                $components[] = $component;
+            }
         }
 
         // Sort components chronologically
@@ -143,11 +160,14 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
             return $time_a <=> $time_b;
         });
 
+        $filteredCount = count($processLogEntries) - count($components);
         $metadata = [
             'type' => 'process_group',
             'process_id' => $processId,
             'representative_log_id' => (int) $representativeLogEntry['log_id'],
             'total_events' => count($processLogEntries),
+            'visible_events' => count($components),
+            'filtered_events' => $filteredCount > 0 ? $filteredCount : null,
             'order_id' => !empty($representativeLogEntry['order_id']) ? (int) $representativeLogEntry['order_id'] : null,
             'start_timestamp' => !empty($processLogEntries) ? $processLogEntries[0]['timestamp'] : null,
             'end_timestamp' => !empty($processLogEntries) ? $processLogEntries[count($processLogEntries) - 1]['timestamp'] : null,
@@ -264,6 +284,11 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
      */
     private function convertTimelineEventToComponent(TimelineEvent $timelineEvent, bool $includeDebug): array
     {
+        // Check if this is a debug-only event that should be filtered out
+        if (!$includeDebug && $this->isDebugOnlyEvent($timelineEvent)) {
+            return null;
+        }
+
         $component = [
             'event_type' => $timelineEvent->event_type,
             'label' => $timelineEvent->label,
@@ -286,6 +311,32 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         }
 
         return $component;
+    }
+
+    /**
+     * Check if an event should only be shown in debug mode
+     */
+    private function isDebugOnlyEvent(TimelineEvent $timelineEvent): bool
+    {
+        // Check if this is a rule execution event with incomplete data (processing started)
+        if ($timelineEvent->event_type === 'rule_execution') {
+            $rawPayload = $timelineEvent->raw_payload;
+
+            // Check if this has the full rule execution context
+            $hasFullRuleExecutionContext = !empty($rawPayload['rule_execution']) && is_array($rawPayload['rule_execution']);
+
+            // Check for processing metadata that indicates this is a processing event
+            $hasProcessingData = !empty($rawPayload['data']['correlation_id']) ||
+                               !empty($rawPayload['data']['process_type']) ||
+                               !empty($rawPayload['data']['status']);
+
+            // It's a debug-only event if it has processing data but lacks the full rule execution context
+            if ($hasProcessingData && !$hasFullRuleExecutionContext) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
