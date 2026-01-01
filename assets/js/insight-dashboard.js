@@ -144,14 +144,7 @@ function insightDashboard() {
         // Server state tracking for retention policy
         serverRetentionState: null,
 
-        // Settings accordion state
-        settingsAccordionState: {
-            display: true,          // Display Options expanded by default
-            orderProcessing: false, // Order Processing collapsed by default
-            education: false,       // Education collapsed by default
-            debug: false,           // Debug Settings collapsed by default
-            dataManagement: false   // Data Management collapsed by default
-        },
+
 
         // Reprocess pending orders state
         isReprocessing: false,
@@ -937,16 +930,20 @@ function insightDashboard() {
                 // Note: perPage is saved to user_meta via updatePerPageSetting(), not localStorage
             });
 
-            // Watch filter checkbox changes for immediate persistence
-            this.$watch('filters.include_tests', (value) => {
-                this.saveSettings();
-                if (odcmIsDebug()) { console.log('ODCM: Include tests setting changed to:', value); }
-            });
+        // Watch filter checkbox changes for immediate persistence and force reload
+        this.$watch('filters.include_tests', (value) => {
+            this.saveSettings();
+            if (odcmIsDebug()) { console.log('ODCM: Include tests setting changed to:', value); }
+            // Force reload when debug/test filters change to ensure immediate data consistency
+            this.forceReloadOnDebugFilterChange();
+        });
 
-            this.$watch('filters.include_debug', (value) => {
-                this.saveSettings();
-                if (odcmIsDebug()) { console.log('ODCM: Include debug setting changed to:', value); }
-            });
+        this.$watch('filters.include_debug', (value) => {
+            this.saveSettings();
+            if (odcmIsDebug()) { console.log('ODCM: Include debug setting changed to:', value); }
+            // Force reload when debug/test filters change to ensure immediate data consistency
+            this.forceReloadOnDebugFilterChange();
+        });
 
             // Watch detail pane expansion changes for immediate persistence
             this.$watch('detailPaneExpanded', (expanded) => {
@@ -1559,6 +1556,39 @@ function insightDashboard() {
             this.fetchLogs();
         },
 
+        /**
+         * Force reload of both log stream and currently open timeline when debug/test filters change
+         * This ensures immediate data consistency when toggling filters that significantly change the visible dataset
+         */
+        async forceReloadOnDebugFilterChange() {
+            if (odcmIsDebug()) {
+                console.log('ODCM: forceReloadOnDebugFilterChange() called - reloading log stream and timeline');
+            }
+
+            // Reset to first page to ensure we see the most relevant data
+            this.currentPage = 1;
+
+            try {
+                // Reload the log stream with the new filter settings
+                await this.fetchLogs();
+
+                // If there's a currently selected log, reload its timeline with the new filter settings
+                if (this.selectedLog) {
+                    if (odcmIsDebug()) {
+                        console.log('ODCM: Reloading timeline for selected log:', this.selectedLog.id);
+                    }
+                    await this.selectLog(this.selectedLog);
+                }
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Debug filter reload completed successfully');
+                }
+            } catch (error) {
+                console.error('ODCM: Error during debug filter reload:', error);
+                this.showToast('Failed to reload data after filter change', 'error');
+            }
+        },
+
         // =================================================================
         // TOAST HELPERS
         // =================================================================
@@ -2084,11 +2114,9 @@ function insightDashboard() {
         },
         formatTimestamp(ts, element = null) {
             try {
-                // If element is provided and doesn't have the js-format-timestamp class,
-                // return the timestamp as-is (for timeline components and any non-log-stream timestamps)
-                if (element && !element.classList.contains('js-format-timestamp')) {
-                    // Return raw timestamp for non-log-stream elements
-                    return typeof ts === 'string' ? ts : String(ts);
+                // Handle raw timestamp data attribute for timeline components
+                if (element && element.hasAttribute('data-raw-timestamp')) {
+                    ts = element.getAttribute('data-raw-timestamp');
                 }
 
                 const cfg = this.config.dateTimeConfig || {};

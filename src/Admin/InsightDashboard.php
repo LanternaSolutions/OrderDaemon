@@ -85,16 +85,16 @@ class InsightDashboard
     /**
      * Apply debug override early in the WordPress lifecycle
      * 
-     * Uses the same debug override system as DevToolbar for consistency.
+     * Uses the standard debug system for consistency with ODCM_DEBUG constant.
      */
     private function apply_debug_override(): void
     {
-        // Use the same debug override option as DevToolbar
-        $debug_override = get_option('odcm_dev_debug_override', null);
+        // Use the standard debug option that syncs with ODCM_DEBUG constant
+        $debug_override = get_option('odcm_debug', null);
         if ($debug_override !== null) {
             $is_debug_enabled = (bool) $debug_override;
             
-            // Use the same global variable as DevToolbar
+            // Set global variable for runtime override capability
             $GLOBALS['odcm_debug_override'] = $is_debug_enabled;
             
             // Hook into the debug check functions early
@@ -708,7 +708,8 @@ class InsightDashboard
                            target="_blank"
                            class="odcm-docs-link"
                            title="<?php echo esc_attr__('admin.insight_dashboard.docs.view_documentation', 'order-daemon'); ?>">
-                            <span class="dashicons dashicons-editor-help"></span>
+                            Docs&nbsp;
+                            <span class="dashicons dashicons-external"></span>
                         </a>
                     </div>
                 </div>
@@ -801,13 +802,15 @@ class InsightDashboard
         ?>
         <form class="odcm-filter-form" @submit.prevent="applyFilters()">
                 <!-- Omni Search (Free) -->
-                <div class="odcm-filter-group">
-                    <label for="filter-search"><?php echo esc_html__('admin.insight_dashboard.filters.search.label', 'order-daemon'); ?></label>
-                    <input type="text" 
-                           id="filter-search"
-                           x-model="filters.search"
-                           placeholder="<?php echo esc_attr__('admin.insight_dashboard.filters.search.placeholder', 'order-daemon'); ?>"
-                           class="regular-text">
+                <div class="odcm-filter-section">
+                    <div class="odcm-search-filter-group">
+                        <label for="filter-search" class="odcm-filter-section-title"><?php echo esc_html__('admin.insight_dashboard.filters.search.label', 'order-daemon'); ?></label>
+                        <input type="text" 
+                            id="filter-search"
+                            x-model="filters.search"
+                            placeholder="<?php echo esc_attr__('admin.insight_dashboard.filters.search.placeholder', 'order-daemon'); ?>"
+                            class="odcm-search-input">
+                    </div>
                 </div>
 
                 <!-- Premium Filters Group -->
@@ -920,93 +923,45 @@ class InsightDashboard
         
         ?>
         <div class="odcm-tab-content">
-            <!-- Display Settings Accordion Section -->
-            <div class="odcm-settings-accordion">
-                <div class="odcm-settings-accordion-header" 
-                     @click="toggleSettingsSection('display')"
-                     :class="{ 'is-expanded': settingsAccordionState.display }"
-                     role="button"
-                     tabindex="0"
-                     :aria-expanded="settingsAccordionState.display"
-                     aria-controls="display-settings-content">
-                    <div class="odcm-settings-accordion-title">
-                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('admin.insight_dashboard.settings.display_options.title', 'order-daemon'); ?></span>
-                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('admin.insight_dashboard.settings.display_options.description', 'order-daemon'); ?></p>
-                    </div>
-                    <span class="odcm-settings-accordion-icon dashicons dashicons-arrow-down-alt2"></span>
-                </div>
-                <div class="odcm-settings-accordion-content" 
-                     id="display-settings-content"
-                     x-show="settingsAccordionState.display"
-                     x-transition:enter="odcm-accordion-enter"
-                     x-transition:enter-start="odcm-accordion-enter-start"
-                     x-transition:enter-end="odcm-accordion-enter-end"
-                     x-transition:leave="odcm-accordion-leave"
-                     x-transition:leave-start="odcm-accordion-leave-start"
-                     x-transition:leave-end="odcm-accordion-leave-end">
-                    <div class="odcm-settings-section-inner">
-                        <!-- Timestamp Format -->
-                        <div class="odcm-setting-row">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.timestamp_format.label', 'order-daemon'); ?></label>
-                            <div class="odcm-setting-row-pair">
-                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.timestamp_format.description', 'order-daemon'); ?></p>
-                                <button type="button" 
-                                        class="odcm-timestamp-toggle button"
-                                        @click="toggleTimestampMode()"
-                                        :title="'Current: ' + (timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime)">
-                                    <span class="dashicons dashicons-clock"></span>
-                                    <span class="odcm-button-text" x-text="timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime"></span>
-                                </button>
-                            </div>
+            <!-- Display Settings Section -->
+            <div class="odcm-settings-section">
+                <div class="odcm-settings-group">
+                    <h3 class="odcm-settings-section-title">Display</h3>
+                    <div class="odcm-setting-row">
+                        <label class="odcm-setting-label">Timestamp Display Format</label>
+                        <div class="odcm-setting-control">
+                            <button type="button" 
+                                    class="odcm-timestamp-toggle button"
+                                    @click="toggleTimestampMode()"
+                                    :title="'Current: ' + (timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime)">
+                                <span class="dashicons dashicons-clock"></span>
+                                <span class="odcm-button-text" x-text="timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime"></span>
+                            </button>
                         </div>
-
-                        <!-- Entries Per Page -->
-                        <div class="odcm-setting-row">
-                            <label for="odcm_logs_per_page" class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.entries_per_page.label', 'order-daemon'); ?></label>
-                            <div class="odcm-setting-row-pair">
-                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.entries_per_page.description', 'order-daemon'); ?></p>
-                                <input type="number" 
-                                    id="odcm_logs_per_page"
-                                    x-model="perPage"
-                                    @change="updatePerPageSetting()"
-                                    min="10" 
-                                    max="200" 
-                                    class="small-text">
-                            </div>
+                    </div>
+                    <div class="odcm-setting-row">
+                        <label for="odcm_logs_per_page" class="odcm-setting-label">Log entries Per Page</label>
+                        <div class="odcm-setting-control">
+                            <input type="number" 
+                                id="odcm_logs_per_page"
+                                x-model="perPage"
+                                @change="updatePerPageSetting()"
+                                min="10" 
+                                max="200" 
+                                class="small-text">
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Order Processing Accordion Section -->
-            <div class="odcm-settings-accordion">
-                <div class="odcm-settings-accordion-header" 
-                     @click="toggleSettingsSection('orderProcessing')"
-                     :class="{ 'is-expanded': settingsAccordionState.orderProcessing }"
-                     role="button"
-                     tabindex="0"
-                     :aria-expanded="settingsAccordionState.orderProcessing"
-                     aria-controls="order-processing-content">
-                    <div class="odcm-settings-accordion-title">
-                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('admin.insight_dashboard.settings.order_processing.title', 'order-daemon'); ?></span>
-                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('admin.insight_dashboard.settings.order_processing.description', 'order-daemon'); ?></p>
-                    </div>
-                    <span class="odcm-settings-accordion-icon dashicons dashicons-arrow-down-alt2"></span>
-                </div>
-                <div class="odcm-settings-accordion-content" 
-                     id="order-processing-content"
-                     x-show="settingsAccordionState.orderProcessing"
-                     x-transition:enter="odcm-accordion-enter"
-                     x-transition:enter-start="odcm-accordion-enter-start"
-                     x-transition:enter-end="odcm-accordion-enter-end"
-                     x-transition:leave="odcm-accordion-leave"
-                     x-transition:leave-start="odcm-accordion-leave-start"
-                     x-transition:leave-end="odcm-accordion-leave-end">
-                    <div class="odcm-settings-section-inner">
-                        <!-- Reprocess Pending Orders -->
-                        <div class="odcm-setting-row">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.reprocess_orders.label', 'order-daemon'); ?></label>
-                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.reprocess_orders.description', 'order-daemon'); ?></p>
+            
+            <!-- Order Processing Section -->
+            <div class="odcm-settings-section">
+                <div class="odcm-settings-group">
+                    <div class="odcm-setting-row">
+                    <h3 class="odcm-settings-section-title">Order Processing</h3>
+                        <label class="odcm-setting-label">Reprocess Pending Orders</label>
+                        <div class="odcm-setting-control">
+                            <span class="odcm-setting-hint">Batch operation to reprocess orders with processing/on-hold statuses. (Useful after payment system failures and rule changes.)</span>
                             <button type="button" 
                                     class="odcm-refresh-button button"
                                     @click="reprocessPendingOrders()"
@@ -1019,183 +974,131 @@ class InsightDashboard
                 </div>
             </div>
 
-
             <?php
             // Allow pro plugin to add additional settings sections
             do_action('odcm_insight_dashboard_settings_sections');
             ?>
 
-            <!-- Debug Settings Accordion Section -->
-            <div class="odcm-settings-accordion">
-                <div class="odcm-settings-accordion-header" 
-                     @click="toggleSettingsSection('debug')"
-                     :class="{ 'is-expanded': settingsAccordionState.debug }"
-                     role="button"
-                     tabindex="0"
-                     :aria-expanded="settingsAccordionState.debug"
-                     aria-controls="debug-settings-content">
-                    <div class="odcm-settings-accordion-title">
-                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('admin.insight_dashboard.settings.debug_settings.title', 'order-daemon'); ?></span>
-                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('admin.insight_dashboard.settings.debug_settings.description', 'order-daemon'); ?></p>
+            <!-- Debug Settings Section -->
+            <div class="odcm-settings-section">
+                <div class="odcm-settings-group">
+                    <div class="odcm-setting-row">
+                        <h3 class="odcm-settings-section-title">Debug</h3>
+                        <label for="odcm_global_debug" class="odcm-setting-label">
+                            <input type="checkbox" 
+                                   name="odcm_global_debug" 
+                                   id="odcm_global_debug" 
+                                   <?php checked($global_debug); ?>
+                                   @change="saveDebugSetting('odcm_global_debug', $event.target.checked)">
+                            Toggle Global ODCM Debug Mode
+                        </label>
+                        <span class="odcm-setting-hint">Enable server-wide debug logging (use with caution)</span>
                     </div>
-                    <span class="odcm-settings-accordion-icon dashicons dashicons-arrow-down-alt2"></span>
-                </div>
-                <div class="odcm-settings-accordion-content" 
-                     id="debug-settings-content"
-                     x-show="settingsAccordionState.debug"
-                     x-transition:enter="odcm-accordion-enter"
-                     x-transition:enter-start="odcm-accordion-enter-start"
-                     x-transition:enter-end="odcm-accordion-enter-end"
-                     x-transition:leave="odcm-accordion-leave"
-                     x-transition:leave-start="odcm-accordion-leave-start"
-                     x-transition:leave-end="odcm-accordion-leave-end">
-                    <div class="odcm-settings-section-inner">
-                        <!-- Enable Global Debug Mode -->
-                        <div class="odcm-setting-row">
-                            <label for="odcm_global_debug" class="odcm-setting-label">
-                                <input type="checkbox" 
-                                       name="odcm_global_debug" 
-                                       id="odcm_global_debug" 
-                                       <?php checked($global_debug); ?>
-                                       @change="saveDebugSetting('odcm_global_debug', $event.target.checked)">
-                                <?php echo esc_html__('admin.insight_dashboard.settings.global_debug_mode.label', 'order-daemon'); ?>
-                            </label>
-                            <p class="description">
-                                <?php echo esc_html__('admin.insight_dashboard.settings.global_debug_mode.description', 'order-daemon'); ?>
-                            </p>
-                        </div>
-
-                        <!-- Detailed Order Notes -->
-                        <div class="odcm-setting-row">
-                            <label for="odcm_detailed_notes" class="odcm-setting-label">
-                                <input type="checkbox" 
-                                       name="odcm_detailed_notes" 
-                                       id="odcm_detailed_notes" 
-                                       <?php checked($detailed_notes); ?>
-                                       @change="saveDebugSetting('odcm_detailed_notes', $event.target.checked)">
-                                <?php echo esc_html__('admin.insight_dashboard.settings.detailed_notes.label', 'order-daemon'); ?>
-                            </label>
-                            <p class="description">
-                                <?php echo esc_html__('admin.insight_dashboard.settings.detailed_notes.description', 'order-daemon'); ?>
-                            </p>
-                        </div>
-
+                    <div class="odcm-setting-row">
+                        <label for="odcm_detailed_notes" class="odcm-setting-label">
+                            <input type="checkbox" 
+                                   name="odcm_detailed_notes" 
+                                   id="odcm_detailed_notes" 
+                                   <?php checked($detailed_notes); ?>
+                                   @change="saveDebugSetting('odcm_detailed_notes', $event.target.checked)">
+                            Add Detailed Order Notes
+                        </label>
+                        <span class="odcm-setting-hint">Add debug info to order notes when rules don't match</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Data Management Accordion Section -->
-            <div class="odcm-settings-accordion">
-                <div class="odcm-settings-accordion-header" 
-                     @click="toggleSettingsSection('dataManagement')"
-                     :class="{ 'is-expanded': settingsAccordionState.dataManagement }"
-                     role="button"
-                     tabindex="0"
-                     :aria-expanded="settingsAccordionState.dataManagement"
-                     aria-controls="data-management-content">
-                    <div class="odcm-settings-accordion-title">
-                        <span class="odcm-settings-accordion-label"><?php echo esc_html__('admin.insight_dashboard.settings.data_management.title', 'order-daemon'); ?></span>
-                        <p class="odcm-settings-accordion-description"><?php echo esc_html__('admin.insight_dashboard.settings.data_management.description', 'order-daemon'); ?></p>
-                    </div>
-                    <span class="odcm-settings-accordion-icon dashicons dashicons-arrow-down-alt2"></span>
-                </div>
-                <div class="odcm-settings-accordion-content" 
-                     id="data-management-content"
-                     x-show="settingsAccordionState.dataManagement"
-                     x-transition:enter="odcm-accordion-enter"
-                     x-transition:enter-start="odcm-accordion-enter-start"
-                     x-transition:enter-end="odcm-accordion-enter-end"
-                     x-transition:leave="odcm-accordion-leave"
-                     x-transition:leave-start="odcm-accordion-leave-start"
-                     x-transition:leave-end="odcm-accordion-leave-end">
-                    <div class="odcm-settings-section-inner">
-                        <?php
-                        $is_premium = (bool) apply_filters('odcm_is_premium_user', false);
-                        $pro_plugin_active = defined('ODCM_PRO_VERSION');
-                        $pro_plugin_installed = file_exists(WP_PLUGIN_DIR . '/order-daemon-pro/order-daemon-pro.php');
-                        ?>
-                        
-                        <!-- Export Logs Feature -->
-                        <?php if (!$is_premium): ?>
-                            <div class="odcm-setting-row odcm-premium-notice-small">
-                                <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
-                                <p><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
-                                <a href="https://orderdaemon.com/pricing" class="button-secondary odcm-button-small" target="_blank">
-                                    <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
-                                </a>
-                            </div>
-                        <?php else: ?>
-                            <!-- Premium Export Logs Feature - Active -->
-                            <div class="odcm-setting-row">
-                                <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
-                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
-                                <div class="odcm-export-controls">
-                                    <button type="button" 
-                                            class="button"
-                                            @click="exportLogs('csv')"
-                                            :disabled="isExporting && exportFormat === 'csv'">
-                                        <span class="dashicons dashicons-download"></span>
-                                        <span x-text="isExporting && exportFormat === 'csv' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export CSV', 'order-daemon')); ?>'"></span>
-                                    </button>
-                                    <button type="button" 
-                                            class="button"
-                                            @click="exportLogs('json')"
-                                            :disabled="isExporting && exportFormat === 'json'">
-                                        <span class="dashicons dashicons-download"></span>
-                                        <span x-text="isExporting && exportFormat === 'json' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export JSON', 'order-daemon')); ?>'"></span>
-                                    </button>
-                                </div>
-                            </div>
-                        <?php endif; ?>
+            <!-- Data Management Section -->
+            <div class="odcm-settings-section">
+                <div class="odcm-settings-group">
+                    <?php
+                    $is_premium = (bool) apply_filters('odcm_is_premium_user', false);
+                    $pro_plugin_active = defined('ODCM_PRO_VERSION');
+                    $pro_plugin_installed = file_exists(WP_PLUGIN_DIR . '/order-daemon-pro/order-daemon-pro.php');
+                    ?>
 
-                        <!-- Log Retention Policy Feature -->
-                        <?php if (!$is_premium): ?>
-                            <div class="odcm-setting-row odcm-danger-section">
-                                <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
-                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
-                                <a href="https://orderdaemon.com/pricing" class="button-secondary odcm-button-small" target="_blank">
-                                    <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
-                                </a>
+                    <h3 class="odcm-settings-section-title">Data Management</h3>
+                    
+                    <!-- Export Logs Feature -->
+                    <?php if (!$is_premium): ?>
+                        <div class="odcm-setting-row odcm-premium-notice-small">
+                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
+                            <p><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
+                            <a href="https://orderdaemon.com/pricing" class="button-secondary odcm-button-small" target="_blank">
+                                <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
+                            </a>
+                        </div>
+                    <?php else: ?>
+                        <!-- Premium Export Logs Feature - Active -->
+                        <div class="odcm-setting-row">
+                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
+                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
+                            <div class="odcm-export-controls">
+                                <button type="button" 
+                                        class="button"
+                                        @click="exportLogs('csv')"
+                                        :disabled="isExporting && exportFormat === 'csv'">
+                                    <span class="dashicons dashicons-download"></span>
+                                    <span x-text="isExporting && exportFormat === 'csv' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export CSV', 'order-daemon')); ?>'"></span>
+                                </button>
+                                <button type="button" 
+                                        class="button"
+                                        @click="exportLogs('json')"
+                                        :disabled="isExporting && exportFormat === 'json'">
+                                    <span class="dashicons dashicons-download"></span>
+                                    <span x-text="isExporting && exportFormat === 'json' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export JSON', 'order-daemon')); ?>'"></span>
+                                </button>
                             </div>
-                        <?php else: ?>
-                            <!-- Premium Log Retention Policy Feature - Active -->
-                            <div class="odcm-setting-row odcm-danger-section">
-                                <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
-                                <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
-                                <div class="odcm-retention-controls">
-                                    <div>
-                                        <label for="retention-days"><?php echo esc_html__('Retention Period:', 'order-daemon'); ?></label>
-                                        <div class="odcm-retention-setting">
-                                            <input type="number"
-                                                   id="retention-days"
-                                                   x-model="retentionDays"
-                                                   min="1"
-                                                   max="365"
-                                                   class="small-text"
-                                                   @click.stop>
-                                            <span><?php echo esc_html__('days', 'order-daemon'); ?></span>
-                                            <button type="button"
-                                                    class="button button-small"
-                                                    @click="updateRetentionPolicy()"
-                                                    :disabled="isUpdatingRetention">
-                                                <span x-text="isUpdatingRetention ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.updating', 'order-daemon')); ?>' : '<?php echo esc_js(__('Update Policy', 'order-daemon')); ?>'"></span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="odcm-cleanup-section">
-                                        <button type="button" 
-                                                class="button button-secondary odcm-danger-button"
-                                                @click="cleanupOldLogs()"
-                                                :disabled="isCleaningUp">
-                                            <span class="dashicons dashicons-trash"></span>
-                                            <span x-text="isCleaningUp ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.cleaning', 'order-daemon')); ?>' : '<?php echo esc_js(__('Cleanup Now', 'order-daemon')); ?>'"></span>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Log Retention Policy Feature -->
+                    <?php if (!$is_premium): ?>
+                        <div class="odcm-setting-row odcm-danger-section">
+                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
+                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
+                            <a href="https://orderdaemon.com/pricing" class="button-secondary odcm-button-small" target="_blank">
+                                <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
+                            </a>
+                        </div>
+                    <?php else: ?>
+                        <!-- Premium Log Retention Policy Feature - Active -->
+                        <div class="odcm-setting-row odcm-danger-section">
+                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
+                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
+                            <div class="odcm-retention-controls">
+                                <div>
+                                    <label for="retention-days"><?php echo esc_html__('Retention Period:', 'order-daemon'); ?></label>
+                                    <div class="odcm-retention-setting">
+                                        <input type="number"
+                                               id="retention-days"
+                                               x-model="retentionDays"
+                                               min="1"
+                                               max="365"
+                                               class="small-text"
+                                               @click.stop>
+                                        <span><?php echo esc_html__('days', 'order-daemon'); ?></span>
+                                        <button type="button"
+                                                class="button button-small"
+                                                @click="updateRetentionPolicy()"
+                                                :disabled="isUpdatingRetention">
+                                            <span x-text="isUpdatingRetention ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.updating', 'order-daemon')); ?>' : '<?php echo esc_js(__('Update Policy', 'order-daemon')); ?>'"></span>
                                         </button>
-                                        <p class="description"><?php echo esc_html__('This will remove all event logs older than the retention period.', 'order-daemon'); ?></p>
                                     </div>
                                 </div>
+                                <div class="odcm-cleanup-section">
+                                    <button type="button" 
+                                            class="button button-secondary odcm-danger-button"
+                                            @click="cleanupOldLogs()"
+                                            :disabled="isCleaningUp">
+                                        <span class="dashicons dashicons-trash"></span>
+                                        <span x-text="isCleaningUp ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.cleaning', 'order-daemon')); ?>' : '<?php echo esc_js(__('Cleanup Now', 'order-daemon')); ?>'"></span>
+                                    </button>
+                                    <p class="description"><?php echo esc_html__('This will remove all event logs older than the retention period.', 'order-daemon'); ?></p>
+                                </div>
                             </div>
-                        <?php endif; ?>
-                    </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -1288,14 +1191,14 @@ class InsightDashboard
     /**
      * Update global debug mode setting
      * 
-     * Uses the same debug override system as DevToolbar for consistency.
+     * Uses the standard debug system that syncs with ODCM_DEBUG constant.
      */
     private function update_global_debug_mode(bool $enabled): void
     {
-        // Use the same debug override option as DevToolbar
-        update_option('odcm_dev_debug_override', $enabled ? 1 : 0, 'no');
+        // Use the standard debug option that syncs with ODCM_DEBUG constant
+        update_option('odcm_debug', $enabled ? 1 : 0, 'no');
         
-        // Apply the override immediately for this request using same global as DevToolbar
+        // Apply the override immediately for this request
         $GLOBALS['odcm_debug_override'] = $enabled;
         
         // Hook into the debug check functions if they exist
@@ -1309,22 +1212,22 @@ class InsightDashboard
     /**
      * Check if global debug mode is currently active
      * 
-     * Uses the same debug override system as DevToolbar for consistency.
+     * Uses the standard debug system that syncs with ODCM_DEBUG constant.
      */
     public static function is_global_debug_active(): bool
     {
-        // Check for runtime override first (same global as DevToolbar)
+        // Check for runtime override first 
         if (isset($GLOBALS['odcm_debug_override'])) {
             return (bool) $GLOBALS['odcm_debug_override'];
         }
 
-        // Check for stored override (same option as DevToolbar)
-        $debug_override = get_option('odcm_dev_debug_override', null);
-        if ($debug_override !== null) {
-            return (bool) $debug_override;
+        // Check for stored debug setting (standard option)
+        $debug_setting = get_option('odcm_debug', null);
+        if ($debug_setting !== null) {
+            return (bool) $debug_setting;
         }
 
-        // Fall back to the original ODCM_DEBUG constant
+        // Fall back to the ODCM_DEBUG constant
         return defined('ODCM_DEBUG') && ODCM_DEBUG;
     }
 

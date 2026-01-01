@@ -883,9 +883,9 @@ class AuditLogEndpoint extends WP_REST_Controller
             // DIAGNOSTIC: Check if any components have malformed data before rendering
             $componentCheck = $this->checkComponentsBeforeRendering($timelineData);
 
-            // Render timeline using injected renderer
+            // Render timeline using injected renderer with debug parameter
             try {
-                $html = $this->timelineRenderer->renderTimeline($timelineData);
+                $html = $this->timelineRenderer->renderTimeline($timelineData, $timelineRequest->includeDebug);
             } catch (\Throwable $e) {
                 throw $e;
             }
@@ -1286,6 +1286,22 @@ class AuditLogEndpoint extends WP_REST_Controller
      */
     private function is_debug_component(array $component): bool
     {
+        // CRITICAL: Show all events (including debug) when debug mode is enabled
+        // This mirrors the logic from RegistryTimelineRenderer::shouldFilterDebugEvent()
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            return false;
+        }
+
+        // Check for explicit debug_only flag (highest priority)
+        if (!empty($component['debug_only']) && $component['debug_only'] === true) {
+            return true;
+        }
+
+        // Check for specific "Rule Processing Started" flag
+        if (!empty($component['is_rule_processing_started']) && $component['is_rule_processing_started'] === true) {
+            return true;
+        }
+
         // Check component level
         if (isset($component['level']) && strtolower($component['level']) === 'debug') {
             return true;
@@ -1309,6 +1325,37 @@ class AuditLogEndpoint extends WP_REST_Controller
         // Check data source
         if (isset($component['data']['source']) && strpos(strtolower($component['data']['source']), 'debug_') === 0) {
             return true;
+        }
+
+        // Enhanced detection for incomplete rule execution events (Rule Processing Started)
+        // This mirrors the logic from EnhancedTimelineBuilder::isDebugOnlyEvent()
+        // and RegistryTimelineRenderer::shouldFilterDebugEvent()
+        if (isset($component['event_type']) && strpos($component['event_type'], 'rule_execution') !== false) {
+            $rawPayload = $component['data'] ?? $component;
+
+            // Check if this has the full rule execution context
+            $hasFullRuleExecutionContext = !empty($rawPayload['rule_execution']) && is_array($rawPayload['rule_execution']);
+
+            // Check for processing metadata that indicates this is a processing event
+            $hasProcessingData = !empty($rawPayload['data']['correlation_id']) ||
+                               !empty($rawPayload['data']['process_type']) ||
+                               !empty($rawPayload['data']['status']);
+
+            // It's a debug-only event if it has processing data but lacks the full rule execution context
+            if ($hasProcessingData && !$hasFullRuleExecutionContext) {
+                return true;
+            }
+
+            // Additional check: if it's a rule execution event but lacks complete rule data
+            $hasCompleteRuleData = !empty($rawPayload['rule_execution']['rule_name']) ||
+                                  !empty($rawPayload['rule_execution']['rule_configuration']['rule_name']) ||
+                                  !empty($rawPayload['rule_name']) ||
+                                  !empty($rawPayload['data']['rule_name']);
+
+            // If it has processing metadata but no complete rule data, it's a debug event
+            if ($hasProcessingData && !$hasCompleteRuleData) {
+                return true;
+            }
         }
 
         return false;

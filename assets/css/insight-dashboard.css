@@ -642,7 +642,7 @@
 }
 
 .odcm-filter-form {
-    padding: var(--odcm-theme-spacing-md);
+    padding: var(--odcm-theme-spacing-sm);
     flex: 1;
     min-height: 0; /* Allow flex item to shrink below content size */
 }
@@ -757,115 +757,38 @@
    SETTINGS TAB CONTENT
    ========================================================================== */
 
-/* Settings Accordion Styles */
-.odcm-settings-accordion {
-    margin-bottom: 20px;
-    border: 1px solid var(--odcm-component-border-color);
-    border-radius: var(--odcm-component-border-radius);
-    overflow: hidden;
-    background: var(--odcm-theme-white);
+/* Settings Section Styles */
+.odcm-settings-section, .odcm-filter-section {
+    margin-bottom: var(--odcm-theme-spacing-md);
 }
 
-.odcm-settings-accordion:last-child {
+.odcm-settings-section:last-child, .odcm-filter-section:last-child {
     margin-bottom: 0;
 }
 
-.odcm-settings-accordion-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.odcm-settings-section-title, .odcm-filter-section-title {
+    font-size: var(--odcm-theme-font-size-md);
+    font-weight: 600;
+    margin: 0;
+    color: var(--odcm-component-text-color-header);
+    padding-bottom: var(--odcm-theme-spacing-md);
+}
+
+.odcm-settings-group, .odcm-search-filter-group {
+    border: 1px solid var(--odcm-theme-grey-300);
+    border-radius: var(--odcm-component-border-radius);
     padding: var(--odcm-theme-spacing-sm);
     background: var(--odcm-theme-grey-100);
-    border-bottom: 1px solid var(--odcm-component-border-color);
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    user-select: none;
 }
 
-.odcm-settings-accordion-header:hover {
-    background: var(--odcm-theme-grey-200);
+.odcm-setting-control {
+    gap: 4px;
 }
 
-.odcm-settings-accordion-title {
-    flex: 1;
-}
-
-.odcm-settings-accordion-label {
-    display: block;
-    font-weight: 500;
-    font-size: 13px;
-    color: var(--odcm-component-text-color-header);
-    margin-bottom: 4px;
-}
-
-.odcm-settings-accordion-description {
+.odcm-setting-hint {
+    font-size: 12px;
+    color: var(--odcm-theme-grey-600);
     margin: 0;
-    color: var(--odcm-theme-grey-600);
-    font-size: 13px;
-    line-height: 1.4;
-}
-
-.odcm-settings-accordion-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-    color: var(--odcm-theme-grey-600);
-    transition: transform 0.2s ease;
-    flex-shrink: 0;
-    margin-left: var(--odcm-theme-spacing-sm);
-}
-
-.odcm-settings-accordion-header.is-expanded .odcm-settings-accordion-icon {
-    transform: rotate(180deg);
-}
-
-.odcm-settings-accordion-content {
-    overflow: hidden;
-}
-
-.odcm-settings-section-inner {
-    padding: var(--odcm-theme-spacing-sm);
-}
-
-/* Accordion Transitions */
-.odcm-accordion-enter {
-    transition: all 0.3s ease;
-}
-
-.odcm-accordion-enter-start {
-    opacity: 0;
-    max-height: 0;
-}
-
-.odcm-accordion-enter-end {
-    opacity: 1;
-    max-height: 500px;
-}
-
-.odcm-accordion-leave {
-    transition: all 0.3s ease;
-}
-
-.odcm-accordion-leave-start {
-    opacity: 1;
-    max-height: 500px;
-}
-
-.odcm-accordion-leave-end {
-    opacity: 0;
-    max-height: 0;
-}
-
-.odcm-settings-section {
-    margin-bottom: var(--odcm-theme-spacing-lg);
-    padding: var(--odcm-theme-spacing-md);
-    border: 1px solid var(--odcm-component-border-color);
-    border-radius: var(--odcm-component-border-radius);
-    background: var(--odcm-theme-white);
-}
-
-.odcm-settings-section:last-child {
-    margin-bottom: 0;
 }
 
 .odcm-settings-section label,
@@ -893,8 +816,6 @@
 }
 
 .odcm-setting-label {
-    display: flex;
-    align-items: flex-start;
     gap: var(--odcm-theme-spacing-xs);
     font-weight: var(--odcm-theme-font-weight-str);
     margin-bottom: var(--odcm-theme-spacing-xs);
@@ -977,6 +898,37 @@ label.odcm-retention-option {
     transform: translateX(-100%); /* Hidden to the left by default */
     transition: transform 0.3s ease;
     overflow-y: auto; /* Enable scrolling for settings content */
+}
+
+/* ==========================================================================
+   SEARCH INPUT STYLING - Primary Dashboard Search Field
+   ========================================================================== */
+
+/* Search Input - Primary dashboard search field */
+.odcm-search-input {
+    width: 100%;
+    padding: var(--odcm-theme-spacing-sm);
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    font-size: var(--odcm-theme-font-size-md);
+    line-height: 1.5;
+    background-color: var(--odcm-theme-white);
+    color: var(--odcm-component-text-color-body);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Focus state - Accessible and visible */
+.odcm-search-input:focus {
+    border-color: var(--odcm-theme-blue-700);
+    box-shadow: 0 0 0 2px var(--odcm-theme-blue-200);
+    outline: 2px solid transparent; /* Prevent default outline while maintaining accessibility */
+}
+
+/* Disabled state */
+.odcm-search-input:disabled {
+    background-color: var(--odcm-theme-grey-200);
+    cursor: not-allowed;
+    opacity: 0.7;
 }
 
 /* ==========================================================================

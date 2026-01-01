@@ -649,7 +649,7 @@ class WebhookController extends WP_REST_Controller
     {
         if (function_exists('odcm_log_event')) {
             odcm_log_event(
-                sprintf('Webhook processed successfully: %s (%d events)', $gateway, $events_count),
+                sprintf('Payment.%s.checkout processed', $gateway),
                 [
                     'gateway' => $gateway,
                     'events_processed' => $events_count,

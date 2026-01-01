@@ -56,7 +56,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     /**
      * Render timeline data to HTML
      */
-    public function renderTimeline(TimelineData $timeline): string
+    public function renderTimeline(TimelineData $timeline, bool $includeDebug = false): string
     {
         if (!$timeline->hasComponents()) {
             return $this->renderEmptyTimeline($timeline);
@@ -77,7 +77,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 $isParent = isset($hierarchyMap['parents'][$idx]);
                 $isChild = isset($hierarchyMap['children'][$idx]);
 
-                $renderedComponent = $this->renderComponent($component, $isParent, $isChild);
+                $renderedComponent = $this->renderComponent($component, $isParent, $isChild, $includeDebug);
             } catch (\Throwable $e) {
                 // Never let a single component break the whole timeline
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -324,7 +324,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     private function generateOrderEventFallback(array $component, string $eventType): string
     {
         $label = $component['label'] ?? ucfirst($eventType);
-        $timestamp = $this->formatTimestamp($component['ts'] ?? time());
+        $rawTimestamp = $component['ts'] ?? time();
         $level = $component['level'] ?? 'info';
         $orderId = $component['order_id'] ?? ($component['data']['order_id'] ?? null);
         
@@ -336,7 +336,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $html .= '</div>';
         $html .= '</div>';
         $html .= '<div class="odcm-component__header-bottom">';
-        $html .= '<span class="odcm-component__ts">' . esc_html($timestamp) . '</span>';
+        $html .= '<span class="odcm-component__ts js-format-timestamp" x-text="formatTimestamp(' . esc_attr($rawTimestamp) . ', $el)"></span>';
         $html .= '</div>';
         $html .= '</div>';
         $html .= '<div class="odcm-component__body">';
@@ -362,7 +362,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     
     /**
      * Generate an empty order fallback when no components rendered successfully
-     * 
+     *
      * @param string $eventType The overall event type
      * @param array $metadata The timeline metadata
      * @return string Basic HTML showing order information
@@ -371,7 +371,8 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     {
         $orderId = $metadata['order_id'] ?? null;
         $label = odcm_get_component_label($eventType) ?? ucfirst(str_replace('_', ' ', $eventType));
-        
+        $rawTimestamp = $metadata['timestamp'] ?? time();
+
         $html = '<div class="odcm-timeline-list">';
         $html .= '<div class="odcm-component odcm-level-info odcm-zero-error-fallback">';
         $html .= '<div class="odcm-component__header">';
@@ -381,55 +382,44 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $html .= '</div>';
         $html .= '</div>';
         $html .= '<div class="odcm-component__header-bottom">';
-        $html .= '<span class="odcm-component__ts">' . gmdate('Y-m-d H:i:s') . '</span>';
+        $html .= '<span class="odcm-component__ts js-format-timestamp" x-text="formatTimestamp(' . esc_attr($rawTimestamp) . ', $el)"></span>';
         $html .= '</div>';
         $html .= '</div>';
         $html .= '<div class="odcm-component__body">';
-        
+
         if ($orderId) {
             $html .= '<p><strong>Order ID:</strong> ' . esc_html($orderId) . '</p>';
         }
-        
+
         $html .= '<p><strong>Event Type:</strong> ' . esc_html($eventType) . '</p>';
         $html .= '<p>This order event was processed, but detailed component visualization is not available.</p>';
-        
+
         // Add any additional metadata that might be useful
         if (isset($metadata['timestamp'])) {
-            $html .= '<p><strong>Timestamp:</strong> ' . esc_html($metadata['timestamp']) . '</p>';
+                $html .= '<p><strong>Timestamp:</strong> <span class="js-format-timestamp" x-text="formatTimestamp(' . esc_attr($metadata['timestamp']) . ', $el)"></span></p>';
         }
-        
+
         $html .= '</div>';
         $html .= '</div>';
         $html .= '</div>';
-        
+
         return $html;
     }
     
     /**
-     * Format a timestamp value for display
+     * Format a timestamp value for display (DEPRECATED)
+     *
+     * This method is kept for backward compatibility but no longer used.
+     * All timestamp formatting is now handled client-side for consistency.
      *
      * @param mixed $ts The timestamp to format
      * @return string Formatted timestamp
+     * @deprecated Use client-side formatting instead
      */
     private function formatTimestamp($ts): string
     {
-        if (is_numeric($ts)) {
-            return gmdate('Y-m-d H:i:s', (int)$ts);
-        } elseif (is_string($ts)) {
-            // Handle string timestamps - try to parse them first
-            if (is_numeric($ts)) {
-                // String representation of a number
-                return gmdate('Y-m-d H:i:s', (int)$ts);
-            } elseif (strtotime($ts) !== false) {
-                // Parseable date string
-                return gmdate('Y-m-d H:i:s', strtotime($ts));
-            } else {
-                // Fallback for unparseable strings - return as-is but this shouldn't happen with valid data
-                return $ts;
-            }
-        }
-
-        // For invalid/empty timestamps, return a placeholder instead of current time
+        // This method is deprecated and should not be used
+        // All timestamp formatting is now handled client-side
         return 'Invalid timestamp';
     }
     
@@ -439,14 +429,15 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
      * @param array $payload The component payload data
      * @param bool $isParent Whether this component is a parent (has children)
      * @param bool $isChild Whether this component is a child (has parent_id)
+     * @param bool $includeDebug Whether to include debug events (from dashboard toggle)
      * @return string Rendered HTML with hierarchy CSS classes applied
      */
-    private function renderComponent(array $payload, bool $isParent = false, bool $isChild = false): string
+    private function renderComponent(array $payload, bool $isParent = false, bool $isChild = false, bool $includeDebug = false): string
     {
-        // Debug Event Filtering - hide debug events in production
-        if ($this->shouldFilterDebugEvent($payload)) {
+        // Debug Event Filtering - hide debug events when dashboard toggle is OFF
+        if ($this->shouldFilterDebugEvent($payload, $includeDebug)) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - Debug event hidden in production mode");
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - Debug event hidden (include_debug=" . ($includeDebug ? 'true' : 'false') . ")");
             }
             return '';
         }
@@ -502,7 +493,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $html = '<div class="odcm-component ' . esc_attr($themeClass) . '">';
 
         // Extract basic info
-        $timestamp = $this->formatTimestamp($rawPayload['ts'] ?? time());
+        $rawTimestamp = $rawPayload['ts'] ?? time();
         $level = $rawPayload['level'] ?? 'info';
 
         // Header with component header structure without redundant nesting
@@ -517,7 +508,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $html .= '<div class="odcm-component__body">';
 
         // Unified Business Section: All business-relevant data in one clean section
-        $html .= $this->renderUnifiedBusinessSection($displayData['display_sections'] ?? []);
+        $html .= $this->renderUnifiedBusinessSection($displayData['display_sections'] ?? [], $rawPayload);
 
         // Improved Technical Section: Clear labeling, complete raw data
         $html .= $this->renderImprovedTechnicalSection($rawPayload);
@@ -561,11 +552,13 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
      * Render unified business section with all business-relevant data
      *
      * This method creates a section that contains all business-relevant fields.
+     * Timestamps are rendered with client-side formatting for consistency with log stream.
      *
      * @param array $displaySections The display sections containing business data
+     * @param array $rawPayload The original event payload for accessing raw timestamp
      * @return string Rendered unified business section HTML
      */
-    private function renderUnifiedBusinessSection(array $displaySections): string
+    private function renderUnifiedBusinessSection(array $displaySections, array $rawPayload): string
     {
         if (empty($displaySections)) {
             return '';
@@ -579,8 +572,17 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 continue;
             }
 
-            $html .= '<div class="odcm-key">' . esc_html($section['label']) . '</div>';
-            $html .= '<div class="odcm-value">' . esc_html($section['value']) . '</div>';
+            // Handle timestamp with client-side formatting
+            if ($key === 'timestamp' || strpos($section['label'], 'Timestamp') !== false) {
+                $rawTimestamp = $rawPayload['ts'] ?? time();
+                $html .= '<div class="odcm-key">' . esc_html($section['label']) . '</div>';
+                $html .= '<div class="odcm-value">';
+                $html .= '<span class="js-format-timestamp" x-text="formatTimestamp(' . esc_attr($rawTimestamp) . ', $el)"></span>';
+                $html .= '</div>';
+            } else {
+                $html .= '<div class="odcm-key">' . esc_html($section['label']) . '</div>';
+                $html .= '<div class="odcm-value">' . esc_html($section['value']) . '</div>';
+            }
         }
 
         $html .= '</div>';
@@ -707,7 +709,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     private function renderFallbackComponent(array $payload, bool $isParent, bool $isChild): string
     {
         $label = $payload['label'] ?? $payload['event_type'] ?? __('Timeline Event', 'order-daemon');
-        $timestamp = $this->formatTimestamp($payload['ts'] ?? time());
+        $rawTimestamp = $payload['ts'] ?? time();
         $level = $payload['level'] ?? 'info';
         
         $html = '<div class="odcm-component odcm-fallback">';
@@ -719,7 +721,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $html .= '</div>';
         $html .= '</div>';
         $html .= '<div class="odcm-component__header-bottom">';
-        $html .= '<span class="odcm-component__ts">' . esc_html($timestamp) . '</span>';
+        $html .= '<span class="odcm-component__ts js-format-timestamp" x-text="formatTimestamp(' . esc_attr($rawTimestamp) . ', $el)"></span>';
         $html .= '</div>';
         $html .= '</div>';
         $html .= '<div class="odcm-component__body">';
@@ -919,23 +921,48 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     
     /**
      * Enhanced debug event filtering - check both event type and completeness
+     * Uses dashboard include_debug parameter instead of global ODCM_DEBUG constant
+     *
+     * @param array $payload The event payload to check
+     * @param bool $includeDebug Whether to include debug events (from dashboard toggle)
+     * @return bool True if this event should be filtered out (not shown)
      */
-    private function shouldFilterDebugEvent(array $payload): bool
+    private function shouldFilterDebugEvent(array $payload, bool $includeDebug = false): bool
     {
-        // Show all events in debug mode
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+        // CRITICAL FIX: Use dashboard toggle instead of global debug constant
+        // If dashboard says include debug events, show everything
+        if ($includeDebug) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: NOT FILTERED - Dashboard include_debug=true");
+            }
             return false;
         }
 
-        // 3. Check for debug_only flag set by adapters (highest priority)
+        // Dashboard says exclude debug events - now check if this IS a debug event
+        $event_type = $payload['data']['event_type'] ?? $payload['event_type'] ?? '';
+        
+        // Enhanced debug logging to trace filtering decisions
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: Filtering event - type: {$event_type}, include_debug: " . ($includeDebug ? 'true' : 'false'));
+        }
+
+        // Check for explicit debug_only flag set by adapters (highest priority)
         if (!empty($payload['debug_only']) && $payload['debug_only'] === true) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - debug_only flag is true");
+            }
             return true;
         }
 
-        // Get event type
-        $event_type = $payload['data']['event_type'] ?? $payload['event_type'] ?? '';
+        // Check for specific "Rule Processing Started" flag
+        if (!empty($payload['is_rule_processing_started']) && $payload['is_rule_processing_started'] === true) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - is_rule_processing_started flag is true");
+            }
+            return true;
+        }
 
-        // 1. Check for known debug-only event types (not business events)
+        // Check for known debug-only event types (not business events)
         if (in_array($event_type, [
             'order_check_scheduled',  // Internal scheduling, not business-relevant
             'rule_evaluation_non_canonical', // Debug traces for rule evaluation
@@ -943,10 +970,13 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             'process_started',        // Technical process lifecycle events
             'order_loaded'           // Purely technical loading event
         ])) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - debug-only event type: {$event_type}");
+            }
             return true;
         }
 
-        // 2. Check for incomplete rule execution events
+        // Check for incomplete rule execution events ("Rule Processing Started")
         // These have event_type "rule_execution" but lack complete rule data
         if ($event_type === 'rule_execution') {
             // Check if this is an incomplete rule processing event
@@ -961,10 +991,17 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
 
             // It's incomplete if it has processing data but lacks complete rule data
             if ($hasProcessingMetadata && !$hasCompleteRuleData) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - incomplete rule execution event (Rule Processing Started)");
+                }
                 return true;
             }
         }
 
+        // Not a debug event, don't filter
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage("ODCM TIMELINE DEBUG: NOT FILTERED - business event: {$event_type}");
+        }
         return false;
     }
 

@@ -368,7 +368,7 @@ final class BlockCheckoutCompatibility
         }
 
         odcm_log_event(
-            sprintf('Block Checkout processed for order #%d', $order->get_id()),
+            'Block Checkout processed',
             [
                 'type'            => 'block_checkout_observation',
                 // Use the shared process id for correlation if available
@@ -376,7 +376,7 @@ final class BlockCheckoutCompatibility
                 'order_id'        => $order->get_id(),
                 'ts'              => time(),
                 'status'          => 'info',
-                'summary'         => sprintf('Block Checkout observation for order #%d', $order->get_id()),
+                'summary'         => 'Block Checkout processed',
                 'components' => $components,
                 'checkout_context'   => $checkout_context,
                 'process_id'      => $shared_pid ?: null,

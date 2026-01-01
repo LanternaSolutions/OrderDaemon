@@ -1,10 +1,10 @@
-<div class="odcm-timeline-list"><div class="odcm-component odcm-component--order"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><span class="odcm-component-icon dashicons dashicons-plus-alt"></span><span class="odcm-component__title">Order Created</span></div></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value">December 28, 2025 9:09 pm :11</div><div class="odcm-key">Customer</div><div class="odcm-value">admin (ID: 1)</div><div class="odcm-key">Payment Method</div><div class="odcm-value">Stripe</div><div class="odcm-key">Amount</div><div class="odcm-value">10.00 USD</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+<div class="odcm-timeline-list"><div class="odcm-component odcm-component--order"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><span class="odcm-component-icon dashicons dashicons-plus-alt"></span><span class="odcm-component__title">Order Created</span></div></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(1767280976, $el)">01 Jan 2026, 16:22</span></div><div class="odcm-key">Customer</div><div class="odcm-value">admin (ID: 1)</div><div class="odcm-key">Payment Method</div><div class="odcm-value">Stripe</div><div class="odcm-key">Amount</div><div class="odcm-value">10.00 USD</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
     <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"order_created"</span><span class="token punctuation">,</span>
     <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Order Created"</span><span class="token punctuation">,</span>
-    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766952551</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1767280976</span><span class="token punctuation">,</span>
     <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
     <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
         <span class="token property">"status"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
         <span class="token property">"amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
         <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
@@ -17,7 +17,7 @@
         <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
         <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span>
     <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
     <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
         <span class="token punctuation">{</span>
             <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
@@ -32,7 +32,7 @@
                 <span class="token punctuation">}</span><span class="token punctuation">,</span>
                 <span class="token punctuation">{</span>
                     <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#105"</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#113"</span>
                 <span class="token punctuation">}</span>
             <span class="token punctuation">]</span>
         <span class="token punctuation">}</span>
@@ -40,15 +40,15 @@
     <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
-<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--order"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><span class="odcm-component-icon dashicons dashicons-migrate"></span><span class="odcm-component__title">Order Status Changed</span></div></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value">December 28, 2025 9:09 pm :11</div><div class="odcm-key">Status Change</div><div class="odcm-value">Checkout-draft → Pending</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--order"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><span class="odcm-component-icon dashicons dashicons-migrate"></span><span class="odcm-component__title">Order Status Changed</span></div></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(1767280976, $el)">01 Jan 2026, 16:22</span></div><div class="odcm-key">Status Change</div><div class="odcm-value">Checkout-draft → Pending</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
     <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"status_changed"</span><span class="token punctuation">,</span>
     <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Status changed"</span><span class="token punctuation">,</span>
-    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766952551</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1767280976</span><span class="token punctuation">,</span>
     <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
     <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
         <span class="token property">"from"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
         <span class="token property">"to"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
-        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
         <span class="token property">"change_type"</span><span class="token operator">:</span> <span class="token string">"automatic"</span>
     <span class="token punctuation">}</span><span class="token punctuation">,</span>
     <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
@@ -69,10 +69,10 @@
         <span class="token punctuation">}</span><span class="token punctuation">,</span>
         <span class="token property">"order_total"</span><span class="token operator">:</span> <span class="token string">"10.00"</span><span class="token punctuation">,</span>
         <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
-        <span class="token property">"real_occurrence_timestamp"</span><span class="token operator">:</span> <span class="token number">1766952551</span><span class="token punctuation">,</span>
-        <span class="token property">"processing_timestamp"</span><span class="token operator">:</span> <span class="token number">1766952562.310613</span>
+        <span class="token property">"real_occurrence_timestamp"</span><span class="token operator">:</span> <span class="token number">1767280976</span><span class="token punctuation">,</span>
+        <span class="token property">"processing_timestamp"</span><span class="token operator">:</span> <span class="token number">1767281053.045452</span>
     <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
     <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
         <span class="token punctuation">{</span>
             <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
@@ -87,7 +87,7 @@
                 <span class="token punctuation">}</span><span class="token punctuation">,</span>
                 <span class="token punctuation">{</span>
                     <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#105"</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#113"</span>
                 <span class="token punctuation">}</span>
             <span class="token punctuation">]</span>
         <span class="token punctuation">}</span>
@@ -95,13 +95,13 @@
     <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
-<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--order"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><span class="odcm-component-icon dashicons dashicons-cart"></span><span class="odcm-component__title">Checkout Processed</span></div></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value">December 28, 2025 9:09 pm :11</div><div class="odcm-key">Payment Method</div><div class="odcm-value">Credit / Debit Card</div><div class="odcm-key">Payment Status</div><div class="odcm-value">Checkout-draft</div><div class="odcm-key">Checkout Type</div><div class="odcm-value">Block checkout</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--order"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><span class="odcm-component-icon dashicons dashicons-cart"></span><span class="odcm-component__title">Checkout Processed</span></div></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(1767280976, $el)">01 Jan 2026, 16:22</span></div><div class="odcm-key">Payment Method</div><div class="odcm-value">Credit / Debit Card</div><div class="odcm-key">Payment Status</div><div class="odcm-value">Checkout-draft</div><div class="odcm-key">Checkout Type</div><div class="odcm-value">Block checkout</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
     <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"checkout_processed"</span><span class="token punctuation">,</span>
     <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Checkout Completed"</span><span class="token punctuation">,</span>
-    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766952551</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1767280976</span><span class="token punctuation">,</span>
     <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
     <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
         <span class="token property">"status"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
         <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
         <span class="token property">"total"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
@@ -111,13 +111,13 @@
     <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
         <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
         <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span><span class="token punctuation">,</span>
-        <span class="token property">"real_checkout_timestamp"</span><span class="token operator">:</span> <span class="token number">1766952551</span><span class="token punctuation">,</span>
-        <span class="token property">"queued_at"</span><span class="token operator">:</span> <span class="token string">"2025-12-28T21:09:22+01:00"</span><span class="token punctuation">,</span>
+        <span class="token property">"real_checkout_timestamp"</span><span class="token operator">:</span> <span class="token number">1767280976</span><span class="token punctuation">,</span>
+        <span class="token property">"queued_at"</span><span class="token operator">:</span> <span class="token string">"2026-01-01T16:24:12+01:00"</span><span class="token punctuation">,</span>
         <span class="token property">"processed_from_queue"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
         <span class="token property">"checkout_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
             <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
-            <span class="token property">"capture_timestamp"</span><span class="token operator">:</span> <span class="token string">"2025-12-28T21:09:22+01:00"</span><span class="token punctuation">,</span>
-            <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+            <span class="token property">"capture_timestamp"</span><span class="token operator">:</span> <span class="token string">"2026-01-01T16:24:12+01:00"</span><span class="token punctuation">,</span>
+            <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
             <span class="token property">"cart_analysis"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
                 <span class="token property">"total_items"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
                 <span class="token property">"product_types"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
@@ -177,7 +177,7 @@
             <span class="token punctuation">}</span>
         <span class="token punctuation">}</span>
     <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
     <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
         <span class="token punctuation">{</span>
             <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
@@ -192,7 +192,7 @@
                 <span class="token punctuation">}</span><span class="token punctuation">,</span>
                 <span class="token punctuation">{</span>
                     <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#105"</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#113"</span>
                 <span class="token punctuation">}</span>
             <span class="token punctuation">]</span>
         <span class="token punctuation">}</span>
@@ -200,10 +200,10 @@
     <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
-<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--payment is-parent is-child"><div class="odcm-component__header is-parent is-child"><div class="odcm-component__header-top is-parent is-child"><div class="odcm-component__header-left is-parent is-child"><span class="odcm-component-icon dashicons dashicons-money-alt"></span><span class="odcm-component__title">Payment.stripe.checkout processed</span></div></div></div><div class="odcm-component__body is-parent is-child"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value">December 28, 2025 9:09 pm :11</div><div class="odcm-key">Payment Method</div><div class="odcm-value">Stripe</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--payment is-parent is-child"><div class="odcm-component__header is-parent is-child"><div class="odcm-component__header-top is-parent is-child"><div class="odcm-component__header-left is-parent is-child"><span class="odcm-component-icon dashicons dashicons-money-alt"></span><span class="odcm-component__title">Payment.stripe.checkout processed</span></div></div></div><div class="odcm-component__body is-parent is-child"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(1767280976, $el)">01 Jan 2026, 16:22</span></div><div class="odcm-key">Payment Method</div><div class="odcm-value">Stripe</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
     <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"payment.stripe.checkout_processed"</span><span class="token punctuation">,</span>
     <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Payment Event"</span><span class="token punctuation">,</span>
-    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766952551</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1767280976</span><span class="token punctuation">,</span>
     <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
     <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
         <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
@@ -228,13 +228,13 @@
     <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
         <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
         <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span><span class="token punctuation">,</span>
-        <span class="token property">"real_checkout_timestamp"</span><span class="token operator">:</span> <span class="token number">1766952551</span><span class="token punctuation">,</span>
-        <span class="token property">"queued_at"</span><span class="token operator">:</span> <span class="token string">"2025-12-28T21:09:22+01:00"</span><span class="token punctuation">,</span>
+        <span class="token property">"real_checkout_timestamp"</span><span class="token operator">:</span> <span class="token number">1767280976</span><span class="token punctuation">,</span>
+        <span class="token property">"queued_at"</span><span class="token operator">:</span> <span class="token string">"2026-01-01T16:24:12+01:00"</span><span class="token punctuation">,</span>
         <span class="token property">"processed_from_queue"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
         <span class="token property">"checkout_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
             <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
-            <span class="token property">"capture_timestamp"</span><span class="token operator">:</span> <span class="token string">"2025-12-28T21:09:22+01:00"</span><span class="token punctuation">,</span>
-            <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+            <span class="token property">"capture_timestamp"</span><span class="token operator">:</span> <span class="token string">"2026-01-01T16:24:12+01:00"</span><span class="token punctuation">,</span>
+            <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
             <span class="token property">"cart_analysis"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
                 <span class="token property">"total_items"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
                 <span class="token property">"product_types"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
@@ -312,15 +312,15 @@
     <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
-<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--order is-parent"><div class="odcm-component__header is-parent"><div class="odcm-component__header-top is-parent"><div class="odcm-component__header-left is-parent"><span class="odcm-component-icon dashicons dashicons-migrate"></span><span class="odcm-component__title">Order Status Changed</span></div></div></div><div class="odcm-component__body is-parent"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value">December 28, 2025 9:09 pm :22</div><div class="odcm-key">Status Change</div><div class="odcm-value">Pending → Completed</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--order is-parent"><div class="odcm-component__header is-parent"><div class="odcm-component__header-top is-parent"><div class="odcm-component__header-left is-parent"><span class="odcm-component-icon dashicons dashicons-migrate"></span><span class="odcm-component__title">Order Status Changed</span></div></div></div><div class="odcm-component__body is-parent"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(1767281053, $el)">01 Jan 2026, 16:24</span></div><div class="odcm-key">Status Change</div><div class="odcm-value">Pending → Completed</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
     <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"status_changed"</span><span class="token punctuation">,</span>
     <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Status changed"</span><span class="token punctuation">,</span>
-    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766952562</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1767281053</span><span class="token punctuation">,</span>
     <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
     <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
         <span class="token property">"from"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
         <span class="token property">"to"</span><span class="token operator">:</span> <span class="token string">"completed"</span><span class="token punctuation">,</span>
-        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
         <span class="token property">"change_type"</span><span class="token operator">:</span> <span class="token string">"automatic"</span>
     <span class="token punctuation">}</span><span class="token punctuation">,</span>
     <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
@@ -341,10 +341,10 @@
         <span class="token punctuation">}</span><span class="token punctuation">,</span>
         <span class="token property">"order_total"</span><span class="token operator">:</span> <span class="token string">"10.00"</span><span class="token punctuation">,</span>
         <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
-        <span class="token property">"real_occurrence_timestamp"</span><span class="token operator">:</span> <span class="token number">1766952562</span><span class="token punctuation">,</span>
-        <span class="token property">"processing_timestamp"</span><span class="token operator">:</span> <span class="token number">1766952562.35956</span>
+        <span class="token property">"real_occurrence_timestamp"</span><span class="token operator">:</span> <span class="token number">1767281053</span><span class="token punctuation">,</span>
+        <span class="token property">"processing_timestamp"</span><span class="token operator">:</span> <span class="token number">1767281053.156713</span>
     <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
     <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
         <span class="token punctuation">{</span>
             <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
@@ -359,7 +359,7 @@
                 <span class="token punctuation">}</span><span class="token punctuation">,</span>
                 <span class="token punctuation">{</span>
                     <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#105"</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#113"</span>
                 <span class="token punctuation">}</span>
             <span class="token punctuation">]</span>
         <span class="token punctuation">}</span>
@@ -367,20 +367,20 @@
     <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
-<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--debug is-child"><div class="odcm-component__header is-child"><div class="odcm-component__header-top is-child"><div class="odcm-component__header-left is-child"><span class="odcm-component-icon dashicons dashicons-yes-alt"></span><span class="odcm-component__title">Rule Processing Started</span><div class="odcm-component__header-right is-child"><span class="odcm-status-pill odcm-status-pill--debug">debug</span></div></div></div></div><div class="odcm-component__body is-child"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value">December 28, 2025 9:09 pm :22</div><div class="odcm-key">Status</div><div class="odcm-value">Processing</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--debug is-child"><div class="odcm-component__header is-child"><div class="odcm-component__header-top is-child"><div class="odcm-component__header-left is-child"><span class="odcm-component-icon dashicons dashicons-yes-alt"></span><span class="odcm-component__title">Rule Processing Started</span><div class="odcm-component__header-right is-child"><span class="odcm-status-pill odcm-status-pill--debug">debug</span></div></div></div></div><div class="odcm-component__body is-child"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(1767281053, $el)">01 Jan 2026, 16:24</span></div><div class="odcm-key">Status</div><div class="odcm-value">Processing</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
     <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"rule_execution"</span><span class="token punctuation">,</span>
-    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Rule \"virtual rule\" evaluated successfully for Order #105"</span><span class="token punctuation">,</span>
-    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766952562</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Rule Executed: virtual rule"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1767281053</span><span class="token punctuation">,</span>
     <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
     <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
         <span class="token property">"process_type"</span><span class="token operator">:</span> <span class="token string">"rule_execution"</span><span class="token punctuation">,</span>
-        <span class="token property">"correlation_id"</span><span class="token operator">:</span> <span class="token string">"odcm:lifecycle:105:1766952562:69518e72476709.03962767"</span><span class="token punctuation">,</span>
+        <span class="token property">"correlation_id"</span><span class="token operator">:</span> <span class="token string">"odcm:lifecycle:113:1767281052:6956919cf38160.96173468"</span><span class="token punctuation">,</span>
         <span class="token property">"status"</span><span class="token operator">:</span> <span class="token string">"success"</span><span class="token punctuation">,</span>
         <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"api"</span><span class="token punctuation">,</span>
         <span class="token property">"component_count"</span><span class="token operator">:</span> <span class="token number">2</span><span class="token punctuation">,</span>
         <span class="token property">"actor"</span><span class="token operator">:</span> <span class="token string">"system"</span><span class="token punctuation">,</span>
         <span class="token property">"metrics"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-            <span class="token property">"attribution_capture_ms"</span><span class="token operator">:</span> <span class="token number">0.0011920928955078125</span>
+            <span class="token property">"attribution_capture_ms"</span><span class="token operator">:</span> <span class="token number">0.0030994415283203125</span>
         <span class="token punctuation">}</span>
     <span class="token punctuation">}</span><span class="token punctuation">,</span>
     <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
@@ -389,7 +389,7 @@
             <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
                 <span class="token punctuation">{</span>
                     <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Rule \"virtual rule\" evaluated successfully for Order #105"</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Rule Executed: virtual rule"</span>
                 <span class="token punctuation">}</span><span class="token punctuation">,</span>
                 <span class="token punctuation">{</span>
                     <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
@@ -401,16 +401,16 @@
     <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
-<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--rule is-child"><div class="odcm-component__header is-child"><div class="odcm-component__header-top is-child"><div class="odcm-component__header-left is-child"><span class="odcm-component-icon dashicons dashicons-yes-alt"></span><span class="odcm-component__title">Rule Executed: virtual rule</span><div class="odcm-component__header-right is-child"><span class="odcm-status-pill odcm-status-pill--success">Executed</span></div></div></div></div><div class="odcm-component__body is-child"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value">December 28, 2025 9:09 pm :22</div><div class="odcm-key">Rule</div><div class="odcm-value">virtual rule</div><div class="odcm-key">Execution Status</div><div class="odcm-value">Executed</div><div class="odcm-key">Status Change</div><div class="odcm-value">Pending → Completed</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--rule is-child"><div class="odcm-component__header is-child"><div class="odcm-component__header-top is-child"><div class="odcm-component__header-left is-child"><span class="odcm-component-icon dashicons dashicons-yes-alt"></span><span class="odcm-component__title">Rule Executed: virtual rule</span><div class="odcm-component__header-right is-child"><span class="odcm-status-pill odcm-status-pill--success">Executed</span></div></div></div></div><div class="odcm-component__body is-child"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(1767281053.1661, $el)">01 Jan 2026, 16:24</span></div><div class="odcm-key">Rule</div><div class="odcm-value">virtual rule</div><div class="odcm-key">Execution Status</div><div class="odcm-value">Executed</div><div class="odcm-key">Status Change</div><div class="odcm-value">Pending → Completed</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
     <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"rule_execution"</span><span class="token punctuation">,</span>
-    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Rule \"virtual rule\" evaluated successfully for Order #105"</span><span class="token punctuation">,</span>
-    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1766952562.364447</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Rule Executed: virtual rule"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1767281053.166107</span><span class="token punctuation">,</span>
     <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
     <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
         <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"rule_execution"</span><span class="token punctuation">,</span>
         <span class="token property">"primary_object_type"</span><span class="token operator">:</span> <span class="token string">"order"</span><span class="token punctuation">,</span>
-        <span class="token property">"primary_object_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
-        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+        <span class="token property">"primary_object_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
         <span class="token property">"rule_name"</span><span class="token operator">:</span> <span class="token string">"virtual rule"</span><span class="token punctuation">,</span>
         <span class="token property">"rule_id"</span><span class="token operator">:</span> <span class="token number">13</span><span class="token punctuation">,</span>
         <span class="token property">"execution_summary"</span><span class="token operator">:</span> <span class="token string">"Completed Order (status changed from Pending \u2192 Completed)"</span><span class="token punctuation">,</span>
@@ -427,7 +427,7 @@
             <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"payment_completed"</span><span class="token punctuation">,</span>
             <span class="token property">"event_source"</span><span class="token operator">:</span> <span class="token string">"Stripe"</span><span class="token punctuation">,</span>
             <span class="token property">"event_channel"</span><span class="token operator">:</span> <span class="token string">"System"</span><span class="token punctuation">,</span>
-            <span class="token property">"event_time"</span><span class="token operator">:</span> <span class="token string">"1970-01-01 00:33:45"</span><span class="token punctuation">,</span>
+            <span class="token property">"event_time"</span><span class="token operator">:</span> <span class="token string">"1970-01-01 00:33:46"</span><span class="token punctuation">,</span>
             <span class="token property">"event_id"</span><span class="token operator">:</span> <span class="token string">"status_change_1..."</span>
         <span class="token punctuation">}</span><span class="token punctuation">,</span>
         <span class="token property">"from_status"</span><span class="token operator">:</span> <span class="token string">"Pending"</span><span class="token punctuation">,</span>
@@ -442,10 +442,10 @@
         <span class="token property">"technical_details"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
             <span class="token property">"rule_id"</span><span class="token operator">:</span> <span class="token number">13</span><span class="token punctuation">,</span>
             <span class="token property">"trigger_type"</span><span class="token operator">:</span> <span class="token string">"order_processing"</span><span class="token punctuation">,</span>
-            <span class="token property">"evaluation_time"</span><span class="token operator">:</span> <span class="token number">160</span><span class="token punctuation">,</span>
+            <span class="token property">"evaluation_time"</span><span class="token operator">:</span> <span class="token number">360</span><span class="token punctuation">,</span>
             <span class="token property">"first_match_wins"</span><span class="token operator">:</span> <span class="token string">"Yes"</span><span class="token punctuation">,</span>
             <span class="token property">"rule_position"</span><span class="token operator">:</span> <span class="token string">"#1"</span><span class="token punctuation">,</span>
-            <span class="token property">"event_idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_105_pending_completed_1766952562"</span><span class="token punctuation">,</span>
+            <span class="token property">"event_idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_113_pending_completed_1767281053"</span><span class="token punctuation">,</span>
             <span class="token property">"primary_action_result"</span><span class="token operator">:</span> <span class="token string">"Success"</span>
         <span class="token punctuation">}</span><span class="token punctuation">,</span>
         <span class="token property">"amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
@@ -455,8 +455,8 @@
         <span class="token property">"transaction_id"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
         <span class="token property">"source_gateway"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
         <span class="token property">"channel"</span><span class="token operator">:</span> <span class="token string">"system"</span><span class="token punctuation">,</span>
-        <span class="token property">"execution_time_ms"</span><span class="token operator">:</span> <span class="token number">160</span><span class="token punctuation">,</span>
-        <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_105_pending_completed_1766952562"</span><span class="token punctuation">,</span>
+        <span class="token property">"execution_time_ms"</span><span class="token operator">:</span> <span class="token number">360</span><span class="token punctuation">,</span>
+        <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_113_pending_completed_1767281053"</span><span class="token punctuation">,</span>
         <span class="token property">"has_order"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
         <span class="token property">"all_matching_triggers"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
             <span class="token string">"order_status_changed"</span><span class="token punctuation">,</span>
@@ -466,24 +466,24 @@
             <span class="token property">"order_status_changed"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
                 <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"order_status_changed"</span><span class="token punctuation">,</span>
                 <span class="token property">"source_gateway"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
-                <span class="token property">"timestamp"</span><span class="token operator">:</span> <span class="token string">"2025-12-28T21:09:22+01:00"</span><span class="token punctuation">,</span>
+                <span class="token property">"timestamp"</span><span class="token operator">:</span> <span class="token string">"2026-01-01T16:24:13+01:00"</span><span class="token punctuation">,</span>
                 <span class="token property">"amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
                 <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
                 <span class="token property">"status_from"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
                 <span class="token property">"status_to"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
-                <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_105_checkout-draft_pending_1766952562"</span><span class="token punctuation">,</span>
+                <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_113_checkout-draft_pending_1767281053"</span><span class="token punctuation">,</span>
                 <span class="token property">"customer_type"</span><span class="token operator">:</span> <span class="token string">"registered"</span><span class="token punctuation">,</span>
                 <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span>
             <span class="token punctuation">}</span><span class="token punctuation">,</span>
             <span class="token property">"payment_completed"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
                 <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"payment_completed"</span><span class="token punctuation">,</span>
                 <span class="token property">"source_gateway"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
-                <span class="token property">"timestamp"</span><span class="token operator">:</span> <span class="token string">"2025-12-28T21:09:22+01:00"</span><span class="token punctuation">,</span>
+                <span class="token property">"timestamp"</span><span class="token operator">:</span> <span class="token string">"2026-01-01T16:24:13+01:00"</span><span class="token punctuation">,</span>
                 <span class="token property">"amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
                 <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
                 <span class="token property">"status_from"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
                 <span class="token property">"status_to"</span><span class="token operator">:</span> <span class="token string">"completed"</span><span class="token punctuation">,</span>
-                <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_105_pending_completed_1766952562"</span><span class="token punctuation">,</span>
+                <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_113_pending_completed_1767281053"</span><span class="token punctuation">,</span>
                 <span class="token property">"customer_type"</span><span class="token operator">:</span> <span class="token string">"registered"</span><span class="token punctuation">,</span>
                 <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span>
             <span class="token punctuation">}</span>
@@ -507,8 +507,8 @@
         <span class="token punctuation">}</span><span class="token punctuation">,</span>
         <span class="token property">"order_total"</span><span class="token operator">:</span> <span class="token string">"10.00"</span><span class="token punctuation">,</span>
         <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
-        <span class="token property">"real_occurrence_timestamp"</span><span class="token operator">:</span> <span class="token number">1766952562</span><span class="token punctuation">,</span>
-        <span class="token property">"processing_timestamp"</span><span class="token operator">:</span> <span class="token number">1766952562.35956</span><span class="token punctuation">,</span>
+        <span class="token property">"real_occurrence_timestamp"</span><span class="token operator">:</span> <span class="token number">1767281053</span><span class="token punctuation">,</span>
+        <span class="token property">"processing_timestamp"</span><span class="token operator">:</span> <span class="token number">1767281053.156713</span><span class="token punctuation">,</span>
         <span class="token property">"rule_execution"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
             <span class="token property">"rule_configuration"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
                 <span class="token property">"rule_id"</span><span class="token operator">:</span> <span class="token number">13</span><span class="token punctuation">,</span>
@@ -531,7 +531,7 @@
                 <span class="token punctuation">]</span>
             <span class="token punctuation">}</span><span class="token punctuation">,</span>
             <span class="token property">"order_evaluation_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+                <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
                 <span class="token property">"order_status"</span><span class="token operator">:</span> <span class="token string">"completed"</span><span class="token punctuation">,</span>
                 <span class="token property">"order_total"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
                 <span class="token property">"order_currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
@@ -546,8 +546,8 @@
                 <span class="token property">"triggering_event"</span><span class="token operator">:</span> <span class="token string">"payment_completed"</span><span class="token punctuation">,</span>
                 <span class="token property">"event_source"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
                 <span class="token property">"event_channel"</span><span class="token operator">:</span> <span class="token string">"system"</span><span class="token punctuation">,</span>
-                <span class="token property">"event_timestamp"</span><span class="token operator">:</span> <span class="token string">"2025-12-28T21:09:22+01:00"</span><span class="token punctuation">,</span>
-                <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_105_pending_completed_1766952562"</span><span class="token punctuation">,</span>
+                <span class="token property">"event_timestamp"</span><span class="token operator">:</span> <span class="token string">"2026-01-01T16:24:13+01:00"</span><span class="token punctuation">,</span>
+                <span class="token property">"idempotency_key"</span><span class="token operator">:</span> <span class="token string">"status_change_113_pending_completed_1767281053"</span><span class="token punctuation">,</span>
                 <span class="token property">"status_transition"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
                     <span class="token property">"from_status"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
                     <span class="token property">"to_status"</span><span class="token operator">:</span> <span class="token string">"completed"</span>
@@ -562,7 +562,7 @@
                 <span class="token punctuation">}</span>
             <span class="token punctuation">}</span><span class="token punctuation">,</span>
             <span class="token property">"execution_metrics"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"evaluation_time_ms"</span><span class="token operator">:</span> <span class="token number">160</span><span class="token punctuation">,</span>
+                <span class="token property">"evaluation_time_ms"</span><span class="token operator">:</span> <span class="token number">360</span><span class="token punctuation">,</span>
                 <span class="token property">"rule_position_in_queue"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
                 <span class="token property">"first_match_wins"</span><span class="token operator">:</span> <span class="token boolean">true</span>
             <span class="token punctuation">}</span><span class="token punctuation">,</span>
@@ -578,14 +578,14 @@
             <span class="token punctuation">}</span>
         <span class="token punctuation">}</span>
     <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">105</span><span class="token punctuation">,</span>
+    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
     <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
         <span class="token punctuation">{</span>
             <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
             <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
                 <span class="token punctuation">{</span>
                     <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Rule \"virtual rule\" evaluated successfully for Order #105"</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Rule Executed: virtual rule"</span>
                 <span class="token punctuation">}</span><span class="token punctuation">,</span>
                 <span class="token punctuation">{</span>
                     <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
@@ -593,7 +593,7 @@
                 <span class="token punctuation">}</span><span class="token punctuation">,</span>
                 <span class="token punctuation">{</span>
                     <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#105"</span>
+                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#113"</span>
                 <span class="token punctuation">}</span>
             <span class="token punctuation">]</span>
         <span class="token punctuation">}</span>
@@ -601,4 +601,65 @@
     <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
     <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--debug"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><span class="odcm-component-icon dashicons dashicons-info-outline"></span><span class="odcm-component__title"> Status Evaluation</span><div class="odcm-component__header-right"><span class="odcm-status-pill odcm-status-pill--debug">debug</span></div></div></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(2026-01-01 16:24:13, $el)"></span></div><div class="odcm-key">Status</div><div class="odcm-value">Debug</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+    <span class="token property">"component_id"</span><span class="token operator">:</span> <span class="token string">"synthetic_932"</span><span class="token punctuation">,</span>
+    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"_status_evaluation"</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Rule Evaluation: Status change evaluation: Order #113 (checkout-draft \u2192 pending)"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token string">"2026-01-01 16:24:13"</span><span class="token punctuation">,</span>
+    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"debug"</span><span class="token punctuation">,</span>
+    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"summary"</span><span class="token operator">:</span> <span class="token string">"Status change evaluation: Order #113 (checkout-draft \u2192 pending)"</span><span class="token punctuation">,</span>
+        <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"_status_evaluation"</span><span class="token punctuation">,</span>
+        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"logger"</span><span class="token punctuation">,</span>
+        <span class="token property">"log_id"</span><span class="token operator">:</span> <span class="token string">"932"</span><span class="token punctuation">,</span>
+        <span class="token property">"status"</span><span class="token operator">:</span> <span class="token string">"debug"</span><span class="token punctuation">,</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
+        <span class="token property">"order"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"id"</span><span class="token operator">:</span> <span class="token number">113</span>
+        <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        <span class="token property">"woocommerce"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        <span class="token property">"rule_evaluation"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        <span class="token property">"is_trace"</span><span class="token operator">:</span> <span class="token boolean">true</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--debug"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><span class="odcm-component-icon dashicons dashicons-info-outline"></span><span class="odcm-component__title"> Status Evaluation</span><div class="odcm-component__header-right"><span class="odcm-status-pill odcm-status-pill--debug">debug</span></div></div></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(2026-01-01 16:24:13, $el)"></span></div><div class="odcm-key">Status</div><div class="odcm-value">Debug</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+    <span class="token property">"component_id"</span><span class="token operator">:</span> <span class="token string">"synthetic_933"</span><span class="token punctuation">,</span>
+    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"_status_evaluation"</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Rule Evaluation: Status change evaluation: Order #113 (pending \u2192 completed)"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token string">"2026-01-01 16:24:13"</span><span class="token punctuation">,</span>
+    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"debug"</span><span class="token punctuation">,</span>
+    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"summary"</span><span class="token operator">:</span> <span class="token string">"Status change evaluation: Order #113 (pending \u2192 completed)"</span><span class="token punctuation">,</span>
+        <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"_status_evaluation"</span><span class="token punctuation">,</span>
+        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"logger"</span><span class="token punctuation">,</span>
+        <span class="token property">"log_id"</span><span class="token operator">:</span> <span class="token string">"933"</span><span class="token punctuation">,</span>
+        <span class="token property">"status"</span><span class="token operator">:</span> <span class="token string">"debug"</span><span class="token punctuation">,</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
+        <span class="token property">"order"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"id"</span><span class="token operator">:</span> <span class="token number">113</span>
+        <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        <span class="token property">"woocommerce"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        <span class="token property">"rule_evaluation"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        <span class="token property">"is_trace"</span><span class="token operator">:</span> <span class="token boolean">true</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--debug"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><span class="odcm-component-icon dashicons dashicons-controls-play"></span><span class="odcm-component__title">Rule Evaluation Non Canonical</span><div class="odcm-component__header-right"><span class="odcm-status-pill odcm-status-pill--debug">debug</span></div></div></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(2026-01-01 16:24:24, $el)"></span></div><div class="odcm-key">Status</div><div class="odcm-value">Debug</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+    <span class="token property">"component_id"</span><span class="token operator">:</span> <span class="token string">"synthetic_939"</span><span class="token punctuation">,</span>
+    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"rule_evaluation_non_canonical"</span><span class="token punctuation">,</span>
+    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Rule \"virtual rule\" evaluated event: order_check_scheduled"</span><span class="token punctuation">,</span>
+    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token string">"2026-01-01 16:24:24"</span><span class="token punctuation">,</span>
+    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"debug"</span><span class="token punctuation">,</span>
+    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+        <span class="token property">"summary"</span><span class="token operator">:</span> <span class="token string">"Rule \"virtual rule\" evaluated event: order_check_scheduled"</span><span class="token punctuation">,</span>
+        <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"rule_evaluation_non_canonical"</span><span class="token punctuation">,</span>
+        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"logger"</span><span class="token punctuation">,</span>
+        <span class="token property">"log_id"</span><span class="token operator">:</span> <span class="token string">"939"</span><span class="token punctuation">,</span>
+        <span class="token property">"status"</span><span class="token operator">:</span> <span class="token string">"debug"</span><span class="token punctuation">,</span>
+        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">113</span><span class="token punctuation">,</span>
+        <span class="token property">"order"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+            <span class="token property">"id"</span><span class="token operator">:</span> <span class="token number">113</span>
+        <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        <span class="token property">"woocommerce"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        <span class="token property">"rule_evaluation"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        <span class="token property">"is_trace"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
+        <span class="token property">"rule_id"</span><span class="token operator">:</span> <span class="token null keyword">null</span>
+    <span class="token punctuation">}</span>
 <span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div></div>

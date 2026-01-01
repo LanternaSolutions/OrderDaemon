@@ -109,6 +109,8 @@ class RuleExecutionAdapter extends DisplayAdapter
         if ($this->isIncompleteRuleEvent($payload)) {
             // Add debug flag to payload for filtering
             $payload['debug_only'] = true;
+            // Also add a more specific flag for "Rule Processing Started" events
+            $payload['is_rule_processing_started'] = true;
             return $this->extractProcessingStartedFields($payload);
         }
 

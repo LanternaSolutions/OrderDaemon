@@ -84,7 +84,7 @@ class CheckoutCircuitBreaker
             
             // Log the failure
             $this->logFailure($new_failure_count, $context, $metadata);
-            
+
             // Open circuit if threshold reached
             if ($new_failure_count >= self::FAILURE_THRESHOLD) {
                 $this->openCircuit($new_failure_count, $context);
@@ -214,7 +214,7 @@ class CheckoutCircuitBreaker
             
             if (function_exists('odcm_log_event')) {
                 odcm_log_event(
-                    'Circuit breaker manually reset by admin',
+                    'Circuit breaker reset by admin',
                     [
                         'reset_type' => 'manual',
                         'admin_user' => wp_get_current_user()->user_login ?? 'unknown',
@@ -290,7 +290,7 @@ class CheckoutCircuitBreaker
             // Log to audit trail if available
             if (function_exists('odcm_log_event')) {
                 odcm_log_event(
-                    'EMERGENCY: Order Daemon auto-disabled due to checkout failures',
+                    'Circuit breaker activated due to checkout failures',
                     [
                         'failure_count' => $failure_count,
                         'threshold' => self::FAILURE_THRESHOLD,
@@ -328,7 +328,7 @@ class CheckoutCircuitBreaker
             // Log to audit trail if available and failure is significant
             if (function_exists('odcm_log_event') && $failure_count >= 2) {
                 odcm_log_event(
-                    "Checkout failure #{$failure_count} detected",
+                    "Checkout failure detected",
                     array_merge([
                         'failure_count' => $failure_count,
                         'threshold' => self::FAILURE_THRESHOLD,
@@ -356,7 +356,7 @@ class CheckoutCircuitBreaker
             
             if (function_exists('odcm_log_event')) {
                 odcm_log_event(
-                    'Order Daemon re-enabled after successful checkout',
+                    'Circuit breaker deactivated after successful checkout',
                     [
                         'recovery_type' => 'automatic',
                         'timestamp' => current_time('c')

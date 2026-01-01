@@ -1,3 +1,2 @@
-- remove all unnecessary dev/debug events that would fill up the log stream with noise and dont conform to the grouped/individual or timeline based event timelines - only keep the sort that are very relevant to normal users such as '10 log entries batch deleted by admin <username>' 
 - final translation strings cleanup for free plugin
 - pass the wordpress plugin checker

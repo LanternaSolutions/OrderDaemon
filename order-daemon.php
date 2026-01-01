@@ -58,11 +58,15 @@ define('ODCM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ODCM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('ODCM_PLUGIN_FILE', __FILE__);
 // Handle ODCM_DEBUG constant definition carefully to avoid "already defined" warnings
+// Read the user's debug preference from database to sync with dashboard setting
 if ( ! defined( 'ODCM_DEBUG' ) ) {
-    define('ODCM_DEBUG', false); // Default disabled, explicit enable only
+    // Check user's debug preference from Insight Dashboard setting
+    // Using logical 'odcm_debug' option name (standardized across codebase)
+    $user_debug_setting = get_option('odcm_debug', false);
+    define('ODCM_DEBUG', (bool) $user_debug_setting);
 }
 // If ODCM_DEBUG is already defined (e.g., in wp-config.php), respect that setting
-// This elseif block ensures we don't attempt redefinition which causes warnings
+// This allows developers to override the database setting
 elseif (defined('ODCM_DEBUG') && ODCM_DEBUG) {
     // Constant already defined and enabled - no action needed
 }

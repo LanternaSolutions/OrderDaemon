@@ -623,7 +623,7 @@ class Core
 
         try {
             if (isset($pl)) {
-                $pl->finish('queued', sprintf('Order #%d status changed to "%s"; scheduled via specific hook', $order_id, $status_slug));
+                $pl->finish('queued', sprintf('Order status changed to "%s"', $status_slug));
             }
         } catch (\Throwable $e) {
             // ignore

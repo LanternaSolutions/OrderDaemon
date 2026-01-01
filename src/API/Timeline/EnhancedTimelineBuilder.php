@@ -318,6 +318,16 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
      */
     private function isDebugOnlyEvent(TimelineEvent $timelineEvent): bool
     {
+        // First check for explicit debug_only flag (highest priority)
+        if (!empty($timelineEvent->raw_payload['debug_only']) && $timelineEvent->raw_payload['debug_only'] === true) {
+            return true;
+        }
+
+        // Check for specific "Rule Processing Started" flag
+        if (!empty($timelineEvent->raw_payload['is_rule_processing_started']) && $timelineEvent->raw_payload['is_rule_processing_started'] === true) {
+            return true;
+        }
+
         // Check if this is a rule execution event with incomplete data (processing started)
         if ($timelineEvent->event_type === 'rule_execution') {
             $rawPayload = $timelineEvent->raw_payload;

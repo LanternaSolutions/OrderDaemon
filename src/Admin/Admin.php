@@ -92,7 +92,9 @@ class Admin
         // Handle AJAX request for updating rule order
         add_action('wp_ajax_odcm_update_rule_order', [$this, 'ajax_update_rule_order'], 10);
 
-
+        // Add debug functionality when debug mode is enabled
+        add_action('admin_menu', [$this, 'maybe_add_debug_menu'], 999);
+        add_action('wp_loaded', [$this, 'handle_emergency_debug_access']);
 
     }//end init()
 
@@ -713,6 +715,57 @@ class Admin
             'title'  => __('Order Rule', 'order-daemon'),
             'href'   => admin_url('post-new.php?post_type=odcm_order_rule'),
         ));
+    }
+
+    /**
+     * Add debug menu when debug mode is enabled
+     *
+     * @return void
+     */
+    public function maybe_add_debug_menu(): void
+    {
+        // Only show debug page when user has permissions
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        
+        // Add debug submenu under Tools
+        add_submenu_page(
+            'tools.php',                    // Parent menu
+            'ODCM Debug Info',             // Page title
+            'ODCM Debug',                  // Menu title
+            'manage_options',              // Capability
+            'odcm-debug',                  // Menu slug
+            [$this, 'render_debug_page']   // Callback function
+        );
+    }
+
+    /**
+     * Render the debug page
+     *
+     * @return void
+     */
+    public function render_debug_page(): void
+    {
+        echo '<div class="wrap">';
+        echo '<h1>' . esc_html__('ODCM Debug Information', 'order-daemon') . '</h1>';
+        include ODCM_PLUGIN_DIR . 'debug-real-world-filtering.php';
+        echo '</div>';
+    }
+
+    /**
+     * Handle emergency debug access via URL parameter
+     *
+     * @return void
+     */
+    public function handle_emergency_debug_access(): void
+    {
+        if (isset($_GET['odcm_emergency_debug']) && 
+            $_GET['odcm_emergency_debug'] === 'show_debug_info_now' && 
+            current_user_can('manage_options')) {
+            
+            wp_die(include ODCM_PLUGIN_DIR . 'debug-real-world-filtering.php');
+        }
     }
 
 

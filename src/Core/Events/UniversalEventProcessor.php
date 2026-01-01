@@ -1006,7 +1006,7 @@ class UniversalEventProcessor
                 if ($rule_logger && !self::$universal_event_context) {
                     $rule_logger->finish(
                         'success',
-                        sprintf('Rule "%s" evaluated successfully for Order #%d', $rule->post_title, $context->getOrderId())
+                        sprintf('Rule Executed: %s', $rule->post_title)
                     );
                 }
 
@@ -1475,7 +1475,7 @@ class UniversalEventProcessor
         // Log the consolidated rule execution event with hierarchy support
         // Use the primary trigger as the parent event type to establish parent-child relationships
         $event_id = \odcm_log_event(
-            sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $order_id),
+            sprintf('Rule Executed: %s', $rule_name),
             $rule_payload,
             $order_id,
             'success',
@@ -2144,7 +2144,7 @@ class UniversalEventProcessor
         $execution_summary = $this->getExecutionSummary($context, $payload);
         
         // Create proper component label
-        $label = sprintf('Rule "%s" evaluated successfully for Order #%d', $rule_name, $order_id);
+        $label = sprintf('Rule Executed: %s', $rule_name);
         
         // Build the comprehensive rule execution component
         $component = [
