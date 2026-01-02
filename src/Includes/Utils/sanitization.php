@@ -1,7 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Utils;
+
+if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
  * Sanitization utilities for the Order Daemon plugin.

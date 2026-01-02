@@ -1165,9 +1165,9 @@ class AuditLogEndpoint extends WP_REST_Controller
         try {
             global $wpdb;
             $start_time = microtime(true);
-            
+
             $process_id = $request->get_param('process_id');
-            
+
             if (empty($process_id)) {
                 return new WP_Error(
                     'odcm_invalid_process_id',
@@ -1175,11 +1175,11 @@ class AuditLogEndpoint extends WP_REST_Controller
                     ['status' => 400]
                 );
             }
-            
-            // Secure table identifiers
-            $logTableName = '`' . esc_sql($wpdb->prefix . 'odcm_audit_log') . '`';
-            $payloadTableName = '`' . esc_sql($wpdb->prefix . 'odcm_audit_log_payloads') . '`';
-            
+
+            // Use proper table name escaping
+            $logTableName = esc_sql($wpdb->prefix . 'odcm_audit_log');
+            $payloadTableName = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+
             $query = $wpdb->prepare(
                 "SELECT l.log_id,
                     l.timestamp,
@@ -1195,23 +1195,23 @@ class AuditLogEndpoint extends WP_REST_Controller
                     l.display_data,
                     l.dedupe_key,
                     COALESCE(p.payload, l.details, %s) as payload
-                FROM " . $logTableName . " l
-                    LEFT JOIN " . $payloadTableName . " p ON l.payload_id = p.payload_id
+                FROM `{$logTableName}` l
+                    LEFT JOIN `{$payloadTableName}` p ON l.payload_id = p.payload_id
                 WHERE l.process_id = %s
                 ORDER BY l.timestamp ASC",
                 '',
                 $process_id
             );
-            
+
             $logs = $wpdb->get_results($query, ARRAY_A);
-            
+
             if ($logs === false) {
                 throw new \Exception('Database query failed: ' . ($wpdb->last_error ?: 'Unknown error'));
             }
-            
+
             $logs = $logs ?: [];
             $execution_time = microtime(true) - $start_time;
-            
+
             return new WP_REST_Response([
                 'logs' => $this->format_logs_for_api($logs),
                 'meta' => [
@@ -1221,12 +1221,12 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'timestamp' => current_time('mysql'),
                 ],
             ], 200);
-            
+
         } catch (\Throwable $e) {
             $this->log_api_error('get_logs_by_process', $e, [
                 'process_id' => $request->get_param('process_id'),
             ]);
-            
+
             return new WP_Error(
                 'odcm_process_logs_error',
                 __('audit.logs.process.error.fetch_failed', 'order-daemon'),
@@ -1468,20 +1468,42 @@ class AuditLogEndpoint extends WP_REST_Controller
         global $wpdb;
 
         try {
+            // Generate cache key for this query
+            $cache_key = $this->get_cache_key('all_filtered_logs', $request);
+            $cache_group = 'odcm_audit_logs';
+            $cache_ttl = 300; // 5 minutes cache TTL
+
+            // Try to get cached result
+            $cached_result = wp_cache_get($cache_key, $cache_group);
+
+            if ($cached_result !== false) {
+                // Cache hit - return cached data
+                $cache_status = $this->get_cache_status($request);
+                $cache_status['hit'] = true;
+
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM: Cache hit for all_filtered_logs with key: " . $cache_key, 'debug');
+                }
+
+                return $cached_result;
+            }
+
+            // Cache miss - perform database query
             // Build query conditions from request parameters
             $where_clauses = $this->build_filter_where_clauses($request);
 
-            // Build the SQL query safely
+            // Build the complete SQL query without passing WHERE as a parameter
+            $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
+
+            // Use proper table name escaping
+            $logTableName = esc_sql($wpdb->prefix . 'odcm_audit_log');
+            $payloadTableName = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+
             $sql = "SELECT l.*, p.payload
-                    FROM {$wpdb->prefix}odcm_audit_log l
-                    LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id";
-
-            // Add WHERE clause if there are conditions
-            if (!empty($where_clauses)) {
-                $sql .= ' WHERE ' . implode(' AND ', $where_clauses);
-            }
-
-            $sql .= ' ORDER BY l.timestamp DESC';
+                FROM `{$logTableName}` l
+                LEFT JOIN `{$payloadTableName}` p ON l.payload_id = p.payload_id
+                {$where_sql}
+                ORDER BY l.timestamp DESC";
 
             // Execute the query
             $logs = $wpdb->get_results($sql, ARRAY_A);
@@ -1491,6 +1513,13 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             $result = $logs ?: [];
+
+            // Cache the result
+            wp_cache_set($cache_key, $result, $cache_group, $cache_ttl);
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: Cached all_filtered_logs result with key: " . $cache_key, 'debug');
+            }
 
             return $result;
 
@@ -1513,6 +1542,24 @@ class AuditLogEndpoint extends WP_REST_Controller
         global $wpdb;
 
         try {
+            // Generate cache key for this query
+            $cache_key = $this->get_cache_key('filtered_logs', $request, ['per_page' => $per_page, 'page' => $page]);
+            $cache_group = 'odcm_audit_logs';
+            $cache_ttl = 300; // 5 minutes cache TTL
+
+            // Try to get cached result
+            $cached_result = wp_cache_get($cache_key, $cache_group);
+
+            if ($cached_result !== false) {
+                // Cache hit - return cached data
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM: Cache hit for filtered_logs with key: " . $cache_key, 'debug');
+                }
+
+                return $cached_result;
+            }
+
+            // Cache miss - perform database query
             // Build query conditions from request parameters
             $where_clauses = $this->build_filter_where_clauses($request);
             $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
@@ -1521,14 +1568,16 @@ class AuditLogEndpoint extends WP_REST_Controller
             $offset = ($page - 1) * $per_page;
 
             // Get paginated filtered logs
-            $sql = $wpdb->prepare("
-                SELECT l.*, p.payload
+            $sql = $wpdb->prepare(
+                "SELECT l.*, p.payload
                 FROM {$wpdb->prefix}odcm_audit_log l
                 LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
                 {$where_sql}
                 ORDER BY l.timestamp DESC
-                LIMIT %d OFFSET %d
-            ", $per_page, $offset);
+                LIMIT %d OFFSET %d",
+                $per_page,
+                $offset
+            );
 
             $logs = $wpdb->get_results($sql, ARRAY_A);
 
@@ -1537,6 +1586,13 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             $result = $logs ?: [];
+
+            // Cache the result
+            wp_cache_set($cache_key, $result, $cache_group, $cache_ttl);
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: Cached filtered_logs result with key: " . $cache_key, 'debug');
+            }
 
             return $result;
 
@@ -1557,16 +1613,35 @@ class AuditLogEndpoint extends WP_REST_Controller
         global $wpdb;
 
         try {
+            // Generate cache key for this query
+            $cache_key = $this->get_cache_key('filtered_log_count', $request);
+            $cache_group = 'odcm_audit_logs';
+            $cache_ttl = 60; // 1 minute cache TTL (shorter since counts change more frequently)
+
+            // Try to get cached result
+            $cached_result = wp_cache_get($cache_key, $cache_group);
+
+            if ($cached_result !== false) {
+                // Cache hit - return cached data
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM: Cache hit for filtered_log_count with key: " . $cache_key, 'debug');
+                }
+
+                return $cached_result;
+            }
+
+            // Cache miss - perform database query
             // Build query conditions from request parameters
             $where_clauses = $this->build_filter_where_clauses($request);
             $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
+            // Use proper table name escaping
+            $logTableName = esc_sql($wpdb->prefix . 'odcm_audit_log');
+
             // Get count of filtered logs
-            $sql = "
-                SELECT COUNT(*) 
-                FROM {$wpdb->prefix}odcm_audit_log l
-                {$where_sql}
-            ";
+            $sql = "SELECT COUNT(*) 
+                FROM `{$logTableName}` l
+                {$where_sql}";
 
             $count = $wpdb->get_var($sql);
 
@@ -1575,6 +1650,13 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             $result = (int) $count;
+
+            // Cache the result
+            wp_cache_set($cache_key, $result, $cache_group, $cache_ttl);
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: Cached filtered_log_count result with key: " . $cache_key, 'debug');
+            }
 
             return $result;
 
@@ -1779,6 +1861,73 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
+     * Generate a cache key based on request parameters
+     *
+     * @param string $prefix Cache key prefix
+     * @param WP_REST_Request|null $request The REST request
+     * @param array $additional_params Additional parameters to include in cache key
+     * @return string Generated cache key
+     */
+    private function get_cache_key(string $prefix, ?WP_REST_Request $request = null, array $additional_params = []): string
+    {
+        $params = $additional_params;
+
+        if ($request instanceof WP_REST_Request) {
+            // Get relevant request parameters for cache key
+            $request_params = $request->get_params();
+
+            // Filter out parameters that shouldn't affect caching
+            $cache_relevant_params = [
+                'page', 'per_page', 'view', 'include_debug', 'include_test',
+                'order_id', 'status', 'event_type', 'date_from', 'date_to', 'search'
+            ];
+
+            foreach ($cache_relevant_params as $param) {
+                if (isset($request_params[$param])) {
+                    $params[$param] = $request_params[$param];
+                }
+            }
+        }
+
+        // Sort parameters for consistent cache key generation
+        ksort($params);
+
+        // Generate cache key hash
+        $cache_key = $prefix . '_' . md5(serialize($params));
+
+        return $cache_key;
+    }
+
+    /**
+     * Invalidate caches related to audit logs
+     *
+     * @param string|null $specific_key Optional specific cache key to invalidate
+     * @return void
+     */
+    private function invalidate_related_caches(?string $specific_key = null): void
+    {
+        // Invalidate specific cache if provided
+        if ($specific_key !== null) {
+            wp_cache_delete($specific_key, 'odcm_audit_logs');
+        }
+
+        // Invalidate common cache patterns
+        $cache_patterns = [
+            'all_filtered_logs',
+            'filtered_logs',
+            'filtered_log_count',
+            'filter_options',
+            'logs_by_process'
+        ];
+
+        foreach ($cache_patterns as $pattern) {
+            // This will clear all caches with this prefix
+            // Note: WordPress doesn't support wildcard cache deletion natively,
+            // so we rely on cache expiration for non-specific invalidation
+        }
+    }
+
+    /**
      * Get cache status for the request
      *
      * @param WP_REST_Request $request The REST request
@@ -1787,7 +1936,7 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function get_cache_status(WP_REST_Request $request): array
     {
         return [
-            'enabled' => false,
+            'enabled' => true,
             'hit' => false,
         ];
     }
@@ -2032,20 +2181,21 @@ class AuditLogEndpoint extends WP_REST_Controller
         // Convert to integers and get unique values
         $log_ids = array_unique(array_map('intval', $log_ids));
 
-            // Get comma-separated list for SQL
-            $ids_list = implode(',', $log_ids);
+        // Use proper table name escaping
+        $logTableName = esc_sql($wpdb->prefix . 'odcm_audit_log');
 
-            // Validate log IDs exist
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical batch operations
-            $sql = "
-                SELECT log_id
-                FROM {$wpdb->prefix}odcm_audit_log
-                WHERE log_id IN ({$ids_list})
-            ";
+        // Validate log IDs exist using prepared statement
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // Direct query is needed for performance-critical batch operations
+        $sql = $wpdb->prepare(
+            "SELECT log_id
+            FROM `{$logTableName}`
+            WHERE log_id IN (%s)",
+            implode(',', $log_ids)
+        );
 
-            $valid_ids = $wpdb->get_col($sql);
-            $result = array_map('intval', $valid_ids);
+        $valid_ids = $wpdb->get_col($sql);
+        $result = array_map('intval', $valid_ids);
 
         return $result;
     }
@@ -2067,6 +2217,10 @@ class AuditLogEndpoint extends WP_REST_Controller
         // Get comma-separated list for SQL
         $ids_list = implode(',', $log_ids);
 
+        // Use proper table name escaping
+        $logTableName = esc_sql($wpdb->prefix . 'odcm_audit_log');
+        $payloadTableName = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+
         // Start transaction
         $wpdb->query('START TRANSACTION');
 
@@ -2076,13 +2230,13 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Direct query is needed for performance-critical batch operations
             $payload_ids = $wpdb->get_col("
                 SELECT DISTINCT payload_id
-                FROM {$wpdb->prefix}odcm_audit_log
+                FROM `{$logTableName}`
                 WHERE log_id IN ({$ids_list}) AND payload_id IS NOT NULL
             ");
 
             // Delete logs
             $deleted = $wpdb->query("
-                DELETE FROM {$wpdb->prefix}odcm_audit_log
+                DELETE FROM `{$logTableName}`
                 WHERE log_id IN ({$ids_list})
             ");
 
@@ -2095,7 +2249,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Direct query is needed for performance-critical batch operations
             $used_payloads = $wpdb->get_col("
                 SELECT DISTINCT payload_id
-                FROM {$wpdb->prefix}odcm_audit_log
+                FROM `{$logTableName}`
                 WHERE payload_id IN ({$payload_ids_list})
             ");
 
@@ -2108,7 +2262,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                     // Direct query is needed for performance-critical batch operations
                     $wpdb->query("
-                        DELETE FROM {$wpdb->prefix}odcm_audit_log_payloads
+                        DELETE FROM `{$payloadTableName}`
                         WHERE id IN ({$orphaned_ids_list})
                     ");
                 }
@@ -2374,53 +2528,62 @@ class AuditLogEndpoint extends WP_REST_Controller
     public function diagnostic_check(WP_REST_Request $request): WP_REST_Response
     {
         global $wpdb;
-        
+
         $diagnostics = [];
-        
+
         try {
             // Check if audit log table exists
             $audit_table = $wpdb->prefix . 'odcm_audit_log';
             $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-            
+
             $table_check = $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",
                 DB_NAME,
                 $audit_table
             ));
-            
+
             $diagnostics['tables'] = [
                 'audit_log_exists' => $table_check === '1',
                 'audit_log_table' => $audit_table,
             ];
-            
+
             if ($table_check === '1') {
             // Get basic stats
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for diagnostic purposes
             $total_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table}");
-            $recent_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)");
-            $completion_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE '%completion%'");
-            $debug_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE status = 'debug' OR event_type LIKE 'debug_%'");
-                
+            $recent_logs = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)"
+            ));
+            $completion_logs = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE %s",
+                '%completion%'
+            ));
+            $debug_logs = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$audit_table} WHERE status = %s OR event_type LIKE %s",
+                'debug', 'debug_%'
+            ));
+
                 $diagnostics['log_stats'] = [
                     'total_logs' => (int) $total_logs,
                     'recent_logs_7_days' => (int) $recent_logs,
                     'completion_logs' => (int) $completion_logs,
                     'debug_logs' => (int) $debug_logs,
                 ];
-                
+
                 // Get recent log samples
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                 // Direct query is needed for diagnostic purposes
-                $sample_logs = $wpdb->get_results("
-                    SELECT id, timestamp, status, event_type, summary, order_id
+                $sample_logs = $wpdb->get_results($wpdb->prepare(
+                    "SELECT id, timestamp, status, event_type, summary, order_id
                     FROM {$audit_table}
                     ORDER BY timestamp DESC
-                    LIMIT 10
-                ", ARRAY_A);
-                
+                    LIMIT %d",
+                    10
+                ), ARRAY_A);
+
                 $diagnostics['sample_logs'] = $sample_logs ?: [];
-                
+
                 // Check for filtering issues
                 $filter_test = $this->build_filter_where_clauses(new \WP_REST_Request());
                 $diagnostics['filter_test'] = [
@@ -2428,13 +2591,13 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'filters_count' => count($filter_test),
                 ];
             }
-            
+
             // Cache status (caching has been removed)
             $diagnostics['cache'] = [
                 'enabled' => false,
                 'message' => 'Caching has been removed from AuditLogEndpoint',
             ];
-            
+
             // Check WordPress and plugin versions
             $diagnostics['environment'] = [
                 'wp_version' => get_bloginfo('version'),
@@ -2442,7 +2605,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'odcm_debug' => defined('ODCM_DEBUG') ? ODCM_DEBUG : false,
                 'woocommerce_version' => defined('WC_VERSION') ? WC_VERSION : 'not_installed',
             ];
-            
+
         } catch (\Exception $e) {
             $diagnostics['error'] = [
                 'message' => $e->getMessage(),
@@ -2450,7 +2613,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'line' => $e->getLine(),
             ];
         }
-        
+
         return new WP_REST_Response([
             'diagnostics' => $diagnostics,
             'timestamp' => current_time('mysql'),

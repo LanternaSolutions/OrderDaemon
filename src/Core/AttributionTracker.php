@@ -222,26 +222,12 @@ final class AttributionTracker
             return $result;
         }
 
-        // Get backtrace using WordPress functions if available
+        // Get backtrace using production-safe methods
         $trace = [];
         $t0 = microtime(true);
-        
-        if (function_exists('wp_debug_backtrace_summary')) {
-            $backtrace_summary = wp_debug_backtrace_summary('', 0, $limit);
-            if (is_string($backtrace_summary)) {
-                $frames = explode(', ', $backtrace_summary);
-                foreach ($frames as $i => $frame_str) {
-                    if (preg_match('/^(.+?)\((\d+)\)(?:\s+(.+))?$/', $frame_str, $matches)) {
-                        $trace[] = [
-                            'file' => $matches[1] ?? '',
-                            'line' => isset($matches[2]) ? (int)$matches[2] : 0,
-                            'function' => $matches[3] ?? ''
-                        ];
-                    }
-                }
-            }
-        } elseif (function_exists('debug_backtrace')) {
-            // Fallback with restrictions
+
+        // Use debug_backtrace only when absolutely necessary and wrap in error suppression
+        if (function_exists('debug_backtrace') && apply_filters('odcm_allow_backtrace_for_attribution', false)) {
             $trace = @debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS, max(1, $limit));
         }
         
@@ -513,15 +499,17 @@ final class AttributionTracker
         
         // Use a safer approach to detect action scheduler
         $action_scheduler_detected = false;
-        
+
         // Try to detect if we're running in an action scheduler context
-        if (function_exists('wp_debug_backtrace_summary')) {
-            $backtrace = wp_debug_backtrace_summary('', 0, 8);
-            if (is_string($backtrace) && strpos($backtrace, 'action-scheduler') !== false) {
-                $action_scheduler_detected = true;
-            }
-        } elseif (function_exists('wp_get_current_user') && !is_admin() && !wp_doing_ajax() && wp_doing_cron()) {
+        // Use alternative detection methods that don't rely on debug functions
+        if (function_exists('wp_get_current_user') && !is_admin() && !wp_doing_ajax() && wp_doing_cron()) {
             // If we're in cron context but not admin or ajax, it might be action scheduler
+            $action_scheduler_detected = true;
+        } elseif (defined('ACTION_SCHEDULER_VERSION')) {
+            // Direct check for Action Scheduler constant
+            $action_scheduler_detected = true;
+        } elseif (class_exists('ActionScheduler_Versions')) {
+            // Check for Action Scheduler class existence
             $action_scheduler_detected = true;
         }
         

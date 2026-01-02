@@ -45,23 +45,11 @@ final class ProcessIdManager
         
         // First check: Order ID must be greater than 0
         if ($order_id <= 0) {
-            // Log detailed warning with stack trace to identify problematic code paths
+            // Log warning about invalid order ID
             if (defined('ODCM_DEBUG') && ODCM_DEBUG && function_exists('odcm_log_message')) {
-                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
-                
-                // Build a more comprehensive trace including multiple levels
-                $trace_info = "";
-                foreach ($backtrace as $idx => $frame) {
-                    $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
-                    $line = isset($frame['line']) ? $frame['line'] : '?';
-                    $function = isset($frame['function']) ? $frame['function'] : 'unknown';
-                    $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
-                }
-                
-                // Enhanced warning message with detailed context
-                odcm_log_message("PROCESS_ID_CRITICAL: Invalid order ID {$order_id} REJECTED. Complete backtrace: " . $trace_info, 'warning');
+                odcm_log_message("PROCESS_ID_CRITICAL: Invalid order ID {$order_id} REJECTED", 'warning');
             }
-            
+
             // Return null instead of a fallback process ID to force callers to handle this case
             // This prevents Order #0 events by making the absence of a valid process ID explicit
             return null;
@@ -74,10 +62,8 @@ final class ProcessIdManager
             if (!$order) {
                 // Order doesn't exist in WooCommerce
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG && function_exists('odcm_log_message')) {
-                    $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
-                    $caller = isset($backtrace[1]) ? $backtrace[1]['function'] : 'unknown';
-                    
-                    odcm_log_message("PROCESS_ID_CRITICAL: Order #{$order_id} does not exist in WooCommerce (called from {$caller})", 'warning');
+                    // Warning message without caller info to avoid debug_backtrace() in production
+                    odcm_log_message("PROCESS_ID_CRITICAL: Order #{$order_id} does not exist in WooCommerce", 'warning');
                 }
                 return null;
             }

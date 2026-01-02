@@ -1,7 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Admin;
+
+if ( ! defined( 'ABSPATH' ) ) exit;
 
 use OrderDaemon\CompletionManager\Core\RuleComponents\RuleComponentRegistry;
 use OrderDaemon\CompletionManager\Core\RuleComponents\RuleIndexBuilder;
@@ -152,7 +155,7 @@ final class RuleBuilder
                         $debug_file = WP_CONTENT_DIR . '/debug.log';
                         @file_put_contents(
                             $debug_file,
-                            '[' . date('Y-m-d H:i:s') . '] ODCM Rule Builder: ' . $message . PHP_EOL,
+                            '[' . gmdate('Y-m-d H:i:s') . '] ODCM Rule Builder: ' . $message . PHP_EOL,
                             FILE_APPEND
                         );
                     }

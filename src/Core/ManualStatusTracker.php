@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use WC_Order;
 use OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer;
 
@@ -420,12 +422,11 @@ class ManualStatusTracker
             return false;
         }
 
-        // @todo Nonce verification is needed here. // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         // Check if action exists before processing
         if (!isset($_REQUEST['action'])) {
             return false;
         }
-        
+
         // Verify nonce for AJAX actions when present
         // Note: We don't verify nonce as a strict requirement here because this is detection-only code
         // and we don't want to break WooCommerce's own AJAX handlers that may not include our nonces

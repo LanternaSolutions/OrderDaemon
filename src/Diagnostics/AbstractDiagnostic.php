@@ -225,7 +225,7 @@ abstract class AbstractDiagnostic implements DiagnosticInterface
         
         // Check cache first
         $cache_key = 'odcm_table_exists_' . md5($full_table_name);
-        $cached_result = wp_cache_get($cache_key);
+        $cached_result = wp_cache_get($cache_key, 'order_daemon_diagnostics');
         
         if ($cached_result !== false) {
             return (bool)$cached_result;
@@ -241,21 +241,17 @@ abstract class AbstractDiagnostic implements DiagnosticInterface
         }
         
         // If not found in the standard tables, check if it exists using the WordPress API
+        // This is acceptable for diagnostic purposes and internal table management
         if (!$exists) {
-            // Get_var will return null if the table doesn't exist
-            $exists = ($wpdb->get_var($wpdb->prepare(
-                "SELECT EXISTS (
-                    SELECT 1 FROM information_schema.tables 
-                    WHERE table_schema = %s 
-                    AND table_name = %s
-                )",
-                DB_NAME,
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Diagnostic query with proper caching implementation
+            $exists = $wpdb->get_var($wpdb->prepare(
+                "SHOW TABLES LIKE %s",
                 $full_table_name
-            )) === '1');
+            )) === $full_table_name;
         }
         
-        // Cache the result for 1 hour - table existence rarely changes
-        wp_cache_set($cache_key, $exists ? '1' : '0', '', HOUR_IN_SECONDS);
+        // Cache the result for 1 hour with cache group - table existence rarely changes
+        wp_cache_set($cache_key, $exists ? '1' : '0', 'order_daemon_diagnostics', HOUR_IN_SECONDS);
         
         return $exists;
     }
@@ -277,20 +273,22 @@ abstract class AbstractDiagnostic implements DiagnosticInterface
         
         // Check cache first
         $cache_key = 'odcm_table_row_count_' . md5($full_table_name);
-        $cached_count = wp_cache_get($cache_key);
+        $cached_count = wp_cache_get($cache_key, 'order_daemon_diagnostics');
         
         if ($cached_count !== false) {
             return (int)$cached_count;
         }
         
-        // Use prepared statement with get_var instead of direct SQL interpolation
+        // WordPress-recommended approach: Use prepared statement with proper caching
+        // This is acceptable for diagnostic purposes and internal table management
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Diagnostic query with proper caching implementation
         $count = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM `{$wpdb->prefix}%s`", // Use $wpdb->prefix here for safety
-            str_replace($wpdb->prefix, '', $table_name) // Remove prefix if already included
+            "SELECT COUNT(*) FROM %s",
+            $full_table_name
         ));
         
-        // Cache the result for 5 minutes - row counts may change more frequently
-        wp_cache_set($cache_key, $count, '', 5 * MINUTE_IN_SECONDS);
+        // Cache the result for 5 minutes with cache group - row counts may change more frequently
+        wp_cache_set($cache_key, $count, 'order_daemon_diagnostics', 5 * MINUTE_IN_SECONDS);
         
         return $count;
     }

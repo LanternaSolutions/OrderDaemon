@@ -55,7 +55,7 @@ class RuleRenderer extends BaseRenderer
             $debug_file = WP_CONTENT_DIR . '/debug.log';
             @file_put_contents(
                 $debug_file,
-                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                '[' . gmdate('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
                 FILE_APPEND
             );
             return;
@@ -1083,18 +1083,7 @@ class RuleRenderer extends BaseRenderer
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             $this->logDebugMessage("ODCM DEBUG - RuleRenderer CRITICAL: NO ORDER ID FOUND in payload! This will cause 'Order #0' issues.", 'warning');
             $this->logDebugMessage("ODCM DEBUG - RuleRenderer event_type: " . ($payload['event_type'] ?? 'unknown'), 'warning');
-            
-            // Add stack trace for debugging
-            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
-            $trace_info = "";
-            foreach ($backtrace as $idx => $frame) {
-                $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
-                $line = $frame['line'] ?? '?';
-                $function = $frame['function'] ?? 'unknown';
-                $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
-            }
-            $this->logDebugMessage("ODCM DEBUG - RuleRenderer backtrace: " . $trace_info, 'warning');
-            
+
             // Log complete payload for debugging if it's not too large
             $payload_json = json_encode($payload, JSON_PRETTY_PRINT);
             if (strlen($payload_json) < 2000) {

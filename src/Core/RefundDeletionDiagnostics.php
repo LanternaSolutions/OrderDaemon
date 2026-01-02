@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use WC_Order;
 use WC_Order_Refund;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
@@ -283,38 +285,7 @@ final class RefundDeletionDiagnostics
         if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
             return [];
         }
-        
-        // Use WordPress native function if available
-        if (function_exists('wp_debug_backtrace_summary')) {
-            // @todo Debugging code should not be used in production. // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_wp_debug_backtrace_summary
-            $trace_summary = wp_debug_backtrace_summary('', 0, $limit);
-            if (is_string($trace_summary)) {
-                $parts = explode(', ', $trace_summary);
-                $out = [];
-                foreach ($parts as $index => $part) {
-                    if ($index >= $limit) {
-                        break;
-                    }
-                    // Extract file, line, function from WP's format
-                    if (preg_match('/^(.+)\((\d+)\)(?:\s+(.+))?$/', $part, $matches)) {
-                        $out[] = [
-                            'file' => isset($matches[1]) ? sanitize_text_field($matches[1]) : null,
-                            'line' => isset($matches[2]) ? (int)$matches[2] : null,
-                            'func' => isset($matches[3]) ? sanitize_text_field($matches[3]) : null,
-                        ];
-                    } else {
-                        $out[] = [
-                            'file' => null,
-                            'line' => null,
-                            'func' => sanitize_text_field($part),
-                        ];
-                    }
-                }
-                return $out;
-            }
-            return [];
-        }
-        
+
         // Use lightweight function name approach without full backtrace
         $caller_function = $this->get_safe_caller_function();
         if (!empty($caller_function)) {
@@ -326,7 +297,7 @@ final class RefundDeletionDiagnostics
                 ]
             ];
         }
-        
+
         return [];
     }
     

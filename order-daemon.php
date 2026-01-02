@@ -62,8 +62,8 @@ define('ODCM_PLUGIN_FILE', __FILE__);
 if ( ! defined( 'ODCM_DEBUG' ) ) {
     // Check user's debug preference from Insight Dashboard setting
     // Using logical 'odcm_debug' option name (standardized across codebase)
-    $user_debug_setting = get_option('odcm_debug', false);
-    define('ODCM_DEBUG', (bool) $user_debug_setting);
+    $odcm_user_debug_setting = get_option('odcm_debug', false);
+    define('ODCM_DEBUG', (bool) $odcm_user_debug_setting);
 }
 // If ODCM_DEBUG is already defined (e.g., in wp-config.php), respect that setting
 // This allows developers to override the database setting

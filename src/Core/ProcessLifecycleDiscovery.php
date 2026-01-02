@@ -319,9 +319,10 @@ final class ProcessLifecycleDiscovery
             // Build a safer query using esc_sql for the table name
             $table_name_clean = esc_sql(str_replace('`', '', $table_name));
             $query = "SELECT DISTINCT event_type FROM `{$table_name_clean}` {$prepared_where_clause}";
-            
+
             // Execute the query with WordPress's database API
-            $results = $wpdb->get_col($query); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table query with proper escaping and prepared WHERE clause
+            $results = $wpdb->get_col($query);
             
             // Process the results
             $types = is_array($results) ? $results : [];

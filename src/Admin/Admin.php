@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 // require_once ODCM_PLUGIN_DIR . 'src/Admin/AuditTrailAdmin.php';
 
 use OrderDaemon\CompletionManager\Admin\RuleBuilder;
@@ -91,10 +93,6 @@ class Admin
 
         // Handle AJAX request for updating rule order
         add_action('wp_ajax_odcm_update_rule_order', [$this, 'ajax_update_rule_order'], 10);
-
-        // Add debug functionality when debug mode is enabled
-        add_action('admin_menu', [$this, 'maybe_add_debug_menu'], 999);
-        add_action('wp_loaded', [$this, 'handle_emergency_debug_access']);
 
     }//end init()
 
@@ -315,19 +313,14 @@ class Admin
         // We need to check if it's our post type from the URL
         if ($hook_suffix === 'edit.php') {
             // Check if this is a form submission
-            if (!empty($_REQUEST) && isset($_REQUEST['action']) && !isset($_REQUEST['_wpnonce'])) {
-                // If it's a form submission without a nonce, don't proceed
-                return;
-            }
-            
-            // Verify nonce for form submissions
-            if (isset($_REQUEST['action']) && isset($_REQUEST['_wpnonce'])) {
-                $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
-                if (!wp_verify_nonce($nonce, 'bulk-posts')) {
+            if (!empty($_REQUEST) && isset($_REQUEST['action'])) {
+                // Verify nonce for form submissions
+                if (!isset($_REQUEST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])), 'bulk-posts')) {
+                    // If it's a form submission without a valid nonce, don't proceed
                     return;
                 }
             }
-            
+
             // This is just determining which assets to load
             $current_post_type = isset($_GET['post_type']) ? sanitize_key(wp_unslash($_GET['post_type'] ?? '')) : 'post';
             
@@ -590,21 +583,14 @@ class Admin
                         'menu_order' => 0,
                     ]);
 
-                    // Get all other published rules (using meta_query for better performance than exclude)
-                    // This avoids using 'exclude' which is inefficient for large datasets
+                    // Get all other published rules using post__not_in for better performance
+                    // This is more efficient than meta_query for simple exclusions
                     $published_rules = get_posts([
                         'post_type'      => 'odcm_order_rule',
                         'post_status'    => 'publish',
                         'posts_per_page' => -1,
                         'fields'         => 'ids',
-                        'meta_query'     => [
-                            // Using a simple meta_query that will check for any post
-                            // This is more efficient than using post__not_in or exclude
-                            [
-                                'key'     => '_exclude_current_post',
-                                'compare' => 'NOT EXISTS'
-                            ]
-                        ],
+                        'post__not_in'   => [$post_id],
                     ]);
                     
                     // Filter out the current post ID from results
@@ -717,56 +703,6 @@ class Admin
         ));
     }
 
-    /**
-     * Add debug menu when debug mode is enabled
-     *
-     * @return void
-     */
-    public function maybe_add_debug_menu(): void
-    {
-        // Only show debug page when user has permissions
-        if (!current_user_can('manage_options')) {
-            return;
-        }
-        
-        // Add debug submenu under Tools
-        add_submenu_page(
-            'tools.php',                    // Parent menu
-            'ODCM Debug Info',             // Page title
-            'ODCM Debug',                  // Menu title
-            'manage_options',              // Capability
-            'odcm-debug',                  // Menu slug
-            [$this, 'render_debug_page']   // Callback function
-        );
-    }
-
-    /**
-     * Render the debug page
-     *
-     * @return void
-     */
-    public function render_debug_page(): void
-    {
-        echo '<div class="wrap">';
-        echo '<h1>' . esc_html__('ODCM Debug Information', 'order-daemon') . '</h1>';
-        include ODCM_PLUGIN_DIR . 'debug-real-world-filtering.php';
-        echo '</div>';
-    }
-
-    /**
-     * Handle emergency debug access via URL parameter
-     *
-     * @return void
-     */
-    public function handle_emergency_debug_access(): void
-    {
-        if (isset($_GET['odcm_emergency_debug']) && 
-            $_GET['odcm_emergency_debug'] === 'show_debug_info_now' && 
-            current_user_can('manage_options')) {
-            
-            wp_die(include ODCM_PLUGIN_DIR . 'debug-real-world-filtering.php');
-        }
-    }
 
 
 

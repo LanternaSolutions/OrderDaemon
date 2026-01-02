@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use OrderDaemon\CompletionManager\Admin\Notices;
 use OrderDaemon\CompletionManager\Core\BlockCheckoutCompatibility;
 use OrderDaemon\CompletionManager\Core\RefundDeletionDiagnostics;
@@ -2318,7 +2320,7 @@ class Core
                 "SELECT COUNT(*) FROM `%s` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s",
                 $table_name_clean,
                 'odcm_process_checkout_completion',
-                '%"order_id":' . intval($order_id) . '%'
+                '%' . $wpdb->esc_like('"order_id":' . intval($order_id)) . '%'
             );
 
             // Execute the query
@@ -2354,7 +2356,7 @@ class Core
                 "SELECT action_id, hook_arguments, status FROM `%s` WHERE hook = %s AND hook_arguments LIKE %s LIMIT 5",
                 $table_name_clean,
                 'odcm_process_checkout_completion',
-                '%"order_id":' . intval($order_id) . '%'
+                '%' . $wpdb->esc_like('"order_id":' . intval($order_id)) . '%'
             );
 
             // Execute the query
@@ -2568,7 +2570,6 @@ class Core
             $existing_queue = wp_cache_get($existing_queue_key);
             
             if (false === $existing_queue) {
-                // Insert into queue table
                 $result = $wpdb->insert(
                     $wpdb->prefix . 'odcm_audit_log_queue',
                     [

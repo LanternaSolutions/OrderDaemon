@@ -34,32 +34,10 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
      */
     public function buildTimeline(TimelineRequest $request): TimelineData
     {
-        // Enhanced debugging for order completion events
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - buildTimeline called for log_id: ' . $request->logId);
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Request include_debug: ' . ($request->includeDebug ? 'true' : 'false'));
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Request view_mode: ' . $request->viewMode);
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Request is_process_group: ' . ($this->isProcessGroup($request->logId, $request->viewMode) ? 'true' : 'false'));
-
-            $eventType = $this->getEventTypeForLog($request->logId);
-            if ($this->isOrderCompletionEvent($eventType)) {
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - Building timeline for order completion event: ' . $eventType);
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - Request details: ' . json_encode([
-                    'log_id' => $request->logId,
-                    'include_debug' => $request->includeDebug,
-                    'view_mode' => $request->viewMode,
-                    'is_process_group' => $this->isProcessGroup($request->logId, $request->viewMode)
-                ]));
-            }
-        }
-
         // Fetch the log entry for this request
         $logEntry = $this->fetchLogEntry($request->logId);
 
         if (!$logEntry) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - No log entry found for log_id: ' . $request->logId);
-            }
             // Return empty timeline data if log entry not found
             $metadata = [
                 'type' => 'individual',
@@ -69,49 +47,13 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
             return TimelineData::individual($request->logId, [], $metadata);
         }
 
-        // Special handling for order completion events
-        $eventType = $logEntry['event_type'] ?? '';
-        if ($this->isOrderCompletionEvent($eventType) && defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Processing order completion event: ' . $eventType);
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Log entry keys: ' . implode(', ', array_keys($logEntry)));
-
-            // Log payload summary
-            $payload = $logEntry['payload'] ?? '';
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Payload length: ' . strlen($payload));
-            if (!empty($payload)) {
-                $payloadSample = substr($payload, 0, 100) . (strlen($payload) > 100 ? '...' : '');
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - Payload sample: ' . $payloadSample);
-
-                // Check if payload is valid JSON
-                $decodedPayload = json_decode($payload, true);
-                if ($decodedPayload === null) {
-                    error_log('ODCM DEBUG: DatabaseTimelineBuilder - Payload is not valid JSON: ' . json_last_error_msg());
-                } else {
-                    error_log('ODCM DEBUG: DatabaseTimelineBuilder - Payload decoded successfully, keys: ' .
-                          implode(', ', array_keys($decodedPayload)));
-                }
-            } else {
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - Payload is empty');
-            }
-        }
-
         // Check if this is a process group entry and build appropriate timeline
         // For individual view mode, always build individual timeline regardless of process group status
         if ($request->viewMode === 'flat') {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - Individual view mode forced, building individual timeline for log_id: ' . $request->logId);
-            }
             return $this->buildIndividualTimeline($logEntry, $request->includeDebug);
         } elseif ($this->shouldRenderAsProcessGroup($logEntry, $request->viewMode)) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - Building process group timeline for process_id: ' . 
-                      ($logEntry['process_id'] ?? 'undefined'));
-            }
             return $this->buildProcessGroupTimeline($logEntry, $request->includeDebug);
         } else {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - Building individual timeline for log_id: ' . $request->logId);
-            }
             return $this->buildIndividualTimeline($logEntry, $request->includeDebug);
         }
     }
@@ -163,19 +105,12 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
     {
         // In flat view mode, never render as process group regardless of process_id
         if ($viewMode === 'flat') {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - Flat view mode, forcing individual rendering for log_id: ' . ($logEntry['log_id'] ?? 'unknown'));
-            }
             return false;
         }
-        
+
         // In consolidated view mode, only render as process group if process_id exists
         $shouldGroup = !empty($logEntry['process_id']);
-        
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Consolidated view mode, process group decision: ' . ($shouldGroup ? 'YES' : 'NO') . ' for log_id: ' . ($logEntry['log_id'] ?? 'unknown'));
-        }
-        
+
         return $shouldGroup;
     }
 
@@ -188,16 +123,8 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
      */
     private function fetchLogEntry(int $logId): ?array
     {
-        // Enhanced debugging for DB query issues
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - fetchLogEntry called for log_id: ' . $logId);
-        }
-
         // Check in-memory cache first (fastest)
         if (isset(self::$logEntryCache[$logId])) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - fetchLogEntry cache hit for log_id: ' . $logId);
-            }
             return self::$logEntryCache[$logId];
         }
 
@@ -212,65 +139,36 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
             return $cached_entry;
         }
 
-        // Cache miss - perform database query
+        // Cache miss - perform database query using WordPress database abstraction
         global $wpdb;
 
-        // Enhanced debugging for DB query issues
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: fetchLogEntry - Performing database query for log_id: ' . $logId);
-        }
-
-        // Use proper table references without interpolation
-        // and let $wpdb->prepare handle all escaping
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-        
-        $result = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT l.log_id,
-                    l.timestamp,
-                    l.status,
-                    l.summary,
-                    l.order_id,
-                    l.event_type,
-                    l.source,
-                    l.payload_id,
-                    l.is_test,
-                    l.process_id,
-                    COALESCE(p.payload, l.details, %s) as payload
-                FROM $log_table l
-                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
-                WHERE l.log_id = %d",
-                '',
-                $logId
-            ),
-            'ARRAY_A'
+
+        // Use WordPress-approved database query method with proper escaping
+        $query = $wpdb->prepare(
+            "SELECT l.log_id,
+                l.timestamp,
+                l.status,
+                l.summary,
+                l.order_id,
+                l.event_type,
+                l.source,
+                l.payload_id,
+                l.is_test,
+                l.process_id,
+                COALESCE(p.payload, l.details, %s) as payload
+            FROM %i l
+                LEFT JOIN %i p ON l.payload_id = p.payload_id
+            WHERE l.log_id = %d",
+            $log_table,
+            $payload_table,
+            '',
+            $logId
         );
 
-        // Debug what we got from the database
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: fetchLogEntry(' . $logId . ') query executed successfully');
-            if ($result) {
-                error_log('ODCM DEBUG: fetchLogEntry(' . $logId . ') result keys: ' . implode(', ', array_keys($result)));
-                
-                // Check if we have a payload
-                if (isset($result['payload'])) {
-                    $payloadLength = strlen($result['payload']);
-                    error_log('ODCM DEBUG: fetchLogEntry(' . $logId . ') payload length: ' . $payloadLength);
-                    
-                    // Sample the payload for debugging
-                    if ($payloadLength > 0) {
-                        $sampleLength = min($payloadLength, 200);
-                        $payloadSample = substr($result['payload'], 0, $sampleLength);
-                        error_log('ODCM DEBUG: fetchLogEntry(' . $logId . ') payload sample: ' . $payloadSample);
-                    }
-                } else {
-                    error_log('ODCM DEBUG: fetchLogEntry(' . $logId . ') payload NOT SET');
-                }
-            } else {
-                error_log('ODCM DEBUG: fetchLogEntry(' . $logId . ') NO RESULT from database');
-            }
-        }
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table with complex JOIN required
+        $result = $wpdb->get_row( $query, 'ARRAY_A' );
 
         if (!$result) {
             // Even null results are worth caching to prevent repeated queries for non-existent entries
@@ -298,16 +196,8 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
      */
     private function fetchProcessLogEntries(string $processId): array
     {
-        // Enhanced debugging for process entries
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - fetchProcessLogEntries called for process_id: ' . $processId);
-        }
-
         // Check in-memory cache first (fastest)
         if (isset(self::$processEntriesCache[$processId])) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - fetchProcessLogEntries cache hit for process_id: ' . $processId);
-            }
             return self::$processEntriesCache[$processId];
         }
 
@@ -322,45 +212,42 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
             return $cached_entries;
         }
 
-        // Cache miss - perform database query
+        // Cache miss - perform database query using WordPress database abstraction
         global $wpdb;
-
-        // Enhanced debugging for process entries
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: fetchProcessLogEntries - Performing database query for process_id: ' . $processId);
-        }
 
         // Extra safety check to prevent querying with empty process ids
         if (empty($processId)) {
             return [];
         }
 
-        // Use proper table references without interpolation
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-        
-        $results = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT l.log_id,
-                    l.timestamp,
-                    l.status,
-                    l.summary,
-                    l.order_id,
-                    l.event_type,
-                    l.source,
-                    l.payload_id,
-                    l.is_test,
-                    l.process_id,
-                    COALESCE(p.payload, l.details, %s) as payload
-                FROM $log_table l
-                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
-                WHERE l.process_id = %s
-                ORDER BY l.timestamp ASC",
-                '',
-                $processId
-            ),
-            'ARRAY_A'
+
+        // Use WordPress-approved database query method with proper escaping
+        $query = $wpdb->prepare(
+            "SELECT l.log_id,
+                l.timestamp,
+                l.status,
+                l.summary,
+                l.order_id,
+                l.event_type,
+                l.source,
+                l.payload_id,
+                l.is_test,
+                l.process_id,
+                COALESCE(p.payload, l.details, %s) as payload
+            FROM %i l
+                LEFT JOIN %i p ON l.payload_id = p.payload_id
+            WHERE l.process_id = %s
+            ORDER BY l.timestamp ASC",
+            $log_table,
+            $payload_table,
+            '',
+            $processId
         );
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table with complex JOIN required
+        $results = $wpdb->get_results( $query, 'ARRAY_A' );
         $results = $results ?: [];
 
         // Process entries may receive updates during active processes
@@ -395,21 +282,12 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
      */
     private function buildIndividualTimeline(array $logEntry, bool $includeDebug): TimelineData
     {
-        // Special handling for order completion events
-        if ($this->isOrderCompletionEvent($logEntry['event_type'] ?? '') && defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Building individual timeline for order completion event: ' .
-                  ($logEntry['event_type'] ?? 'unknown'));
-        }
-
         // CRITICAL FIX: Extract components ONLY from the specific log entry, not from the entire process
         // This ensures that in individual view, each log entry shows only its own components
         $components = $this->extractComponentsFromLogEntry($logEntry, $includeDebug);
 
         // For order events with no components, create a synthetic component to ensure something renders
         if (empty($components) && $this->isOrderCompletionEvent($logEntry['event_type'] ?? '')) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: DatabaseTimelineBuilder - Creating synthetic component for order event with no components');
-            }
             $components = [$this->extractor->createSyntheticComponent($logEntry)];
         }
 
@@ -446,12 +324,8 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
             'order_id' => !empty($logEntry['order_id']) ? (int) $logEntry['order_id'] : null,
             'event_type' => $logEntry['event_type'] ?? null,
             'source' => $logEntry['source'] ?? null,
-            'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) wp_unslash($_SERVER['REQUEST_TIME_FLOAT']) : microtime(true)),
+            'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) sanitize_text_field(wp_unslash($_SERVER['REQUEST_TIME_FLOAT'])) : microtime(true)),
         ];
-
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Individual timeline built with ' . count($components) . ' components');
-        }
 
         return TimelineData::individual((int) $logEntry['log_id'], $components, $metadata);
     }
@@ -461,19 +335,10 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
      */
     private function buildProcessGroupTimeline(array $representativeLogEntry, bool $includeDebug): TimelineData
     {
-        // Debug log entry structure
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: Representative log entry keys: ' . implode(', ', array_keys($representativeLogEntry)));
-            error_log('ODCM DEBUG: Representative log entry log_id value: ' . var_export($representativeLogEntry['log_id'] ?? 'NOT SET', true));
-        }
-
         // DEFENSIVE FIX: Ensure representative log entry has valid log_id
         // The issue is that consolidation may create representative entries without proper log_id
         $logId = $this->extractValidLogId($representativeLogEntry);
         if ($logId <= 0) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: Invalid log_id in representative entry, fetching fresh data');
-            }
             throw new \Exception("Invalid representative log entry - log_id must be positive integer");
         }
 
@@ -488,12 +353,9 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         foreach ($processLogEntries as $logEntry) {
             $entryComponents = $this->extractComponentsFromLogEntry($logEntry, $includeDebug);
             $allComponents = array_merge($allComponents, $entryComponents);
-            
+
             // For order events with no components, add a synthetic component
             if (empty($entryComponents) && $this->isOrderCompletionEvent($logEntry['event_type'] ?? '')) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log('ODCM DEBUG: DatabaseTimelineBuilder - Creating synthetic component for order event in process group');
-                }
                 $allComponents[] = $this->extractor->createSyntheticComponent($logEntry);
             }
         }
@@ -531,12 +393,8 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
             'order_id' => !empty($representativeLogEntry['order_id']) ? (int) $representativeLogEntry['order_id'] : null,
             'start_timestamp' => !empty($processLogEntries) ? $processLogEntries[0]['timestamp'] : null,
             'end_timestamp' => !empty($processLogEntries) ? $processLogEntries[count($processLogEntries) - 1]['timestamp'] : null,
-            'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) wp_unslash($_SERVER['REQUEST_TIME_FLOAT']) : microtime(true)),
+            'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) sanitize_text_field(wp_unslash($_SERVER['REQUEST_TIME_FLOAT'])) : microtime(true)),
         ];
-
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - Process group timeline built with ' . count($allComponents) . ' components');
-        }
 
         return TimelineData::processGroup((int) $representativeLogEntry['log_id'], $allComponents, $metadata);
     }
@@ -589,10 +447,6 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         }
 
         // All strategies failed - return 0 to trigger error handling
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: extractValidLogId failed for entry: ' . var_export($representativeLogEntry, true));
-        }
-
         return 0;
     }
 
@@ -601,12 +455,6 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
      */
     private function extractComponentsFromLogEntry(array $logEntry, bool $includeDebug): array
     {
-        // Enhanced debugging for payload issues
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - extractComponentsFromLogEntry called for log_id: ' . ($logEntry['log_id'] ?? 'unknown'));
-            error_log('ODCM DEBUG: DatabaseTimelineBuilder - extractComponentsFromLogEntry include_debug: ' . ($includeDebug ? 'true' : 'false'));
-        }
-
         static $componentsCache = [];
 
         // Create cache key based on log entry ID and debug flag
@@ -620,34 +468,6 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
 
         $payloadRaw = $logEntry['payload'] ?? '';
 
-        // Enhanced debugging information for payload issues
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            $event_type = $logEntry['event_type'] ?? 'unknown';
-
-            error_log('ODCM DEBUG: extractComponentsFromLogEntry for log_id ' . $logId . ' with payload of length: ' . strlen($payloadRaw));
-            error_log('ODCM DEBUG: Event type: ' . $event_type);
-
-            // Extra logging for order completion-related events
-            if ($this->isOrderCompletionEvent($event_type)) {
-                error_log('ODCM DEBUG: *ORDER COMPLETION EVENT DETECTED* - Log ID: ' . $logId);
-            }
-
-            if (empty($payloadRaw)) {
-                error_log('ODCM DEBUG: Empty payload for log_id ' . $logId);
-
-                // For order events with no payload, create a synthetic component
-                if ($this->isOrderCompletionEvent($event_type)) {
-                    error_log('ODCM DEBUG: Creating synthetic component for order event with empty payload');
-                    $components = [$this->extractor->createSyntheticComponent($logEntry)];
-                    $componentsCache[$cacheKey] = $components;
-                    return $components;
-                }
-            } else {
-                error_log('ODCM DEBUG: Payload for log_id ' . $logId . ' starts with: ' . substr($payloadRaw, 0, 50) . '...');
-                error_log('ODCM DEBUG: JSON validity check: ' . (json_decode($payloadRaw) === null ? 'INVALID JSON: ' . json_last_error_msg() : 'VALID JSON'));
-            }
-        }
-
         // Handle empty payload
         if (empty($payloadRaw)) {
             $components = [$this->extractor->createSyntheticComponent($logEntry)];
@@ -658,36 +478,6 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         // Parse payload JSON with detailed error handling
         $payloadData = json_decode($payloadRaw, true);
         if (!is_array($payloadData)) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $error_message = json_last_error_msg();
-                error_log('ODCM DEBUG: Failed to decode JSON payload for log_id ' . $logId . ': ' . $error_message);
-
-                // Show more details about the actual payload that couldn't be decoded
-                error_log('ODCM DEBUG: Payload sample that failed to decode: ' .
-                    preg_replace('/\s+/', ' ', substr($payloadRaw, 0, 150)) .
-                    (strlen($payloadRaw) > 150 ? '...' : '')
-                );
-
-                // For malformed JSON, show the position where it failed if possible
-                if (function_exists('json_last_error_pos')) {
-                    $pos = json_last_error_pos();
-                    if ($pos !== false) {
-                        error_log('ODCM DEBUG: JSON error position: ' . $pos);
-                        error_log('ODCM DEBUG: Context at error position: ' .
-                            substr($payloadRaw, max(0, $pos - 20), 40)
-                        );
-                    }
-                }
-
-                // For order events with invalid JSON, create a synthetic component
-                if ($this->isOrderCompletionEvent($logEntry['event_type'] ?? '')) {
-                    error_log('ODCM DEBUG: Creating synthetic component for order event with invalid JSON payload');
-                    $components = [$this->extractor->createSyntheticComponent($logEntry)];
-                    $componentsCache[$cacheKey] = $components;
-                    return $components;
-                }
-            }
-
             $components = [$this->extractor->createSyntheticComponent($logEntry)];
             $componentsCache[$cacheKey] = $components;
             return $components;
@@ -709,24 +499,11 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
 
         // If no components extracted from payload, create synthetic component
         if (empty($components)) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: No components extracted from payload for log_id ' . $logId . ', creating synthetic component');
-                
-                // For order events with no components, be more verbose
-                if ($this->isOrderCompletionEvent($logEntry['event_type'] ?? '')) {
-                    error_log('ODCM DEBUG: Order completion event but no components extracted');
-                    error_log('ODCM DEBUG: Order event payload sample: ' . substr(json_encode($payloadData), 0, 200));
-                }
-            }
             $components = [$this->extractor->createSyntheticComponent($logEntry)];
         }
 
         // Cache the extracted components for this request
         $componentsCache[$cacheKey] = $components;
-
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: Successfully extracted ' . count($components) . ' components from payload for log_id ' . $logId);
-        }
 
         return $components;
     }

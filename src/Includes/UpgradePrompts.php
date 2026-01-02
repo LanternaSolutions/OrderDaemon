@@ -1,7 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Includes;
+
+if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
  * UpgradePrompts

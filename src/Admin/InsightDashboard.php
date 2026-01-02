@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
 use OrderDaemon\CompletionManager\Includes\Odcm_Strings;
 use OrderDaemon\CompletionManager\Includes\DependencyChecker;
@@ -479,18 +481,17 @@ class InsightDashboard
         $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
         $table_exists_cache_key = 'odcm_table_exists_' . md5($audit_log_table);
         $table_exists = wp_cache_get($table_exists_cache_key);
-        
+
         if ($table_exists === false) {
-            // We can't use WordPress schema functions here since these are custom tables
-            // Check tables using information_schema to be safer and more portable
+            // Use WordPress recommended method to check if table exists
+            // Check if the table exists by querying it directly with a safe query
             $table_exists = $wpdb->get_var(
                 $wpdb->prepare(
-                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",
-                    DB_NAME,
+                    "SHOW TABLES LIKE %s",
                     $audit_log_table
                 )
-            ) === '1';
-            
+            ) === $audit_log_table;
+
             // Cache the result for 1 hour - table existence rarely changes
             wp_cache_set($table_exists_cache_key, $table_exists ? '1' : '0', '', HOUR_IN_SECONDS);
         } else {
@@ -509,9 +510,12 @@ class InsightDashboard
         $log_count = wp_cache_get($log_count_cache_key);
 
         if ($log_count === false) {
-            // Use direct table name construction for COUNT query (table names shouldn't use prepared statements)
+            // Use WordPress recommended method with proper table name escaping
             $log_count = $wpdb->get_var(
-                "SELECT COUNT(*) FROM `{$wpdb->prefix}odcm_audit_log`"
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM %i",
+                    $wpdb->prefix . 'odcm_audit_log'
+                )
             );
 
             // Cache the result for 5 minutes - log count may change more frequently

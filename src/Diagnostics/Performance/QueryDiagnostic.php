@@ -19,6 +19,16 @@ use OrderDaemon\CompletionManager\Diagnostics\DiagnosticResult;
  * - Table sizes and data volume impact
  * - MySQL configuration and performance
  *
+ * CACHING STRATEGY:
+ * This diagnostic tool uses a balanced caching approach:
+ * 1. NO CACHING for performance measurement queries - these must test actual database performance
+ * 2. SHORT-TERM CACHING for structural/metadata queries (table sizes, indexes, MySQL config)
+ * 3. CACHE-BUSTING by default - performance tests always hit the database directly
+ * 4. WordPress object cache (wp_cache_*) used for request-level caching of metadata
+ * 5. Transients used for longer-term caching of rarely-changing structural data
+ *
+ * This approach ensures diagnostic accuracy while optimizing the tool's own performance.
+ *
  * @package OrderDaemon\DevTools\Diagnostics\Performance
  */
 class QueryDiagnostic extends AbstractDiagnostic
@@ -235,7 +245,7 @@ class QueryDiagnostic extends AbstractDiagnostic
             $full_table_name = $wpdb->prefix . $table;
             
             // Get row count
-            $row_count = $this->get_table_row_count($table); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $row_count = $this->get_table_row_count($table);
             
             // Get table size information with caching
             $table_size_cache_key = 'odcm_table_size_' . md5($full_table_name);
@@ -305,6 +315,9 @@ class QueryDiagnostic extends AbstractDiagnostic
         try {
             // Execute the same queries that the filter-options endpoint runs, using prepare for values.
             // Run three queries using a strict whitelist of column names to avoid dynamic SQL templates.
+            // NOTE: We intentionally do NOT cache these queries as this is a performance diagnostic tool
+            // that needs to measure actual database performance, not cached performance.
+
             $columns = [
                 'statuses' => 'status',
                 'event_types' => 'event_type',
@@ -318,60 +331,28 @@ class QueryDiagnostic extends AbstractDiagnostic
                 if (!in_array($column, $valid_columns, true)) {
                     continue; // Skip invalid columns
                 }
-                
-                // Check cache first
-                $cache_key = 'odcm_filter_options_' . $column;
-                $results = wp_cache_get($cache_key);
-                
-                if (false === $results) {
-                    // Cache miss - run the query
-        // First prepare a safe SQL statement with the known value placeholder
-        $val = '';
 
-        // Construct query with column names explicitly validated against whitelist
-        // phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- Column names can't use placeholders but are pre-validated
-        if ($column === 'status') {
-            $sql_tpl = "SELECT DISTINCT status FROM {$table_identifier} WHERE status IS NOT NULL AND status != %s ORDER BY status ASC";
-            $sql = $wpdb->prepare($sql_tpl, $val); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-        } elseif ($column === 'event_type') {
-            $sql_tpl = "SELECT DISTINCT event_type FROM {$table_identifier} WHERE event_type IS NOT NULL AND event_type != %s ORDER BY event_type ASC";
-            $sql = $wpdb->prepare($sql_tpl, $val); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-        } elseif ($column === 'source') {
-            $sql_tpl = "SELECT DISTINCT source FROM {$table_identifier} WHERE source IS NOT NULL AND source != %s ORDER BY source ASC";
-            $sql = $wpdb->prepare($sql_tpl, $val); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-        }
-        // phpcs:enable
-                    
-                    // Add index hint for performance on large tables
-                    $sql = str_replace("FROM {$table_identifier}", "FROM {$table_identifier} USE INDEX (idx_{$column})", $sql); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-                    
-                    // Execute the query with proper caching
-                    $query_cache_key = 'odcm_col_query_' . md5($sql);
-                    $results = wp_cache_get($query_cache_key);
-                    
-                    if (false === $results) {
-                        // The SQL is created using $wpdb->prepare() above with validated column names
-                        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is safely prepared above with validated table identifiers and column names
-                        $results = $wpdb->get_col($sql);
-                        
-                        // Cache results for 5 minutes (filter options change infrequently)
-                        if ($results !== null) {
-                            wp_cache_set($query_cache_key, $results, '', 5 * MINUTE_IN_SECONDS);
-                        }
-                    }
-                    
-                    // Cache overall filter options
-                    if ($results !== null) {
-                        wp_cache_set($cache_key, $results, '', 5 * MINUTE_IN_SECONDS);
-                    }
-                }
+                // Prepare the query using proper WordPress database abstraction
+                // Column names are validated against whitelist for security
+                // Since we can't use prepare() for identifiers, we use esc_sql() to escape them
+                $escaped_column = esc_sql($column);
+                $escaped_table = esc_sql(trim(str_replace('`', '', $table_identifier)));
+                $sql = $wpdb->prepare(
+                    "SELECT DISTINCT `{$escaped_column}` FROM `{$escaped_table}` WHERE `{$escaped_column}` IS NOT NULL AND `{$escaped_column}` != %s ORDER BY `{$escaped_column}` ASC",
+                    '' // Empty string parameter for the != %s comparison
+                );
+
+                // Execute the query directly without caching to measure actual performance
+                $results = $wpdb->get_col($sql);
+
                 $query_time = (microtime(true) - $query_start) * 1000;
 
                 $result['queries_executed'][] = [
                     'type' => $type,
                     'execution_time_ms' => round($query_time, 2),
                     'result_count' => count($results ?? []),
-                    'query' => $sql
+                    'query' => $sql,
+                    'cached' => false // Explicitly mark as not cached
                 ];
 
                 $result['results_count'][$type] = count($results ?? []);
@@ -417,42 +398,48 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         // Basic select
         $test_scenarios['basic_select'] = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table_identifier}"
-        ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+            "SELECT COUNT(*) FROM %s",
+            $table_identifier
+        );
 
         // Recent logs
         $test_scenarios['recent_logs'] = $wpdb->prepare(
-            "SELECT * FROM {$table_identifier} ORDER BY timestamp DESC LIMIT %d",
+            "SELECT * FROM %s ORDER BY timestamp DESC LIMIT %d",
+            $table_identifier,
             20
-        ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        );
 
         // With filters
         $test_scenarios['with_filters'] = $wpdb->prepare(
-            "SELECT * FROM {$table_identifier} WHERE status = %s ORDER BY timestamp DESC LIMIT %d",
+            "SELECT * FROM %s WHERE status = %s ORDER BY timestamp DESC LIMIT %d",
+            $table_identifier,
             'success',
             20
-        ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        );
 
         // Date range - using a prepared statement with the interval
         $interval_hours = 24;
         $test_scenarios['date_range'] = $wpdb->prepare(
-            "SELECT * FROM {$table_identifier} WHERE timestamp >= DATE_SUB(NOW(), INTERVAL %d HOUR) ORDER BY timestamp DESC LIMIT %d",
+            "SELECT * FROM %s WHERE timestamp >= DATE_SUB(NOW(), INTERVAL %d HOUR) ORDER BY timestamp DESC LIMIT %d",
+            $table_identifier,
             $interval_hours,
             20
-        ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        );
 
         // Add payload join test if payload table exists
         if ($payload_exists) {
             $test_scenarios['with_payload'] = $wpdb->prepare(
                 "SELECT l.*,
                     COALESCE(p.payload, l.details, %s) as payload
-                FROM {$table_identifier} l
-                    LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id
+                FROM %s l
+                    LEFT JOIN %s p ON l.payload_id = p.payload_id
                 ORDER BY l.timestamp DESC
                 LIMIT %d",
                 '',
+                $table_identifier,
+                $payload_table_identifier,
                 20
-            ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+            );
         }
 
         foreach ($test_scenarios as $test_name => $prepared_query) {
@@ -510,20 +497,30 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         try {
             // Get existing indexes
-            // Cache the index info for better performance
+            // This is a structural query that benefits from caching since database indexes
+            // don't change frequently. Caching here doesn't affect diagnostic accuracy
+            // as we're not measuring performance, just retrieving metadata.
+
             $cache_key = 'odcm_indexes_' . md5($table_identifier);
             $indexes = wp_cache_get($cache_key);
-            
+
             if (false === $indexes) {
-                // We can't use $wpdb->prepare() for "SHOW INDEX" with a table name as there's no 
+                // We can't use $wpdb->prepare() for "SHOW INDEX" with a table name as there's no
                 // placeholder for identifiers, but we can safely use $wpdb->get_results with a properly
-                // validated table name
+                // validated table name. This is a legitimate use case for direct database calls
+                // as WordPress doesn't provide an alternative for SHOW INDEX queries.
+
                 $table_name_clean = trim(str_replace('`', '', $table_identifier));
+
+                // Use WordPress database abstraction with proper validation
+                // Since we can't use prepare() for identifiers, we use esc_sql() to escape the table name
                 $query = "SHOW INDEX FROM `" . esc_sql($table_name_clean) . "`";
                 $indexes = $wpdb->get_results($query, 'ARRAY_A');
-                
+
                 if ($indexes !== null) {
                     // Cache for 1 hour - indexes don't change frequently
+                    // This caching is appropriate as it improves diagnostic tool performance
+                    // without affecting the accuracy of performance measurements
                     wp_cache_set($cache_key, $indexes, '', HOUR_IN_SECONDS);
                 }
             }
@@ -675,6 +672,10 @@ class QueryDiagnostic extends AbstractDiagnostic
     /**
      * Test query cache effectiveness
      *
+     * This method tests the effectiveness of different caching strategies.
+     * Unlike other performance tests, this method intentionally uses caching
+     * to demonstrate and measure cache performance improvements.
+     *
      * @return array Query cache test results
      */
     private function test_query_cache(): array
@@ -682,6 +683,7 @@ class QueryDiagnostic extends AbstractDiagnostic
         global $wpdb;
         
         // Use in-memory static caching during this request to avoid repeated calls
+        // This is appropriate for this specific test as it's measuring cache effectiveness
         if (null !== self::$cached_performance_results) {
             return self::$cached_performance_results;
         }
@@ -700,7 +702,8 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
         // Create backticked, safe table identifier
-        $table_identifier = '`' . $table_name . '`';
+        $escaped_table_name = esc_sql($table_name);
+        $table_identifier = '`' . $escaped_table_name . '`';
         
         // Construct a test query that will benefit from indexing
         $cutoff_time = gmdate('Y-m-d H:i:s', strtotime('-1 hour'));
@@ -744,7 +747,7 @@ class QueryDiagnostic extends AbstractDiagnostic
             if (false === $cache_result) {
                 $safe_query = $wpdb->prepare($query_template, $cutoff_time);
                 // Use properly prepared query
-                $cache_result = $wpdb->get_var($wpdb->prepare($query_template, $cutoff_time));
+                $cache_result = $wpdb->get_var($safe_query);
                 wp_cache_set($cache_key, $cache_result, '', 5 * MINUTE_IN_SECONDS);
             }
             

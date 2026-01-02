@@ -80,7 +80,7 @@ class RuleBuilderApiController extends WP_REST_Controller
             $debug_file = WP_CONTENT_DIR . '/debug.log';
             @file_put_contents(
                 $debug_file,
-                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                '[' . gmdate('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
                 FILE_APPEND
             );
             return;
@@ -1522,15 +1522,15 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         $search = sanitize_text_field($search);
         $limit = max(1, min($limit, 100)); // Ensure reasonable limits
-        
+
         // Create a unique cache key based on search parameters
         $cache_key = 'odcm_product_search_' . md5($search . '_' . $limit);
-        
+
         // Check static cache first (fastest, for this request only)
         if (isset(self::$product_search_cache[$cache_key])) {
             return self::$product_search_cache[$cache_key];
         }
-        
+
         // Check persistent cache next
         $cached_results = wp_cache_get($cache_key);
         if (false !== $cached_results) {
@@ -1569,8 +1569,8 @@ class RuleBuilderApiController extends WP_REST_Controller
         $sql .= " ORDER BY p.post_title ASC LIMIT %d";
         $search_params[] = $limit;
 
-        // Use proper wpdb preparation
-        $results = $wpdb->get_results($wpdb->prepare($sql, $search_params));
+        // Use proper wpdb preparation with array unpacking
+        $results = $wpdb->get_results($wpdb->prepare($sql, ...$search_params));
 
         $formatted_results = [];
         foreach ($results as $product) {
@@ -1590,11 +1590,11 @@ class RuleBuilderApiController extends WP_REST_Controller
                 ]
             ];
         }
-        
+
         // Cache the formatted results
         // Use 5 minute cache for product searches - balances fresh data with performance
         wp_cache_set($cache_key, $formatted_results, '', 5 * MINUTE_IN_SECONDS);
-        
+
         // Save in static cache for this request
         self::$product_search_cache[$cache_key] = $formatted_results;
 

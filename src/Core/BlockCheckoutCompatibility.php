@@ -3,6 +3,11 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core;
 
+// Prevent direct access to this file
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 use WC_Order;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;

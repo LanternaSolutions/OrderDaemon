@@ -41,7 +41,6 @@ final class TimelineData
                     (strpos($component['event_type'], 'order_') !== false ||
                      strpos($component['event_type'], 'checkout') !== false ||
                      strpos($component['event_type'], 'completion') !== false)) {
-                    error_log('ODCM DEBUG: TimelineData validating order event component: ' . json_encode($component));
                 }
             }
 
@@ -50,32 +49,18 @@ final class TimelineData
 
             // Basic type validation with auto-fix instead of exception
             if (!is_array($fixedComponent)) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log('ODCM DEBUG: TimelineData - Component at index ' . $index . ' is not an array, type: ' . gettype($fixedComponent));
-                    error_log('ODCM DEBUG: TimelineData - Auto-fixing by converting to array');
-                }
                 // Auto-fix: Convert non-array to array with original as value
                 $fixedComponent = ['event_type' => 'unknown', 'data' => ['value' => $fixedComponent]];
             }
 
             // Event type validation with auto-fix
             if (!isset($fixedComponent['event_type'])) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log('ODCM DEBUG: TimelineData - Component at index ' . $index . ' missing event_type field');
-                    error_log('ODCM DEBUG: Component keys: ' . implode(', ', array_keys($fixedComponent)));
-                    error_log('ODCM DEBUG: TimelineData - Auto-fixing by adding default event_type');
-                }
                 // Auto-fix: Add a default event type
                 $fixedComponent['event_type'] = 'unknown';
             }
 
             // Data validation with auto-fix for ALL components
             if (!isset($fixedComponent['data']) || !is_array($fixedComponent['data'])) {
-                // Log the issue for debugging but DO NOT throw an exception
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log('ODCM DEBUG: TimelineData - Component at index ' . $index . ' missing or invalid data field. Auto-fixing.');
-                    error_log('ODCM DEBUG: Component keys: ' . implode(', ', array_keys($fixedComponent)));
-                }
 
                 // If 'data' is missing, use the whole component as a fallback
                 // This handles the legacy structure where the component itself might contain all necessary data
@@ -104,10 +89,6 @@ final class TimelineData
                     $componentAsFallbackData = $originalComponent;
                     unset($componentAsFallbackData['data']); // Avoid circular references
                     $fixedComponent['data'] = $componentAsFallbackData;
-                }
-
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log('ODCM DEBUG: TimelineData - After auto-fix, component data: ' . json_encode($fixedComponent['data']));
                 }
             }
 

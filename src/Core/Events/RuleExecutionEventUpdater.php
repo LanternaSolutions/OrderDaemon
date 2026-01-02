@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core\Events;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 /**
  * Rule Execution Event Updater
  *
@@ -97,6 +99,9 @@ class RuleExecutionEventUpdater
                     'attempts' => 1,
                 ];
                 set_transient($transient_key, $update_data, HOUR_IN_SECONDS);
+                
+                // Invalidate related caches since we created a new transient
+                $this->invalidate_transient_caches();
             }
         } catch (\Throwable $e) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -113,6 +118,9 @@ class RuleExecutionEventUpdater
                 'error' => $e->getMessage(),
             ];
             set_transient($transient_key, $update_data, HOUR_IN_SECONDS);
+            
+            // Invalidate related caches since we created a new transient
+            $this->invalidate_transient_caches();
         }
     }
 
@@ -130,13 +138,21 @@ class RuleExecutionEventUpdater
         }
 
         // Find all transients with our prefix
-        $transient_keys = $wpdb->get_col($wpdb->prepare(
-            "SELECT option_name FROM {$wpdb->options}
-             WHERE option_name LIKE %s
-             AND option_name LIKE %s",
-            '_transient_odcm_rule_execution_update_%',
-            '_transient_timeout_odcm_rule_execution_update_%'
-        ));
+        $cache_key = 'odcm_pending_rule_execution_transients';
+        $transient_keys = wp_cache_get($cache_key, 'odcm_rule_execution');
+        
+        if (false === $transient_keys) {
+            $transient_keys = $wpdb->get_col($wpdb->prepare(
+                "SELECT option_name FROM {$wpdb->options}
+                 WHERE option_name LIKE %s
+                 AND option_name NOT LIKE %s",
+                '_transient_odcm_rule_execution_update_%',
+                '_transient_timeout_odcm_rule_execution_update_%'
+            ));
+            
+            // Cache for 5 minutes as transients are dynamic
+            wp_cache_set($cache_key, $transient_keys, 'odcm_rule_execution', 300);
+        }
 
         if (empty($transient_keys)) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -166,6 +182,9 @@ class RuleExecutionEventUpdater
                         if ($success) {
                             // Delete the transient on successful update
                             delete_transient('odcm_rule_execution_update_' . $event_id);
+                            
+                            // Invalidate caches since we deleted a transient
+                            $this->invalidate_transient_caches();
 
                             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                                 $rule_name = $update_data['payload']['rule_name'] ?? 'unknown';
@@ -181,6 +200,9 @@ class RuleExecutionEventUpdater
                             if ($update_data['attempts'] <= 3) {
                                 // Retry within the next hour
                                 set_transient('odcm_rule_execution_update_' . $event_id, $update_data, HOUR_IN_SECONDS);
+                                
+                                // Invalidate caches since we updated a transient
+                                $this->invalidate_transient_caches();
 
                                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                                     odcm_log_message("ODCM_RULE_UPDATE: Update failed for event {$event_id} (attempt {$update_data['attempts']}), will retry", 'warning');
@@ -188,6 +210,9 @@ class RuleExecutionEventUpdater
                             } else {
                                 // Give up after 3 attempts
                                 delete_transient('odcm_rule_execution_update_' . $event_id);
+                                
+                                // Invalidate caches since we deleted a transient
+                                $this->invalidate_transient_caches();
 
                                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                                     odcm_log_message("ODCM_RULE_UPDATE: Giving up on update for event {$event_id} after 3 failed attempts", 'error');
@@ -203,6 +228,9 @@ class RuleExecutionEventUpdater
 
                         // Delete the transient on exception to prevent infinite retries
                         delete_transient('odcm_rule_execution_update_' . $event_id);
+                        
+                        // Invalidate caches since we deleted a transient
+                        $this->invalidate_transient_caches();
                     }
                 }
             }
@@ -280,13 +308,21 @@ class RuleExecutionEventUpdater
         global $wpdb;
 
         // Count pending update transients
-        $pending_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->options}
-             WHERE option_name LIKE %s
-             AND option_name LIKE %s",
-            '_transient_odcm_rule_execution_update_%',
-            '_transient_timeout_odcm_rule_execution_update_%'
-        ));
+        $cache_key = 'odcm_pending_updates_count';
+        $pending_count = wp_cache_get($cache_key, 'odcm_rule_execution');
+        
+        if (false === $pending_count) {
+            $pending_count = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->options}
+                 WHERE option_name LIKE %s
+                 AND option_name NOT LIKE %s",
+                '_transient_odcm_rule_execution_update_%',
+                '_transient_timeout_odcm_rule_execution_update_%'
+            ));
+            
+            // Cache for 2 minutes as this can change frequently
+            wp_cache_set($cache_key, $pending_count, 'odcm_rule_execution', 120);
+        }
 
         return [
             'pending_updates' => (int) $pending_count,
@@ -304,13 +340,21 @@ class RuleExecutionEventUpdater
         global $wpdb;
 
         // Find all transients with our prefix
-        $transient_keys = $wpdb->get_col($wpdb->prepare(
-            "SELECT option_name FROM {$wpdb->options}
-             WHERE option_name LIKE %s
-             AND option_name LIKE %s",
-            '_transient_odcm_rule_execution_update_%',
-            '_transient_timeout_odcm_rule_execution_update_%'
-        ));
+        $cache_key = 'odcm_cleanup_rule_execution_transients';
+        $transient_keys = wp_cache_get($cache_key, 'odcm_rule_execution');
+        
+        if (false === $transient_keys) {
+            $transient_keys = $wpdb->get_col($wpdb->prepare(
+                "SELECT option_name FROM {$wpdb->options}
+                 WHERE option_name LIKE %s
+                 AND option_name NOT LIKE %s",
+                '_transient_odcm_rule_execution_update_%',
+                '_transient_timeout_odcm_rule_execution_update_%'
+            ));
+            
+            // Cache for 1 minute as this is only used for cleanup operations
+            wp_cache_set($cache_key, $transient_keys, 'odcm_rule_execution', 60);
+        }
 
         $cleaned_count = 0;
 
@@ -323,6 +367,24 @@ class RuleExecutionEventUpdater
             }
         }
 
+        // Clear cache after cleanup to ensure fresh data on next call
+        wp_cache_delete($cache_key, 'odcm_rule_execution');
+
         return $cleaned_count;
+    }
+
+    /**
+     * Invalidate all transient-related caches
+     *
+     * This method should be called whenever transients are created, updated, or deleted
+     * to ensure cache consistency.
+     *
+     * @return void
+     */
+    private function invalidate_transient_caches(): void
+    {
+        wp_cache_delete('odcm_pending_rule_execution_transients', 'odcm_rule_execution');
+        wp_cache_delete('odcm_pending_updates_count', 'odcm_rule_execution');
+        wp_cache_delete('odcm_cleanup_rule_execution_transients', 'odcm_rule_execution');
     }
 }

@@ -288,12 +288,24 @@ class CheckoutFlowDiagnostic extends AbstractDiagnostic
             } else {
                 $start_time = microtime(true);
                 
-                // Test basic database connectivity using prepared statement
-                $test_query = $wpdb->get_var($wpdb->prepare("SELECT %s", '1'));
+                // Test basic database connectivity using WordPress option functions
+                // This avoids direct database queries while still testing DB performance
+                $test_option_name = 'odcm_db_connectivity_test_' . wp_generate_password(8, false);
+                $test_value = 'test_' . time();
+                
+                // Test write operation
+                $write_success = update_option($test_option_name, $test_value, false);
+                
+                // Test read operation
+                $read_value = get_option($test_option_name);
+                
+                // Clean up test option
+                delete_option($test_option_name);
+                
                 $db_time = microtime(true) - $start_time;
                 
                 $response_time = round($db_time * 1000, 2) . 'ms';
-                $connection_status = $test_query === '1' ? 'success' : 'failed';
+                $connection_status = ($write_success && $read_value === $test_value) ? 'success' : 'failed';
                 
                 $result->addDetail('database_response_time', $response_time);
                 $result->addDetail('database_connection', $connection_status);

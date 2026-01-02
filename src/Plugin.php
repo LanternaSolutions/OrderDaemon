@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use OrderDaemon\CompletionManager\Admin\Admin;
 use OrderDaemon\CompletionManager\Admin\DiagnosticDashboard;
 use OrderDaemon\CompletionManager\Admin\InsightDashboard;

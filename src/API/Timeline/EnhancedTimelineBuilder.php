@@ -80,7 +80,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
                 'order_id' => !empty($logEntry['order_id']) ? (int) $logEntry['order_id'] : null,
                 'event_type' => $logEntry['event_type'] ?? null,
                 'source' => $logEntry['source'] ?? null,
-                'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) wp_unslash($_SERVER['REQUEST_TIME_FLOAT']) : microtime(true)),
+                'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) sanitize_text_field(wp_unslash($_SERVER['REQUEST_TIME_FLOAT'])) : microtime(true)),
                 'filtered_out' => 'Event filtered out as debug-only in non-debug mode',
             ];
             return TimelineData::individual((int) $logEntry['log_id'], [], $metadata);
@@ -93,7 +93,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
             'order_id' => !empty($logEntry['order_id']) ? (int) $logEntry['order_id'] : null,
             'event_type' => $logEntry['event_type'] ?? null,
             'source' => $logEntry['source'] ?? null,
-            'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) wp_unslash($_SERVER['REQUEST_TIME_FLOAT']) : microtime(true)),
+            'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) sanitize_text_field(wp_unslash($_SERVER['REQUEST_TIME_FLOAT'])) : microtime(true)),
         ];
 
         return TimelineData::individual((int) $logEntry['log_id'], [$component], $metadata);
@@ -171,7 +171,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
             'order_id' => !empty($representativeLogEntry['order_id']) ? (int) $representativeLogEntry['order_id'] : null,
             'start_timestamp' => !empty($processLogEntries) ? $processLogEntries[0]['timestamp'] : null,
             'end_timestamp' => !empty($processLogEntries) ? $processLogEntries[count($processLogEntries) - 1]['timestamp'] : null,
-            'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) wp_unslash($_SERVER['REQUEST_TIME_FLOAT']) : microtime(true)),
+            'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) sanitize_text_field(wp_unslash($_SERVER['REQUEST_TIME_FLOAT'])) : microtime(true)),
         ];
 
         return TimelineData::processGroup((int) $representativeLogEntry['log_id'], $components, $metadata);
@@ -354,6 +354,14 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
      */
     private function fetchLogEntry(int $logId): ?array
     {
+        // Check cache first
+        $cache_key = 'odcm_log_entry_' . $logId;
+        $cached_result = wp_cache_get($cache_key, 'order_daemon');
+
+        if ($cached_result !== false) {
+            return $cached_result;
+        }
+
         global $wpdb;
 
         $log_table = $wpdb->prefix . 'odcm_audit_log';
@@ -372,8 +380,8 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
                     l.is_test,
                     l.process_id,
                     COALESCE(p.payload, l.details, %s) as payload
-                FROM $log_table l
-                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
+                FROM {$wpdb->prefix}odcm_audit_log l
+                    LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
                 WHERE l.log_id = %d",
                 '',
                 $logId
@@ -381,7 +389,12 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
             'ARRAY_A'
         );
 
-        return $result ?: null;
+        $final_result = $result ?: null;
+
+        // Cache the result for 5 minutes (300 seconds)
+        wp_cache_set($cache_key, $final_result, 'order_daemon', 300);
+
+        return $final_result;
     }
 
     /**
@@ -389,10 +402,15 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
      */
     private function fetchProcessLogEntries(string $processId): array
     {
-        global $wpdb;
+        // Check cache first
+        $cache_key = 'odcm_process_entries_' . md5($processId);
+        $cached_result = wp_cache_get($cache_key, 'order_daemon');
 
-        $log_table = $wpdb->prefix . 'odcm_audit_log';
-        $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
+        if ($cached_result !== false) {
+            return $cached_result;
+        }
+
+        global $wpdb;
 
         $results = $wpdb->get_results(
             $wpdb->prepare(
@@ -407,8 +425,8 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
                     l.is_test,
                     l.process_id,
                     COALESCE(p.payload, l.details, %s) as payload
-                FROM $log_table l
-                    LEFT JOIN $payload_table p ON l.payload_id = p.payload_id
+                FROM {$wpdb->prefix}odcm_audit_log l
+                    LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
                 WHERE l.process_id = %s
                 ORDER BY l.timestamp ASC",
                 '',
@@ -417,6 +435,11 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
             'ARRAY_A'
         );
 
-        return $results ?: [];
+        $final_result = $results ?: [];
+
+        // Cache the result for 5 minutes (300 seconds)
+        wp_cache_set($cache_key, $final_result, 'order_daemon', 300);
+
+        return $final_result;
     }
 }

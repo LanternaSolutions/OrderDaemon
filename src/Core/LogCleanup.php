@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 /**
  * Handles automatic cleanup of old audit trail logs.
  * This class implements safe batch deletion to prevent database performance issues.
@@ -59,13 +61,8 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $total_to_delete) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Performance-critical cleanup operation using properly prepared query
-            // Split the query to properly handle table identifiers which can't use placeholders
             $count_sql = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s";
-            $prepared_count = $wpdb->prepare($count_sql, $cutoff_date);
-            // Query is properly prepared above
-            $total_to_delete = $wpdb->get_var($prepared_count);
+            $total_to_delete = $wpdb->get_var($wpdb->prepare($count_sql, $cutoff_date));
 
             // Cache the result for 10 minutes
             // This is appropriate for cleanup operations that don't need real-time precision
@@ -92,13 +89,8 @@ class LogCleanup
 
             // Cache miss - perform batch query
             if (false === $logs_to_delete) {
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                // Performance-critical cleanup operation using properly prepared query
-                // Split the query to properly handle table identifiers which can't use placeholders
                 $batch_sql = "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d";
-                $prepared_batch = $wpdb->prepare($batch_sql, $cutoff_date, self::BATCH_SIZE);
-                // Query is properly prepared above
-                $logs_to_delete = $wpdb->get_results($prepared_batch);
+                $logs_to_delete = $wpdb->get_results($wpdb->prepare($batch_sql, $cutoff_date, self::BATCH_SIZE));
 
                 // Cache the result briefly - just enough to avoid duplicate queries
                 // in case of concurrent cleanup processes
@@ -133,16 +125,10 @@ class LogCleanup
                     // Set lock
                     wp_cache_set($delete_lock_key, true, '', 60); // 1 minute lock
 
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                    // Performance-critical cleanup operation using properly prepared query
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
-                    // Build query with properly separated table identifier and placeholders
                     $delete_sql = "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)";
-                    // Prepare with all log IDs as parameters
-                    $prepared_delete = $wpdb->prepare($delete_sql, ...$log_ids);
-                    // Execute the query with the properly prepared statement
-                    $deleted_rows = $wpdb->query($prepared_delete);
+                    $deleted_rows = $wpdb->query($wpdb->prepare($delete_sql, ...$log_ids));
 
                     // Delete log ID cache keys after deletion
                     foreach ($log_ids as $log_id) {
@@ -175,16 +161,10 @@ class LogCleanup
                     // Set lock
                     wp_cache_set($payload_lock_key, true, '', 60); // 1 minute lock
 
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                    // Performance-critical cleanup operation using properly prepared query
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
-                    // Build query with properly separated table identifier and placeholders
                     $delete_sql = "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)";
-                    // Prepare with all payload IDs as parameters
-                    $prepared_delete = $wpdb->prepare($delete_sql, ...$payload_ids);
-                    // Execute the query with the properly prepared statement
-                    $wpdb->query($prepared_delete);
+                    $wpdb->query($wpdb->prepare($delete_sql, ...$payload_ids));
 
                     // Delete payload cache keys after deletion
                     foreach ($payload_ids as $payload_id) {
@@ -275,13 +255,8 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $count_to_delete) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Performance-critical cleanup operation using properly prepared query
-            // Count records that would be deleted
             $count_sql = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s";
-            $prepared_count = $wpdb->prepare($count_sql, $cutoff_date);
-            // Query is properly prepared above
-            $count_to_delete = $wpdb->get_var($prepared_count);
+            $count_to_delete = $wpdb->get_var($wpdb->prepare($count_sql, $cutoff_date));
 
             // Cache the result for 5 minutes - manual cleanup has higher freshness expectations
             wp_cache_set($manual_count_cache_key, $count_to_delete, '', 5 * MINUTE_IN_SECONDS);
@@ -304,13 +279,8 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $payload_count_to_delete) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Performance-critical cleanup operation using properly prepared query
-            // Count payload records that would be deleted
             $count_sql = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL";
-            $prepared_count = $wpdb->prepare($count_sql, $cutoff_date);
-            // Query is properly prepared above
-            $payload_count_to_delete = $wpdb->get_var($prepared_count);
+            $payload_count_to_delete = $wpdb->get_var($wpdb->prepare($count_sql, $cutoff_date));
 
             // Cache the result for 5 minutes
             wp_cache_set($payload_count_cache_key, $payload_count_to_delete, '', 5 * MINUTE_IN_SECONDS);

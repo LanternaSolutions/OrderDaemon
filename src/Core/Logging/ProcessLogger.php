@@ -288,17 +288,6 @@ final class ProcessLogger
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                     $this->critical_log('CRITICAL: Preventing timeline event creation for invalid order ID: ' . 
                         (isset($this->context['order_id']) ? (int)$this->context['order_id'] : 'null'));
-                    
-                    // Add stack trace for detailed debugging
-                    $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
-                    $trace_info = "";
-                    foreach ($backtrace as $idx => $frame) {
-                        $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
-                        $line = $frame['line'] ?? '?';
-                        $function = $frame['function'] ?? 'unknown';
-                        $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
-                    }
-                    $this->critical_log('Invalid Order ID backtrace: ' . $trace_info);
                 }
                 return false;
             }
@@ -361,17 +350,6 @@ final class ProcessLogger
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->critical_log("WARNING: Building correlation ID with invalid order ID: " . 
                     (is_null($order_id) ? 'null' : $order_id));
-                
-                // Add stack trace for detailed debugging
-                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
-                $trace_info = "";
-                foreach ($backtrace as $idx => $frame) {
-                    $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
-                    $line = $frame['line'] ?? '?';
-                    $function = $frame['function'] ?? 'unknown';
-                    $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
-                }
-                $this->critical_log('Invalid Order ID correlation_id backtrace: ' . $trace_info);
             }
         } else {
             $primary = (string)$order_id;

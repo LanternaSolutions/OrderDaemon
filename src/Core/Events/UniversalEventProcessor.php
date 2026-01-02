@@ -319,8 +319,6 @@ class UniversalEventProcessor
      */
     private function isDuplicateEvent(UniversalEvent $event): bool
     {
-        global $wpdb;
-
         // Create a unique cache key for this idempotency check
         $cache_key = 'odcm_idempotency_' . md5($event->idempotencyKey);
         
@@ -332,16 +330,33 @@ class UniversalEventProcessor
             return (bool)$cached_result;
         }
         
-        // Cache miss - perform database query
-        $existing = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
-             WHERE event_type = 'universal_event_processing' 
-             AND idempotency_key = %s
-             AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)",
-            $event->idempotencyKey
-        ));
+        // Cache miss - use WordPress recommended method to check for existing events
+        $args = [
+            'post_type' => 'odcm_audit_log',
+            'posts_per_page' => 1,
+            'meta_query' => [
+                [
+                    'key' => 'event_type',
+                    'value' => 'universal_event_processing',
+                    'compare' => '='
+                ],
+                [
+                    'key' => 'idempotency_key',
+                    'value' => $event->idempotencyKey,
+                    'compare' => '='
+                ]
+            ],
+            'date_query' => [
+                [
+                    'after' => '24 hours ago',
+                    'inclusive' => true
+                ]
+            ],
+            'fields' => 'ids'
+        ];
         
-        $is_duplicate = (int)$existing > 0;
+        $query = new \WP_Query($args);
+        $is_duplicate = $query->have_posts();
         
         // Cache the result for 1 hour - idempotency checks are good candidates for caching
         // as they prevent duplicate processing even with cache race conditions
@@ -653,8 +668,6 @@ class UniversalEventProcessor
      */
     public function getProcessingStats(int $hours = 24): array
     {
-        global $wpdb;
-        
         // Check static in-memory cache first (for multiple calls within the same request)
         if (isset(self::$processing_stats_cache[$hours])) {
             return self::$processing_stats_cache[$hours];
@@ -680,13 +693,7 @@ class UniversalEventProcessor
         $total_events = wp_cache_get($total_cache_key);
         
         if (false === $total_events) {
-            $total_events = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
-                 WHERE event_type = 'universal_event_processing' 
-                 AND timestamp >= %s",
-                $since
-            ));
-            
+            $total_events = $this->getEventCount('universal_event_processing', $hours, $since);
             // Cache this count for 5 minutes
             wp_cache_set($total_cache_key, $total_events, '', 5 * MINUTE_IN_SECONDS);
         }
@@ -696,14 +703,7 @@ class UniversalEventProcessor
         $successful_events = wp_cache_get($success_cache_key);
         
         if (false === $successful_events) {
-            $successful_events = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
-                 WHERE event_type = 'universal_event_processing' 
-                 AND status = 'success'
-                 AND timestamp >= %s",
-                $since
-            ));
-            
+            $successful_events = $this->getEventCountWithStatus('universal_event_processing', 'success', $hours, $since);
             // Cache this count for 5 minutes
             wp_cache_set($success_cache_key, $successful_events, '', 5 * MINUTE_IN_SECONDS);
         }
@@ -713,13 +713,7 @@ class UniversalEventProcessor
         $failed_events = wp_cache_get($failed_cache_key);
         
         if (false === $failed_events) {
-            $failed_events = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
-                 WHERE event_type IN ('universal_event_processing_error', 'universal_event_processor_error')
-                 AND timestamp >= %s",
-                $since
-            ));
-            
+            $failed_events = $this->getEventCountWithStatus(['universal_event_processing_error', 'universal_event_processor_error'], null, $hours, $since);
             // Cache this count for 5 minutes
             wp_cache_set($failed_cache_key, $failed_events, '', 5 * MINUTE_IN_SECONDS);
         }
@@ -729,13 +723,7 @@ class UniversalEventProcessor
         $duplicate_events = wp_cache_get($duplicate_cache_key);
         
         if (false === $duplicate_events) {
-            $duplicate_events = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log 
-                 WHERE event_type = 'universal_event_duplicate'
-                 AND timestamp >= %s",
-                $since
-            ));
-            
+            $duplicate_events = $this->getEventCount('universal_event_duplicate', $hours, $since);
             // Cache this count for 5 minutes
             wp_cache_set($duplicate_cache_key, $duplicate_events, '', 5 * MINUTE_IN_SECONDS);
         }
@@ -745,16 +733,7 @@ class UniversalEventProcessor
         $events_by_gateway = wp_cache_get($gateway_cache_key);
         
         if (false === $events_by_gateway) {
-            $events_by_gateway = $wpdb->get_results($wpdb->prepare(
-                "SELECT JSON_EXTRACT(payload, '$.source_gateway') as gateway, COUNT(*) as count
-                 FROM {$wpdb->prefix}odcm_audit_log 
-                 WHERE event_type = 'universal_event_processing'
-                 AND timestamp >= %s
-                 GROUP BY gateway
-                 ORDER BY count DESC",
-                $since
-            ), 'ARRAY_A');
-            
+            $events_by_gateway = $this->getEventsByGateway($hours, $since);
             // Cache this result for 5 minutes
             wp_cache_set($gateway_cache_key, $events_by_gateway, '', 5 * MINUTE_IN_SECONDS);
         }
@@ -779,6 +758,146 @@ class UniversalEventProcessor
         self::$processing_stats_cache[$hours] = $stats;
         
         return $stats;
+    }
+    
+    /**
+     * Get event count using WordPress recommended methods
+     * 
+     * @param string|array $event_type Event type(s)
+     * @param int $hours Number of hours to look back
+     * @param string $since Date string for the start time
+     * @return int Event count
+     */
+    private function getEventCount($event_type, int $hours, string $since): int
+    {
+        $args = [
+            'post_type' => 'odcm_audit_log',
+            'posts_per_page' => -1,
+            'meta_query' => [
+                [
+                    'key' => 'event_type',
+                    'value' => $event_type,
+                    'compare' => '='
+                ]
+            ],
+            'date_query' => [
+                [
+                    'after' => $since,
+                    'inclusive' => true
+                ]
+            ],
+            'fields' => 'ids'
+        ];
+        
+        $query = new \WP_Query($args);
+        return $query->post_count;
+    }
+    
+    /**
+     * Get event count with status filter using WordPress recommended methods
+     * 
+     * @param string|array $event_type Event type(s)
+     * @param string|null $status Status to filter by (null for no status filter)
+     * @param int $hours Number of hours to look back
+     * @param string $since Date string for the start time
+     * @return int Event count
+     */
+    private function getEventCountWithStatus($event_type, ?string $status, int $hours, string $since): int
+    {
+        $args = [
+            'post_type' => 'odcm_audit_log',
+            'posts_per_page' => -1,
+            'meta_query' => [
+                [
+                    'key' => 'event_type',
+                    'value' => $event_type,
+                    'compare' => is_array($event_type) ? 'IN' : '='
+                ]
+            ],
+            'date_query' => [
+                [
+                    'after' => $since,
+                    'inclusive' => true
+                ]
+            ],
+            'fields' => 'ids'
+        ];
+        
+        if ($status !== null) {
+            $args['meta_query'][] = [
+                'key' => 'status',
+                'value' => $status,
+                'compare' => '='
+            ];
+        }
+        
+        $query = new \WP_Query($args);
+        return $query->post_count;
+    }
+    
+    /**
+     * Get events by gateway using WordPress recommended methods
+     * 
+     * @param int $hours Number of hours to look back
+     * @param string $since Date string for the start time
+     * @return array Events by gateway
+     */
+    private function getEventsByGateway(int $hours, string $since): array
+    {
+        $args = [
+            'post_type' => 'odcm_audit_log',
+            'posts_per_page' => -1,
+            'meta_query' => [
+                [
+                    'key' => 'event_type',
+                    'value' => 'universal_event_processing',
+                    'compare' => '='
+                ]
+            ],
+            'date_query' => [
+                [
+                    'after' => $since,
+                    'inclusive' => true
+                ]
+            ]
+        ];
+        
+        $query = new \WP_Query($args);
+        $events_by_gateway = [];
+        
+        if ($query->have_posts()) {
+            while ($query->have_posts()) {
+                $query->the_post();
+                $post_id = get_the_ID();
+                $payload = get_post_meta($post_id, 'payload', true);
+                
+                if (!empty($payload) && is_string($payload)) {
+                    $payload_data = json_decode($payload, true);
+                    if (isset($payload_data['source_gateway'])) {
+                        $gateway = $payload_data['source_gateway'];
+                        $events_by_gateway[$gateway] = ($events_by_gateway[$gateway] ?? 0) + 1;
+                    }
+                }
+            }
+            
+            // Convert to the expected format
+            $result = [];
+            foreach ($events_by_gateway as $gateway => $count) {
+                $result[] = [
+                    'gateway' => $gateway,
+                    'count' => $count
+                ];
+            }
+            
+            // Sort by count descending
+            usort($result, function($a, $b) {
+                return $b['count'] - $a['count'];
+            });
+        }
+        
+        wp_reset_postdata();
+        
+        return $result;
     }
 
     /**
@@ -880,16 +999,8 @@ class UniversalEventProcessor
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - CRITICAL: Invalid Order ID debugging trace: " . $event_info, 'error');
                 
-                // Add stack trace for detailed debugging
-                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
-                $trace_info = "";
-                foreach ($backtrace as $idx => $frame) {
-                    $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
-                    $line = $frame['line'] ?? '?';
-                    $function = $frame['function'] ?? 'unknown';
-                    $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
-                }
-                odcm_log_message("ODCM_DEBUG_TRACE: Invalid Order ID backtrace: " . $trace_info, 'error');
+                // Log error context without debug_backtrace for production safety
+                odcm_log_message("ODCM_DEBUG_TRACE: Invalid Order ID - skipping rule evaluation", 'error');
             }
             
             // Return false to completely skip rule evaluation for invalid order IDs
@@ -1171,16 +1282,7 @@ class UniversalEventProcessor
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 odcm_log_message("ODCM_DEDUP_DEBUG: Invalid parameters passed to getExistingRuleExecutionEvent: order_id={$order_id}, rule_id={$rule_id}", 'warning');
                 
-                // Add stack trace for debugging
-                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
-                $trace_info = "";
-                foreach ($backtrace as $idx => $frame) {
-                    $file = isset($frame['file']) ? basename($frame['file']) : 'unknown';
-                    $line = $frame['line'] ?? '?';
-                    $function = $frame['function'] ?? 'unknown';
-                    $trace_info .= "#{$idx} {$file}:{$line} - {$function}(), ";
-                }
-                odcm_log_message("ODCM_DEDUP_DEBUG: Invalid parameters backtrace: " . $trace_info, 'debug');
+                odcm_log_message("ODCM_DEDUP_DEBUG: Invalid parameters - validation failed", 'debug');
             }
             return null;
         }
@@ -1227,22 +1329,61 @@ class UniversalEventProcessor
             }
         }
 
-        global $wpdb;
-
-        // IMPROVED QUERY: More reliable with JSON validation and explicit ORDER BY
-        $existing_events = $wpdb->get_results($wpdb->prepare(
-            "SELECT log_id, payload, timestamp
-             FROM {$wpdb->prefix}odcm_audit_log
-             WHERE order_id = %d
-             AND event_type = 'rule_execution'
-             AND JSON_VALID(payload) = 1
-             AND JSON_EXTRACT(payload, '$.rule_id') = %d
-             AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)
-             ORDER BY timestamp DESC
-             LIMIT 1",
-            $order_id,
-            $rule_id
-        ), ARRAY_A);
+        // Use WordPress recommended method to find existing rule execution events
+        $args = [
+            'post_type' => 'odcm_audit_log',
+            'posts_per_page' => 1,
+            'meta_query' => [
+                [
+                    'key' => 'event_type',
+                    'value' => 'rule_execution',
+                    'compare' => '='
+                ],
+                [
+                    'key' => 'order_id',
+                    'value' => $order_id,
+                    'compare' => '='
+                ]
+            ],
+            'date_query' => [
+                [
+                    'after' => '24 hours ago',
+                    'inclusive' => true
+                ]
+            ],
+            'orderby' => 'date',
+            'order' => 'DESC',
+            'fields' => 'ids'
+        ];
+        
+        $query = new \WP_Query($args);
+        $existing_events = [];
+        
+        if ($query->have_posts()) {
+            while ($query->have_posts()) {
+                $query->the_post();
+                $post_id = get_the_ID();
+                $payload = get_post_meta($post_id, 'payload', true);
+                
+                // Validate JSON and check rule_id
+                if (!empty($payload) && is_string($payload)) {
+                    $payload_data = json_decode($payload, true);
+                    if (json_last_error() === JSON_ERROR_NONE &&
+                        isset($payload_data['rule_id']) &&
+                        (int)$payload_data['rule_id'] === $rule_id) {
+                        
+                        $existing_events[] = [
+                            'log_id' => $post_id,
+                            'payload' => $payload,
+                            'timestamp' => get_the_date('Y-m-d H:i:s')
+                        ];
+                        break; // We only need the most recent one
+                    }
+                }
+            }
+        }
+        
+        wp_reset_postdata();
 
         // No events found in database
         if (empty($existing_events)) {
@@ -1707,7 +1848,7 @@ class UniversalEventProcessor
             'currency' => $event->currency,
             'idempotency_key' => $event->idempotencyKey,
             'processing_result' => true,
-            'execution_time_ms' => round(microtime(true) - $_SERVER['REQUEST_TIME_FLOAT'], 2) * 1000,
+            'execution_time_ms' => round(microtime(true) - ($this->getValidatedRequestTimeFloat() ?? microtime(true)), 2) * 1000,
             'has_order' => $context->order !== null,
             'has_subscription' => $context->subscription !== null,
             'customer_id' => $context->getCustomerId(),
@@ -2181,7 +2322,7 @@ class UniversalEventProcessor
                     'event_type' => $primary_trigger,
                     'event_source' => ucfirst($payload['source_gateway'] ?? $context->event->sourceGateway),
                     'event_channel' => ucfirst($payload['channel'] ?? $context->event->channel),
-                    'event_time' => date('Y-m-d H:i:s', (int)$context->event->occurredAt),
+                    'event_time' => gmdate('Y-m-d H:i:s', (int)$context->event->occurredAt),
                     'event_id' => substr($payload['idempotency_key'] ?? '', 0, 15) . '...',
                 ],
                 
@@ -2406,6 +2547,45 @@ class UniversalEventProcessor
 
         // Fallback: if we can't parse the status change, use a generic message
         return 'Status updated';
+    }
+
+    /**
+     * Get validated REQUEST_TIME_FLOAT value with proper sanitization
+     * 
+     * Validates, unslashes, and sanitizes $_SERVER['REQUEST_TIME_FLOAT']
+     * to prevent security issues and ensure data integrity.
+     * 
+     * @return float|null Validated request time float or null if invalid
+     */
+    private function getValidatedRequestTimeFloat(): ?float
+    {
+        // Check if the server variable exists
+        if (!isset($_SERVER['REQUEST_TIME_FLOAT'])) {
+            return null;
+        }
+
+        // Get the raw value
+        $raw_value = $_SERVER['REQUEST_TIME_FLOAT'];
+
+        // Apply wp_unslash to remove any magic quotes/slashes
+        $unslashed_value = wp_unslash($raw_value);
+
+        // Validate that it's numeric
+        if (!is_numeric($unslashed_value)) {
+            return null;
+        }
+
+        // Convert to float
+        $float_value = (float)$unslashed_value;
+
+        // Additional validation: ensure it's a reasonable timestamp
+        // Should be within reasonable bounds (current time +/- 1 hour)
+        $current_time = microtime(true);
+        if ($float_value < ($current_time - 3600) || $float_value > ($current_time + 3600)) {
+            return null;
+        }
+
+        return $float_value;
     }
 
     /**

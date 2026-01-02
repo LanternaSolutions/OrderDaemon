@@ -38,11 +38,10 @@ if (!defined('WPINC')) {
     {
         // Enhanced logging for order event type rendering resolution
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            if (strpos($event_type, 'checkout') !== false || 
-                strpos($event_type, 'order_') !== false || 
+            if (strpos($event_type, 'checkout') !== false ||
+                strpos($event_type, 'order_') !== false ||
                 strpos($event_type, 'complete') !== false ||
                 strpos($event_type, 'completion') !== false) {
-                error_log('ODCM DEBUG: Registry mapping requested for order event type: ' . $event_type);
             }
         }
         
@@ -62,11 +61,11 @@ if (!defined('WPINC')) {
             strpos($event_type, 'checkout_completed') !== false ||
             strpos($event_type, 'order_completion') !== false ||
             strpos($event_type, 'order_processed') !== false) {
-            
+
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: Registry matched order completion pattern for: ' . $event_type);
+                // Debug logging removed
             }
-            
+
             return OrderRenderer::class;
         }
         
@@ -74,11 +73,11 @@ if (!defined('WPINC')) {
         if (strpos($event_type, 'status_change') !== false ||
             strpos($event_type, 'status_changed') !== false ||
             strpos($event_type, 'status_update') !== false) {
-            
+
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: Registry matched status change pattern for: ' . $event_type);
+                // Debug logging removed
             }
-            
+
             return OrderRenderer::class;
         }
         
@@ -86,11 +85,11 @@ if (!defined('WPINC')) {
         if (strpos($event_type, 'process_') !== false ||
             strpos($event_type, '_process') !== false ||
             strpos($event_type, '_processed') !== false) {
-            
+
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: Registry matched process event pattern for: ' . $event_type);
+                // Debug logging removed
             }
-            
+
             return OrderRenderer::class;
         }
     
@@ -170,18 +169,18 @@ if (!defined('WPINC')) {
     // If we have an explicit mapping, use it
     if (isset($renderers[$event_type])) {
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: Registry found exact match for event_type: ' . $event_type . ' => ' . $renderers[$event_type]);
+            // Debug logging removed
         }
         return $renderers[$event_type];
     }
 
     // Log fallback to default renderer
-    if (defined('ODCM_DEBUG') && ODCM_DEBUG && 
-        (strpos($event_type, 'checkout') !== false || 
-         strpos($event_type, 'order_') !== false || 
+    if (defined('ODCM_DEBUG') && ODCM_DEBUG &&
+        (strpos($event_type, 'checkout') !== false ||
+         strpos($event_type, 'order_') !== false ||
          strpos($event_type, 'complete') !== false ||
          strpos($event_type, 'completion') !== false)) {
-        error_log('ODCM DEBUG: Registry fallback for order event: ' . $event_type . ' => ' . FallbackRenderer::class);
+        // Debug logging removed
     }
 
     return FallbackRenderer::class;

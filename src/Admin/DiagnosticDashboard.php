@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use OrderDaemon\CompletionManager\Diagnostics\DiagnosticRunner;
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
 
@@ -401,8 +403,8 @@ class DiagnosticDashboard
 
         } catch (\Throwable $e) {
             wp_send_json_error([
-                    /* translators: %s: The error message that occurred while generating dual-audience report */
                     'message' => sprintf(
+                        /* translators: %s: The error message that occurred while generating dual-audience report */
                         __('Failed to generate report: %s', 'order-daemon'),
                         $e->getMessage()
                     )
@@ -763,8 +765,8 @@ class DiagnosticDashboard
         // Report Summary
         $output .= __('SUMMARY', 'order-daemon') . "\n";
         $output .= "-------\n";
-                /* translators: 1: Total tests run, 2: Number passed, 3: Number failed */
                 $output .= sprintf(
+                    /* translators: 1: Total tests run, 2: Number passed, 3: Number failed */
                     __('Tests run: %1$d | Passed: %2$d | Failed: %3$d', 'order-daemon'),
                     $report['summary']['total_tests'],
                     $report['summary']['passed'],

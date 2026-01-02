@@ -53,7 +53,7 @@ class OrderMetaManager
             $debug_file = WP_CONTENT_DIR . '/debug.log';
             @file_put_contents(
                 $debug_file,
-                '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
+                '[' . gmdate('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
                 FILE_APPEND
             );
             return;
@@ -373,6 +373,7 @@ class OrderMetaManager
      * HPOS Compatible: Uses appropriate WooCommerce functions for both storage systems
      * 
      * Implements caching to avoid repeated searches for the same key/value pairs
+     * Optimized to use direct meta key/value parameters for better performance
      * 
      * @param string $meta_key Metadata key to search for
      * @param string $meta_value Metadata value to search for
@@ -411,23 +412,30 @@ class OrderMetaManager
         }
 
         try {
-            // Construct search arguments with meta_query to avoid slow_db_query_meta_key warning
+            // For common transaction ID keys, try HPOS direct query first
+            if (self::is_hpos_enabled() && in_array($meta_key, ['_transaction_id', '_stripe_charge_id', '_paypal_transaction_id'])) {
+                $result = self::find_order_by_meta_hpos_optimized($meta_key, $meta_value, $additional_args);
+                if ($result !== null) {
+                    $meta_search_cache[$cache_key] = $result;
+                    if ($should_persist) {
+                        wp_cache_set($persist_key, $result, '', 15 * MINUTE_IN_SECONDS);
+                    }
+                    return $result;
+                }
+            }
+            
+            // Use optimized meta_key/meta_value parameters instead of meta_query
             $search_args = array_merge([
                 'limit'      => 1,
                 'status'     => 'any',
                 'return'     => 'ids',
-                'meta_query' => [
-                    [
-                        'key'     => $meta_key,
-                        'value'   => $meta_value,
-                        'compare' => '='
-                    ]
-                ]
+                'meta_key'   => $meta_key,
+                'meta_value' => $meta_value,
+                'meta_compare' => '='
             ], $additional_args);
             
-            // Remove the meta_key and meta_value parameters that would trigger warnings
-            unset($search_args['meta_key']);
-            unset($search_args['meta_value']);
+            // Remove any conflicting meta_query parameters to avoid slow query warnings
+            unset($search_args['meta_query']);
 
             $orders = wc_get_orders($search_args);
             $result = (!empty($orders) && is_array($orders)) ? (int)$orders[0] : null;
@@ -499,23 +507,18 @@ class OrderMetaManager
         }
 
         try {
-            // Construct search arguments with meta_query to avoid slow_db_query_meta_key warning
+            // Use optimized meta_key/meta_value parameters instead of meta_query for better performance
             $search_args = array_merge([
                 'limit'      => $limit,
                 'status'     => 'any',
                 'return'     => 'ids',
-                'meta_query' => [
-                    [
-                        'key'     => $meta_key,
-                        'value'   => $meta_value,
-                        'compare' => '='
-                    ]
-                ]
+                'meta_key'   => $meta_key,
+                'meta_value' => $meta_value,
+                'meta_compare' => '='
             ], $additional_args);
             
-            // Remove the meta_key and meta_value parameters that would trigger warnings
-            unset($search_args['meta_key']);
-            unset($search_args['meta_value']);
+            // Remove any conflicting meta_query parameters to avoid slow query warnings
+            unset($search_args['meta_query']);
 
             $orders = wc_get_orders($search_args);
             $result = (!empty($orders) && is_array($orders)) ? array_map('intval', $orders) : [];
@@ -644,15 +647,11 @@ class OrderMetaManager
 
         foreach ($subscription_meta_keys as $meta_key) {
             try {
-                // Use meta_query instead of meta_key/meta_value to avoid warnings
+                // Use optimized meta_key/meta_value parameters instead of meta_query for better performance
                 $subscriptions = wcs_get_subscriptions([
-                    'meta_query'          => [
-                        [
-                            'key'         => $meta_key,
-                            'value'       => $gateway_subscription_id,
-                            'compare'     => '='
-                        ]
-                    ],
+                    'meta_key'            => $meta_key,
+                    'meta_value'          => $gateway_subscription_id,
+                    'meta_compare'        => '=',
                     'posts_per_page'      => 1,
                     'subscription_status' => 'any'
                 ]);

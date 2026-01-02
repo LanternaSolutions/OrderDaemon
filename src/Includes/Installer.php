@@ -218,6 +218,7 @@ class Installer
         $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
 
         // Check if parent_id column already exists
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection required during installation
         $parent_id_exists = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'parent_id'",
@@ -227,26 +228,27 @@ class Installer
 
         if (!$parent_id_exists) {
             // Add parent_id column
-            $sql = "ALTER TABLE $audit_log_table
+            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . "
                     ADD COLUMN parent_id INT UNSIGNED NULL DEFAULT NULL AFTER log_id";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
             $wpdb->query($sql);
 
             // Add index for parent_id
-            $sql = "ALTER TABLE $audit_log_table ADD INDEX idx_parent (parent_id)";
+            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . " ADD INDEX idx_parent (parent_id)";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
             $wpdb->query($sql);
 
             // Add composite index for process_id and parent_id
-            $sql = "ALTER TABLE $audit_log_table ADD INDEX idx_process_parent (process_id, parent_id)";
+            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . " ADD INDEX idx_process_parent (process_id, parent_id)";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
             $wpdb->query($sql);
         }
 
         // Check if display_data column already exists
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection required during installation
         $display_data_exists = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'display_data'",
@@ -256,7 +258,7 @@ class Installer
 
         if (!$display_data_exists) {
             // Add display_data column
-            $sql = "ALTER TABLE $audit_log_table
+            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . "
                     ADD COLUMN display_data TEXT NULL DEFAULT NULL AFTER details";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
@@ -264,6 +266,7 @@ class Installer
         }
 
         // Add dedupe_key column for deterministic deduplication
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection required during installation
         $dedupe_key_exists = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'dedupe_key'",
@@ -273,14 +276,14 @@ class Installer
 
         if (!$dedupe_key_exists) {
             // Add dedupe_key column
-            $sql = "ALTER TABLE $audit_log_table
+            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . "
                     ADD COLUMN dedupe_key VARCHAR(255) NULL DEFAULT NULL AFTER details";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
             $wpdb->query($sql);
 
             // Add unique index for dedupe_key
-            $sql = "ALTER TABLE $audit_log_table ADD UNIQUE INDEX idx_dedupe_key (dedupe_key)";
+            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . " ADD UNIQUE INDEX idx_dedupe_key (dedupe_key)";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
             $wpdb->query($sql);
@@ -290,6 +293,7 @@ class Installer
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
         // Check if processed_display_data column already exists
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection required during installation
         $processed_display_data_exists = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'processed_display_data'",
@@ -299,7 +303,7 @@ class Installer
 
         if (!$processed_display_data_exists) {
             // Add processed_display_data column
-            $sql = "ALTER TABLE $payload_table
+            $sql = "ALTER TABLE " . esc_sql($payload_table) . "
                     ADD COLUMN processed_display_data TEXT NULL DEFAULT NULL COMMENT 'Cached display sections in JSON format'";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
@@ -307,6 +311,7 @@ class Installer
         }
 
         // Check if last_processed column already exists
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection required during installation
         $last_processed_exists = $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'last_processed'",
@@ -316,7 +321,7 @@ class Installer
 
         if (!$last_processed_exists) {
             // Add last_processed column
-            $sql = "ALTER TABLE $payload_table
+            $sql = "ALTER TABLE " . esc_sql($payload_table) . "
                     ADD COLUMN last_processed TIMESTAMP NULL DEFAULT NULL";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
@@ -367,6 +372,7 @@ class Installer
         }
         
         // Cache miss - perform the table existence check
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Table existence check required during installation
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
         $table_exists = ($exists === $table_name);
         

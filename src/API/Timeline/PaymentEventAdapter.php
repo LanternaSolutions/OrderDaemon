@@ -414,13 +414,13 @@ class PaymentEventAdapter extends DisplayAdapter
         if (is_numeric($amount)) {
             // Use WooCommerce formatting if available
             if (function_exists('wc_price')) {
-                return strip_tags(wc_price((float)$amount));
+                return wp_strip_all_tags(wc_price((float)$amount));
             }
-            
+
             // Fallback formatting
             return '$' . number_format((float)$amount, 2);
         }
-        
+
         return (string)$amount;
     }
     

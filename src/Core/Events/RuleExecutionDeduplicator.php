@@ -83,7 +83,16 @@ class RuleExecutionDeduplicator
     {
         global $wpdb;
 
+        // Check cache first to avoid unnecessary DB operations
+        $cacheKey = 'odcm_deduped_rule_' . $dedupeKey;
+        $cached = wp_cache_get($cacheKey, 'odcm_rule_execution');
+        
+        if ($cached !== false) {
+            return; // Already processed recently
+        }
+
         // Try to insert into queue with unique constraint
+        // Direct DB query required for custom table with ON DUPLICATE KEY UPDATE
         $result = $wpdb->query($wpdb->prepare(
             "INSERT INTO {$wpdb->prefix}odcm_audit_log_queue
              (dedupe_key, payload, order_id, process_id, status, created_at)
@@ -96,6 +105,9 @@ class RuleExecutionDeduplicator
             $order_id,
             $process_id
         ));
+
+        // Cache the deduplication key for 1 hour to avoid repeated operations
+        wp_cache_set($cacheKey, true, 'odcm_rule_execution', HOUR_IN_SECONDS);
 
         // Only schedule Action Scheduler job if this is a new entry
         if ($wpdb->rows_affected === 1) {
@@ -113,7 +125,13 @@ class RuleExecutionDeduplicator
     {
         global $wpdb;
 
-        // Get queued item
+        // Check cache for already processed items
+        $processCacheKey = 'odcm_processed_' . $dedupeKey;
+        if (wp_cache_get($processCacheKey, 'odcm_rule_execution')) {
+            return; // Already processed recently
+        }
+
+        // Get queued item - direct DB query required for custom table
         $queueItem = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}odcm_audit_log_queue WHERE dedupe_key = %s",
             $dedupeKey
@@ -125,11 +143,22 @@ class RuleExecutionDeduplicator
 
         $eventData = json_decode($queueItem->payload, true);
 
-        // Insert or update in final audit log with deduplication
-        $existingEvent = $wpdb->get_row($wpdb->prepare(
-            "SELECT log_id, details FROM {$wpdb->prefix}odcm_audit_log WHERE dedupe_key = %s",
-            $dedupeKey
-        ));
+        // Check cache for existing event to avoid duplicate queries
+        $eventCacheKey = 'odcm_existing_' . $dedupeKey;
+        $existingEvent = wp_cache_get($eventCacheKey, 'odcm_rule_execution');
+        
+        if ($existingEvent === false) {
+            // Insert or update in final audit log with deduplication - direct DB query required for custom table
+            $existingEvent = $wpdb->get_row($wpdb->prepare(
+                "SELECT log_id, details FROM {$wpdb->prefix}odcm_audit_log WHERE dedupe_key = %s",
+                $dedupeKey
+            ));
+            
+            // Cache for 30 minutes to avoid repeated lookups
+            wp_cache_set($eventCacheKey, $existingEvent ?: 'not_found', 'odcm_rule_execution', 30 * MINUTE_IN_SECONDS);
+        } elseif ($existingEvent === 'not_found') {
+            $existingEvent = null;
+        }
 
         if ($existingEvent) {
             // Update existing record (enrich with new data)
@@ -139,12 +168,15 @@ class RuleExecutionDeduplicator
             $this->insertNewRuleExecution($eventData, $dedupeKey);
         }
 
-        // Mark queue item as processed
+        // Mark queue item as processed - direct DB query required for custom table
         $wpdb->update(
             "{$wpdb->prefix}odcm_audit_log_queue",
             ['status' => 'processed', 'processed_at' => current_time('mysql')],
             ['dedupe_key' => $dedupeKey]
         );
+
+        // Cache that this item has been processed
+        wp_cache_set($processCacheKey, true, 'odcm_rule_execution', HOUR_IN_SECONDS);
     }
 
     /**
@@ -171,11 +203,19 @@ class RuleExecutionDeduplicator
         $enrichedDetails['last_seen_at'] = current_time('mysql');
 
         global $wpdb;
+        
+        // Direct DB query required for custom table update
         $wpdb->update(
             "{$wpdb->prefix}odcm_audit_log",
             ['details' => json_encode($enrichedDetails)],
             ['log_id' => $existingEvent->log_id]
         );
+
+        // Invalidate cache for this event since it was updated
+        $eventCacheKey = 'odcm_existing_' . ($newEventData['dedupe_key'] ?? '');
+        if ($eventCacheKey !== 'odcm_existing_') {
+            wp_cache_delete($eventCacheKey, 'odcm_rule_execution');
+        }
     }
 
     /**
@@ -189,6 +229,7 @@ class RuleExecutionDeduplicator
     {
         global $wpdb;
 
+        // Direct DB query required for custom table insert
         $wpdb->insert(
             "{$wpdb->prefix}odcm_audit_log",
             [
@@ -204,6 +245,14 @@ class RuleExecutionDeduplicator
                 'parent_id' => $eventData['parent_id'] ?? null
             ]
         );
+
+        // Cache the new event to avoid future lookups
+        $eventCacheKey = 'odcm_existing_' . $dedupeKey;
+        $newEvent = (object)[
+            'log_id' => $wpdb->insert_id,
+            'details' => json_encode($eventData)
+        ];
+        wp_cache_set($eventCacheKey, $newEvent, 'odcm_rule_execution', 30 * MINUTE_IN_SECONDS);
     }
 
     /**
@@ -217,7 +266,15 @@ class RuleExecutionDeduplicator
     {
         global $wpdb;
 
-        // Look for the most recent event of this type for this order
+        // Check cache for triggering event to avoid repeated queries
+        $triggerCacheKey = 'odcm_trigger_' . $order_id . '_' . $eventType;
+        $cached = wp_cache_get($triggerCacheKey, 'odcm_rule_execution');
+        
+        if ($cached !== false) {
+            return $cached === 'not_found' ? null : (int)$cached;
+        }
+
+        // Look for the most recent event of this type for this order - direct DB query required for custom table
         $result = $wpdb->get_row($wpdb->prepare(
             "SELECT log_id FROM {$wpdb->prefix}odcm_audit_log
              WHERE order_id = %d AND event_type = %s
@@ -226,7 +283,12 @@ class RuleExecutionDeduplicator
             $eventType
         ));
 
-        return $result ? (int)$result->log_id : null;
+        $logId = $result ? (int)$result->log_id : null;
+        
+        // Cache for 15 minutes to avoid repeated lookups for the same event type/order
+        wp_cache_set($triggerCacheKey, $logId ?: 'not_found', 'odcm_rule_execution', 15 * MINUTE_IN_SECONDS);
+
+        return $logId;
     }
 
     /**

@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 /**
  * Handles the queuing and display of all admin-facing notices.
  * Supports both site-wide (transient) and user-specific (user meta) notices.
