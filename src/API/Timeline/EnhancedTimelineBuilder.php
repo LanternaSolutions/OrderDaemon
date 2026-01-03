@@ -160,21 +160,40 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
             return $time_a <=> $time_b;
         });
 
+        // Select the highest priority event for the consolidated summary
+        $highestPriorityEvent = $this->selectHighestPriorityEventForConsolidation($timelineEvents);
+
+        // Use the highest priority event's log entry for metadata if available
+        $representativeLogEntryForMetadata = $representativeLogEntry;
+        if ($highestPriorityEvent !== null) {
+            // Find the corresponding log entry for the highest priority event
+            foreach ($processLogEntries as $logEntry) {
+                if ((int)$logEntry['log_id'] === $highestPriorityEvent->id) {
+                    $representativeLogEntryForMetadata = $logEntry;
+                    break;
+                }
+            }
+        }
+
         $filteredCount = count($processLogEntries) - count($components);
         $metadata = [
             'type' => 'process_group',
             'process_id' => $processId,
-            'representative_log_id' => (int) $representativeLogEntry['log_id'],
+            'representative_log_id' => (int) $representativeLogEntryForMetadata['log_id'],
             'total_events' => count($processLogEntries),
             'visible_events' => count($components),
             'filtered_events' => $filteredCount > 0 ? $filteredCount : null,
-            'order_id' => !empty($representativeLogEntry['order_id']) ? (int) $representativeLogEntry['order_id'] : null,
+            'order_id' => !empty($representativeLogEntryForMetadata['order_id']) ? (int) $representativeLogEntryForMetadata['order_id'] : null,
             'start_timestamp' => !empty($processLogEntries) ? $processLogEntries[0]['timestamp'] : null,
             'end_timestamp' => !empty($processLogEntries) ? $processLogEntries[count($processLogEntries) - 1]['timestamp'] : null,
             'execution_time' => microtime(true) - (isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) sanitize_text_field(wp_unslash($_SERVER['REQUEST_TIME_FLOAT'])) : microtime(true)),
+            'priority_selection' => [
+                'highest_priority_event_type' => $highestPriorityEvent ? $highestPriorityEvent->event_type : null,
+                'selection_reason' => $highestPriorityEvent ? $this->getPrioritySelectionReason($highestPriorityEvent, $timelineEvents) : 'no_events_available'
+            ]
         ];
 
-        return TimelineData::processGroup((int) $representativeLogEntry['log_id'], $components, $metadata);
+        return TimelineData::processGroup((int) $representativeLogEntryForMetadata['log_id'], $components, $metadata);
     }
 
     /**
@@ -395,6 +414,319 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         wp_cache_set($cache_key, $final_result, 'order_daemon', 300);
 
         return $final_result;
+    }
+
+    /**
+     * Select the highest priority event for consolidated summary display
+     *
+     * @param TimelineEvent[] $timelineEvents Array of timeline events in the process group
+     * @return TimelineEvent|null The highest priority event, or null if no events available
+     */
+    private function selectHighestPriorityEventForConsolidation(array $timelineEvents): ?TimelineEvent
+    {
+        if (empty($timelineEvents)) {
+            return null;
+        }
+
+        // Priority 1: Rule execution events
+        $ruleExecutionEvents = $this->getEventsByType($timelineEvents, 'rule_execution');
+        if (!empty($ruleExecutionEvents)) {
+            return $this->getHighestPriorityRuleExecution($ruleExecutionEvents);
+        }
+
+        // Priority 2: Rule errors
+        $ruleErrorEvents = $this->getRuleErrorEvents($timelineEvents);
+        if (!empty($ruleErrorEvents)) {
+            return $this->getOldestEvent($ruleErrorEvents);
+        }
+
+        // Priority 3: Any other errors (oldest error has highest priority)
+        $errorEvents = $this->getErrorEvents($timelineEvents);
+        if (!empty($errorEvents)) {
+            return $this->getOldestEvent($errorEvents);
+        }
+
+        // Priority 4: Most recent order status change
+        $statusChangeEvents = $this->getOrderStatusChangeEvents($timelineEvents);
+        if (!empty($statusChangeEvents)) {
+            return $this->getMostRecentEvent($statusChangeEvents);
+        }
+
+        // Priority 5: Payment events
+        $paymentEvents = $this->getPaymentEvents($timelineEvents);
+        if (!empty($paymentEvents)) {
+            return $this->getMostRecentEvent($paymentEvents);
+        }
+
+        // Priority 6: Last order event to occur
+        $orderEvents = $this->getOrderEvents($timelineEvents);
+        if (!empty($orderEvents)) {
+            return $this->getMostRecentEvent($orderEvents);
+        }
+
+        // Fallback: Return the most recent event of any type
+        return $this->getMostRecentEvent($timelineEvents);
+    }
+
+    /**
+     * Get a human-readable reason for why an event was selected as highest priority
+     *
+     * @param TimelineEvent $selectedEvent The event that was selected
+     * @param TimelineEvent[] $allEvents All events in the process group
+     * @return string Human-readable selection reason
+     */
+    private function getPrioritySelectionReason(TimelineEvent $selectedEvent, array $allEvents): string
+    {
+        $eventType = $selectedEvent->event_type;
+        $status = $selectedEvent->status ?? '';
+
+        // Check if it's a rule execution
+        if ($this->isRuleExecutionEvent($selectedEvent)) {
+            return 'rule_execution_highest_priority';
+        }
+
+        // Check if it's a rule error
+        if ($this->isRuleErrorEvent($selectedEvent)) {
+            return 'rule_error_highest_priority';
+        }
+
+        // Check if it's any error event
+        if ($this->isErrorEvent($selectedEvent)) {
+            return 'error_event_oldest_priority';
+        }
+
+        // Check if it's a status change event
+        if ($this->isOrderStatusChangeEvent($selectedEvent)) {
+            return 'most_recent_status_change';
+        }
+
+        // Check if it's a payment event
+        if ($this->isPaymentEvent($selectedEvent)) {
+            return 'most_recent_payment_event';
+        }
+
+        // Check if it's an order event
+        if ($this->isOrderEvent($selectedEvent)) {
+            return 'most_recent_order_event';
+        }
+
+        return 'fallback_most_recent_event';
+    }
+
+    /**
+     * Get events by specific type
+     *
+     * @param TimelineEvent[] $events Array of events
+     * @param string $eventType Event type to filter by
+     * @return TimelineEvent[] Filtered events
+     */
+    private function getEventsByType(array $events, string $eventType): array
+    {
+        return array_filter($events, function($event) use ($eventType) {
+            return $event->event_type === $eventType;
+        });
+    }
+
+    /**
+     * Get rule error events
+     *
+     * @param TimelineEvent[] $events Array of events
+     * @return TimelineEvent[] Rule error events
+     */
+    private function getRuleErrorEvents(array $events): array
+    {
+        return array_filter($events, function($event) {
+            return $this->isRuleErrorEvent($event);
+        });
+    }
+
+    /**
+     * Get error events (excluding rule errors)
+     *
+     * @param TimelineEvent[] $events Array of events
+     * @return TimelineEvent[] Error events
+     */
+    private function getErrorEvents(array $events): array
+    {
+        return array_filter($events, function($event) {
+            return $this->isErrorEvent($event) && !$this->isRuleErrorEvent($event);
+        });
+    }
+
+    /**
+     * Get order status change events
+     *
+     * @param TimelineEvent[] $events Array of events
+     * @return TimelineEvent[] Status change events
+     */
+    private function getOrderStatusChangeEvents(array $events): array
+    {
+        return array_filter($events, function($event) {
+            return $this->isOrderStatusChangeEvent($event);
+        });
+    }
+
+    /**
+     * Get payment events
+     *
+     * @param TimelineEvent[] $events Array of events
+     * @return TimelineEvent[] Payment events
+     */
+    private function getPaymentEvents(array $events): array
+    {
+        return array_filter($events, function($event) {
+            return $this->isPaymentEvent($event);
+        });
+    }
+
+    /**
+     * Get order events (excluding status changes and payments)
+     *
+     * @param TimelineEvent[] $events Array of events
+     * @return TimelineEvent[] Order events
+     */
+    private function getOrderEvents(array $events): array
+    {
+        return array_filter($events, function($event) {
+            return $this->isOrderEvent($event) &&
+                   !$this->isOrderStatusChangeEvent($event) &&
+                   !$this->isPaymentEvent($event);
+        });
+    }
+
+    /**
+     * Get the highest priority rule execution event
+     *
+     * @param TimelineEvent[] $ruleExecutionEvents Array of rule execution events
+     * @return TimelineEvent The highest priority rule execution
+     */
+    private function getHighestPriorityRuleExecution(array $ruleExecutionEvents): TimelineEvent
+    {
+        // For rule executions, we want the most recent one as it's likely the most important
+        return $this->getMostRecentEvent($ruleExecutionEvents);
+    }
+
+    /**
+     * Get the oldest event from an array
+     *
+     * @param TimelineEvent[] $events Array of events
+     * @return TimelineEvent The oldest event
+     */
+    private function getOldestEvent(array $events): TimelineEvent
+    {
+        if (empty($events)) {
+            throw new \InvalidArgumentException('Cannot get oldest event from empty array');
+        }
+
+        usort($events, function($a, $b) {
+            return strtotime($a->timestamp) <=> strtotime($b->timestamp);
+        });
+
+        return reset($events);
+    }
+
+    /**
+     * Get the most recent event from an array
+     *
+     * @param TimelineEvent[] $events Array of events
+     * @return TimelineEvent The most recent event
+     */
+    private function getMostRecentEvent(array $events): TimelineEvent
+    {
+        if (empty($events)) {
+            throw new \InvalidArgumentException('Cannot get most recent event from empty array');
+        }
+
+        usort($events, function($a, $b) {
+            return strtotime($b->timestamp) <=> strtotime($a->timestamp);
+        });
+
+        return reset($events);
+    }
+
+    /**
+     * Check if an event is a rule execution event
+     *
+     * @param TimelineEvent $event The event to check
+     * @return bool True if it's a rule execution event
+     */
+    private function isRuleExecutionEvent(TimelineEvent $event): bool
+    {
+        return $event->event_type === 'rule_execution' ||
+               strpos($event->event_type, 'rule_execution_') === 0;
+    }
+
+    /**
+     * Check if an event is a rule error event
+     *
+     * @param TimelineEvent $event The event to check
+     * @return bool True if it's a rule error event
+     */
+    private function isRuleErrorEvent(TimelineEvent $event): bool
+    {
+        // Check for rule execution events with error status
+        if ($this->isRuleExecutionEvent($event)) {
+            $status = $event->status ?? '';
+            return strtolower($status) === 'error' || strtolower($status) === 'failed';
+        }
+
+        // Check for specific rule error event types
+        return strpos($event->event_type, 'rule_error_') === 0 ||
+               strpos($event->event_type, 'rule_failed_') === 0;
+    }
+
+    /**
+     * Check if an event is an error event
+     *
+     * @param TimelineEvent $event The event to check
+     * @return bool True if it's an error event
+     */
+    private function isErrorEvent(TimelineEvent $event): bool
+    {
+        $status = $event->status ?? '';
+        return strtolower($status) === 'error' ||
+               strtolower($status) === 'failed' ||
+               strpos($event->event_type, 'error_') === 0 ||
+               strpos($event->event_type, '_error') !== false;
+    }
+
+    /**
+     * Check if an event is an order status change event
+     *
+     * @param TimelineEvent $event The event to check
+     * @return bool True if it's an order status change event
+     */
+    private function isOrderStatusChangeEvent(TimelineEvent $event): bool
+    {
+        return $event->event_type === 'status_changed' ||
+               strpos($event->event_type, 'status_change_') === 0 ||
+               strpos($event->event_type, 'order_status_') === 0;
+    }
+
+    /**
+     * Check if an event is a payment event
+     *
+     * @param TimelineEvent $event The event to check
+     * @return bool True if it's a payment event
+     */
+    private function isPaymentEvent(TimelineEvent $event): bool
+    {
+        return strpos($event->event_type, 'payment_') === 0 ||
+               strpos($event->event_type, '_payment') !== false ||
+               $event->event_type === 'checkout_processed';
+    }
+
+    /**
+     * Check if an event is an order event
+     *
+     * @param TimelineEvent $event The event to check
+     * @return bool True if it's an order event
+     */
+    private function isOrderEvent(TimelineEvent $event): bool
+    {
+        return strpos($event->event_type, 'order_') === 0 ||
+               strpos($event->event_type, '_order') !== false ||
+               $event->event_type === 'status_changed';
     }
 
     /**
