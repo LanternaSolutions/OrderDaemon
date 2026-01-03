@@ -1777,7 +1777,6 @@ function odcm_insert_audit_log_queue_entry(string $queue_id, string $event_data,
     global $wpdb;
 
     // Validate and sanitize input parameters
-    $queue_id = sanitize_key($queue_id);
     $status = sanitize_text_field($status);
 
     // Ensure the table name is properly prefixed
