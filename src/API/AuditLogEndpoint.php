@@ -682,10 +682,14 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             if (is_wp_error($all_logs)) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage('ODCM: DEBUG - Converting WP_Error to empty array', 'debug');
+                    $this->logDebugMessage('ODCM: DEBUG - Returning WP_Error response instead of empty array', 'error');
                 }
-                // Normalize erroneous 404/other errors into empty data so UI can render empty state
-                $all_logs = [];
+                // Return proper error response instead of hiding the error
+                return new WP_Error(
+                    'odcm_database_error',
+                    'Database query failed: ' . $all_logs->get_error_message(),
+                    ['status' => 500]
+                );
             }
 
             // Apply UI-only consolidation by process_id for lifecycle events
@@ -1468,64 +1472,73 @@ class AuditLogEndpoint extends WP_REST_Controller
         global $wpdb;
 
         try {
-            // Generate cache key for this query
-            $cache_key = $this->get_cache_key('all_filtered_logs', $request);
-            $cache_group = 'odcm_audit_logs';
-            $cache_ttl = 300; // 5 minutes cache TTL
-
-            // Try to get cached result
-            $cached_result = wp_cache_get($cache_key, $cache_group);
-
-            if ($cached_result !== false) {
-                // Cache hit - return cached data
-                $cache_status = $this->get_cache_status($request);
-                $cache_status['hit'] = true;
-
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: Cache hit for all_filtered_logs with key: " . $cache_key, 'debug');
-                }
-
-                return $cached_result;
-            }
-
-            // Cache miss - perform database query
             // Build query conditions from request parameters
-            $where_clauses = $this->build_filter_where_clauses($request);
+            list($where_clauses, $where_params) = $this->build_filter_where_clauses_with_params($request);
 
-            // Build the complete SQL query without passing WHERE as a parameter
+            // Use proper table name escaping (cannot use placeholders for table names)
+            $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
+            $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+
+            // Build WHERE clause safely
             $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
-            // Use proper table name escaping
-            $logTableName = esc_sql($wpdb->prefix . 'odcm_audit_log');
-            $payloadTableName = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+            // Build the query with proper parameter binding
+            if (!empty($where_params)) {
+                $sql = $wpdb->prepare(
+                    "SELECT l.*, p.payload
+                    FROM `{$log_table}` l
+                    LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+                    {$where_sql}
+                    ORDER BY l.timestamp DESC",
+                    ...$where_params
+                );
+            } else {
+                $sql = "SELECT l.*, p.payload
+                    FROM `{$log_table}` l
+                    LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+                    {$where_sql}
+                    ORDER BY l.timestamp DESC";
+            }
 
-            $sql = "SELECT l.*, p.payload
-                FROM `{$logTableName}` l
-                LEFT JOIN `{$payloadTableName}` p ON l.payload_id = p.payload_id
-                {$where_sql}
-                ORDER BY l.timestamp DESC";
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: Executing all_filtered_logs query: " . $sql, 'debug');
+            }
 
             // Execute the query
             $logs = $wpdb->get_results($sql, ARRAY_A);
 
+            // Check for database errors
+            if ($wpdb->last_error) {
+                $error_msg = "Database query failed: " . $wpdb->last_error;
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM: SQL Error in get_all_filtered_logs: " . $wpdb->last_error, 'error');
+                    $this->logDebugMessage("ODCM: Query was: " . $sql, 'debug');
+                }
+                return new WP_Error('audit_log_query_failed', $error_msg);
+            }
+
             if ($logs === false) {
-                throw new \Exception($wpdb->last_error ?: 'Database query failed');
+                $error_msg = "Database query returned false";
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM: Query returned false for get_all_filtered_logs", 'error');
+                }
+                return new WP_Error('audit_log_query_failed', $error_msg);
             }
 
             $result = $logs ?: [];
 
-            // Cache the result
-            wp_cache_set($cache_key, $result, $cache_group, $cache_ttl);
-
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM: Cached all_filtered_logs result with key: " . $cache_key, 'debug');
+                $this->logDebugMessage("ODCM: get_all_filtered_logs returned " . count($result) . " logs", 'debug');
             }
 
             return $result;
 
         } catch (\Exception $e) {
-            $this->logDebugMessage("ODCM: Failed to get all filtered logs: " . $e->getMessage(), 'error');
-            return new WP_Error('audit_log_query_failed', $e->getMessage());
+            $error_msg = "Exception in get_all_filtered_logs: " . $e->getMessage();
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: " . $error_msg, 'error');
+            }
+            return new WP_Error('audit_log_query_exception', $error_msg);
         }
     }
 
@@ -1561,28 +1574,64 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Cache miss - perform database query
             // Build query conditions from request parameters
-            $where_clauses = $this->build_filter_where_clauses($request);
-            $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
+            list($where_clauses, $where_params) = $this->build_filter_where_clauses_with_params($request);
 
             // Calculate offset based on pagination
             $offset = ($page - 1) * $per_page;
 
-            // Get paginated filtered logs
-            $sql = $wpdb->prepare(
-                "SELECT l.*, p.payload
-                FROM {$wpdb->prefix}odcm_audit_log l
-                LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
-                {$where_sql}
-                ORDER BY l.timestamp DESC
-                LIMIT %d OFFSET %d",
-                $per_page,
-                $offset
-            );
+            // Use proper table name escaping (cannot use placeholders for table names)
+            $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
+            $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+
+            // Build WHERE clause safely
+            $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
+
+            // Build the query with proper parameter binding
+            $query_params = array_merge($where_params, [$per_page, $offset]);
+            
+            if (!empty($where_params)) {
+                $sql = $wpdb->prepare(
+                    "SELECT l.*, p.payload
+                    FROM `{$log_table}` l
+                    LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+                    {$where_sql}
+                    ORDER BY l.timestamp DESC
+                    LIMIT %d OFFSET %d",
+                    ...$query_params
+                );
+            } else {
+                $sql = $wpdb->prepare(
+                    "SELECT l.*, p.payload
+                    FROM `{$log_table}` l
+                    LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+                    {$where_sql}
+                    ORDER BY l.timestamp DESC
+                    LIMIT %d OFFSET %d",
+                    $per_page,
+                    $offset
+                );
+            }
+
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: Executing filtered_logs query: " . $sql, 'debug');
+            }
 
             $logs = $wpdb->get_results($sql, ARRAY_A);
 
-            if ($logs === false) {
+            // Check for database errors
+            if ($wpdb->last_error) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM: SQL Error in get_filtered_logs: " . $wpdb->last_error, 'error');
+                    $this->logDebugMessage("ODCM: Query was: " . $sql, 'debug');
+                }
                 throw new \Exception($wpdb->last_error ?: 'Database query failed');
+            }
+
+            if ($logs === false) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM: Query returned false for get_filtered_logs", 'error');
+                }
+                throw new \Exception('Database query returned false');
             }
 
             $result = $logs ?: [];
@@ -1632,21 +1681,44 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Cache miss - perform database query
             // Build query conditions from request parameters
-            $where_clauses = $this->build_filter_where_clauses($request);
+            list($where_clauses, $where_params) = $this->build_filter_where_clauses_with_params($request);
+
+            // Use proper table name escaping (cannot use placeholders for table names)
+            $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
+
+            // Build WHERE clause safely
             $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
-            // Use proper table name escaping
-            $logTableName = esc_sql($wpdb->prefix . 'odcm_audit_log');
+            // Build the query with proper parameter binding
+            if (!empty($where_params)) {
+                $sql = $wpdb->prepare(
+                    "SELECT COUNT(*) FROM `{$log_table}` l {$where_sql}",
+                    ...$where_params
+                );
+            } else {
+                $sql = "SELECT COUNT(*) FROM `{$log_table}` l {$where_sql}";
+            }
 
-            // Get count of filtered logs
-            $sql = "SELECT COUNT(*) 
-                FROM `{$logTableName}` l
-                {$where_sql}";
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: Executing filtered_log_count query: " . $sql, 'debug');
+            }
 
             $count = $wpdb->get_var($sql);
 
-            if ($count === false) {
+            // Check for database errors
+            if ($wpdb->last_error) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM: SQL Error in get_filtered_log_count: " . $wpdb->last_error, 'error');
+                    $this->logDebugMessage("ODCM: Query was: " . $sql, 'debug');
+                }
                 throw new \Exception($wpdb->last_error ?: 'Database query failed');
+            }
+
+            if ($count === false) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM: Query returned false for get_filtered_log_count", 'error');
+                }
+                throw new \Exception('Database query returned false');
             }
 
             $result = (int) $count;
@@ -1670,80 +1742,170 @@ class AuditLogEndpoint extends WP_REST_Controller
      * Build WHERE clauses for filtering logs
      * 
      * @param WP_REST_Request $request The REST request
-     * @return array Array of WHERE clauses
+     * @return array Array of WHERE clauses with parameters for safe query building
      */
     private function build_filter_where_clauses(WP_REST_Request $request): array
     {
         global $wpdb;
         $where_clauses = [];
-        
+        $where_params = [];
+
         // Resolve default flags for debug/test inclusion
-        // If the param is not explicitly provided, allow a site option to set a default for troubleshooting
+        // Default to true (include all) when not explicitly provided to avoid filtering out legitimate events
         $include_debug_param = $request->get_param('include_debug');
         $include_test_param  = $request->get_param('include_test');
 
-        $include_debug_default = function_exists('get_option') ? (bool) get_option('odcm_dashboard_include_debug_by_default', false) : false;
-        $include_test_default  = function_exists('get_option') ? (bool) get_option('odcm_dashboard_include_test_by_default', false) : false;
-
-        $include_debug = ($include_debug_param === null) ? $include_debug_default : (bool) $include_debug_param;
-        $include_test  = ($include_test_param === null)  ? $include_test_default  : (bool) $include_test_param;
+        // Default to true (include all) when not explicitly provided
+        // This ensures we don't accidentally filter out legitimate events
+        $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
+        $include_test  = ($include_test_param === null)  ? true : (bool) $include_test_param;
 
         // Include debug events
         if (!$include_debug) {
-            $where_clauses[] = "l.event_type NOT LIKE 'debug_%'";
-            $where_clauses[] = "l.status != 'debug'";
+            $where_clauses[] = "l.event_type NOT LIKE %s";
+            $where_params[] = 'debug_%';
+            $where_clauses[] = "l.status != %s";
+            $where_params[] = 'debug';
         }
-        
+
         // Include test events
         if (!$include_test) {
-            $where_clauses[] = "l.is_test = 0";
+            $where_clauses[] = "l.is_test = %d";
+            $where_params[] = 0;
         }
-        
+
         // Order ID filter
         $order_id = $request->get_param('order_id');
         if (!empty($order_id) && is_numeric($order_id)) {
-            $where_clauses[] = $wpdb->prepare("l.order_id = %d", (int) $order_id);
+            $where_clauses[] = "l.order_id = %d";
+            $where_params[] = (int) $order_id;
         }
-        
+
         // Status filter
         $status = $request->get_param('status');
         if (!empty($status)) {
-            $where_clauses[] = $wpdb->prepare("l.status = %s", sanitize_key($status));
+            $where_clauses[] = "l.status = %s";
+            $where_params[] = sanitize_key($status);
         }
-        
+
         // Event type filter
         $event_type = $request->get_param('event_type');
         if (!empty($event_type)) {
-            $where_clauses[] = $wpdb->prepare("l.event_type = %s", sanitize_key($event_type));
+            $where_clauses[] = "l.event_type = %s";
+            $where_params[] = sanitize_key($event_type);
         }
-        
+
         // Date range filters
         $date_from = $request->get_param('date_from');
         if (!empty($date_from)) {
-            $where_clauses[] = $wpdb->prepare("l.timestamp >= %s", sanitize_text_field($date_from));
+            $where_clauses[] = "l.timestamp >= %s";
+            $where_params[] = sanitize_text_field($date_from);
         }
-        
+
         $date_to = $request->get_param('date_to');
         if (!empty($date_to)) {
-            $where_clauses[] = $wpdb->prepare("l.timestamp <= %s", sanitize_text_field($date_to));
+            $where_clauses[] = "l.timestamp <= %s";
+            $where_params[] = sanitize_text_field($date_to);
         }
-        
+
         // Search filter
         $search = $request->get_param('search');
         if (!empty($search)) {
-            $where_clauses[] = $wpdb->prepare("l.summary LIKE %s", '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%');
+            $where_clauses[] = "l.summary LIKE %s";
+            $where_params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
         }
-        
+
         // Debug logging of where clauses to help diagnose empty dashboards
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             try {
                 $this->logDebugMessage('ODCM: build_filter_where_clauses => ' . implode(' AND ', $where_clauses));
+                $this->logDebugMessage('ODCM: build_filter_where_clauses params => ' . implode(', ', $where_params));
             } catch (\Throwable $e) {
                 // noop
             }
         }
 
         return $where_clauses;
+    }
+
+    /**
+     * Build WHERE clauses with parameters for safe query building
+     * 
+     * @param WP_REST_Request $request The REST request
+     * @return array Array with two elements: [WHERE clauses array, parameters array]
+     */
+    private function build_filter_where_clauses_with_params(WP_REST_Request $request): array
+    {
+        global $wpdb;
+        $where_clauses = [];
+        $where_params = [];
+
+        // Resolve default flags for debug/test inclusion
+        // Default to true (include all) when not explicitly provided to avoid filtering out legitimate events
+        $include_debug_param = $request->get_param('include_debug');
+        $include_test_param  = $request->get_param('include_test');
+
+        // Default to true (include all) when not explicitly provided
+        // This ensures we don't accidentally filter out legitimate events
+        $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
+        $include_test  = ($include_test_param === null)  ? true : (bool) $include_test_param;
+
+        // Include debug events
+        if (!$include_debug) {
+            $where_clauses[] = "l.event_type NOT LIKE %s";
+            $where_params[] = 'debug_%';
+            $where_clauses[] = "l.status != %s";
+            $where_params[] = 'debug';
+        }
+
+        // Include test events
+        if (!$include_test) {
+            $where_clauses[] = "l.is_test = %d";
+            $where_params[] = 0;
+        }
+
+        // Order ID filter
+        $order_id = $request->get_param('order_id');
+        if (!empty($order_id) && is_numeric($order_id)) {
+            $where_clauses[] = "l.order_id = %d";
+            $where_params[] = (int) $order_id;
+        }
+
+        // Status filter
+        $status = $request->get_param('status');
+        if (!empty($status)) {
+            $where_clauses[] = "l.status = %s";
+            $where_params[] = sanitize_key($status);
+        }
+
+        // Event type filter
+        $event_type = $request->get_param('event_type');
+        if (!empty($event_type)) {
+            $where_clauses[] = "l.event_type = %s";
+            $where_params[] = sanitize_key($event_type);
+        }
+
+        // Date range filters
+        $date_from = $request->get_param('date_from');
+        if (!empty($date_from)) {
+            $where_clauses[] = "l.timestamp >= %s";
+            $where_params[] = sanitize_text_field($date_from);
+        }
+
+        $date_to = $request->get_param('date_to');
+        if (!empty($date_to)) {
+            $where_clauses[] = "l.timestamp <= %s";
+            $where_params[] = sanitize_text_field($date_to);
+        }
+
+        // Search filter
+        $search = $request->get_param('search');
+        if (!empty($search)) {
+            $where_clauses[] = "l.summary LIKE %s";
+            $where_params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
+        }
+
+        return [$where_clauses, $where_params];
     }
 
     /**
@@ -2184,14 +2346,18 @@ class AuditLogEndpoint extends WP_REST_Controller
         // Use proper table name escaping
         $logTableName = esc_sql($wpdb->prefix . 'odcm_audit_log');
 
-        // Validate log IDs exist using prepared statement
+        // Build a safe IN clause with proper escaping
+        $placeholders = array_fill(0, count($log_ids), '%d');
+        $placeholder_string = implode(',', $placeholders);
+
+        // Validate log IDs exist using prepared statement with proper parameter binding
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         // Direct query is needed for performance-critical batch operations
         $sql = $wpdb->prepare(
             "SELECT log_id
             FROM `{$logTableName}`
-            WHERE log_id IN (%s)",
-            implode(',', $log_ids)
+            WHERE log_id IN ({$placeholder_string})",
+            ...$log_ids
         );
 
         $valid_ids = $wpdb->get_col($sql);
@@ -2214,9 +2380,6 @@ class AuditLogEndpoint extends WP_REST_Controller
             return 0;
         }
 
-        // Get comma-separated list for SQL
-        $ids_list = implode(',', $log_ids);
-
         // Use proper table name escaping
         $logTableName = esc_sql($wpdb->prefix . 'odcm_audit_log');
         $payloadTableName = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
@@ -2225,46 +2388,62 @@ class AuditLogEndpoint extends WP_REST_Controller
         $wpdb->query('START TRANSACTION');
 
         try {
-            // Get payload IDs to delete
+            // Build safe IN clause for log IDs
+            $log_placeholders = array_fill(0, count($log_ids), '%d');
+            $log_placeholder_string = implode(',', $log_placeholders);
+
+            // Get payload IDs to delete using prepared statement
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical batch operations
-            $payload_ids = $wpdb->get_col("
-                SELECT DISTINCT payload_id
+            $payload_ids_query = $wpdb->prepare(
+                "SELECT DISTINCT payload_id
                 FROM `{$logTableName}`
-                WHERE log_id IN ({$ids_list}) AND payload_id IS NOT NULL
-            ");
+                WHERE log_id IN ({$log_placeholder_string}) AND payload_id IS NOT NULL",
+                ...$log_ids
+            );
+            $payload_ids = $wpdb->get_col($payload_ids_query);
 
-            // Delete logs
-            $deleted = $wpdb->query("
-                DELETE FROM `{$logTableName}`
-                WHERE log_id IN ({$ids_list})
-            ");
+            // Delete logs using prepared statement
+            $delete_logs_query = $wpdb->prepare(
+                "DELETE FROM `{$logTableName}`
+                WHERE log_id IN ({$log_placeholder_string})",
+                ...$log_ids
+            );
+            $deleted = $wpdb->query($delete_logs_query);
 
             // Delete orphaned payloads
             if (!empty($payload_ids)) {
-                $payload_ids_list = implode(',', $payload_ids);
+                // Build safe IN clause for payload IDs
+                $payload_placeholders = array_fill(0, count($payload_ids), '%d');
+                $payload_placeholder_string = implode(',', $payload_placeholders);
 
-            // Get payloads still in use
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical batch operations
-            $used_payloads = $wpdb->get_col("
-                SELECT DISTINCT payload_id
-                FROM `{$logTableName}`
-                WHERE payload_id IN ({$payload_ids_list})
-            ");
+                // Get payloads still in use using prepared statement
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                // Direct query is needed for performance-critical batch operations
+                $used_payloads_query = $wpdb->prepare(
+                    "SELECT DISTINCT payload_id
+                    FROM `{$logTableName}`
+                    WHERE payload_id IN ({$payload_placeholder_string})",
+                    ...$payload_ids
+                );
+                $used_payloads = $wpdb->get_col($used_payloads_query);
 
                 // Calculate orphaned payloads
                 $orphaned_payloads = array_diff($payload_ids, $used_payloads);
 
-                // Delete orphaned payloads
+                // Delete orphaned payloads using prepared statement
                 if (!empty($orphaned_payloads)) {
-                    $orphaned_ids_list = implode(',', $orphaned_payloads);
+                    $orphaned_placeholders = array_fill(0, count($orphaned_payloads), '%d');
+                    $orphaned_placeholder_string = implode(',', $orphaned_placeholders);
+
                     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                     // Direct query is needed for performance-critical batch operations
-                    $wpdb->query("
-                        DELETE FROM `{$payloadTableName}`
-                        WHERE id IN ({$orphaned_ids_list})
-                    ");
+                    $delete_payloads_query = $wpdb->prepare(
+                        "DELETE FROM `{$payloadTableName}`
+                        WHERE id IN ({$orphaned_placeholder_string})",
+                        ...$orphaned_payloads
+                    );
+                    $wpdb->query($delete_payloads_query);
                 }
             }
 
@@ -2533,8 +2712,8 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         try {
             // Check if audit log table exists
-            $audit_table = $wpdb->prefix . 'odcm_audit_log';
-            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
+            $audit_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
+            $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
             $table_check = $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",
@@ -2592,10 +2771,15 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ];
             }
 
-            // Cache status (caching has been removed)
+            // Cache status
             $diagnostics['cache'] = [
-                'enabled' => false,
-                'message' => 'Caching has been removed from AuditLogEndpoint',
+                'enabled' => true,
+                'message' => 'WordPress object caching is enabled for audit log queries',
+                'cache_groups' => ['odcm_audit_logs'],
+                'cache_ttl' => [
+                    'filtered_logs' => '5 minutes',
+                    'filtered_log_count' => '1 minute',
+                ],
             ];
 
             // Check WordPress and plugin versions

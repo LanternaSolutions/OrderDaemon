@@ -510,13 +510,8 @@ class InsightDashboard
         $log_count = wp_cache_get($log_count_cache_key);
 
         if ($log_count === false) {
-            // Use WordPress recommended method with proper table name escaping
-            $log_count = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT COUNT(*) FROM %i",
-                    $wpdb->prefix . 'odcm_audit_log'
-                )
-            );
+            $log_table_escaped = esc_sql($wpdb->prefix . 'odcm_audit_log');
+            $log_count = $wpdb->get_var("SELECT COUNT(*) FROM `{$log_table_escaped}`");
 
             // Cache the result for 5 minutes - log count may change more frequently
             wp_cache_set($log_count_cache_key, $log_count, '', 5 * MINUTE_IN_SECONDS);
@@ -706,16 +701,16 @@ class InsightDashboard
                                 title="<?php echo esc_attr__('admin.insight_dashboard.settings.title', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-admin-generic"></span>
                         </button>
-
-                        <!-- Documentation link -->
-                        <a href="<?php echo esc_url(ODCM_DOCS_URL); ?>"
-                           target="_blank"
-                           class="odcm-docs-link"
-                           title="<?php echo esc_attr__('admin.insight_dashboard.docs.view_documentation', 'order-daemon'); ?>">
-                            Docs&nbsp;
-                            <span class="dashicons dashicons-external"></span>
-                        </a>
                     </div>
+
+                    <!-- Documentation link -->
+                    <a href="<?php echo esc_url(ODCM_DOCS_URL); ?>"
+                       target="_blank"
+                       class="odcm-docs-link"
+                       title="<?php echo esc_attr__('admin.insight_dashboard.docs.view_documentation', 'order-daemon'); ?>">
+                        Docs&nbsp;
+                        <span class="dashicons dashicons-external"></span>
+                    </a>
                 </div>
             </div>
 

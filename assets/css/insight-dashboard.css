@@ -315,6 +315,12 @@
     color: var(--odcm-component-text-color-header);
 }
 
+.odcm-filter-pane-header-actions {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
 /* ==========================================================================
    UNIFIED ICON BUTTON SYSTEM - Three-Tier Implementation
    ========================================================================== */
@@ -354,6 +360,14 @@
 
 /* Icon Button Container */
 .odcm-pane-icon-buttons {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 4px;
+}
+
+/* Navigation buttons wrapper to keep them grouped on left */
+.odcm-nav-buttons-wrapper {
     display: flex;
     align-items: center;
     gap: 4px;

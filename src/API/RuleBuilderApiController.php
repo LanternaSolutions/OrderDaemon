@@ -1520,7 +1520,8 @@ class RuleBuilderApiController extends WP_REST_Controller
             return [];
         }
 
-        $search = sanitize_text_field($search);
+        // Properly validate and sanitize inputs
+        $search = trim($search);
         $limit = max(1, min($limit, 100)); // Ensure reasonable limits
 
         // Create a unique cache key based on search parameters
@@ -1539,63 +1540,110 @@ class RuleBuilderApiController extends WP_REST_Controller
             return $cached_results;
         }
 
-        // Cache miss - perform database query
-        // Build search query for products using safe preparation
-        $sql = "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
-                FROM {$wpdb->posts} p
-                LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
-                WHERE p.post_type = %s AND p.post_status = %s";
-
-        $where_conditions = [];
-        $search_params = ['_sku', 'product', 'publish'];
-
-        if (!empty($search)) {
-            if (is_numeric($search)) {
-                $where_conditions[] = "p.ID = %d";
-                $search_params[] = (int) $search;
+        // Cache miss - perform database query with static SQL templates
+        $results = [];
+        
+        try {
+            if (empty($search)) {
+                // Query without search - return all products
+                $prepared_sql = $wpdb->prepare(
+                    "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
+                     FROM {$wpdb->posts} p
+                     LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
+                     WHERE p.post_type = %s AND p.post_status = %s
+                     ORDER BY p.post_title ASC LIMIT %d",
+                    '_sku',
+                    'product',
+                    'publish',
+                    $limit
+                );
+                
+            } elseif (is_numeric($search)) {
+                // Query with numeric search (includes ID, title, and SKU search)
+                // Use wpdb->esc_like() for LIKE queries to prevent wildcard injection
+                $like_search = '%' . $wpdb->esc_like($search) . '%';
+                
+                $prepared_sql = $wpdb->prepare(
+                    "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
+                     FROM {$wpdb->posts} p
+                     LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
+                     WHERE p.post_type = %s AND p.post_status = %s
+                       AND (p.ID = %d OR p.post_title LIKE %s OR pm.meta_value LIKE %s)
+                     ORDER BY p.post_title ASC LIMIT %d",
+                    '_sku',
+                    'product',
+                    'publish',
+                    (int) $search,
+                    $like_search,
+                    $like_search,
+                    $limit
+                );
+                
+            } else {
+                // Query with text search (title and SKU only)
+                // Use wpdb->esc_like() for LIKE queries to prevent wildcard injection
+                $like_search = '%' . $wpdb->esc_like($search) . '%';
+                
+                $prepared_sql = $wpdb->prepare(
+                    "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
+                     FROM {$wpdb->posts} p
+                     LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
+                     WHERE p.post_type = %s AND p.post_status = %s
+                       AND (p.post_title LIKE %s OR pm.meta_value LIKE %s)
+                     ORDER BY p.post_title ASC LIMIT %d",
+                    '_sku',
+                    'product',
+                    'publish',
+                    $like_search,
+                    $like_search,
+                    $limit
+                );
             }
 
-            $where_conditions[] = "p.post_title LIKE %s";
-            $search_params[] = '%' . $wpdb->esc_like($search) . '%';
-
-            $where_conditions[] = "pm.meta_value LIKE %s";
-            $search_params[] = '%' . $wpdb->esc_like($search) . '%';
+            // Execute the prepared query
+            $results = $wpdb->get_results($prepared_sql);
+            
+            // Handle database errors
+            if ($wpdb->last_error) {
+                $this->logDebugMessage('ODCM Product Search Database Error: ' . $wpdb->last_error, 'error');
+                return [];
+            }
+            
+        } catch (\Exception $e) {
+            $this->logDebugMessage('ODCM Product Search Exception: ' . $e->getMessage(), 'error');
+            return [];
         }
 
-        if (!empty($where_conditions)) {
-            $sql .= " AND (" . implode(' OR ', $where_conditions) . ")";
-        }
-
-        $sql .= " ORDER BY p.post_title ASC LIMIT %d";
-        $search_params[] = $limit;
-
-        // Use proper wpdb preparation with array unpacking
-        $results = $wpdb->get_results($wpdb->prepare($sql, ...$search_params));
-
+        // Format results for API response
         $formatted_results = [];
-        foreach ($results as $product) {
-            $display_title = $product->post_title;
-            if (!empty($product->sku)) {
-                $display_title .= " (SKU: {$product->sku})";
+        if (!empty($results)) {
+            foreach ($results as $product) {
+                $title = $product->post_title;
+                $sku = $product->sku;
+                
+                // Build label with SKU if available
+                $label = $title;
+                if (!empty($sku)) {
+                    $label .= " (SKU: {$sku})";
+                }
+                $label .= " (ID: {$product->ID})";
+                
+                $formatted_results[] = [
+                    'value' => (string) $product->ID,
+                    'label' => $label,
+                    'meta' => [
+                        'id' => (int) $product->ID,
+                        'title' => $title,
+                        'sku' => $sku ?: '',
+                    ]
+                ];
             }
-            $display_title .= " (ID: {$product->ID})";
-
-            $formatted_results[] = [
-                'value' => (string) $product->ID,
-                'label' => $display_title,
-                'meta' => [
-                    'id' => $product->ID,
-                    'title' => $product->post_title,
-                    'sku' => $product->sku ?: '',
-                ]
-            ];
         }
 
-        // Cache the formatted results
-        // Use 5 minute cache for product searches - balances fresh data with performance
-        wp_cache_set($cache_key, $formatted_results, '', 5 * MINUTE_IN_SECONDS);
-
-        // Save in static cache for this request
+        // Cache the results for 5 minutes
+        wp_cache_set($cache_key, $formatted_results, '', 300);
+        
+        // Store in static cache for this request
         self::$product_search_cache[$cache_key] = $formatted_results;
 
         return $formatted_results;

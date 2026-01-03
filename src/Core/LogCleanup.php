@@ -43,12 +43,12 @@ class LogCleanup
         // Free/Core plugin: use a fixed retention period to keep DB lean
         $retention_days = 30; // Fixed for free/core - 30 days provides good balance
 
-        // Define table names
+        // Define table names - use esc_sql for table identifiers
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payloads_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-        // Validate identifiers and wrap in backticks for safety (placeholders cannot be used for identifiers)
-        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
-        $payloads_table_identifier = ($payloads_table === $wpdb->prefix . 'odcm_audit_log_payloads') ? '`' . $payloads_table . '`' : '`odcm_audit_log_payloads`';
+        // Escape table names for use in SQL queries (placeholders cannot be used for identifiers)
+        $log_table_identifier = esc_sql($log_table);
+        $payloads_table_identifier = esc_sql($payloads_table);
 
         // Calculate the cutoff date
         $cutoff_date = gmdate('Y-m-d H:i:s', strtotime("-{$retention_days} days"));
@@ -244,7 +244,7 @@ class LogCleanup
         $retention_days = 30;
 
         $log_table = $wpdb->prefix . 'odcm_audit_log';
-        $log_table_identifier = ($log_table === $wpdb->prefix . 'odcm_audit_log') ? '`' . $log_table . '`' : '`odcm_audit_log`';
+        $log_table_identifier = esc_sql($log_table);
         $cutoff_date = gmdate('Y-m-d H:i:s', strtotime("-{$retention_days} days"));
 
         // Create a cache key for the manual cleanup count

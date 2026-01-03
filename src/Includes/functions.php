@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// Prevent direct access to this file
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 /**
  * Global Helper Functions - Entitlement System & Core Utilities
  *
@@ -54,10 +57,6 @@ declare(strict_types=1);
  * @author  OrderDaemon Development Team
  * @link    https://docs.OrderDaemon.com/completion-manager/entitlements
  */
-
-// Prevent direct access to this file
-if ( ! defined( 'ABSPATH' ) ) exit;
-
 
 /**
  * Central Entitlement Function - The Heart of the Freemium System
@@ -1423,7 +1422,7 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
     $other_post_ids = [];
     
     foreach ($post_ids as $post_id) {
-        if (get_post_type($post_id) === 'shop_order') {
+        if (\OrderDaemon\CompletionManager\Includes\Utils\OrderTypeDetector::is_processable_order($post_id)) {
             $order_ids[] = $post_id;
         } else {
             $other_post_ids[] = $post_id;
@@ -1476,7 +1475,6 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
 
     return $all_meta;
 }
-
 
 /**
  * Action Scheduler Args Column Readability Enhancement
@@ -1721,7 +1719,6 @@ $main_table_lifecycle = [
 
     return $event_data;
 }
-
 
 /**
  * Get current ISO 8601 timestamp in site timezone.

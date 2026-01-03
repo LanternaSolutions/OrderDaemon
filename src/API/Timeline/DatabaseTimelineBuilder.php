@@ -90,13 +90,13 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         if (!$logEntry) {
             return false;
         }
-        
+
         return $this->shouldRenderAsProcessGroup($logEntry, $viewMode);
     }
 
     /**
      * Determine if log entry should be rendered as process group
-     * 
+     *
      * @param array $logEntry The log entry to check
      * @param string $viewMode The current view mode ('flat' or 'consolidated')
      * @return bool True if should render as process group, false otherwise
@@ -145,6 +145,11 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
+        // CRITICAL FIX: WordPress doesn't support placeholders for table names
+        // Use esc_sql() for table names instead of %i placeholders
+        $log_table_escaped = esc_sql($log_table);
+        $payload_table_escaped = esc_sql($payload_table);
+
         // Use WordPress-approved database query method with proper escaping
         $query = $wpdb->prepare(
             "SELECT l.log_id,
@@ -158,19 +163,34 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
                 l.is_test,
                 l.process_id,
                 COALESCE(p.payload, l.details, %s) as payload
-            FROM %i l
-                LEFT JOIN %i p ON l.payload_id = p.payload_id
+            FROM `{$log_table_escaped}` l
+                LEFT JOIN `{$payload_table_escaped}` p ON l.payload_id = p.payload_id
             WHERE l.log_id = %d",
-            $log_table,
-            $payload_table,
             '',
             $logId
         );
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table with complex JOIN required
-        $result = $wpdb->get_row( $query, 'ARRAY_A' );
+        $result = $wpdb->get_row($query, 'ARRAY_A');
+
+        // Check for database errors
+        if ($wpdb->last_error) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                if (function_exists('odcm_log_message')) {
+                    odcm_log_message("ODCM DatabaseTimelineBuilder: SQL Error in fetchLogEntry for log_id {$logId}: " . $wpdb->last_error, 'error');
+                    odcm_log_message("ODCM DatabaseTimelineBuilder: Query was: " . $query, 'debug');
+                }
+            }
+            // Don't cache errors, allow retry
+            return null;
+        }
 
         if (!$result) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                if (function_exists('odcm_log_message')) {
+                    odcm_log_message("ODCM DatabaseTimelineBuilder: No log entry found for log_id {$logId}", 'debug');
+                }
+            }
             // Even null results are worth caching to prevent repeated queries for non-existent entries
             // But use a shorter cache time
             wp_cache_set($cache_key, null, '', MINUTE_IN_SECONDS * 5); // 5 minutes
@@ -223,6 +243,11 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
+        // CRITICAL FIX: WordPress doesn't support placeholders for table names
+        // Use esc_sql() for table names instead of %i placeholders
+        $log_table_escaped = esc_sql($log_table);
+        $payload_table_escaped = esc_sql($payload_table);
+
         // Use WordPress-approved database query method with proper escaping
         $query = $wpdb->prepare(
             "SELECT l.log_id,
@@ -236,19 +261,36 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
                 l.is_test,
                 l.process_id,
                 COALESCE(p.payload, l.details, %s) as payload
-            FROM %i l
-                LEFT JOIN %i p ON l.payload_id = p.payload_id
+            FROM `{$log_table_escaped}` l
+                LEFT JOIN `{$payload_table_escaped}` p ON l.payload_id = p.payload_id
             WHERE l.process_id = %s
             ORDER BY l.timestamp ASC",
-            $log_table,
-            $payload_table,
             '',
             $processId
         );
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table with complex JOIN required
-        $results = $wpdb->get_results( $query, 'ARRAY_A' );
+        $results = $wpdb->get_results($query, 'ARRAY_A');
+
+        // Check for database errors
+        if ($wpdb->last_error) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                if (function_exists('odcm_log_message')) {
+                    odcm_log_message("ODCM DatabaseTimelineBuilder: SQL Error in fetchProcessLogEntries for process_id {$processId}: " . $wpdb->last_error, 'error');
+                    odcm_log_message("ODCM DatabaseTimelineBuilder: Query was: " . $query, 'debug');
+                }
+            }
+            // Don't cache errors, return empty array
+            return [];
+        }
+
         $results = $results ?: [];
+
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            if (function_exists('odcm_log_message')) {
+                odcm_log_message("ODCM DatabaseTimelineBuilder: Found " . count($results) . " log entries for process_id {$processId}", 'debug');
+            }
+        }
 
         // Process entries may receive updates during active processes
         // Use shorter cache duration than individual log entries

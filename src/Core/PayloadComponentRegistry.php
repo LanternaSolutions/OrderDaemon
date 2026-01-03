@@ -382,7 +382,7 @@ function odcm_get_component_label(string $event_type): string
         'rule_no_match' => 'Rule Not Matched',
         'rule_evaluated' => 'Rule Evaluated',
         'rule_evaluation' => 'Rule Evaluation',
-        'rule_evaluation_non_canonical' => 'Rule Evaluation (Debug)',
+        'rule_evaluation_non_canonical' => 'Rule Evaluated (No Action)',
         'condition_passed' => 'Condition Passed',
         'condition_failed' => 'Condition Failed',
         'action_executed' => 'Action Executed',

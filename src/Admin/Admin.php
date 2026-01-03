@@ -583,18 +583,16 @@ class Admin
                         'menu_order' => 0,
                     ]);
 
-                    // Get all other published rules using post__not_in for better performance
-                    // This is more efficient than meta_query for simple exclusions
+                    // Get all published rules (excluding current rule via PHP filtering,
+                    // avoiding performance issues with post__not_in parameter)
                     $published_rules = get_posts([
                         'post_type'      => 'odcm_order_rule',
                         'post_status'    => 'publish',
                         'posts_per_page' => -1,
                         'fields'         => 'ids',
-                        'post__not_in'   => [$post_id],
                     ]);
                     
                     // Filter out the current post ID from results
-                    // This is more efficient than a direct SQL exclusion
                     $published_rules = array_filter($published_rules, function($rule_id) use ($post_id) {
                         return $rule_id != $post_id;
                     });

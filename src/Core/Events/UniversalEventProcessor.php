@@ -319,6 +319,8 @@ class UniversalEventProcessor
      */
     private function isDuplicateEvent(UniversalEvent $event): bool
     {
+        global $wpdb;
+        
         // Create a unique cache key for this idempotency check
         $cache_key = 'odcm_idempotency_' . md5($event->idempotencyKey);
         
@@ -330,33 +332,23 @@ class UniversalEventProcessor
             return (bool)$cached_result;
         }
         
-        // Cache miss - use WordPress recommended method to check for existing events
-        $args = [
-            'post_type' => 'odcm_audit_log',
-            'posts_per_page' => 1,
-            'meta_query' => [
-                [
-                    'key' => 'event_type',
-                    'value' => 'universal_event_processing',
-                    'compare' => '='
-                ],
-                [
-                    'key' => 'idempotency_key',
-                    'value' => $event->idempotencyKey,
-                    'compare' => '='
-                ]
-            ],
-            'date_query' => [
-                [
-                    'after' => '24 hours ago',
-                    'inclusive' => true
-                ]
-            ],
-            'fields' => 'ids'
-        ];
+        // Cache miss - query the custom audit log table directly
+        // Note: Using esc_sql() for table name as placeholders cannot be used for identifiers
+        $audit_log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
+        $twenty_four_hours_ago = gmdate('Y-m-d H:i:s', strtotime('-24 hours'));
         
-        $query = new \WP_Query($args);
-        $is_duplicate = $query->have_posts();
+        // Check for existing events with this idempotency key in the last 24 hours
+        $existing_count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM `{$audit_log_table}` 
+             WHERE event_type = %s 
+             AND idempotency_key = %s 
+             AND timestamp > %s",
+            'universal_event_processing',
+            $event->idempotencyKey,
+            $twenty_four_hours_ago
+        ));
+        
+        $is_duplicate = ((int) $existing_count) > 0;
         
         // Cache the result for 1 hour - idempotency checks are good candidates for caching
         // as they prevent duplicate processing even with cache race conditions
@@ -1329,61 +1321,48 @@ class UniversalEventProcessor
             }
         }
 
-        // Use WordPress recommended method to find existing rule execution events
-        $args = [
-            'post_type' => 'odcm_audit_log',
-            'posts_per_page' => 1,
-            'meta_query' => [
-                [
-                    'key' => 'event_type',
-                    'value' => 'rule_execution',
-                    'compare' => '='
-                ],
-                [
-                    'key' => 'order_id',
-                    'value' => $order_id,
-                    'compare' => '='
-                ]
-            ],
-            'date_query' => [
-                [
-                    'after' => '24 hours ago',
-                    'inclusive' => true
-                ]
-            ],
-            'orderby' => 'date',
-            'order' => 'DESC',
-            'fields' => 'ids'
-        ];
+        // Query the custom audit log table directly
+        // Note: Using esc_sql() for table name as placeholders cannot be used for identifiers
+        global $wpdb;
+        $audit_log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
+        $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+        $twenty_four_hours_ago = gmdate('Y-m-d H:i:s', strtotime('-24 hours'));
         
-        $query = new \WP_Query($args);
-        $existing_events = [];
+        // Find existing rule execution events for this order+rule combination
+        $existing_events = $wpdb->get_results($wpdb->prepare(
+            "SELECT l.log_id, l.timestamp, COALESCE(p.payload, l.details) as payload
+             FROM `{$audit_log_table}` l
+             LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+             WHERE l.event_type = %s 
+             AND l.order_id = %d
+             AND l.timestamp > %s
+             ORDER BY l.timestamp DESC
+             LIMIT 5",
+            'rule_execution',
+            $order_id,
+            $twenty_four_hours_ago
+        ), ARRAY_A);
         
-        if ($query->have_posts()) {
-            while ($query->have_posts()) {
-                $query->the_post();
-                $post_id = get_the_ID();
-                $payload = get_post_meta($post_id, 'payload', true);
-                
-                // Validate JSON and check rule_id
-                if (!empty($payload) && is_string($payload)) {
-                    $payload_data = json_decode($payload, true);
-                    if (json_last_error() === JSON_ERROR_NONE &&
-                        isset($payload_data['rule_id']) &&
-                        (int)$payload_data['rule_id'] === $rule_id) {
-                        
-                        $existing_events[] = [
-                            'log_id' => $post_id,
-                            'payload' => $payload,
-                            'timestamp' => get_the_date('Y-m-d H:i:s')
-                        ];
-                        break; // We only need the most recent one
-                    }
+        // Filter to find the one matching our rule_id
+        $filtered_events = [];
+        if (!empty($existing_events)) {
+            foreach ($existing_events as $event) {
+                $payload_data = json_decode($event['payload'] ?? '', true);
+                if (json_last_error() === JSON_ERROR_NONE &&
+                    isset($payload_data['rule_id']) &&
+                    (int)$payload_data['rule_id'] === $rule_id) {
+                    
+                    $filtered_events[] = [
+                        'log_id' => $event['log_id'],
+                        'payload' => $event['payload'],
+                        'timestamp' => $event['timestamp']
+                    ];
+                    break; // We only need the most recent one
                 }
             }
         }
         
-        wp_reset_postdata();
+        $existing_events = $filtered_events;
 
         // No events found in database
         if (empty($existing_events)) {

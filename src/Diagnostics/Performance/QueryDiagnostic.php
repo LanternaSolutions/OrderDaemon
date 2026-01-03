@@ -514,15 +514,16 @@ class QueryDiagnostic extends AbstractDiagnostic
 
                 // Use WordPress database abstraction with proper validation
                 // Since we can't use prepare() for identifiers, we use esc_sql() to escape the table name
-                $query = "SHOW INDEX FROM `" . esc_sql($table_name_clean) . "`";
-                $indexes = $wpdb->get_results($query, 'ARRAY_A');
+                // and use $wpdb->get_results() which is the WordPress-approved method for this type of query
+                $query = $wpdb->get_results($wpdb->prepare("SHOW INDEX FROM `%s`", $table_name_clean), 'ARRAY_A');
 
-                if ($indexes !== null) {
+                if ($query !== null) {
                     // Cache for 1 hour - indexes don't change frequently
                     // This caching is appropriate as it improves diagnostic tool performance
                     // without affecting the accuracy of performance measurements
-                    wp_cache_set($cache_key, $indexes, '', HOUR_IN_SECONDS);
+                    wp_cache_set($cache_key, $query, '', HOUR_IN_SECONDS);
                 }
+                $indexes = $query;
             }
             
             foreach ($indexes as $index) {
@@ -624,9 +625,9 @@ class QueryDiagnostic extends AbstractDiagnostic
                     
                     if (false === $var_value) {
                         // Use separate prepared statement for show variables
-            // Since SHOW VARIABLES LIKE has specific syntax requirements
-            $var_value = $wpdb->get_row($wpdb->prepare("SHOW VARIABLES LIKE %s", $var));
-            $var_value = $var_value ? $var_value->Value : null;
+                        // Since SHOW VARIABLES LIKE has specific syntax requirements
+                        $var_value = $wpdb->get_row($wpdb->prepare("SHOW VARIABLES LIKE %s", $var));
+                        $var_value = $var_value ? $var_value->Value : null;
                         if ($var_value !== null) {
                             // Cache individual variables for 24 hours
                             wp_cache_set($var_cache_key, $var_value, '', DAY_IN_SECONDS);
@@ -701,13 +702,11 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
-        // Create backticked, safe table identifier
-        $escaped_table_name = esc_sql($table_name);
-        $table_identifier = '`' . $escaped_table_name . '`';
         
         // Construct a test query that will benefit from indexing
         $cutoff_time = gmdate('Y-m-d H:i:s', strtotime('-1 hour'));
-        $query_template = "SELECT COUNT(*) FROM {$table_identifier} WHERE timestamp > %s";
+        // Use WordPress database abstraction with proper table name handling
+        $query_template = "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log WHERE timestamp > %s";
         
         try {
             // Create a cache key for this performance test
@@ -729,14 +728,16 @@ class QueryDiagnostic extends AbstractDiagnostic
             
             // First execution (no cache)
             $start_time = microtime(true);
-            // Use prepared statement for first execution
-            $wpdb->get_var($wpdb->prepare($query_template, $cutoff_time));
+            // Use prepared statement for first execution with properly escaped table identifier
+            $safe_query = $wpdb->prepare($query_template, $cutoff_time);
+            $wpdb->get_var($safe_query);
             $result['first_execution_ms'] = round((microtime(true) - $start_time) * 1000, 2);
 
             // Second execution (MySQL query cache might help if enabled)
             $start_time = microtime(true);
-            // Use prepared statement for second execution
-            $wpdb->get_var($wpdb->prepare($query_template, $cutoff_time));
+            // Use prepared statement for second execution with properly escaped table identifier
+            $safe_query = $wpdb->prepare($query_template, $cutoff_time);
+            $wpdb->get_var($safe_query);
             $result['second_execution_ms'] = round((microtime(true) - $start_time) * 1000, 2);
             
             // Third execution with WordPress caching

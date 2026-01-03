@@ -173,7 +173,7 @@ class ManualStatusTracker
     public static function track_manual_order_edit(int $post_id, \WP_Post $post): void
     {
         // Only track if user is logged in and this is an order
-        if (!is_user_logged_in() || $post->post_type !== 'shop_order') {
+        if (!is_user_logged_in() || !\OrderDaemon\CompletionManager\Includes\Utils\OrderTypeDetector::is_processable_order($post_id)) {
             return;
         }
 

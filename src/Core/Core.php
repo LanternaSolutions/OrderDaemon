@@ -2167,10 +2167,9 @@ class Core
     public function reprocess_pending_orders(): int
     {
         // Fetch only the IDs to keep memory usage extremely low.
-        $order_ids = wc_get_orders([
+        $order_ids = \OrderDaemon\CompletionManager\Includes\Utils\OrderQueryHelper::get_order_ids([
             'status' => ['processing', 'on-hold'],
             'limit'  => -1, // Get all matching orders.
-            'return' => 'ids',
         ]);
 
         if (empty($order_ids)) {

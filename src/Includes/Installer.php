@@ -234,14 +234,15 @@ class Installer
             // Direct query required for schema modification
             $wpdb->query($sql);
 
-            // Add index for parent_id
-            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . " ADD INDEX idx_parent (parent_id)";
+            // Add index for parent_id using prepared statement
+            $safe_table = esc_sql($audit_log_table);
+            $sql = $wpdb->prepare("ALTER TABLE %s ADD INDEX idx_parent (parent_id)", $safe_table);
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
             $wpdb->query($sql);
 
-            // Add composite index for process_id and parent_id
-            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . " ADD INDEX idx_process_parent (process_id, parent_id)";
+            // Add composite index for process_id and parent_id using prepared statement
+            $sql = $wpdb->prepare("ALTER TABLE %s ADD INDEX idx_process_parent (process_id, parent_id)", $safe_table);
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
             $wpdb->query($sql);
@@ -282,8 +283,9 @@ class Installer
             // Direct query required for schema modification
             $wpdb->query($sql);
 
-            // Add unique index for dedupe_key
-            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . " ADD UNIQUE INDEX idx_dedupe_key (dedupe_key)";
+            // Add unique index for dedupe_key using prepared statement
+            $safe_table = esc_sql($audit_log_table);
+            $sql = $wpdb->prepare("ALTER TABLE %s ADD UNIQUE INDEX idx_dedupe_key (dedupe_key)", $safe_table);
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
             $wpdb->query($sql);
@@ -303,8 +305,8 @@ class Installer
 
         if (!$processed_display_data_exists) {
             // Add processed_display_data column
-            $sql = "ALTER TABLE " . esc_sql($payload_table) . "
-                    ADD COLUMN processed_display_data TEXT NULL DEFAULT NULL COMMENT 'Cached display sections in JSON format'";
+            $safe_table = esc_sql($payload_table);
+            $sql = $wpdb->prepare("ALTER TABLE %s ADD COLUMN processed_display_data TEXT NULL DEFAULT NULL COMMENT 'Cached display sections in JSON format'", $safe_table);
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
             $wpdb->query($sql);
@@ -321,8 +323,8 @@ class Installer
 
         if (!$last_processed_exists) {
             // Add last_processed column
-            $sql = "ALTER TABLE " . esc_sql($payload_table) . "
-                    ADD COLUMN last_processed TIMESTAMP NULL DEFAULT NULL";
+            $safe_table = esc_sql($payload_table);
+            $sql = $wpdb->prepare("ALTER TABLE %s ADD COLUMN last_processed TIMESTAMP NULL DEFAULT NULL", $safe_table);
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
             // Direct query required for schema modification
             $wpdb->query($sql);

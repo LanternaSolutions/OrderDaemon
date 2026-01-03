@@ -1277,7 +1277,7 @@ final class RefundDeletionDiagnostics
             if ($post_id <= 0) {
                 return;
             }
-            if (get_post_type($post_id) !== 'shop_order') {
+            if (!\OrderDaemon\CompletionManager\Includes\Utils\OrderTypeDetector::is_processable_order($post_id)) {
                 return;
             }
             $this->log_deletion_event('order_restored', $post_id, 'info', 'Restored');

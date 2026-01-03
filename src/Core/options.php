@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+// Prevent direct access to this file
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
  * Central Option Registration File - Entitlement-Aware Feature Registry
  * 
@@ -79,11 +84,6 @@ declare(strict_types=1);
  * @author  OrderDaemon Development Team
  * @link    https://docs.OrderDaemon.com/completion-manager/adding-options
  */
-
-// Prevent direct access to this file
-if (!defined('ABSPATH')) {
-    exit;
-}
 
 // Get the global registry instance
 // This singleton pattern ensures all registrations use the same registry object
