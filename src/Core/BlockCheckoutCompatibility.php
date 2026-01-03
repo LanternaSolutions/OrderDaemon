@@ -685,36 +685,16 @@ final class BlockCheckoutCompatibility
             return;
         }
         
-        // FIXED: Use direct database query for reliable job detection (same as Core.php)
+        // Use direct database query for reliable job detection
         global $wpdb;
         
-        $table_name = $wpdb->prefix . 'actionscheduler_actions';
-        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
-        $table_identifier = ($table_name === $wpdb->prefix . 'actionscheduler_actions') ? '`' . $table_name . '`' : '`actionscheduler_actions`';
-        
-        // First prepare the query with the hook name and status conditions 
-        $prepared_hook_part = $wpdb->prepare(
-            "WHERE hook = %s AND status IN ('pending', 'in-progress')",
-            'odcm_process_checkout_completion'
-        );
-        
-        // Prepare the hook arguments separately with proper integer casting
-        $order_id_int = intval($order_id);
-        $prepared_args_part = $wpdb->prepare(
-            "AND hook_arguments LIKE %s",
-            '%"order_id":' . $order_id_int . '%'
-        );
-        
-        // Create the query in a way that uses $wpdb->prepare() for all dynamic parts
-        // First, sanitize table name - WordPress doesn't support placeholders for table names
-        $table_name_clean = trim(str_replace('`', '', $table_identifier));
-        
-        // Construct query with prepared statement
+        // Construct query with prepared statement. Table name uses trusted $wpdb->prefix directly
+        // since SQL prepared statements cannot parameterize table identifiers.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table reference uses trusted $wpdb->prefix
         $query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM `%s` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s",
-            $table_name_clean,
+            "SELECT COUNT(*) FROM `{$wpdb->prefix}actionscheduler_actions` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s",
             'odcm_process_checkout_completion',
-            '%"order_id":' . $order_id_int . '%'
+            '%"order_id":' . intval($order_id) . '%'
         );
         
         // Cache key for existing job count check
@@ -723,7 +703,7 @@ final class BlockCheckoutCompatibility
         
         if (false === $job_count) {
             // Execute the properly prepared query with caching
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared -- Query prepared above
             $existing_count = (int) $wpdb->get_var($query);
             
             // Cache the job count result for 60 seconds

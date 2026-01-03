@@ -151,9 +151,9 @@ get_incremented_version() {
 
     IFS='.' read -r -a version_parts <<<"$current_version"
 
-    local major="${version_parts[0]:-patch}"
-    local minor="${version_parts[1]:-patch}"
-    local patch="${version_parts[2]:-patch}"
+    local major="${version_parts[0]:-0}"
+    local minor="${version_parts[1]:-0}"
+    local patch="${version_parts[2]:-0}"
 
     case "$target_segment" in
         major)

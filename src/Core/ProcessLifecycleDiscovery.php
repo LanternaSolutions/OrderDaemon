@@ -278,28 +278,17 @@ final class ProcessLifecycleDiscovery
         global $wpdb;
 
         try {
-            $table_name = $wpdb->prefix . 'odcm_audit_log';
-            // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
-            $table_identifier = ($table_name === $wpdb->prefix . 'odcm_audit_log') ? '`' . $table_name . '`' : '`odcm_audit_log`';
-
             // Use the authoritative event_type column for discovered process types.
             // This is reliable across environments and matches the values used by the UI and API.
-            // Create the SQL query with the validated table identifier
-            // We need to concatenate the SQL parts since WordPress doesn't support placeholders
-            // for table identifiers
-            // First prepare the query with the empty string for the event_type check
+            // Prepare the query with the empty string for the event_type check
             $empty_value = '';
-            $prepared_where_clause = $wpdb->prepare(
-                "WHERE event_type IS NOT NULL AND event_type != %s",
-                $empty_value
-            );
             
             // Cache key for process types
             // Static in-memory cache for the current request in addition to transient cache
             static $process_types_cache = [];
-            
-            // Create a unique cache key that includes table name
-            $cache_key = 'odcm_process_types_' . md5($table_name);
+
+            // Create a unique cache key for the audit log table
+            $cache_key = 'odcm_process_types_audit_log';
             
             // Check static cache first for better performance
             if (isset($process_types_cache[$cache_key])) {
@@ -316,12 +305,15 @@ final class ProcessLifecycleDiscovery
             }
             
             // Cache miss - run the query
-            // Build a safer query using esc_sql for the table name
-            $table_name_clean = esc_sql(str_replace('`', '', $table_name));
-            $query = "SELECT DISTINCT event_type FROM `{$table_name_clean}` {$prepared_where_clause}";
+            // Use $wpdb->get_col() with a properly prepared query
+            // The WHERE clause uses $wpdb->prepare() for proper value escaping
+            $query = $wpdb->prepare(
+                "SELECT DISTINCT event_type FROM `{$wpdb->prefix}odcm_audit_log` WHERE event_type IS NOT NULL AND event_type != %s",
+                $empty_value
+            );
 
             // Execute the query with WordPress's database API
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table query with proper escaping and prepared WHERE clause
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared -- Custom table query, $query is properly prepared above using $wpdb->prepare()
             $results = $wpdb->get_col($query);
             
             // Process the results

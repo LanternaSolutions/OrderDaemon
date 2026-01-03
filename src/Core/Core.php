@@ -2315,15 +2315,12 @@ class Core
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for reliable Action Scheduler job detection with proper caching
             // Prepare the full query with table name sanitization and proper value escaping
-            $query = $wpdb->prepare(
+            $existing_count = (int) $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM `%s` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s",
                 $table_name_clean,
                 'odcm_process_checkout_completion',
                 '%' . $wpdb->esc_like('"order_id":' . intval($order_id)) . '%'
-            );
-
-            // Execute the query
-            $existing_count = (int) $wpdb->get_var($query);
+            ));
             
             // Cache the result for 60 seconds - Action Scheduler job existence is semi-volatile
             wp_cache_set($as_job_cache_key, $existing_count, '', 60);
@@ -2351,15 +2348,12 @@ class Core
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for reliable Action Scheduler job detection with proper caching
             // Create a safe query with proper preparation
-            $query = $wpdb->prepare(
+            $job_details = $wpdb->get_results($wpdb->prepare(
                 "SELECT action_id, hook_arguments, status FROM `%s` WHERE hook = %s AND hook_arguments LIKE %s LIMIT 5",
                 $table_name_clean,
                 'odcm_process_checkout_completion',
                 '%' . $wpdb->esc_like('"order_id":' . intval($order_id)) . '%'
-            );
-
-            // Execute the query
-            $job_details = $wpdb->get_results($query);
+            ));
             
             // Cache the result for 60 seconds
             wp_cache_set($job_details_cache_key, $job_details, '', 60);

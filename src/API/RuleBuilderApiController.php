@@ -1546,62 +1546,65 @@ class RuleBuilderApiController extends WP_REST_Controller
         try {
             if (empty($search)) {
                 // Query without search - return all products
-                $prepared_sql = $wpdb->prepare(
-                    "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
-                     FROM {$wpdb->posts} p
-                     LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
-                     WHERE p.post_type = %s AND p.post_status = %s
-                     ORDER BY p.post_title ASC LIMIT %d",
-                    '_sku',
-                    'product',
-                    'publish',
-                    $limit
+                $results = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
+                         FROM {$wpdb->posts} p
+                         LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
+                         WHERE p.post_type = %s AND p.post_status = %s
+                         ORDER BY p.post_title ASC LIMIT %d",
+                        '_sku',
+                        'product',
+                        'publish',
+                        $limit
+                    )
                 );
-                
+
             } elseif (is_numeric($search)) {
                 // Query with numeric search (includes ID, title, and SKU search)
                 // Use wpdb->esc_like() for LIKE queries to prevent wildcard injection
                 $like_search = '%' . $wpdb->esc_like($search) . '%';
-                
-                $prepared_sql = $wpdb->prepare(
-                    "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
-                     FROM {$wpdb->posts} p
-                     LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
-                     WHERE p.post_type = %s AND p.post_status = %s
-                       AND (p.ID = %d OR p.post_title LIKE %s OR pm.meta_value LIKE %s)
-                     ORDER BY p.post_title ASC LIMIT %d",
-                    '_sku',
-                    'product',
-                    'publish',
-                    (int) $search,
-                    $like_search,
-                    $like_search,
-                    $limit
+
+                $results = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
+                         FROM {$wpdb->posts} p
+                         LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
+                         WHERE p.post_type = %s AND p.post_status = %s
+                           AND (p.ID = %d OR p.post_title LIKE %s OR pm.meta_value LIKE %s)
+                         ORDER BY p.post_title ASC LIMIT %d",
+                        '_sku',
+                        'product',
+                        'publish',
+                        (int) $search,
+                        $like_search,
+                        $like_search,
+                        $limit
+                    )
                 );
-                
+
             } else {
                 // Query with text search (title and SKU only)
                 // Use wpdb->esc_like() for LIKE queries to prevent wildcard injection
                 $like_search = '%' . $wpdb->esc_like($search) . '%';
-                
-                $prepared_sql = $wpdb->prepare(
-                    "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
-                     FROM {$wpdb->posts} p
-                     LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
-                     WHERE p.post_type = %s AND p.post_status = %s
-                       AND (p.post_title LIKE %s OR pm.meta_value LIKE %s)
-                     ORDER BY p.post_title ASC LIMIT %d",
-                    '_sku',
-                    'product',
-                    'publish',
-                    $like_search,
-                    $like_search,
-                    $limit
+
+                $results = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
+                         FROM {$wpdb->posts} p
+                         LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
+                         WHERE p.post_type = %s AND p.post_status = %s
+                           AND (p.post_title LIKE %s OR pm.meta_value LIKE %s)
+                         ORDER BY p.post_title ASC LIMIT %d",
+                        '_sku',
+                        'product',
+                        'publish',
+                        $like_search,
+                        $like_search,
+                        $limit
+                    )
                 );
             }
-
-            // Execute the prepared query
-            $results = $wpdb->get_results($prepared_sql);
             
             // Handle database errors
             if ($wpdb->last_error) {

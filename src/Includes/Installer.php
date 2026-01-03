@@ -228,23 +228,21 @@ class Installer
 
         if (!$parent_id_exists) {
             // Add parent_id column
-            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . "
-                    ADD COLUMN parent_id INT UNSIGNED NULL DEFAULT NULL AFTER log_id";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
-            // Direct query required for schema modification
-            $wpdb->query($sql);
-
-            // Add index for parent_id using prepared statement
             $safe_table = esc_sql($audit_log_table);
-            $sql = $wpdb->prepare("ALTER TABLE %s ADD INDEX idx_parent (parent_id)", $safe_table);
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
-            // Direct query required for schema modification
+            $sql = "ALTER TABLE $safe_table ADD COLUMN parent_id INT UNSIGNED NULL DEFAULT NULL AFTER log_id";
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
             $wpdb->query($sql);
 
-            // Add composite index for process_id and parent_id using prepared statement
-            $sql = $wpdb->prepare("ALTER TABLE %s ADD INDEX idx_process_parent (process_id, parent_id)", $safe_table);
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
-            // Direct query required for schema modification
+            // Add index for parent_id
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD INDEX idx_parent (parent_id)";
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
+            $wpdb->query($sql);
+
+            // Add composite index for process_id and parent_id
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD INDEX idx_process_parent (process_id, parent_id)";
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
             $wpdb->query($sql);
         }
 
@@ -259,10 +257,9 @@ class Installer
 
         if (!$display_data_exists) {
             // Add display_data column
-            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . "
-                    ADD COLUMN display_data TEXT NULL DEFAULT NULL AFTER details";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
-            // Direct query required for schema modification
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD COLUMN display_data TEXT NULL DEFAULT NULL AFTER details";
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
             $wpdb->query($sql);
         }
 
@@ -277,17 +274,15 @@ class Installer
 
         if (!$dedupe_key_exists) {
             // Add dedupe_key column
-            $sql = "ALTER TABLE " . esc_sql($audit_log_table) . "
-                    ADD COLUMN dedupe_key VARCHAR(255) NULL DEFAULT NULL AFTER details";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
-            // Direct query required for schema modification
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD COLUMN dedupe_key VARCHAR(255) NULL DEFAULT NULL AFTER details";
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
             $wpdb->query($sql);
 
-            // Add unique index for dedupe_key using prepared statement
+            // Add unique index for dedupe_key
             $safe_table = esc_sql($audit_log_table);
-            $sql = $wpdb->prepare("ALTER TABLE %s ADD UNIQUE INDEX idx_dedupe_key (dedupe_key)", $safe_table);
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
-            // Direct query required for schema modification
+            $sql = "ALTER TABLE $safe_table ADD UNIQUE INDEX idx_dedupe_key (dedupe_key)";
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
             $wpdb->query($sql);
         }
 
@@ -306,9 +301,8 @@ class Installer
         if (!$processed_display_data_exists) {
             // Add processed_display_data column
             $safe_table = esc_sql($payload_table);
-            $sql = $wpdb->prepare("ALTER TABLE %s ADD COLUMN processed_display_data TEXT NULL DEFAULT NULL COMMENT 'Cached display sections in JSON format'", $safe_table);
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
-            // Direct query required for schema modification
+            $sql = "ALTER TABLE $safe_table ADD COLUMN processed_display_data TEXT NULL DEFAULT NULL COMMENT 'Cached display sections in JSON format'";
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
             $wpdb->query($sql);
         }
 
@@ -324,9 +318,8 @@ class Installer
         if (!$last_processed_exists) {
             // Add last_processed column
             $safe_table = esc_sql($payload_table);
-            $sql = $wpdb->prepare("ALTER TABLE %s ADD COLUMN last_processed TIMESTAMP NULL DEFAULT NULL", $safe_table);
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
-            // Direct query required for schema modification
+            $sql = "ALTER TABLE $safe_table ADD COLUMN last_processed TIMESTAMP NULL DEFAULT NULL";
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
             $wpdb->query($sql);
         }
     }

@@ -151,34 +151,34 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         $payload_table_escaped = esc_sql($payload_table);
 
         // Use WordPress-approved database query method with proper escaping
-        $query = $wpdb->prepare(
-            "SELECT l.log_id,
-                l.timestamp,
-                l.status,
-                l.summary,
-                l.order_id,
-                l.event_type,
-                l.source,
-                l.payload_id,
-                l.is_test,
-                l.process_id,
-                COALESCE(p.payload, l.details, %s) as payload
-            FROM `{$log_table_escaped}` l
-                LEFT JOIN `{$payload_table_escaped}` p ON l.payload_id = p.payload_id
-            WHERE l.log_id = %d",
-            '',
-            $logId
-        );
-
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table with complex JOIN required
-        $result = $wpdb->get_row($query, 'ARRAY_A');
+        $result = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT l.log_id,
+                    l.timestamp,
+                    l.status,
+                    l.summary,
+                    l.order_id,
+                    l.event_type,
+                    l.source,
+                    l.payload_id,
+                    l.is_test,
+                    l.process_id,
+                    COALESCE(p.payload, l.details, %s) as payload
+                FROM `{$log_table_escaped}` l
+                    LEFT JOIN `{$payload_table_escaped}` p ON l.payload_id = p.payload_id
+                WHERE l.log_id = %d",
+                '',
+                $logId
+            ),
+            'ARRAY_A'
+        );
 
         // Check for database errors
         if ($wpdb->last_error) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 if (function_exists('odcm_log_message')) {
                     odcm_log_message("ODCM DatabaseTimelineBuilder: SQL Error in fetchLogEntry for log_id {$logId}: " . $wpdb->last_error, 'error');
-                    odcm_log_message("ODCM DatabaseTimelineBuilder: Query was: " . $query, 'debug');
                 }
             }
             // Don't cache errors, allow retry
@@ -249,35 +249,35 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         $payload_table_escaped = esc_sql($payload_table);
 
         // Use WordPress-approved database query method with proper escaping
-        $query = $wpdb->prepare(
-            "SELECT l.log_id,
-                l.timestamp,
-                l.status,
-                l.summary,
-                l.order_id,
-                l.event_type,
-                l.source,
-                l.payload_id,
-                l.is_test,
-                l.process_id,
-                COALESCE(p.payload, l.details, %s) as payload
-            FROM `{$log_table_escaped}` l
-                LEFT JOIN `{$payload_table_escaped}` p ON l.payload_id = p.payload_id
-            WHERE l.process_id = %s
-            ORDER BY l.timestamp ASC",
-            '',
-            $processId
-        );
-
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table with complex JOIN required
-        $results = $wpdb->get_results($query, 'ARRAY_A');
+        $results = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT l.log_id,
+                    l.timestamp,
+                    l.status,
+                    l.summary,
+                    l.order_id,
+                    l.event_type,
+                    l.source,
+                    l.payload_id,
+                    l.is_test,
+                    l.process_id,
+                    COALESCE(p.payload, l.details, %s) as payload
+                FROM `{$log_table_escaped}` l
+                    LEFT JOIN `{$payload_table_escaped}` p ON l.payload_id = p.payload_id
+                WHERE l.process_id = %s
+                ORDER BY l.timestamp ASC",
+                '',
+                $processId
+            ),
+            'ARRAY_A'
+        );
 
         // Check for database errors
         if ($wpdb->last_error) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 if (function_exists('odcm_log_message')) {
                     odcm_log_message("ODCM DatabaseTimelineBuilder: SQL Error in fetchProcessLogEntries for process_id {$processId}: " . $wpdb->last_error, 'error');
-                    odcm_log_message("ODCM DatabaseTimelineBuilder: Query was: " . $query, 'debug');
                 }
             }
             // Don't cache errors, return empty array

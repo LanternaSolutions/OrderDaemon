@@ -61,8 +61,12 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $total_to_delete) {
-            $count_sql = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s";
-            $total_to_delete = $wpdb->get_var($wpdb->prepare($count_sql, $cutoff_date));
+            $total_to_delete = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s",
+                    $cutoff_date
+                )
+            );
 
             // Cache the result for 10 minutes
             // This is appropriate for cleanup operations that don't need real-time precision
@@ -89,8 +93,13 @@ class LogCleanup
 
             // Cache miss - perform batch query
             if (false === $logs_to_delete) {
-                $batch_sql = "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d";
-                $logs_to_delete = $wpdb->get_results($wpdb->prepare($batch_sql, $cutoff_date, self::BATCH_SIZE));
+                $logs_to_delete = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d",
+                        $cutoff_date,
+                        self::BATCH_SIZE
+                    )
+                );
 
                 // Cache the result briefly - just enough to avoid duplicate queries
                 // in case of concurrent cleanup processes
@@ -127,8 +136,12 @@ class LogCleanup
 
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
-                    $delete_sql = "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)";
-                    $deleted_rows = $wpdb->query($wpdb->prepare($delete_sql, ...$log_ids));
+                    $deleted_rows = $wpdb->query(
+                        $wpdb->prepare(
+                            "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)",
+                            ...$log_ids
+                        )
+                    );
 
                     // Delete log ID cache keys after deletion
                     foreach ($log_ids as $log_id) {
@@ -163,8 +176,12 @@ class LogCleanup
 
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
-                    $delete_sql = "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)";
-                    $wpdb->query($wpdb->prepare($delete_sql, ...$payload_ids));
+                    $wpdb->query(
+                        $wpdb->prepare(
+                            "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)",
+                            ...$payload_ids
+                        )
+                    );
 
                     // Delete payload cache keys after deletion
                     foreach ($payload_ids as $payload_id) {
@@ -255,8 +272,12 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $count_to_delete) {
-            $count_sql = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s";
-            $count_to_delete = $wpdb->get_var($wpdb->prepare($count_sql, $cutoff_date));
+            $count_to_delete = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s",
+                    $cutoff_date
+                )
+            );
 
             // Cache the result for 5 minutes - manual cleanup has higher freshness expectations
             wp_cache_set($manual_count_cache_key, $count_to_delete, '', 5 * MINUTE_IN_SECONDS);
@@ -279,8 +300,12 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $payload_count_to_delete) {
-            $count_sql = "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL";
-            $payload_count_to_delete = $wpdb->get_var($wpdb->prepare($count_sql, $cutoff_date));
+            $payload_count_to_delete = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL",
+                    $cutoff_date
+                )
+            );
 
             // Cache the result for 5 minutes
             wp_cache_set($payload_count_cache_key, $payload_count_to_delete, '', 5 * MINUTE_IN_SECONDS);

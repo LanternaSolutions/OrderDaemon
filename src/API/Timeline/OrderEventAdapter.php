@@ -382,15 +382,15 @@ class OrderEventAdapter extends DisplayAdapter
     private function formatCurrency($amount): string
     {
         if (is_numeric($amount)) {
-            // Use WooCommerce formatting if available with defensive check
-            if (function_exists('wc_price')) {
-                try {
-                    return strip_tags(wc_price((float)$amount));
-                } catch (\Throwable $e) {
-                    // Fallback if WooCommerce function fails
-                    return '$' . number_format((float)$amount, 2);
-                }
+        // Use WooCommerce formatting if available with defensive check
+        if (function_exists('wc_price')) {
+            try {
+                return wp_strip_all_tags(wc_price((float)$amount));
+            } catch (\Throwable $e) {
+                // Fallback if WooCommerce function fails
+                return '$' . number_format((float)$amount, 2);
             }
+        }
 
             // Fallback formatting
             return '$' . number_format((float)$amount, 2);
