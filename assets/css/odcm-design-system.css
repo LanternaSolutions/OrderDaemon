@@ -304,6 +304,11 @@
     --odcm-status-text-color: var(--odcm-theme-grey-900);
 }
 
+.odcm-status-pill--executed {
+    --odcm-status-bg: var(--odcm-theme-green-400);
+    --odcm-status-text-color: var(--odcm-theme-grey-900);
+}
+
 .odcm-status-pill--notice {
     --odcm-status-bg: var(--odcm-theme-green-400);
     --odcm-status-text-color: var(--odcm-theme-grey-900);

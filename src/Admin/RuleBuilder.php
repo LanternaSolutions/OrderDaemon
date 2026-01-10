@@ -347,6 +347,9 @@ final class RuleBuilder
 
         // Pass complete, ready-to-use data to frontend (no API calls needed)
         wp_localize_script('odcm-rule-builder', 'odcmRuleBuilderConfig', $config);
+
+        // Add inline CSS for Alpine.js x-cloak functionality using WordPress standards
+        wp_add_inline_style('odcm-rule-builder', '[x-cloak] { display: none !important; }');
     }
 
     /**
@@ -1738,9 +1741,6 @@ final class RuleBuilder
             </div>
         </div>
 
-        <style>
-        [x-cloak] { display: none !important; }
-        </style>
         <?php
     }
 }

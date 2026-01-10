@@ -2434,6 +2434,46 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
+     * Extract the true execution status for rule execution events
+     *
+     * @param array $log The log entry
+     * @return string The true execution status
+     */
+    private function extractRuleExecutionStatus(array $log): string
+    {
+        // Only process rule execution events
+        if (($log['event_type'] ?? '') !== 'rule_execution') {
+            return $log['status'] ?? 'unknown';
+        }
+
+        // Try to extract status from the payload if available
+        $payload = $log['payload'] ?? '';
+        if (!empty($payload)) {
+            $payload_data = json_decode($payload, true);
+            if (is_array($payload_data)) {
+                // Check for execution_status first (SUCCESS/FAILED from action results)
+                if (!empty($payload_data['execution_status'])) {
+                    return $payload_data['execution_status'];
+                }
+
+                // Check for rule_execution.status
+                if (!empty($payload_data['rule_execution']['status'])) {
+                    return $payload_data['rule_execution']['status'];
+                }
+
+                // Check for status in data
+                if (!empty($payload_data['status'])) {
+                    return $payload_data['status'];
+                }
+            }
+        }
+
+        // Fallback: use 'executed' for complete rule execution events
+        // This matches the logic in RuleExecutionAdapter
+        return 'executed';
+    }
+
+    /**
      * Format logs for API response
      *
      * @param array $logs Array of log entries
@@ -2494,10 +2534,13 @@ class AuditLogEndpoint extends WP_REST_Controller
                 }
             }
 
+            // Extract the true status for rule execution events
+            $status = $this->extractRuleExecutionStatus($log);
+
             $formatted_log = [
                 'id' => (int) $log_id,
                 'timestamp' => $log['timestamp'],
-                'status' => $log['status'],
+                'status' => $status,
                 'summary' => $summary,
                 'event_type' => $log['event_type'],
             ];

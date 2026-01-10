@@ -60,17 +60,12 @@ abstract class DisplayAdapter
         $fields['event_type'] = $payload['event_type'] ?? 'unknown';
 
         // Extract timestamp - use 'ts' field (Unix timestamp) as primary source
+        // Note: Timestamp formatting is handled by JavaScript, so we just pass the raw value
         $timestamp = $payload['ts'] ?? $payload['timestamp'] ?? null;
 
-        // Format timestamp with proper error handling - no fake fallbacks
         if ($timestamp !== null) {
-            $formatted_timestamp = $this->formatTimestampWithToolkit($timestamp);
-            // Only use formatted timestamp if it's valid and not empty
-            if (!empty($formatted_timestamp) && $formatted_timestamp !== 'error') {
-                $fields['timestamp'] = $formatted_timestamp;
-            } else {
-                $fields['timestamp'] = 'error';
-            }
+            // Store the raw timestamp for JavaScript formatting
+            $fields['timestamp'] = $timestamp;
         } else {
             // If no timestamp is available, explicitly show "no timestamp"
             $fields['timestamp'] = 'no timestamp';
@@ -594,36 +589,47 @@ abstract class DisplayAdapter
     }
 
     /**
-     * Format timestamp using PayloadComponentUIToolkit for consistency
+     * Generate user-friendly title for universal_event_processing_debug events
      *
-     * This method uses the existing UI Toolkit to format timestamps with proper
-     * WordPress timezone handling and consistent formatting across the system.
-     *
-     * @param mixed $timestamp The timestamp to format (Unix timestamp, ISO8601 string, etc.)
-     * @return string Formatted timestamp or "error" if formatting fails
+     * @param array $payload The event payload
+     * @return string User-friendly title
      */
-    protected function formatTimestampWithToolkit($timestamp): string
+    public static function generateDebugEventTitle(array $payload): string
     {
-        // Use PayloadComponentUIToolkit for consistent timestamp formatting
-        try {
-            $toolkit = new \OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentUIToolkit();
-            $formatted = $toolkit->format_timestamp($timestamp);
+        // Check if this is a debug event with underlying event data
+        $eventType = $payload['event_type'] ?? '';
+        $data = $payload['data'] ?? [];
 
-            // Simple validation - only reject if it's empty or clearly an epoch error
-            if (!empty($formatted) && $formatted !== '1970-01-01 00:00:00') {
-                return $formatted;
-            } elseif (!empty($formatted)) {
-                // If it's not empty but is an epoch error, return "error"
-                return 'error';
-            } else {
-                // If it's empty, return "error"
-                return 'error';
+        if ($eventType === 'universal_event_processing_debug') {
+            // Check the underlying event type
+            $underlyingEventType = $data['event_type'] ?? '';
+
+            if ($underlyingEventType === 'order_check_scheduled') {
+                // Simple, clean title without amount information
+                return 'Scheduled Check: No rules triggered';
             }
-        } catch (\Throwable $e) {
-            // No fallback to fake timestamps - return "error" if formatting fails
-            return 'error';
+
+            // Handle other underlying event types
+            switch ($underlyingEventType) {
+                case 'payment_completed':
+                    return 'Payment Processing: No matching rules';
+                case 'checkout_processed':
+                    return 'Checkout Processing: No matching rules';
+                case 'order_created':
+                    return 'Order Creation: No matching rules';
+                default:
+                    // Generic fallback for other event types
+                    if (!empty($underlyingEventType)) {
+                        return 'Event Processing: ' . ucfirst(str_replace('_', ' ', $underlyingEventType));
+                    }
+                    return 'Event Processing Debug';
+            }
         }
+
+        // Fallback for non-debug events
+        return ucwords(str_replace('_', ' ', $eventType));
     }
+
 
     /**
      * Format currency with amount and currency combined
@@ -686,7 +692,7 @@ abstract class DisplayAdapter
      * @param string $status_type Status type for CSS theming
      * @return string HTML status pill element
      */
-    protected function renderStatusPill(string $label, string $status_type): string
+    public static function renderStatusPill(string $label, string $status_type): string
     {
         // Map semantic types to existing pill variants
         $pill_variant_map = [
@@ -714,7 +720,7 @@ abstract class DisplayAdapter
      * @param string $statusValue The status value
      * @return string Status pill type
      */
-    protected function mapStatusToPillType(string $eventType, string $statusValue): string
+    public static function mapStatusToPillType(string $eventType, string $statusValue): string
     {
         $statusMap = [
             // Order statuses
@@ -763,11 +769,35 @@ abstract class DisplayAdapter
      * @param array $rawPayload The original event payload
      * @return array|null Array with 'label' and 'type' for status pill, or null if no status
      */
-    protected function extractPrimaryStatus(array $displayData, array $rawPayload): ?array
+    public static function extractPrimaryStatus(array $displayData, array $rawPayload): ?array
     {
         $eventType = $rawPayload['event_type'] ?? 'unknown';
 
-        // Try to extract status from display sections first
+        // Special handling for status change events - extract only the resulting status
+        $currentStatus = null;
+        if (strpos($eventType, 'status_changed') !== false ||
+            strpos($eventType, 'status_change') !== false ||
+            strpos($eventType, 'order_status_changed') !== false) {
+
+            // Try to get the current status directly from payload fields
+            $currentStatus = $rawPayload['data']['to'] ??
+                           $rawPayload['rawData']['to_status'] ??
+                           $rawPayload['to_status'] ??
+                           null;
+        }
+
+        // If we found a current status for status change events, use it
+        if ($currentStatus) {
+            // Map status to pill type based on event type
+            $pillType = self::mapStatusToPillType($eventType, $currentStatus);
+
+            return [
+                'label' => $currentStatus,
+                'type' => $pillType
+            ];
+        }
+
+        // Try to extract status from display sections first (for all events)
         $statusFields = ['status', 'order_status', 'payment_status', 'execution_status', 'status_change'];
 
         foreach ($statusFields as $field) {
@@ -775,7 +805,7 @@ abstract class DisplayAdapter
                 $statusValue = $displayData['display_sections'][$field]['value'] ?? '';
 
                 // Map status to pill type based on event type
-                $pillType = $this->mapStatusToPillType($eventType, $statusValue);
+                $pillType = self::mapStatusToPillType($eventType, $statusValue);
 
                 return [
                     'label' => $statusValue,
@@ -786,7 +816,7 @@ abstract class DisplayAdapter
 
         // Fallback: try to extract from raw payload
         if (isset($rawPayload['status'])) {
-            $pillType = $this->mapStatusToPillType($eventType, $rawPayload['status']);
+            $pillType = self::mapStatusToPillType($eventType, $rawPayload['status']);
             return [
                 'label' => $rawPayload['status'],
                 'type' => $pillType
@@ -802,12 +832,12 @@ abstract class DisplayAdapter
      * @param string $event_type The event type
      * @return array Event configuration
      */
-    protected function getEventTypeConfig(string $event_type): array
+    public static function getEventTypeConfig(string $event_type): array
     {
         $event_configs = [
             // Order events
             'order_created' => [
-                'dashicon' => 'dashicons-cart',
+                'dashicon' => 'dashicons-plus-alt',
                 'theme_class' => 'odcm-component--order',
                 'primary_color' => 'purple-700',
                 'status_display' => 'pending',
@@ -855,7 +885,7 @@ abstract class DisplayAdapter
                 'category' => 'Order Lifecycle'
             ],
             'order_on_hold' => [
-                'dashicon' => 'dashicons-admin-generic',
+                'dashicon' => 'dashicons-pause',
                 'theme_class' => 'odcm-component--order',
                 'primary_color' => 'purple-700',
                 'status_display' => 'on hold',
@@ -888,15 +918,15 @@ abstract class DisplayAdapter
             ],
             // Payment events
             'checkout_processed' => [
-                'dashicon' => 'dashicons-money-alt',
+                'dashicon' => 'dashicons-cart',
                 'theme_class' => 'odcm-component--payment',
-                'primary_color' => 'green-700',
+                'primary_color' => 'purple-700',
                 'status_display' => 'checkout-draft',
                 'priority' => 3,
                 'category' => 'Payment'
             ],
             'payment_completed' => [
-                'dashicon' => 'dashicons-payment',
+                'dashicon' => 'dashicons-money-alt',
                 'theme_class' => 'odcm-component--payment',
                 'primary_color' => 'green-700',
                 'status_display' => 'completed',
@@ -904,16 +934,16 @@ abstract class DisplayAdapter
                 'category' => 'Payment'
             ],
             'payment_failed' => [
-                'dashicon' => 'dashicons-payment',
+                'dashicon' => 'dashicons-warning',
                 'theme_class' => 'odcm-component--payment',
-                'primary_color' => 'green-700',
+                'primary_color' => 'red-700',
                 'status_display' => 'failed',
                 'priority' => 3,
                 'category' => 'Payment'
             ],
             // Rule execution events
             'rule_execution' => [
-                'dashicon' => 'dashicons-admin-generic',
+                'dashicon' => 'dashicons-yes-alt',
                 'theme_class' => 'odcm-component--rule', // Default to rule styling
                 'primary_color' => 'blue-700',
                 'status_display' => 'success',
@@ -921,7 +951,7 @@ abstract class DisplayAdapter
                 'category' => 'Rule'
             ],
             'rule_evaluation_non_canonical' => [
-                'dashicon' => 'dashicons-admin-generic',
+                'dashicon' => 'dashicons-controls-play',
                 'theme_class' => 'odcm-component--debug',
                 'primary_color' => 'yellow-700',
                 'status_display' => 'debug',
@@ -996,7 +1026,7 @@ abstract class DisplayAdapter
             ],
             // Subscription events
             'subscription_created' => [
-                'dashicon' => 'dashicons-calendar-alt',
+                'dashicon' => 'dashicons-calendar',
                 'theme_class' => 'odcm-component--system',
                 'primary_color' => 'grey-700',
                 'status_display' => 'recurring',
@@ -1039,24 +1069,32 @@ abstract class DisplayAdapter
                 'category' => 'System'
             ],
             'debug' => [
-                'dashicon' => 'dashicons-warning',
-                'theme_class' => 'odcm-component--error',
-                'primary_color' => 'red-700',
+                'dashicon' => 'dashicons-info',
+                'theme_class' => 'odcm-component--debug',
+                'primary_color' => 'yellow-700',
                 'status_display' => 'debug',
                 'priority' => 1,
                 'category' => 'System'
             ],
             // Universal events
             'universal_event_processing' => [
-                'dashicon' => 'dashicons-admin-site',
+                'dashicon' => 'dashicons-admin-generic',
                 'theme_class' => 'odcm-component--system',
                 'primary_color' => 'grey-700',
                 'status_display' => 'processed',
                 'priority' => 1,
                 'category' => 'System'
             ],
+            'universal_event_processing_debug' => [
+                'dashicon' => 'dashicons-info',
+                'theme_class' => 'odcm-component--system',
+                'primary_color' => 'grey-700',
+                'status_display' => 'monitored',
+                'priority' => 2,
+                'category' => 'System'
+            ],
             'universal_event_duplicate' => [
-                'dashicon' => 'dashicons-admin-site',
+                'dashicon' => 'dashicons-admin-generic',
                 'theme_class' => 'odcm-component--system',
                 'primary_color' => 'grey-700',
                 'status_display' => 'duplicate',
@@ -1073,7 +1111,7 @@ abstract class DisplayAdapter
         // Check for patterns
         if (strpos($event_type, 'payment.stripe.') === 0) {
             return [
-                'dashicon' => 'dashicons-credit-card',
+                'dashicon' => 'dashicons-cloud-saved',
                 'theme_class' => 'odcm-component--payment',
                 'primary_color' => 'green-700',
                 'status_display' => 'payment',
@@ -1084,7 +1122,7 @@ abstract class DisplayAdapter
 
         if (strpos($event_type, 'payment.paypal.') === 0) {
             return [
-                'dashicon' => 'dashicons-paypal',
+                'dashicon' => 'dashicons-cloud-saved',
                 'theme_class' => 'odcm-component--payment',
                 'primary_color' => 'green-700',
                 'status_display' => 'payment',
@@ -1095,7 +1133,7 @@ abstract class DisplayAdapter
 
         if (strpos($event_type, 'payment.') === 0) {
             return [
-                'dashicon' => 'dashicons-payment',
+                'dashicon' => 'dashicons-cloud-saved',
                 'theme_class' => 'odcm-component--payment',
                 'primary_color' => 'green-700',
                 'status_display' => 'payment',

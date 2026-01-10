@@ -170,6 +170,10 @@ class PayloadAnalyzer
      * - Use the FallbackRenderer for generic rendering
      * - Maintain the existing rendering behavior for compatibility
      *
+     * NOTE: This uses the legacy renderer system (FallbackRenderer) which is deprecated.
+     * Future migration should update this to use the DisplayAdapter system.
+     * @see \OrderDaemon\CompletionManager\API\Timeline\DisplayAdapter
+     *
      * @since 1.0.0
      *
      * @param array $payload The raw payload data from the audit log entry.

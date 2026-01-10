@@ -31,6 +31,9 @@ if (!defined('WPINC')) {
      * Direct mapping from event_type to renderer class.
      * No complex lookups or capability checks - just a simple array lookup.
      *
+     * @deprecated 1.2.1 Use AdapterRegistry::getAdapterForEvent() instead
+     * @see \OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry::getAdapterForEvent()
+     *
      * @param string $event_type The event type to get a renderer for
      * @return string Renderer class name
      */

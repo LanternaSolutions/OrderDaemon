@@ -6,7 +6,6 @@ namespace OrderDaemon\CompletionManager\Admin;
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
-use OrderDaemon\CompletionManager\Includes\Odcm_Strings;
 use OrderDaemon\CompletionManager\Includes\DependencyChecker;
 use OrderDaemon\CompletionManager\View\DashboardComponents\UnifiedHeaderRenderer;
 use OrderDaemon\CompletionManager\View\DashboardComponents\FilterPaneRenderer;

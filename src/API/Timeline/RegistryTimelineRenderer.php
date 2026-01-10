@@ -4,8 +4,11 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\API\Timeline;
 
 /**
- * Timeline renderer using the existing PayloadComponentRegistry system
- * 
+ * Timeline renderer using the DisplayAdapter system
+ *
+ * This class implements the modern timeline rendering system using DisplayAdapters
+ * and has been migrated away from the legacy PayloadComponentRegistry system.
+ *
  * @package OrderDaemon\CompletionManager\API\Timeline
  * @since   1.0.0
  */
@@ -27,16 +30,21 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 $sections['event_type']['value'] ?? 
                 __('Timeline Event', 'order-daemon');
 
+        // Use the new debug event title generation for universal_event_processing_debug events
+        $eventType = $rawPayload['event_type'] ?? 'unknown';
+        if ($eventType === 'universal_event_processing_debug') {
+            $title = DisplayAdapter::generateDebugEventTitle($rawPayload);
+        }
+
         // Extract primary status for status pill
-        $statusData = $this->extractPrimaryStatus($displayData, $rawPayload);
+        $statusData = DisplayAdapter::extractPrimaryStatus($displayData, $rawPayload);
         $statusPill = null;
         if ($statusData) {
-            $statusPill = $this->renderStatusPill($statusData['label'], $statusData['type']);
+            $statusPill = DisplayAdapter::renderStatusPill($statusData['label'], $statusData['type']);
         }
 
         // Get event type configuration for icon
-        $eventType = $rawPayload['event_type'] ?? 'unknown';
-        $eventConfig = $this->getEventTypeConfig($eventType);
+        $eventConfig = DisplayAdapter::getEventTypeConfig($eventType);
         $dashicon = $eventConfig['dashicon'] ?? 'dashicons-admin-generic';
         $themeClass = $eventConfig['theme_class'] ?? 'odcm-component--system';
 
@@ -61,9 +69,6 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         if (!$timeline->hasComponents()) {
             return $this->renderEmptyTimeline($timeline);
         }
-
-        // Load the existing registry system
-        $this->ensureRegistryLoaded();
 
         // Build parent-child relationship map for hierarchy visualization
         $hierarchyMap = $this->buildHierarchyMap($timeline->components);
@@ -315,115 +320,6 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     }
     
     /**
-     * Generate a fallback component for order events that failed to render
-     * 
-     * @param array $component The component that failed to render
-     * @param string $eventType The overall event type
-     * @return string Basic HTML to show key order information
-     */
-    private function generateOrderEventFallback(array $component, string $eventType): string
-    {
-        $label = $component['label'] ?? ucfirst($eventType);
-        $rawTimestamp = $component['ts'] ?? time();
-        $level = $component['level'] ?? 'info';
-        $orderId = $component['order_id'] ?? ($component['data']['order_id'] ?? null);
-        
-        $html = '<div class="odcm-component odcm-level-' . esc_attr($level) . ' odcm-fallback">';
-        $html .= '<div class="odcm-component__header">';
-        $html .= '<div class="odcm-component__header-top">';
-        $html .= '<div class="odcm-component__header-left">';
-        $html .= '<div class="odcm-component__title">' . esc_html($label) . ' <span class="odcm-fallback-badge">Fallback View</span></div>';
-        $html .= '</div>';
-        $html .= '</div>';
-        $html .= '<div class="odcm-component__header-bottom">';
-        $html .= '<span class="odcm-component__ts js-format-timestamp" x-text="formatTimestamp(' . esc_attr($rawTimestamp) . ', $el)"></span>';
-        $html .= '</div>';
-        $html .= '</div>';
-        $html .= '<div class="odcm-component__body">';
-        
-        // Show order ID if available
-        if ($orderId) {
-            $html .= '<p><strong>Order ID:</strong> ' . esc_html($orderId) . '</p>';
-        }
-        
-        // Show event type
-        $componentEventType = $component['event_type'] ?? $eventType;
-        $html .= '<p><strong>Event Type:</strong> ' . esc_html($componentEventType) . '</p>';
-        
-        // Add a standard message
-        $html .= '<p>Order event details are available. This is a fallback view.</p>';
-        
-        $html .= '</div>';
-        $html .= '</div>';
-        $html .= '</div>';
-        
-        return $html;
-    }
-    
-    /**
-     * Generate an empty order fallback when no components rendered successfully
-     *
-     * @param string $eventType The overall event type
-     * @param array $metadata The timeline metadata
-     * @return string Basic HTML showing order information
-     */
-    private function generateEmptyOrderFallback(string $eventType, array $metadata): string
-    {
-        $orderId = $metadata['order_id'] ?? null;
-        $label = odcm_get_component_label($eventType) ?? ucfirst(str_replace('_', ' ', $eventType));
-        $rawTimestamp = $metadata['timestamp'] ?? time();
-
-        $html = '<div class="odcm-timeline-list">';
-        $html .= '<div class="odcm-component odcm-level-info odcm-zero-error-fallback">';
-        $html .= '<div class="odcm-component__header">';
-        $html .= '<div class="odcm-component__header-top">';
-        $html .= '<div class="odcm-component__header-left">';
-        $html .= '<div class="odcm-component__title">' . esc_html($label) . ' <span class="odcm-fallback-badge">Zero-Error Fallback</span></div>';
-        $html .= '</div>';
-        $html .= '</div>';
-        $html .= '<div class="odcm-component__header-bottom">';
-        $html .= '<span class="odcm-component__ts js-format-timestamp" x-text="formatTimestamp(' . esc_attr($rawTimestamp) . ', $el)"></span>';
-        $html .= '</div>';
-        $html .= '</div>';
-        $html .= '<div class="odcm-component__body">';
-
-        if ($orderId) {
-            $html .= '<p><strong>Order ID:</strong> ' . esc_html($orderId) . '</p>';
-        }
-
-        $html .= '<p><strong>Event Type:</strong> ' . esc_html($eventType) . '</p>';
-        $html .= '<p>This order event was processed, but detailed component visualization is not available.</p>';
-
-        // Add any additional metadata that might be useful
-        if (isset($metadata['timestamp'])) {
-                $html .= '<p><strong>Timestamp:</strong> <span class="js-format-timestamp" x-text="formatTimestamp(' . esc_attr($metadata['timestamp']) . ', $el)"></span></p>';
-        }
-
-        $html .= '</div>';
-        $html .= '</div>';
-        $html .= '</div>';
-
-        return $html;
-    }
-    
-    /**
-     * Format a timestamp value for display (DEPRECATED)
-     *
-     * This method is kept for backward compatibility but no longer used.
-     * All timestamp formatting is now handled client-side for consistency.
-     *
-     * @param mixed $ts The timestamp to format
-     * @return string Formatted timestamp
-     * @deprecated Use client-side formatting instead
-     */
-    private function formatTimestamp($ts): string
-    {
-        // This method is deprecated and should not be used
-        // All timestamp formatting is now handled client-side
-        return 'Invalid timestamp';
-    }
-    
-    /**
      * Render individual component using DisplayAdapter system with three-tier architecture
      *
      * @param array $payload The component payload data
@@ -456,15 +352,16 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             $displayData = $adapter->extractDisplayData($payload);
             $this->logDebugMessage("ODCM TIMELINE DEBUG: Successfully extracted display data", 'debug');
         } catch (\Throwable $e) {
-            $this->logDebugMessage('Failed to extract display data: ' . $e->getMessage(), 'error');
-            $this->logDebugMessage('Exception trace: ' . $e->getTraceAsString(), 'error');
-            return $this->renderFallbackComponent($payload, $isParent, $isChild);
+            // Log the primary adapter failure
+            $this->logDebugMessage('Primary adapter failed: ' . $e->getMessage(), 'warning');
+            
+            // Use GenericEventAdapter as THE fallback - it's guaranteed not to throw
+            $adapter = new GenericEventAdapter();
+            $displayData = $adapter->extractDisplayData($payload);
         }
 
-        // NEW: Render using three-tier architecture
+        // ALWAYS use the standard rendering pipeline - no exceptions
         $result = $this->renderThreeTierComponent($displayData, $payload);
-
-        // EXISTING: Apply hierarchy classes
         return $this->applyHierarchyClasses($result, $isParent, $isChild);
     }
 
@@ -482,7 +379,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     {
         // Get event type configuration for theme class
         $eventType = $rawPayload['event_type'] ?? 'unknown';
-        $eventConfig = $this->getEventTypeConfig($eventType);
+        $eventConfig = DisplayAdapter::getEventTypeConfig($eventType);
         $themeClass = $eventConfig['theme_class'] ?? 'odcm-component--system';
 
         // Override theme class for incomplete rule events
@@ -698,39 +595,6 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         return $html;
     }
 
-    /**
-     * Render fallback component when adapter fails
-     *
-     * @param array $payload The component payload data
-     * @param bool $isParent Whether this component is a parent
-     * @param bool $isChild Whether this component is a child
-     * @return string Rendered fallback HTML
-     */
-    private function renderFallbackComponent(array $payload, bool $isParent, bool $isChild): string
-    {
-        $label = $payload['label'] ?? $payload['event_type'] ?? __('Timeline Event', 'order-daemon');
-        $rawTimestamp = $payload['ts'] ?? time();
-        $level = $payload['level'] ?? 'info';
-        
-        $html = '<div class="odcm-component odcm-fallback">';
-        $html .= '<div class="odcm-component__header">';
-        $html .= '<div class="odcm-component__header-top">';
-        $html .= '<div class="odcm-component__header-left">';
-        $html .= '<div class="odcm-component__title">' . esc_html($label) . 
-                 ' <span class="odcm-fallback-badge">' . esc_html__('Fallback View', 'order-daemon') . '</span></div>';
-        $html .= '</div>';
-        $html .= '</div>';
-        $html .= '<div class="odcm-component__header-bottom">';
-        $html .= '<span class="odcm-component__ts js-format-timestamp" x-text="formatTimestamp(' . esc_attr($rawTimestamp) . ', $el)"></span>';
-        $html .= '</div>';
-        $html .= '</div>';
-        $html .= '<div class="odcm-component__body">';
-        $html .= '<p>' . esc_html__('Event data is available but could not be processed normally.', 'order-daemon') . '</p>';
-        $html .= '</div>';
-        $html .= '</div>';
-        
-        return $this->applyHierarchyClasses($html, $isParent, $isChild);
-    }
     
     
     /**
@@ -745,50 +609,6 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         return '<div class="odcm-empty-data">' . esc_html($message) . '</div>';
     }
     
-    /**
-     * Ensure the registry system is loaded
-     */
-    private function ensureRegistryLoaded(): void
-    {
-        $core_dir = dirname(__DIR__, 2) . '/Core/';
-        $renderer_dir = dirname(__DIR__, 2) . '/View/PayloadRenderer/';
-        
-        // Load the registry system defensively
-        if (!function_exists('odcm_get_renderer_for_event_type')) {
-            try {
-                require_once $core_dir . 'PayloadComponentRegistry.php';
-            } catch (\Throwable $e) {
-                $this->logDebugMessage('ODCM TIMELINE DEBUG: Failed to load PayloadComponentRegistry.php: ' . $e->getMessage(), 'error');
-            }
-        }
-        
-        // Load UI toolkit defensively
-        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\PayloadComponentUIToolkit')) {
-            try {
-                require_once $renderer_dir . 'PayloadComponentUIToolkit.php';
-            } catch (\Throwable $e) {
-                $this->logDebugMessage('ODCM TIMELINE DEBUG: Failed to load PayloadComponentUIToolkit.php: ' . $e->getMessage(), 'error');
-            }
-        }
-
-        // Ensure base renderer classes are available for safe fallback
-        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\BaseRenderer')) {
-            try { require_once $renderer_dir . 'BaseRenderer.php'; } catch (\Throwable $e) {
-                $this->logDebugMessage('ODCM TIMELINE DEBUG: Failed to load BaseRenderer.php: ' . $e->getMessage(), 'error');
-            }
-        }
-        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer')) {
-            try { require_once $renderer_dir . 'FallbackRenderer.php'; } catch (\Throwable $e) {
-                $this->logDebugMessage('ODCM TIMELINE DEBUG: Failed to load FallbackRenderer.php: ' . $e->getMessage(), 'error');
-            }
-        }
-        // Ensure OrderRenderer is available for order event fallbacks
-        if (!class_exists('OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\OrderRenderer')) {
-            try { require_once $renderer_dir . 'OrderRenderer.php'; } catch (\Throwable $e) {
-                $this->logDebugMessage('ODCM TIMELINE DEBUG: Failed to load OrderRenderer.php: ' . $e->getMessage(), 'error');
-            }
-        }
-    }
     
     /**
      * Apply hierarchy CSS classes to rendered timeline component HTML
@@ -1076,148 +896,6 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         }
     }
 
-    /**
-     * Generate status pill HTML for timeline component headers
-     *
-     * @param string $label Display text for the status pill
-     * @param string $status_type Status type for CSS theming
-     * @return string HTML status pill element
-     */
-    private function renderStatusPill(string $label, string $status_type): string
-    {
-        // Map semantic types to existing pill variants
-        $pill_variant_map = [
-            'error' => 'error',
-            'warning' => 'warning',
-            'success' => 'success',
-            'info' => 'info',
-            'completed' => 'completed',
-            'pending' => 'pending',
-            'skipped' => 'skipped',
-            'debug' => 'debug'
-        ];
-
-        // Get the appropriate pill variant, default to 'info' for unknown types
-        $pill_class = $pill_variant_map[strtolower($status_type)] ?? 'info';
-
-        return '<span class="odcm-status-pill odcm-status-pill--' . esc_attr($pill_class) . '">' .
-               esc_html($label) . '</span>';
-    }
-
-    /**
-     * Map status value to appropriate status pill type
-     *
-     * @param string $eventType The event type
-     * @param string $statusValue The status value
-     * @return string Status pill type
-     */
-    private function mapStatusToPillType(string $eventType, string $statusValue): string
-    {
-        $statusMap = [
-            // Order statuses
-            'pending' => 'info',
-            'processing' => 'info',
-            'on-hold' => 'warning',
-            'completed' => 'success',
-            'cancelled' => 'warning',
-            'refunded' => 'info',
-            'failed' => 'error',
-
-            // Payment statuses
-            'paid' => 'success',
-            'completed' => 'success',
-            'failed' => 'error',
-            'pending' => 'info',
-            'processing' => 'info',
-            'refunded' => 'info',
-            'cancelled' => 'warning',
-
-            // Rule execution statuses
-            'success' => 'success',
-            'failed' => 'error',
-            'skipped' => 'info',
-            'executed' => 'success',
-
-            // Generic statuses
-            'error' => 'error',
-            'warning' => 'warning',
-            'info' => 'info',
-            'debug' => 'debug'
-        ];
-
-        // Special handling for debug events - use debug status pill
-        if (in_array($eventType, ['rule_evaluation_non_canonical', 'debug'])) {
-            return 'debug';
-        }
-
-        return $statusMap[strtolower($statusValue)] ?? 'info';
-    }
-
-    /**
-     * Extract primary status from display data for status pill
-     *
-     * @param array $displayData The display data from adapter
-     * @param array $rawPayload The original event payload
-     * @return array|null Array with 'label' and 'type' for status pill, or null if no status
-     */
-    private function extractPrimaryStatus(array $displayData, array $rawPayload): ?array
-    {
-        $eventType = $rawPayload['event_type'] ?? 'unknown';
-
-        // Special handling for checkout_processed events - should not show status pill per spec
-        if ($eventType === 'checkout_processed') {
-            return null;
-        }
-
-        // Special handling for status_changed events - should not show status pill as it's redundant
-        if ($eventType === 'status_changed') {
-            return null;
-        }
-
-        // Special handling for debug events - they should always have a debug status pill
-        if (in_array($eventType, ['rule_evaluation_non_canonical', 'debug', 'process_started', 'order_loaded'])) {
-            return [
-                'label' => 'debug',
-                'type' => 'debug'
-            ];
-        }
-
-        // Special handling for incomplete rule events (Rule Processing Started) - they should have debug status pills
-        if ($this->isIncompleteRuleEvent($rawPayload)) {
-            return [
-                'label' => 'debug',
-                'type' => 'debug'
-            ];
-        }
-
-        // Try to extract status from display sections first
-        $statusFields = ['status', 'order_status', 'payment_status', 'execution_status', 'status_change'];
-
-        foreach ($statusFields as $field) {
-            if (isset($displayData['display_sections'][$field])) {
-                $statusValue = $displayData['display_sections'][$field]['value'] ?? '';
-
-                // Map status to pill type based on event type
-                $pillType = $this->mapStatusToPillType($eventType, $statusValue);
-
-                return [
-                    'label' => $statusValue,
-                    'type' => $pillType
-                ];
-            }
-        }
-
-        // Fallback: try to extract from raw payload
-        if (isset($rawPayload['status'])) {
-            $pillType = $this->mapStatusToPillType($eventType, $rawPayload['status']);
-            return [
-                'label' => $rawPayload['status'],
-                'type' => $pillType
-            ];
-        }
-
-        return null;
-    }
 
     /**
      * Check if this is an incomplete rule event (processing started)
@@ -1245,354 +923,5 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                             !empty($payload['data']['status']);
 
         return !$hasCompleteData && $hasProcessingData;
-    }
-
-    /**
-     * Get event type configuration
-     *
-     * @param string $event_type The event type
-     * @return array Event configuration
-     */
-    private function getEventTypeConfig(string $event_type): array
-    {
-        $event_configs = [
-            // Order events
-            'order_created' => [
-                'dashicon' => 'dashicons-plus-alt',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'pending',
-                'priority' => 4,
-                'category' => 'Order Lifecycle'
-            ],
-            'order_updated' => [
-                'dashicon' => 'dashicons-update',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'updated',
-                'priority' => 3,
-                'category' => 'Order Lifecycle'
-            ],
-            'order_completed' => [
-                'dashicon' => 'dashicons-yes',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'completed',
-                'priority' => 3,
-                'category' => 'Order Lifecycle'
-            ],
-            'order_cancelled' => [
-                'dashicon' => 'dashicons-no',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'cancelled',
-                'priority' => 3,
-                'category' => 'Order Lifecycle'
-            ],
-            'order_refunded' => [
-                'dashicon' => 'dashicons-undo',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'refunded',
-                'priority' => 3,
-                'category' => 'Order Lifecycle'
-            ],
-            'order_processing' => [
-                'dashicon' => 'dashicons-update',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'processing',
-                'priority' => 3,
-                'category' => 'Order Lifecycle'
-            ],
-            'order_on_hold' => [
-                'dashicon' => 'dashicons-pause',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'on hold',
-                'priority' => 3,
-                'category' => 'Order Lifecycle'
-            ],
-            'order_pending' => [
-                'dashicon' => 'dashicons-cart',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'pending',
-                'priority' => 4,
-                'category' => 'Order Lifecycle'
-            ],
-            'order_failed' => [
-                'dashicon' => 'dashicons-warning',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'failed',
-                'priority' => 3,
-                'category' => 'Order Lifecycle'
-            ],
-            'status_changed' => [
-                'dashicon' => 'dashicons-migrate',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => '→ completed',
-                'priority' => 3,
-                'category' => 'Order Lifecycle'
-            ],
-            'checkout_processed' => [
-                'dashicon' => 'dashicons-cart',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'checkout-draft',
-                'priority' => 3,
-                'category' => 'Payment'
-            ],
-            // Payment events
-            'payment_completed' => [
-                'dashicon' => 'dashicons-money-alt',
-                'theme_class' => 'odcm-component--payment',
-                'primary_color' => 'green-700',
-                'status_display' => 'completed',
-                'priority' => 3,
-                'category' => 'Payment'
-            ],
-            'payment_failed' => [
-                'dashicon' => 'dashicons-money-alt',
-                'theme_class' => 'odcm-component--payment',
-                'primary_color' => 'green-700',
-                'status_display' => 'failed',
-                'priority' => 3,
-                'category' => 'Payment'
-            ],
-            // Rule execution events
-            'rule_execution' => [
-                'dashicon' => 'dashicons-yes-alt',
-                'theme_class' => 'odcm-component--rule',
-                'primary_color' => 'blue-700',
-                'status_display' => 'success',
-                'priority' => 2,
-                'category' => 'Rule'
-            ],
-            // System events
-            'admin_action' => [
-                'dashicon' => 'dashicons-admin-tools',
-                'theme_class' => 'odcm-component--system',
-                'primary_color' => 'grey-700',
-                'status_display' => 'admin',
-                'priority' => 1,
-                'category' => 'System'
-            ],
-            'process_started' => [
-                'dashicon' => 'dashicons-admin-tools',
-                'theme_class' => 'odcm-component--system',
-                'primary_color' => 'grey-700',
-                'status_display' => 'started',
-                'priority' => 1,
-                'category' => 'System'
-            ],
-            'info' => [
-                'dashicon' => 'dashicons-info-outline',
-                'theme_class' => 'odcm-component--system',
-                'primary_color' => 'grey-700',
-                'status_display' => 'info',
-                'priority' => 1,
-                'category' => 'System'
-            ],
-            'metrics' => [
-                'dashicon' => 'dashicons-admin-tools',
-                'theme_class' => 'odcm-component--system',
-                'primary_color' => 'grey-700',
-                'status_display' => 'metrics',
-                'priority' => 1,
-                'category' => 'System'
-            ],
-            'system_info' => [
-                'dashicon' => 'dashicons-admin-tools',
-                'theme_class' => 'odcm-component--system',
-                'primary_color' => 'grey-700',
-                'status_display' => 'system',
-                'priority' => 1,
-                'category' => 'System'
-            ],
-            // Refund events
-            'refund_created' => [
-                'dashicon' => 'dashicons-undo',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'refunded',
-                'priority' => 3,
-                'category' => 'Order Lifecycle'
-            ],
-            'refund_deleted' => [
-                'dashicon' => 'dashicons-undo',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'refund deleted',
-                'priority' => 3,
-                'category' => 'Order Lifecycle'
-            ],
-            'refund_analysis' => [
-                'dashicon' => 'dashicons-undo',
-                'theme_class' => 'odcm-component--order',
-                'primary_color' => 'purple-700',
-                'status_display' => 'refund analysis',
-                'priority' => 3,
-                'category' => 'Order Lifecycle'
-            ],
-            // Subscription events
-            'subscription_created' => [
-                'dashicon' => 'dashicons-calendar',
-                'theme_class' => 'odcm-component--system',
-                'primary_color' => 'grey-700',
-                'status_display' => 'recurring',
-                'priority' => 2,
-                'category' => 'Order Lifecycle'
-            ],
-            // Webhook events
-            'webhook_received' => [
-                'dashicon' => 'dashicons-networking',
-                'theme_class' => 'odcm-component--system',
-                'primary_color' => 'grey-700',
-                'status_display' => 'webhook',
-                'priority' => 1,
-                'category' => 'System'
-            ],
-            // Condition events
-            'condition_passed' => [
-                'dashicon' => 'dashicons-yes-alt',
-                'theme_class' => 'odcm-component--rule',
-                'primary_color' => 'blue-700',
-                'status_display' => 'passed',
-                'priority' => 2,
-                'category' => 'Rule'
-            ],
-            'condition_failed' => [
-                'dashicon' => 'dashicons-no',
-                'theme_class' => 'odcm-component--rule',
-                'primary_color' => 'blue-700',
-                'status_display' => 'failed',
-                'priority' => 2,
-                'category' => 'Rule'
-            ],
-            // Error/Debug events
-            'fallback' => [
-                'dashicon' => 'dashicons-warning',
-                'theme_class' => 'odcm-component--error',
-                'primary_color' => 'red-700',
-                'status_display' => 'error',
-                'priority' => 1,
-                'category' => 'System'
-            ],
-            'debug' => [
-                'dashicon' => 'dashicons-info',
-                'theme_class' => 'odcm-component--debug',
-                'primary_color' => 'yellow-700',
-                'status_display' => 'debug',
-                'priority' => 1,
-                'category' => 'System'
-            ],
-            'rule_evaluation_non_canonical' => [
-                'dashicon' => 'dashicons-controls-play',
-                'theme_class' => 'odcm-component--debug',
-                'primary_color' => 'yellow-700',
-                'status_display' => 'non-canonical',
-                'priority' => 2,
-                'category' => 'Rule'
-            ],
-            'rule_no_match' => [
-                'dashicon' => 'dashicons-no-alt',
-                'theme_class' => 'odcm-component--debug',
-                'primary_color' => 'yellow-700',
-                'status_display' => 'debug',
-                'priority' => 1,
-                'category' => 'Debug'
-            ],
-            // Universal events
-            'universal_event_processing' => [
-                'dashicon' => 'dashicons-admin-generic',
-                'theme_class' => 'odcm-component--system',
-                'primary_color' => 'grey-700',
-                'status_display' => 'processed',
-                'priority' => 1,
-                'category' => 'System'
-            ],
-            'universal_event_duplicate' => [
-                'dashicon' => 'dashicons-admin-generic',
-                'theme_class' => 'odcm-component--system',
-                'primary_color' => 'grey-700',
-                'status_display' => 'duplicate',
-                'priority' => 1,
-                'category' => 'System'
-            ]
-        ];
-
-        // Check for exact match
-        if (isset($event_configs[$event_type])) {
-            return $event_configs[$event_type];
-        }
-
-        // Check for patterns
-        if (strpos($event_type, 'payment.stripe.') === 0) {
-            return [
-                'dashicon' => 'dashicons-money-alt',
-                'theme_class' => 'odcm-component--payment',
-                'primary_color' => 'green-700',
-                'status_display' => 'payment',
-                'priority' => 3,
-                'category' => 'Payment'
-            ];
-        }
-
-        if (strpos($event_type, 'payment.paypal.') === 0) {
-            return [
-                'dashicon' => 'dashicons-money-alt',
-                'theme_class' => 'odcm-component--payment',
-                'primary_color' => 'green-700',
-                'status_display' => 'payment',
-                'priority' => 3,
-                'category' => 'Payment'
-            ];
-        }
-
-        if (strpos($event_type, 'payment.') === 0) {
-            return [
-                'dashicon' => 'dashicons-money-alt',
-                'theme_class' => 'odcm-component--payment',
-                'primary_color' => 'green-700',
-                'status_display' => 'payment',
-                'priority' => 3,
-                'category' => 'Payment'
-            ];
-        }
-
-        if (strpos($event_type, 'subscription_') === 0) {
-            return [
-                'dashicon' => 'dashicons-calendar',
-                'theme_class' => 'odcm-component--system',
-                'primary_color' => 'grey-700',
-                'status_display' => 'recurring',
-                'priority' => 2,
-                'category' => 'System'
-            ];
-        }
-
-        if (strpos($event_type, 'webhook_') === 0) {
-            return [
-                'dashicon' => 'dashicons-networking',
-                'theme_class' => 'odcm-component--system',
-                'primary_color' => 'grey-700',
-                'status_display' => 'webhook',
-                'priority' => 1,
-                'category' => 'System'
-            ];
-        }
-
-        // Default fallback
-        return [
-            'dashicon' => 'dashicons-admin-generic',
-            'theme_class' => 'odcm-component--system',
-            'primary_color' => 'grey-700',
-            'status_display' => 'event',
-            'priority' => 1,
-            'category' => 'System'
-        ];
     }
 }

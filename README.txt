@@ -200,9 +200,26 @@ Priority support and advanced features are available with our premium plans at [
 **Contributing**
 Order Daemon is open source! Developers can contribute to the project and report issues on our GitHub repository.
 
+== External Services ==
+
+This plugin connects to PayPal's API services to verify payment notifications and ensure secure transaction processing.
+
+**PayPal API Services**
+- **Service**: PayPal IPN and Webhook Verification
+- **Purpose**: Verify authenticity of PayPal payment notifications to prevent fraud
+- **Data Sent**: Transaction details (payment status, transaction ID, amount, currency) and webhook payloads
+- **When Sent**: During PayPal payment processing when configured to handle PayPal payments
+- **Terms of Service**: https://www.paypal.com/legalhub
+- **Privacy Policy**: https://www.paypal.com/privacy
+
+**Important Notes About Google Services**
+The plugin's diagnostic system mentions Google Tag Manager, Google Analytics, and reCAPTCHA as examples of common third-party services that might be detected as duplicates. However, Order Daemon does NOT actively connect to or use these Google services. These are only diagnostic reference patterns used to identify potential script conflicts caused by other plugins or themes.
+
 == Privacy Policy ==
 
 Order Daemon does not collect, store, or transmit any personal data outside of your WordPress installation. All automation activity is logged locally on your server for auditing purposes. The plugin respects WordPress privacy standards and GDPR compliance requirements.
+
+The plugin may connect to PayPal's API services to verify payment notifications when processing PayPal transactions, as documented in the External Services section above.
 
 == License ==
 

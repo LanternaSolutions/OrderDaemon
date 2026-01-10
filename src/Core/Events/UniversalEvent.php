@@ -227,9 +227,7 @@ final class UniversalEvent
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage("Processing idempotencyKey: " . $this->formatDebugValue($data['idempotencyKey'] ?? ''));
             }
-            $this->idempotencyKey = !empty($data['idempotencyKey']) 
-                ? sanitize_text_field((string) $data['idempotencyKey'])
-                : $this->generateIdempotencyKey();
+            $this->idempotencyKey = $this->validateIdempotencyKey($data['idempotencyKey'] ?? null);
                 
             // Sanitize raw data
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -438,6 +436,42 @@ final class UniversalEvent
             throw new \InvalidArgumentException('Event type is required');
         }
         return $eventType;
+    }
+
+    /**
+     * Validate source gateway
+     * 
+     * @param string|null $sourceGateway
+     * @return string|null
+     * @throws \InvalidArgumentException
+     */
+    private function validateSourceGateway(?string $sourceGateway): ?string
+    {
+        if ($sourceGateway === null) {
+            return null;
+        }
+
+        $sanitized = sanitize_text_field($sourceGateway);
+        if ($sanitized === '') {
+            throw new \InvalidArgumentException('Source gateway cannot be empty');
+        }
+        return $sanitized;
+    }
+
+    /**
+     * Validate idempotency key
+     * 
+     * @param string|null $idempotencyKey
+     * @return string
+     * @throws \InvalidArgumentException
+     */
+    private function validateIdempotencyKey(?string $idempotencyKey): string
+    {
+        if (empty($idempotencyKey)) {
+            throw new \InvalidArgumentException('Idempotency key is required');
+        }
+
+        return sanitize_text_field((string) $idempotencyKey);
     }
 
     /**

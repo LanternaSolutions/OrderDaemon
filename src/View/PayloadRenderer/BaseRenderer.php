@@ -12,6 +12,8 @@ namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
  *
  * @package OrderDaemon\CompletionManager\View\PayloadRenderer
  * @since   1.0.0
+ * @deprecated 1.2.1 Use DisplayAdapter system instead
+ * @see \OrderDaemon\CompletionManager\API\Timeline\DisplayAdapter
  */
 class BaseRenderer
 {

@@ -117,32 +117,6 @@ class Admin
                 '</p></div>';
         });
         
-        // Add additional script in the footer to enhance the drag-and-drop experience
-        add_action('admin_footer', function() {
-            ?>
-            <script>
-            jQuery(document).ready(function($) {
-                // Add data-id attribute to each table row based on the post ID
-                $('#the-list tr').each(function() {
-                    const postId = $(this).attr('id').replace('post-', '');
-                    if (postId) {
-                        $(this).attr('data-id', postId);
-                    }
-                });
-                
-                // Initialize priority column values
-                $('#the-list tr').each(function(index) {
-                    // Find the priority column and update its text
-                    const $priorityCell = $(this).find('.column-priority');
-                    if ($priorityCell.length && $priorityCell.text().trim() === '') {
-                        $priorityCell.text(index);
-                    }
-                });
-            });
-            </script>
-            <?php
-        });
-        
         // Verify nonce if this is a form submission
         if (!empty($_REQUEST) && isset($_REQUEST['_wpnonce'])) {
             $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
@@ -159,28 +133,6 @@ class Admin
             return $classes;
         }, 10, 3);
         
-        // Add data-id attribute to each row to enable drag-and-drop
-        add_action('manage_posts_custom_column', function($column_name, $post_id) {
-            // We only need to do this once per row, so we'll use the first column
-            static $already_added = [];
-            
-            // Skip if we've already processed this post
-            if (isset($already_added[$post_id])) {
-                return;
-            }
-            
-            // Only for our post type
-            if (get_post_type($post_id) !== 'odcm_order_rule') {
-                return;
-            }
-            
-            // Add JavaScript to inject data-id attribute
-            echo '<script>jQuery(document).ready(function($) {
-                $("#post-' . esc_attr($post_id, 'order-daemon') . '").attr("data-id", "' . esc_attr($post_id, 'order-daemon') . '");
-            });</script>';
-            
-            $already_added[$post_id] = true;
-        }, 999, 2);
     }
                 
     /**
@@ -700,9 +652,4 @@ class Admin
             'href'   => admin_url('post-new.php?post_type=odcm_order_rule'),
         ));
     }
-
-
-
-
-
-}//end class
+}

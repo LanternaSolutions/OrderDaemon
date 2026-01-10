@@ -167,12 +167,18 @@ class UniversalEventProcessor
                 $universal_event = new UniversalEvent($event_data);
             } catch (\InvalidArgumentException $e) {
                 // Log the specific validation failure in UniversalEvent constructor
-                $this->logError('UniversalEvent constructor validation failed: ' . $e->getMessage(), [
+                // and preserve detailed error information for display
+                $validation_error_details = [
                     'original_event_data' => $event_data,
                     'validation_error' => $e->getMessage(),
                     'error_file' => $e->getFile(),
                     'error_line' => $e->getLine(),
-                ], $process_id);
+                    'validation_field' => $this->extractValidationFieldFromError($e->getMessage()),
+                    'validation_rule' => $this->extractValidationRuleFromError($e->getMessage()),
+                    'event_data_structure' => $this->analyzeEventDataStructure($event_data),
+                ];
+
+                $this->logErrorWithDetails('UniversalEvent constructor validation failed: ' . $e->getMessage(), $validation_error_details, $process_id);
                 return false;
             } catch (\Throwable $e) {
                 // Log any other unexpected errors during UniversalEvent construction
@@ -558,8 +564,21 @@ class UniversalEventProcessor
             // Events without components only logged in debug mode
             $summary = $event->getSummary();
             $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
-            $message = !empty($summary) ? "No matching rules for: {$summary}" : sprintf('%s %s completed with no matching rules', $gateway, $event->eventType);
-            
+            $order_id = $context->getOrderId();
+            $amount = $event->amount;
+            $currency = $event->currency;
+
+            // Create user-friendly message based on event type
+            if ($event->eventType === 'order_check_scheduled') {
+                $message = "Scheduled check: no rules triggered";
+                $short_explanation = "Order Daemon checked Order #{$order_id} but no rules were triggered. This is normal. It is also common when the order has already been processed recently.";
+
+                // Add detailed explanation to payload
+                $payload_for_storage['debug_explanation'] = "Order Daemon automatically checks orders to run automation rules. This entry shows a check was performed on Order #{$order_id} (" . $gateway . ", " . $currency . " " . $amount . ") but no rules matched the current order status and conditions. Orders are often checked multiple times against different rules and triggers.";
+            } else {
+                $message = !empty($summary) ? "No matching rules for: {$summary}" : sprintf('%s %s completed with no matching rules', $gateway, $event->eventType);
+            }
+
             \odcm_log_event(
                 $message,
                 $payload_for_storage,
@@ -637,6 +656,494 @@ class UniversalEventProcessor
             false,
             $process_id
         );
+    }
+
+    /**
+     * Log error with detailed validation information for display
+     * 
+     * Enhanced error logging that preserves specific validation error details
+     * in the components payload for display in the UI.
+     * 
+     * @param string $message Error message
+     * @param array $context Error context with validation details
+     * @param string $process_id Process ID
+     * @return void
+     */
+    private function logErrorWithDetails(string $message, array $context, string $process_id): void
+    {
+        // Extract detailed validation information
+        $validation_error = $context['validation_error'] ?? 'Unknown validation error';
+        $validation_field = $context['validation_field'] ?? 'unknown_field';
+        $validation_rule = $context['validation_rule'] ?? 'unknown_rule';
+        $event_data_structure = $context['event_data_structure'] ?? [];
+        $original_event_data = $context['original_event_data'] ?? [];
+
+        // Create a detailed error component for display
+        $error_component = $this->createValidationErrorComponent(
+            $validation_error,
+            $validation_field,
+            $validation_rule,
+            $event_data_structure,
+            $original_event_data
+        );
+
+        // Create business-friendly error message
+        $gateway = $original_event_data['sourceGateway'] ?? 'Payment gateway';
+        $business_message = $this->createBusinessErrorMessage($message, $gateway);
+
+        // Build comprehensive error payload with validation details in components
+        $error_payload = [
+            'event_type' => $original_event_data['eventType'] ?? 'unknown',
+            'source_gateway' => $original_event_data['sourceGateway'] ?? 'unknown',
+            'idempotency_key' => $original_event_data['idempotencyKey'] ?? 'unknown',
+            'business_error_message' => $business_message,
+            'technical_error_message' => $message,
+            'error_file' => $context['error_file'] ?? '',
+            'error_line' => $context['error_line'] ?? '',
+            'execution_time_ms' => round(microtime(true) - $start_time * 1000, 2),
+            'event_data_summary' => [
+                'event_type' => $original_event_data['eventType'] ?? null,
+                'source_gateway' => $original_event_data['sourceGateway'] ?? null,
+                'primary_object_type' => $original_event_data['primaryObjectType'] ?? null,
+                'primary_object_id' => $original_event_data['primaryObjectID'] ?? null,
+            ],
+            'validation_details' => [
+                'validation_error' => $validation_error,
+                'validation_field' => $validation_field,
+                'validation_rule' => $validation_rule,
+                'event_data_structure_analysis' => $event_data_structure,
+            ],
+            'components' => [$error_component],
+            'rawData' => [
+                'original_event_data' => $original_event_data,
+                'validation_context' => $context,
+            ],
+        ];
+
+        \odcm_log_event(
+            $business_message,
+            $error_payload,
+            null,
+            'error',
+            'universal_event_processor_error',
+            false,
+            $process_id
+        );
+    }
+
+    /**
+     * Extract validation field from error message
+     * 
+     * @param string $error_message Error message from exception
+     * @return string Extracted field name or 'unknown'
+     */
+    private function extractValidationFieldFromError(string $error_message): string
+    {
+        // Common error message patterns and their field extraction
+        $patterns = [
+            '/Invalid (channel|eventType|primaryObjectType|timestamp):/' => 1,
+            '/Invalid ([\w]+) format:/' => 1,
+            '/Missing required field: ([\w]+)/' => 1,
+            '/Invalid ([\w]+) validation failed\./' => 1,
+        ];
+
+        foreach ($patterns as $pattern => $group) {
+            if (preg_match($pattern, $error_message, $matches)) {
+                return $matches[$group] ?? 'unknown';
+            }
+        }
+
+        // Try to extract field names from common validation messages
+        if (strpos($error_message, 'channel') !== false) {
+            return 'channel';
+        }
+        if (strpos($error_message, 'eventType') !== false) {
+            return 'eventType';
+        }
+        if (strpos($error_message, 'primaryObjectType') !== false) {
+            return 'primaryObjectType';
+        }
+        if (strpos($error_message, 'timestamp') !== false) {
+            return 'timestamp';
+        }
+        if (strpos($error_message, 'idempotencyKey') !== false) {
+            return 'idempotencyKey';
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * Extract validation rule from error message
+     * 
+     * @param string $error_message Error message from exception
+     * @return string Extracted validation rule or 'unknown'
+     */
+    private function extractValidationRuleFromError(string $error_message): string
+    {
+        // Common validation rule patterns
+        $rules = [
+            '/Must be one of: (.*?)$/' => 'Must be one of: $1',
+            '/Invalid format: (.*?)$/' => 'Invalid format: $1',
+            '/is required/' => 'Field is required',
+            '/cannot be empty/' => 'Field cannot be empty',
+            '/must be string/' => 'Field must be string',
+            '/must be numeric/' => 'Field must be numeric',
+            '/must be array/' => 'Field must be array',
+        ];
+
+        foreach ($rules as $pattern => $description) {
+            if (preg_match($pattern, $error_message, $matches)) {
+                if (isset($matches[1])) {
+                    return str_replace('$1', $matches[1], $description);
+                }
+                return $description;
+            }
+        }
+
+        // Try to identify specific validation rules
+        if (strpos($error_message, 'Must be one of:') !== false) {
+            return 'Field must be one of allowed values';
+        }
+        if (strpos($error_message, 'Invalid timestamp format') !== false) {
+            return 'Timestamp must be valid ISO8601 format';
+        }
+        if (strpos($error_message, 'is required') !== false) {
+            return 'Field is required but missing';
+        }
+        if (strpos($error_message, 'cannot be empty') !== false) {
+            return 'Field cannot be empty after sanitization';
+        }
+
+        return 'Unknown validation rule';
+    }
+
+    /**
+     * Analyze event data structure for debugging
+     * 
+     * @param array $event_data Event data to analyze
+     * @return array Structure analysis with field types and values
+     */
+    private function analyzeEventDataStructure(array $event_data): array
+    {
+        $analysis = [
+            'field_count' => count($event_data),
+            'field_types' => [],
+            'required_fields_present' => [],
+            'field_values' => [],
+        ];
+
+        // Check required fields
+        $required_fields = [
+            'eventType',
+            'sourceGateway',
+            'channel',
+            'primaryObjectType',
+            'occurredAt',
+            'receivedAt',
+            'idempotencyKey'
+        ];
+
+        foreach ($required_fields as $field) {
+            $analysis['required_fields_present'][$field] = isset($event_data[$field]);
+            if (isset($event_data[$field])) {
+                $analysis['field_types'][$field] = gettype($event_data[$field]);
+                $analysis['field_values'][$field] = $this->getSafeFieldValueForDisplay($event_data[$field]);
+            }
+        }
+
+        // Add validation-specific analysis
+        $analysis['validation_issues'] = $this->identifyPotentialValidationIssues($event_data);
+
+        return $analysis;
+    }
+
+    /**
+     * Get safe field value for display (truncated and sanitized)
+     * 
+     * @param mixed $value Field value
+     * @return string Safe display value
+     */
+    private function getSafeFieldValueForDisplay($value): string
+    {
+        if (is_null($value)) {
+            return 'NULL';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_string($value)) {
+            $safe_value = substr($value, 0, 50); // Truncate long strings
+            return '"' . esc_html($safe_value) . (strlen($value) > 50 ? '..."' : '"');
+        }
+
+        if (is_numeric($value)) {
+            return (string)$value;
+        }
+
+        if (is_array($value)) {
+            return '[array with ' . count($value) . ' elements]';
+        }
+
+        if (is_object($value)) {
+            return '[object of class ' . get_class($value) . ']';
+        }
+
+        return '[' . gettype($value) . ']';
+    }
+
+    /**
+     * Identify potential validation issues in event data
+     * 
+     * @param array $event_data Event data to analyze
+     * @return array Potential validation issues found
+     */
+    private function identifyPotentialValidationIssues(array $event_data): array
+    {
+        $issues = [];
+
+        // Check for empty strings in required fields
+        $required_fields = ['eventType', 'channel', 'primaryObjectType', 'occurredAt', 'receivedAt', 'idempotencyKey'];
+
+        foreach ($required_fields as $field) {
+            if (isset($event_data[$field]) && $event_data[$field] === '') {
+                $issues[] = "Required field '{$field}' is empty string";
+            }
+        }
+
+        // Check channel validity
+        if (isset($event_data['channel'])) {
+            $valid_channels = ['webhook', 'ipn', 'sdk', 'manual', 'system', 'scheduled'];
+            if (!in_array($event_data['channel'], $valid_channels)) {
+                $issues[] = "Invalid channel value: '{$event_data['channel']}'. Must be one of: " . implode(', ', $valid_channels);
+            }
+        }
+
+        // Check primaryObjectType validity
+        if (isset($event_data['primaryObjectType'])) {
+            $valid_object_types = ['order', 'subscription', 'refund', 'authorization', 'membership', 'customer', 'product'];
+            if (!in_array($event_data['primaryObjectType'], $valid_object_types)) {
+                $issues[] = "Invalid primaryObjectType value: '{$event_data['primaryObjectType']}'. Must be one of: " . implode(', ', $valid_object_types);
+            }
+        }
+
+        // Check timestamp formats
+        if (isset($event_data['occurredAt']) && !empty($event_data['occurredAt'])) {
+            if (!$this->isValidTimestampFormat($event_data['occurredAt'])) {
+                $issues[] = "Invalid occurredAt timestamp format: '{$event_data['occurredAt']}'";
+            }
+        }
+
+        if (isset($event_data['receivedAt']) && !empty($event_data['receivedAt'])) {
+            if (!$this->isValidTimestampFormat($event_data['receivedAt'])) {
+                $issues[] = "Invalid receivedAt timestamp format: '{$event_data['receivedAt']}'";
+            }
+        }
+
+        return $issues;
+    }
+
+    /**
+     * Check if timestamp is in valid format
+     * 
+     * @param string $timestamp Timestamp to check
+     * @return bool True if valid format
+     */
+    private function isValidTimestampFormat(string $timestamp): bool
+    {
+        // Check if it's a valid ISO8601 timestamp
+        try {
+            new \DateTime($timestamp);
+            return true;
+        } catch (\Exception $e) {
+            // Not ISO8601, check if it's a numeric Unix timestamp
+            return is_numeric($timestamp);
+        }
+    }
+
+    /**
+     * Create validation error component for display
+     * 
+     * Creates a structured component with detailed validation error information
+     * that can be displayed in the UI timeline.
+     * 
+     * @param string $validation_error The validation error message
+     * @param string $validation_field The field that failed validation
+     * @param string $validation_rule The validation rule that failed
+     * @param array $event_data_structure Event data structure analysis
+     * @param array $original_event_data Original event data
+     * @return array Validation error component
+     */
+    private function createValidationErrorComponent(
+        string $validation_error,
+        string $validation_field,
+        string $validation_rule,
+        array $event_data_structure,
+        array $original_event_data
+    ): array {
+        // Create user-friendly descriptions
+        $field_description = $this->getFieldDescription($validation_field);
+        $rule_description = $this->getRuleDescription($validation_rule, $validation_field);
+
+        // Build the validation error component
+        $component = [
+            'event_type' => 'validation_error',
+            'label' => 'Payment Gateway Validation Error',
+            'ts' => microtime(true),
+            'level' => 'error',
+            'data' => [
+                'event_type' => 'validation_error',
+                'error_summary' => 'Payment gateway processor error: Invalid event data structure',
+                'validation_error' => $validation_error,
+                'validation_field' => $validation_field,
+                'validation_field_description' => $field_description,
+                'validation_rule' => $validation_rule,
+                'validation_rule_description' => $rule_description,
+                'source_gateway' => $original_event_data['sourceGateway'] ?? 'unknown',
+                'event_type' => $original_event_data['eventType'] ?? 'unknown',
+                'idempotency_key' => $original_event_data['idempotencyKey'] ?? 'unknown',
+                'primary_object_type' => $original_event_data['primaryObjectType'] ?? null,
+                'primary_object_id' => $original_event_data['primaryObjectID'] ?? null,
+
+                // Detailed validation information
+                'validation_details' => [
+                    'field_being_validated' => $validation_field,
+                    'field_description' => $field_description,
+                    'validation_rule' => $validation_rule,
+                    'validation_rule_description' => $rule_description,
+                    'error_message' => $validation_error,
+                    'suggested_fix' => $this->getSuggestedFix($validation_field, $validation_rule),
+                ],
+
+                // Event data structure analysis
+                'event_data_analysis' => $event_data_structure,
+
+                // Potential issues identified
+                'potential_issues' => $event_data_structure['validation_issues'] ?? [],
+
+                // Field values for debugging
+                'field_values' => $event_data_structure['field_values'] ?? [],
+            ],
+            'rawData' => [
+                'original_event_data' => $original_event_data,
+                'validation_context' => [
+                    'validation_error' => $validation_error,
+                    'validation_field' => $validation_field,
+                    'validation_rule' => $validation_rule,
+                ],
+            ],
+        ];
+
+        return $component;
+    }
+
+    /**
+     * Get user-friendly field description
+     * 
+     * @param string $field_name Field name
+     * @return string User-friendly description
+     */
+    private function getFieldDescription(string $field_name): string
+    {
+        $descriptions = [
+            'eventType' => 'Event Type - Identifies the type of event being processed',
+            'sourceGateway' => 'Source Gateway - The payment gateway that generated the event',
+            'channel' => 'Channel - How the event was received (webhook, IPN, etc.)',
+            'primaryObjectType' => 'Primary Object Type - The main entity type this event relates to',
+            'primaryObjectID' => 'Primary Object ID - The ID of the main entity',
+            'occurredAt' => 'Occurred At - When the event happened at the source',
+            'receivedAt' => 'Received At - When the plugin received the event',
+            'idempotencyKey' => 'Idempotency Key - Unique identifier for deduplication',
+            'timestamp' => 'Timestamp - When the event occurred',
+        ];
+
+        return $descriptions[$field_name] ?? "{$field_name} - Event data field";
+    }
+
+    /**
+     * Get user-friendly rule description
+     * 
+     * @param string $validation_rule Validation rule
+     * @param string $field_name Field name
+     * @return string User-friendly description
+     */
+    private function getRuleDescription(string $validation_rule, string $field_name): string
+    {
+        if (strpos($validation_rule, 'Must be one of:') !== false) {
+            return 'The field must be one of the allowed values';
+        }
+
+        if (strpos($validation_rule, 'Invalid format') !== false) {
+            return 'The field must be in the correct format';
+        }
+
+        if (strpos($validation_rule, 'is required') !== false) {
+            return 'This field is mandatory and cannot be missing';
+        }
+
+        if (strpos($validation_rule, 'cannot be empty') !== false) {
+            return 'This field cannot be empty after processing';
+        }
+
+        if (strpos($validation_rule, 'must be string') !== false) {
+            return 'This field must be a text value';
+        }
+
+        if (strpos($validation_rule, 'must be numeric') !== false) {
+            return 'This field must be a number';
+        }
+
+        if ($field_name === 'channel') {
+            return 'Channel must be one of: webhook, ipn, sdk, manual, system, scheduled';
+        }
+
+        if ($field_name === 'primaryObjectType') {
+            return 'Primary object type must be one of: order, subscription, refund, authorization, membership, customer, product';
+        }
+
+        if ($field_name === 'timestamp' || strpos($validation_rule, 'ISO8601') !== false) {
+            return 'Timestamp must be in ISO8601 format (e.g., 2023-01-01T00:00:00+00:00) or Unix timestamp';
+        }
+
+        return 'The field value did not pass validation';
+    }
+
+    /**
+     * Get suggested fix for validation error
+     * 
+     * @param string $field_name Field name
+     * @param string $validation_rule Validation rule
+     * @return string Suggested fix
+     */
+    private function getSuggestedFix(string $field_name, string $validation_rule): string
+    {
+        if ($field_name === 'channel') {
+            return 'Ensure the channel field is set to one of the allowed values: webhook, ipn, sdk, manual, system, scheduled';
+        }
+
+        if ($field_name === 'primaryObjectType') {
+            return 'Ensure the primaryObjectType field is set to one of the allowed values: order, subscription, refund, authorization, membership, customer, product';
+        }
+
+        if ($field_name === 'eventType' && strpos($validation_rule, 'empty') !== false) {
+            return 'Ensure the eventType field contains a valid event type string';
+        }
+
+        if (strpos($validation_rule, 'timestamp') !== false || strpos($validation_rule, 'ISO8601') !== false) {
+            return 'Ensure timestamp fields are in ISO8601 format (e.g., 2023-01-01T00:00:00+00:00) or valid Unix timestamps';
+        }
+
+        if (strpos($validation_rule, 'required') !== false) {
+            return 'Ensure all required fields are present in the event data';
+        }
+
+        if (strpos($validation_rule, 'empty') !== false) {
+            return 'Ensure the field contains a valid non-empty value';
+        }
+
+        return 'Check the event data structure and ensure all fields conform to the expected format and validation rules';
     }
 
     /**
@@ -2633,5 +3140,106 @@ class UniversalEventProcessor
             default:
                 return $currency . ' ' . number_format($amount, 2);
         }
+    }
+
+    /**
+     * Get status information for component display
+     *
+     * Extracts status transition information from event components and context
+     * to provide proper timeline display. Handles various event types and
+     * provides fallback values when specific status information is not available.
+     *
+     * @param string $primary_trigger The primary trigger event type
+     * @param array $all_triggers All trigger events for this rule
+     * @param EvaluationContext $context Evaluation context
+     * @return array Status information with 'from_status' and 'to_status' fields
+     */
+    private function getStatusInformationForComponent(string $primary_trigger, array $all_triggers, EvaluationContext $context): array
+    {
+        $from_status = null;
+        $to_status = null;
+
+        // Try to extract status information from the primary trigger event
+        if (isset($all_triggers[$primary_trigger])) {
+            $trigger_data = $all_triggers[$primary_trigger];
+
+            // Extract status transition information if available
+            if (isset($trigger_data['status_from'])) {
+                $from_status = $trigger_data['status_from'];
+            }
+            if (isset($trigger_data['status_to'])) {
+                $to_status = $trigger_data['status_to'];
+            }
+        }
+
+        // If we don't have status from triggers, try to get it from the event context
+        if (($from_status === null || $to_status === null) && $context->event) {
+            $event_data = $context->event->rawData ?? [];
+
+            // Check for status transition in event raw data
+            if (isset($event_data['from_status']) && $from_status === null) {
+                $from_status = $event_data['from_status'];
+            }
+            if (isset($event_data['to_status']) && $to_status === null) {
+                $to_status = $event_data['to_status'];
+            }
+
+            // For some event types, we can infer status from other data
+            if ($primary_trigger === 'payment_completed' && $to_status === null) {
+                $to_status = 'completed';
+            }
+            if ($primary_trigger === 'checkout_processed' && $to_status === null) {
+                $to_status = 'processing';
+            }
+            if ($primary_trigger === 'order_created' && $to_status === null) {
+                $to_status = 'pending';
+            }
+        }
+
+        // If we still don't have status information, try to get it from the order object
+        if (($from_status === null || $to_status === null) && $context->order) {
+            $current_status = $context->order->get_status();
+
+            // If we have current status but no to_status, use current status
+            if ($to_status === null) {
+                $to_status = $current_status;
+            }
+
+            // Try to get previous status from order history if available
+            if ($from_status === null) {
+                $order_status_changes = get_post_meta($context->order->get_id(), '_order_status_history', true);
+                if (is_array($order_status_changes) && !empty($order_status_changes)) {
+                    $recent_changes = array_filter($order_status_changes, function($change) use ($current_status) {
+                        return isset($change['to']) && $change['to'] !== $current_status;
+                    });
+
+                    if (!empty($recent_changes)) {
+                        $most_recent = end($recent_changes);
+                        $from_status = $most_recent['from'] ?? null;
+                    }
+                }
+            }
+        }
+
+        // Provide sensible defaults if we still don't have status information
+        if ($from_status === null) {
+            $from_status = 'unknown';
+        }
+        if ($to_status === null) {
+            $to_status = $context->order ? $context->order->get_status() : 'unknown';
+        }
+
+        // Debug logging for status extraction
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("ODCM_STATUS_DEBUG: Extracted status information for component display", 'debug');
+            odcm_log_message("ODCM_STATUS_DEBUG: - Primary trigger: {$primary_trigger}", 'debug');
+            odcm_log_message("ODCM_STATUS_DEBUG: - From status: {$from_status}", 'debug');
+            odcm_log_message("ODCM_STATUS_DEBUG: - To status: {$to_status}", 'debug');
+        }
+
+        return [
+            'from_status' => $from_status,
+            'to_status' => $to_status,
+        ];
     }
 }

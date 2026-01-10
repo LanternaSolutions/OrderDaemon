@@ -29,85 +29,101 @@ class GenericEventAdapter extends DisplayAdapter
      */
     protected function extractSpecializedFields(array &$payload): array
     {
-        $fields = [];
+        try {
+            $fields = [];
 
-        // Extract event type for processing
-        $eventType = $payload['event_type'] ?? $payload['data']['event_type'] ?? 'unknown_event';
+            // Extract event type for processing
+            $eventType = $payload['event_type'] ?? $payload['data']['event_type'] ?? 'unknown_event';
 
-        // Special handling for rule_no_match events
-        if ($eventType === 'rule_no_match') {
-            return $this->extractRuleNoMatchFields($payload);
-        }
+            // Special handling for rule_no_match events
+            if ($eventType === 'rule_no_match') {
+                return $this->extractRuleNoMatchFields($payload);
+            }
 
-        // Enhanced handling for specific event categories
-        if (strpos($eventType, 'webhook_') !== false || $eventType === 'universal_event_processing') {
-            $this->addWebhookFields($fields, $payload);
-        }
-        elseif (strpos($eventType, 'email_') !== false || strpos($eventType, 'custom_email') !== false) {
-            $this->addEmailFields($fields, $payload);
-        }
-        elseif (strpos($eventType, 'config_') !== false) {
-            $this->addSystemOperationFields($fields, $payload);
-        }
-        elseif (in_array($eventType, ['info', 'warning', 'error', 'admin_action'])) {
-            $this->addSystemEventFields($fields, $payload);
-        }
-        elseif ($eventType === 'metrics') {
-            $this->addMetricsFields($fields, $payload);
-        }
-        else {
-            // Event description - format the event type nicely
-            $fields['event_description'] = [
-                'label' => $this->translate('Event'),
-                'value' => $this->formatGenericEventDescription($eventType),
-                'section' => 'primary'
+            // Enhanced handling for specific event categories
+            if (strpos($eventType, 'webhook_') !== false || $eventType === 'universal_event_processing') {
+                $this->addWebhookFields($fields, $payload);
+            }
+            elseif (strpos($eventType, 'email_') !== false || strpos($eventType, 'custom_email') !== false) {
+                $this->addEmailFields($fields, $payload);
+            }
+            elseif (strpos($eventType, 'config_') !== false) {
+                $this->addSystemOperationFields($fields, $payload);
+            }
+            elseif (in_array($eventType, ['info', 'warning', 'error', 'admin_action'])) {
+                $this->addSystemEventFields($fields, $payload);
+            }
+            elseif ($eventType === 'metrics') {
+                $this->addMetricsFields($fields, $payload);
+            }
+            else {
+                // Event description - format the event type nicely
+                $fields['event_description'] = [
+                    'label' => $this->translate('Event'),
+                    'value' => $this->formatGenericEventDescription($eventType),
+                    'section' => 'primary'
+                ];
+
+                // Order ID - use enhanced extraction from base class
+                $order_id = $this->extractOrderId($payload);
+                if ($order_id > 0) {
+                    $fields['order_id'] = [
+                        'label' => $this->translate('Order'),
+                        'value' => '#' . $order_id,
+                        'section' => 'primary'
+                    ];
+                }
+
+                // Extract status if available
+                $status = $this->extractGenericStatus($payload);
+                if ($status) {
+                    $fields['status'] = [
+                        'label' => $this->translate('Status'),
+                        'value' => ucfirst($status),
+                        'section' => 'primary'
+                    ];
+                }
+
+                // Extract any action or result information
+                $action = $this->extractGenericAction($payload);
+                if ($action) {
+                    $fields['action'] = [
+                        'label' => $this->translate('Action'),
+                        'value' => $action,
+                        'section' => 'primary'
+                    ];
+                }
+
+                // Extract any message or description
+                $message = $this->extractGenericMessage($payload);
+                if ($message) {
+                    $fields['message'] = [
+                        'label' => $this->translate('Message'),
+                        'value' => $message,
+                        'section' => 'primary'
+                    ];
+                }
+
+                // Add common generic fields - only essential business information
+                $this->addCommonGenericFields($fields, $payload);
+            }
+
+            return $fields;
+        } catch (\Throwable $e) {
+            // Log the error but don't throw
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                error_log('ODCM: GenericEventAdapter error: ' . $e->getMessage());
+            }
+
+            // Return minimal valid data - ensures rendering can continue
+            return [
+                'event_description' => [
+                    'label' => $this->translate('Event'),
+                    'value' => ucwords(str_replace('_', ' ', $payload['event_type'] ?? 'Unknown Event')),
+                    'section' => 'primary'
+                ]
             ];
-
-            // Order ID - use enhanced extraction from base class
-            $order_id = $this->extractOrderId($payload);
-            if ($order_id > 0) {
-                $fields['order_id'] = [
-                    'label' => $this->translate('Order'),
-                    'value' => '#' . $order_id,
-                    'section' => 'primary'
-                ];
-            }
-
-            // Extract status if available
-            $status = $this->extractGenericStatus($payload);
-            if ($status) {
-                $fields['status'] = [
-                    'label' => $this->translate('Status'),
-                    'value' => ucfirst($status),
-                    'section' => 'primary'
-                ];
-            }
-
-            // Extract any action or result information
-            $action = $this->extractGenericAction($payload);
-            if ($action) {
-                $fields['action'] = [
-                    'label' => $this->translate('Action'),
-                    'value' => $action,
-                    'section' => 'primary'
-                ];
-            }
-
-            // Extract any message or description
-            $message = $this->extractGenericMessage($payload);
-            if ($message) {
-                $fields['message'] = [
-                    'label' => $this->translate('Message'),
-                    'value' => $message,
-                    'section' => 'primary'
-                ];
-            }
-
-            // Add common generic fields - only essential business information
-            $this->addCommonGenericFields($fields, $payload);
         }
-
-        return $fields;
     }
     
     /**
@@ -116,10 +132,16 @@ class GenericEventAdapter extends DisplayAdapter
      * @since 1.2.0
      *
      * @param string $eventType The event type
+     * @param array $payload The event payload
      * @return string Formatted event description
      */
-    private function formatGenericEventDescription(string $eventType): string
+    private function formatGenericEventDescription(string $eventType, array $payload): string
     {
+        // Use the debug event title generation for universal_event_processing_debug events
+        if ($eventType === 'universal_event_processing_debug') {
+            return DisplayAdapter::generateDebugEventTitle($payload);
+        }
+
         // Handle common patterns
         if ($eventType === 'unknown_event') {
             return $this->translate('System Event');
@@ -1077,4 +1099,3 @@ class GenericEventAdapter extends DisplayAdapter
         return $fields;
     }
 }
-    }

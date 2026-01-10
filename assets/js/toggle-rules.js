@@ -252,12 +252,18 @@
             // Use WordPress standard table selector - we're now using the WP default table
             const $rulesTable = $('#the-list').closest('table');
             const $tableBody = $('#the-list'); // WordPress uses #the-list for the tbody in admin tables
-            
+
             if ($tableBody.length === 0) {
                 // Table not found - fail silently
                 return;
             }
-            
+
+            // Initialize data-id attributes for all rows
+            initRowDataAttributes();
+
+            // Initialize priority column values
+            initPriorityColumnValues();
+
             $tableBody.sortable({
                 handle: '.odcm-drag-handle',
                 placeholder: 'odcm-sortable-placeholder',
@@ -272,18 +278,18 @@
                 },
                 stop: function(event, ui) {
                     ui.item.removeClass('odcm-dragging');
-                    
+
                     // Get the end position
                     const startPos = ui.item.data('start-pos');
                     const endPos = ui.item.index();
-                    
+
                     // Only update if position changed
                     if (startPos !== endPos) {
                         updateRuleOrder($tableBody);
                     }
                 }
             }).disableSelection();
-            
+
             // Helper function to fix the width of the table row during dragging
             function fixWidthHelper(e, ui) {
                 ui.children().each(function() {
@@ -291,6 +297,31 @@
                 });
                 return ui;
             }
+        }
+
+        /**
+         * Initialize data-id attributes for all table rows
+         */
+        function initRowDataAttributes() {
+            $('#the-list tr').each(function() {
+                const postId = $(this).attr('id').replace('post-', '');
+                if (postId) {
+                    $(this).attr('data-id', postId);
+                }
+            });
+        }
+
+        /**
+         * Initialize priority column values
+         */
+        function initPriorityColumnValues() {
+            $('#the-list tr').each(function(index) {
+                // Find the priority column and update its text
+                const $priorityCell = $(this).find('.column-priority');
+                if ($priorityCell.length && $priorityCell.text().trim() === '') {
+                    $priorityCell.text(index);
+                }
+            });
         }
         
         /**
