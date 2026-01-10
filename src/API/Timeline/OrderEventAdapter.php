@@ -47,6 +47,13 @@ class OrderEventAdapter extends DisplayAdapter
             ];
         }
 
+        // Handle subscription events as complex recurring orders
+        if (strpos($eventType, 'subscription_') !== false ||
+            strpos($eventType, 'renewal_payment_') !== false ||
+            $eventType === 'trial_ending') {
+            $this->addSubscriptionFields($fields, $payload);
+        }
+
         // Status change specifics
         if (strpos($eventType, 'status_changed') !== false) {
             $this->addStatusChangeFields($fields, $payload);
@@ -90,6 +97,21 @@ class OrderEventAdapter extends DisplayAdapter
             'order_on_hold' => $this->translate('Order On Hold'),
             'order_pending' => $this->translate('Order Pending'),
             'order_failed' => $this->translate('Order Failed'),
+            'subscription_created' => $this->translate('Subscription Created'),
+            'subscription_approved' => $this->translate('Subscription Approved'),
+            'subscription_cancelled' => $this->translate('Subscription Cancelled'),
+            'subscription_suspended' => $this->translate('Subscription Suspended'),
+            'subscription_reactivated' => $this->translate('Subscription Reactivated'),
+            'subscription_completed' => $this->translate('Subscription Completed'),
+            'subscription_expired' => $this->translate('Subscription Expired'),
+            'subscription_paused' => $this->translate('Subscription Paused'),
+            'subscription_resumed' => $this->translate('Subscription Resumed'),
+            'subscription_updated' => $this->translate('Subscription Updated'),
+            'trial_ending' => $this->translate('Trial Ending'),
+            'renewal_payment_completed' => $this->translate('Renewal Payment Completed'),
+            'renewal_payment_failed' => $this->translate('Renewal Payment Failed'),
+            'renewal_payment_processing' => $this->translate('Renewal Payment Processing'),
+            'renewal_payment_pending' => $this->translate('Renewal Payment Pending'),
         ];
 
         if (isset($eventLabels[$eventType])) {
@@ -100,6 +122,12 @@ class OrderEventAdapter extends DisplayAdapter
         if (strpos($eventType, 'order_') === 0) {
             $status = str_replace('order_', '', $eventType);
             return sprintf($this->translate('Order %s'), ucfirst(str_replace('_', ' ', $status)));
+        }
+
+        // For subscription events
+        if (strpos($eventType, 'subscription_') === 0) {
+            $status = str_replace('subscription_', '', $eventType);
+            return sprintf($this->translate('Subscription %s'), ucfirst(str_replace('_', ' ', $status)));
         }
 
         return ucfirst(str_replace('_', ' ', $eventType));
@@ -290,6 +318,154 @@ class OrderEventAdapter extends DisplayAdapter
         }
     }
     
+    /**
+     * Add subscription-specific fields for subscription events
+     *
+     * @since 1.2.0
+     *
+     * @param array &$fields Reference to fields array
+     * @param array $payload The event payload
+     * @return void
+     */
+    private function addSubscriptionFields(array &$fields, array $payload): void
+    {
+        // Extract subscription ID
+        $subscriptionId = $payload['subscription_id'] ?? 
+                         $payload['data']['subscription_id'] ?? 
+                         $payload['id'] ?? 
+                         $payload['data']['id'] ?? null;
+
+        if ($subscriptionId) {
+            $fields['subscription_id'] = [
+                'label' => $this->translate('Subscription ID'),
+                'value' => '#' . $subscriptionId,
+                'section' => 'primary'
+            ];
+        }
+
+        // Extract subscription status
+        $subscriptionStatus = $payload['subscription_status'] ?? 
+                            $payload['status'] ?? 
+                            $payload['data']['subscription_status'] ?? 
+                            $payload['data']['status'] ?? null;
+
+        if ($subscriptionStatus) {
+            $fields['subscription_status'] = [
+                'label' => $this->translate('Subscription Status'),
+                'value' => ucfirst(str_replace('_', ' ', $subscriptionStatus)),
+                'section' => 'primary'
+            ];
+        }
+
+        // Extract subscription type (monthly, annual, etc.)
+        $subscriptionType = $payload['subscription_type'] ?? 
+                           $payload['billing_period'] ?? 
+                           $payload['data']['subscription_type'] ?? 
+                           $payload['data']['billing_period'] ?? null;
+
+        if ($subscriptionType) {
+            $fields['subscription_type'] = [
+                'label' => $this->translate('Subscription Type'),
+                'value' => ucfirst(str_replace('_', ' ', $subscriptionType)),
+                'section' => 'primary'
+            ];
+        }
+
+        // Extract billing cycle information
+        $billingCycle = $payload['billing_cycle'] ?? 
+                       $payload['data']['billing_cycle'] ?? null;
+
+        if ($billingCycle) {
+            $fields['billing_cycle'] = [
+                'label' => $this->translate('Billing Cycle'),
+                'value' => $billingCycle,
+                'section' => 'event_details'
+            ];
+        }
+
+        // Extract next payment date
+        $nextPaymentDate = $payload['next_payment_date'] ?? 
+                          $payload['data']['next_payment_date'] ?? null;
+
+        if ($nextPaymentDate) {
+            $fields['next_payment_date'] = [
+                'label' => $this->translate('Next Payment Date'),
+                'value' => is_numeric($nextPaymentDate) ? date('Y-m-d', $nextPaymentDate) : $nextPaymentDate,
+                'section' => 'primary'
+            ];
+        }
+
+        // Extract recurring amount
+        $recurringAmount = $payload['recurring_amount'] ?? 
+                         $payload['amount'] ?? 
+                         $payload['data']['recurring_amount'] ?? 
+                         $payload['data']['amount'] ?? null;
+
+        $currency = $payload['currency'] ?? 
+                   $payload['data']['currency'] ?? 'USD';
+
+        if ($recurringAmount) {
+            $fields['recurring_amount'] = [
+                'label' => $this->translate('Recurring Amount'),
+                'value' => $this->formatCleanCurrency($recurringAmount, $currency),
+                'section' => 'primary'
+            ];
+        }
+
+        // Extract lifecycle state
+        $lifecycleState = $payload['lifecycle_state'] ?? 
+                        $payload['state'] ?? 
+                        $payload['data']['lifecycle_state'] ?? 
+                        $payload['data']['state'] ?? null;
+
+        if ($lifecycleState) {
+            $fields['lifecycle_state'] = [
+                'label' => $this->translate('Lifecycle State'),
+                'value' => ucfirst(str_replace('_', ' ', $lifecycleState)),
+                'section' => 'primary'
+            ];
+        }
+
+        // Extract related order ID if applicable
+        $relatedOrderId = $payload['related_order_id'] ?? 
+                         $payload['order_id'] ?? 
+                         $payload['data']['related_order_id'] ?? 
+                         $payload['data']['order_id'] ?? null;
+
+        if ($relatedOrderId && $relatedOrderId != $subscriptionId) {
+            $fields['related_order_id'] = [
+                'label' => $this->translate('Related Order'),
+                'value' => '#' . $relatedOrderId,
+                'section' => 'event_details'
+            ];
+        }
+
+        // Extract timestamp
+        $timestamp = $payload['timestamp'] ?? 
+                    $payload['data']['timestamp'] ?? null;
+
+        if ($timestamp) {
+            $fields['subscription_timestamp'] = [
+                'label' => $this->translate('Timestamp'),
+                'value' => is_numeric($timestamp) ? date('Y-m-d H:i:s', $timestamp) : $timestamp,
+                'section' => 'event_details'
+            ];
+        }
+
+        // Extract error details if applicable
+        $error = $payload['error'] ?? 
+                $payload['error_message'] ?? 
+                $payload['data']['error'] ?? null;
+
+        if ($error) {
+            $fields['error'] = [
+                'label' => $this->translate('Error'),
+                'value' => is_string($error) ? $error : $this->translate('Error occurred'),
+                'section' => 'event_details'
+            ];
+        }
+    }
+
     /**
      * Add common order fields that apply to all order events
      *
@@ -547,3 +723,4 @@ class OrderEventAdapter extends DisplayAdapter
         return $methodLabels[$paymentMethod] ?? ucwords(str_replace('_', ' ', $paymentMethod));
     }
 }
+

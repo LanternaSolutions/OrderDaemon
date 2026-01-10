@@ -1409,7 +1409,7 @@ function insightDashboard() {
 
             // Basic search (always available)
             if (this.filters.search) {
-                activeFilters.s = this.filters.search;
+                activeFilters.search = this.filters.search;
             }
 
             // Premium filters (only if user has access)

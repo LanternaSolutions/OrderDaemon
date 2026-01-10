@@ -804,9 +804,10 @@ class InsightDashboard
                 <div class="odcm-filter-section">
                     <div class="odcm-search-filter-group">
                         <label for="filter-search" class="odcm-filter-section-title"><?php echo esc_html__('admin.insight_dashboard.filters.search.label', 'order-daemon'); ?></label>
-                        <input type="text" 
+                        <input type="text"
                             id="filter-search"
                             x-model="filters.search"
+                            @input="debouncedFetchLogs"
                             placeholder="<?php echo esc_attr__('admin.insight_dashboard.filters.search.placeholder', 'order-daemon'); ?>"
                             class="odcm-search-input">
                     </div>

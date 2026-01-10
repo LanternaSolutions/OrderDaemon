@@ -923,30 +923,62 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
      * Enhanced debug event filtering - check both event type and completeness
      * Uses dashboard include_debug parameter instead of global ODCM_DEBUG constant
      *
-     * @param array $payload The event payload to check
+     * This method delegates to AdapterRegistry::shouldFilterForRendering() for the
+     * canonical list of internal-only events (single source of truth).
+     *
+     * @param array $payload The component payload to check
      * @param bool $includeDebug Whether to include debug events (from dashboard toggle)
      * @return bool True if this event should be filtered out (not shown)
      */
     private function shouldFilterDebugEvent(array $payload, bool $includeDebug = false): bool
     {
-        // CRITICAL FIX: Use dashboard toggle instead of global debug constant
-        // If dashboard says include debug events, show everything
-        if ($includeDebug) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM TIMELINE DEBUG: NOT FILTERED - Dashboard include_debug=true");
+        // Check multiple paths where event_type might be stored
+        // This handles nested components, different payload structures, and legacy formats
+        $event_type = '';
+        
+        // Priority 1: Direct event_type on payload
+        if (!empty($payload['event_type'])) {
+            $event_type = $payload['event_type'];
+        }
+        // Priority 2: Nested in data.event_type
+        elseif (!empty($payload['data']['event_type'])) {
+            $event_type = $payload['data']['event_type'];
+        }
+        // Priority 3: Check 'type' field (sometimes used instead of event_type)
+        elseif (!empty($payload['type'])) {
+            $event_type = $payload['type'];
+        }
+        // Priority 4: Check label for patterns (fallback for malformed components)
+        elseif (!empty($payload['label'])) {
+            $label = strtolower($payload['label']);
+            if (strpos($label, 'rule no match') !== false || strpos($label, 'no rules matched') !== false) {
+                $event_type = 'rule_no_match';
             }
-            return false;
         }
 
-        // Dashboard says exclude debug events - now check if this IS a debug event
-        $event_type = $payload['data']['event_type'] ?? $payload['event_type'] ?? '';
-        
         // Enhanced debug logging to trace filtering decisions
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             $this->logDebugMessage("ODCM TIMELINE DEBUG: Filtering event - type: {$event_type}, include_debug: " . ($includeDebug ? 'true' : 'false'));
         }
 
-        // Check for explicit debug_only flag set by adapters (highest priority)
+        // FIRST: Use AdapterRegistry as single source of truth for internal-only events
+        // Internal-only events are ALWAYS filtered, regardless of includeDebug setting
+        if (AdapterRegistry::isInternalOnlyEvent($event_type)) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - internal-only event: {$event_type}");
+            }
+            return true;
+        }
+
+        // SECOND: If dashboard says include debug events, show everything else
+        if ($includeDebug) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: NOT FILTERED - include_debug=true: {$event_type}");
+            }
+            return false;
+        }
+
+        // THIRD: Check for explicit debug_only flag set by adapters
         if (!empty($payload['debug_only']) && $payload['debug_only'] === true) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - debug_only flag is true");
@@ -954,7 +986,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             return true;
         }
 
-        // Check for specific "Rule Processing Started" flag
+        // FOURTH: Check for specific "Rule Processing Started" flag
         if (!empty($payload['is_rule_processing_started']) && $payload['is_rule_processing_started'] === true) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - is_rule_processing_started flag is true");
@@ -962,24 +994,9 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             return true;
         }
 
-        // Check for known debug-only event types (not business events)
-        if (in_array($event_type, [
-            'order_check_scheduled',  // Internal scheduling, not business-relevant
-            'rule_evaluation_non_canonical', // Debug traces for rule evaluation
-            '_status_evaluation',     // Debug events for status change evaluation
-            'process_started',        // Technical process lifecycle events
-            'order_loaded'           // Purely technical loading event
-        ])) {
-            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - debug-only event type: {$event_type}");
-            }
-            return true;
-        }
-
-        // Check for incomplete rule execution events ("Rule Processing Started")
+        // FIFTH: Check for incomplete rule execution events ("Rule Processing Started")
         // These have event_type "rule_execution" but lack complete rule data
         if ($event_type === 'rule_execution') {
-            // Check if this is an incomplete rule processing event
             $hasCompleteRuleData = !empty($payload['rule_execution']['rule_name']) ||
                                   !empty($payload['rule_execution']['rule_configuration']['rule_name']) ||
                                   !empty($payload['rule_name']) ||
@@ -989,16 +1006,24 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                                    !empty($payload['data']['process_type']) ||
                                    !empty($payload['data']['status']);
 
-            // It's incomplete if it has processing data but lacks complete rule data
+            // It's incomplete if it has processing data but lacks complete rule data ()
             if ($hasProcessingMetadata && !$hasCompleteRuleData) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - incomplete rule execution event (Rule Processing Started)");
+                    $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - incomplete rule execution event");
                 }
                 return true;
             }
         }
 
-        // Not a debug event, don't filter
+        // SIXTH: Use AdapterRegistry for any remaining debug event filtering
+        if (AdapterRegistry::shouldFilterForRendering($event_type, $includeDebug)) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - AdapterRegistry debug filter");
+            }
+            return true;
+        }
+
+        // Not filtered - it's a business event
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             $this->logDebugMessage("ODCM TIMELINE DEBUG: NOT FILTERED - business event: {$event_type}");
         }
@@ -1121,7 +1146,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         ];
 
         // Special handling for debug events - use debug status pill
-        if (in_array($eventType, ['_status_evaluation', 'rule_evaluation_non_canonical', 'debug'])) {
+        if (in_array($eventType, ['rule_evaluation_non_canonical', 'debug'])) {
             return 'debug';
         }
 
@@ -1150,7 +1175,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         }
 
         // Special handling for debug events - they should always have a debug status pill
-        if (in_array($eventType, ['_status_evaluation', 'rule_evaluation_non_canonical', 'debug', 'process_started', 'order_loaded'])) {
+        if (in_array($eventType, ['rule_evaluation_non_canonical', 'debug', 'process_started', 'order_loaded'])) {
             return [
                 'label' => 'debug',
                 'type' => 'debug'
@@ -1464,14 +1489,6 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'priority' => 1,
                 'category' => 'System'
             ],
-            '_status_evaluation' => [
-                'dashicon' => 'dashicons-info-outline',
-                'theme_class' => 'odcm-component--debug',
-                'primary_color' => 'yellow-700',
-                'status_display' => 'evaluation',
-                'priority' => 1,
-                'category' => 'Rule'
-            ],
             'rule_evaluation_non_canonical' => [
                 'dashicon' => 'dashicons-controls-play',
                 'theme_class' => 'odcm-component--debug',
@@ -1479,6 +1496,14 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 'status_display' => 'non-canonical',
                 'priority' => 2,
                 'category' => 'Rule'
+            ],
+            'rule_no_match' => [
+                'dashicon' => 'dashicons-no-alt',
+                'theme_class' => 'odcm-component--debug',
+                'primary_color' => 'yellow-700',
+                'status_display' => 'debug',
+                'priority' => 1,
+                'category' => 'Debug'
             ],
             // Universal events
             'universal_event_processing' => [

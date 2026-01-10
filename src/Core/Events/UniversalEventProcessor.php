@@ -1163,7 +1163,8 @@ class UniversalEventProcessor
                         $context->getOrderId(),
                         'debug', // Explicitly debug level
                         'rule_no_match',
-                        false
+                        false,
+                        $process_id
                     );
                 }
                 
@@ -1194,10 +1195,10 @@ class UniversalEventProcessor
     
     /**
      * Record a trigger event for an order
-     * 
+     *
      * This helps track all events that trigger rule evaluation for an order
      * to be used in consolidated rule execution events.
-     * 
+     *
      * @param int $order_id Order ID
      * @param EvaluationContext $context Universal event context
      * @return void
@@ -1207,7 +1208,7 @@ class UniversalEventProcessor
         if ($order_id <= 0) {
             return;
         }
-        
+
         // Initialize order tracking if doesn't exist
         if (!isset(self::$rule_trigger_events[$order_id])) {
             self::$rule_trigger_events[$order_id] = [
@@ -1215,7 +1216,7 @@ class UniversalEventProcessor
                 'rule_matches' => [],
             ];
         }
-        
+
         // Add this event to the order's trigger events
         $trigger_data = [
             'event_type' => $context->event->eventType,
@@ -1228,9 +1229,53 @@ class UniversalEventProcessor
             'idempotency_key' => $context->event->idempotencyKey,
             'customer_type' => ($context->order && $context->order->get_customer_id() > 0) ? 'registered' : 'guest',
             'payment_method' => $context->order ? $context->order->get_payment_method_title() : '',
+            // Add current order status context for events that don't have status transition data
+            'current_order_status' => $context->order ? $context->order->get_status() : null,
+            'order_status_history' => $this->getOrderStatusHistory($context),
         ];
-        
+
         self::$rule_trigger_events[$order_id]['events'][$context->event->eventType] = $trigger_data;
+    }
+
+    /**
+     * Get order status history for context
+     *
+     * @param EvaluationContext $context
+     * @return array
+     */
+    private function getOrderStatusHistory(EvaluationContext $context): array
+    {
+        if (!$context->order) {
+            return [];
+        }
+
+        $history = [];
+        $order = $context->order;
+
+        // Get the current status
+        $current_status = $order->get_status();
+
+        // Try to get previous status from order meta if available
+        $previous_status = null;
+        $order_status_changes = get_post_meta($order->get_id(), '_order_status_history', true);
+
+        if (is_array($order_status_changes) && !empty($order_status_changes)) {
+            // Get the most recent status change (excluding the current one)
+            $recent_changes = array_filter($order_status_changes, function($change) use ($current_status) {
+                return isset($change['to']) && $change['to'] !== $current_status;
+            });
+
+            if (!empty($recent_changes)) {
+                $most_recent = end($recent_changes);
+                $previous_status = $most_recent['from'] ?? null;
+            }
+        }
+
+        return [
+            'current_status' => $current_status,
+            'previous_status' => $previous_status,
+            'status_changes' => $order_status_changes ?? [],
+        ];
     }
     
     /**
@@ -2256,16 +2301,19 @@ class UniversalEventProcessor
         $order_id = $payload['order_id'] ?? $context->getOrderId();
         $executed_actions = $payload['executed_actions'] ?? '';
         $execution_status = $payload['execution_status'] ?? 'EXECUTED';
-        
+
         // Generate trigger summary based on event type
         $trigger_summary = $this->getTriggerSummary($primary_trigger, $all_triggers);
-        
+
         // Create comprehensive execution summary
         $execution_summary = $this->getExecutionSummary($context, $payload);
-        
+
         // Create proper component label
         $label = sprintf('Rule Executed: %s', $rule_name);
-        
+
+        // Get status information with fallback to order context
+        $status_info = $this->getStatusInformationForComponent($primary_trigger, $all_triggers, $context);
+
         // Build the comprehensive rule execution component
         $component = [
             'event_type' => 'rule_execution',
@@ -2284,17 +2332,17 @@ class UniversalEventProcessor
                 'trigger' => $trigger_summary,
                 'actions' => $executed_actions,
                 'execution_status' => $execution_status,
-                
+
                 // ==== RULE EVALUATION SUMMARY (PRIMARY DISPLAY) ====
                 'evaluation_summary' => [
-                    'result' => isset($this->matched_rule_data['trace']) ? 
-                        count(array_filter($this->matched_rule_data['trace']['conditions'], 
-                            fn($c) => $c['result'] === 'pass')) . '/' . 
-                        count($this->matched_rule_data['trace']['conditions']) . 
+                    'result' => isset($this->matched_rule_data['trace']) ?
+                        count(array_filter($this->matched_rule_data['trace']['conditions'],
+                            fn($c) => $c['result'] === 'pass')) . '/' .
+                        count($this->matched_rule_data['trace']['conditions']) .
                         ' conditions passed' : '',
                     'logic' => 'ALL conditions must pass', // Could be enhanced to read from rule data
                     'order_status' => $context->order ? ucfirst($context->order->get_status()) : '',
-                    'order_total' => isset($payload['amount'], $payload['currency']) ? 
+                    'order_total' => isset($payload['amount'], $payload['currency']) ?
                         strtoupper($payload['currency']) . ' ' . number_format((float)$payload['amount'], 2) : '',
                     'payment_method' => $context->order ? $context->order->get_payment_method_title() : '',
                     'customer_type' => ($context->order && $context->order->get_customer_id() > 0) ? 'Registered' : 'Guest',
@@ -2304,12 +2352,10 @@ class UniversalEventProcessor
                     'event_time' => gmdate('Y-m-d H:i:s', (int)$context->event->occurredAt),
                     'event_id' => substr($payload['idempotency_key'] ?? '', 0, 15) . '...',
                 ],
-                
+
                 // ==== TRIGGER DETAILS (SUPPORTING SECTION) ====
-                'from_status' => isset($all_triggers[$primary_trigger]['status_from']) ? 
-                    ucfirst($all_triggers[$primary_trigger]['status_from']) : '',
-                'to_status' => isset($all_triggers[$primary_trigger]['status_to']) ? 
-                    ucfirst($all_triggers[$primary_trigger]['status_to']) : '',
+                'from_status' => $status_info['from_status'],
+                'to_status' => $status_info['to_status'],
                 
                 // ==== CONDITION DETAILS (SUPPORTING SECTION) ====
                 'conditions' => self::formatConditionsForDisplay($this->matched_rule_data['trace']['conditions'] ?? []),

@@ -24,6 +24,25 @@ class AdapterRegistry
     private static array $adapter_cache = [];
 
     /**
+     * SINGLE SOURCE OF TRUTH: Internal-only events that should NEVER be displayed
+     * 
+     * These are system implementation details, not debugging information.
+     * They are filtered at all levels: database queries, component extraction, and rendering.
+     * 
+     * IMPORTANT: To add a new internal-only event, add it here and it will be filtered everywhere.
+     * 
+     * @since 1.2.1
+     */
+    private const INTERNAL_ONLY_EVENTS = [
+        'rule_no_match',              // Individual rule evaluation failures (verbose noise)
+        '_status_evaluation',         // Status change evaluation telemetry
+        'process_started',            // Internal process lifecycle
+        'order_loaded',               // Technical loading events
+        'order_check_scheduled',      // Internal scheduling events
+        'rule_evaluation_non_canonical', // Debug traces for rule evaluation
+    ];
+
+    /**
      * WordPress-compatible logger instance
      *
      * @var object|null
@@ -120,6 +139,14 @@ class AdapterRegistry
             self::logDebugMessage("ODCM ADAPTER DEBUG: Processing incomplete rule event in debug mode", 'debug');
         }
 
+        // Moved debug filtering to rendering stage to preserve process grouping
+        // Only filter out events that should never be processed at all
+        // Debug events should get proper adapter processing for correct process_id handling
+        if (self::shouldFilterEventFromDisplay($event_type, $payload)) {
+            self::logDebugMessage("ODCM ADAPTER DEBUG: Excluding event entirely: {$event_type}", 'debug');
+            return self::getFallbackAdapter();
+        }
+
         // Priority-based adapter selection with error handling
         $adapter = null;
 
@@ -132,11 +159,17 @@ class AdapterRegistry
                 self::logDebugMessage("ODCM ADAPTER DEBUG: Selecting RuleExecutionAdapter for event type: {$event_type}", 'debug');
                 $adapter = self::createAdapter('RuleExecutionAdapter', $event_type);
             }
-            // Order-related events
-            elseif (strpos($event_type, 'order_') !== false || strpos($event_type, 'status_changed') !== false) {
-                self::logDebugMessage("ODCM ADAPTER DEBUG: Selecting OrderEventAdapter for event type: {$event_type}", 'debug');
-                $adapter = self::createAdapter('OrderEventAdapter', $event_type);
-            }
+        // Order-related events (including subscription events)
+        elseif (strpos($event_type, 'order_') !== false ||
+                strpos($event_type, 'status_changed') !== false ||
+                strpos($event_type, 'status change') !== false ||
+                strpos($event_type, 'status_evaluation') !== false ||
+                strpos($event_type, 'subscription_') !== false ||
+                strpos($event_type, 'renewal_payment_') !== false ||
+                $event_type === 'trial_ending') {
+            self::logDebugMessage("ODCM ADAPTER DEBUG: Selecting OrderEventAdapter for event type: {$event_type}", 'debug');
+            $adapter = self::createAdapter('OrderEventAdapter', $event_type);
+        }
             // Payment and checkout events
             elseif (strpos($event_type, 'payment') !== false ||
                     strpos($event_type, 'checkout') !== false ||
@@ -298,6 +331,129 @@ class AdapterRegistry
                 return $fields;
             }
         };
+    }
+
+    /**
+     * Event filtering logic for adapter selection phase
+     *
+     * This method filters events that should never be processed at all during adapter selection.
+     * Debug events should get proper adapter processing for correct process_id handling
+     * and are filtered later during the rendering phase based on user preferences.
+     *
+     * @param string $eventType The event type to check
+     * @param array $payload The event payload
+     * @return bool True if the event should be excluded entirely from processing
+     */
+    private static function shouldFilterEventFromDisplay(string $eventType, array $payload): bool
+    {
+        // Events to exclude entirely from processing (never shown, even in debug mode)
+        $excludedEvents = [
+            // Analysis events
+            'refund_analysis',
+            'woocommerce_analysis',
+            'dedup',
+            // System events
+            'process_started',
+            'process_event',
+            'lifecycle_event',
+            'action_scheduled',
+            // Universal events
+            'universal_event_processing',
+            'universal_event_processing_debug',
+            // Rule evaluation events
+            'rule_no_match',
+        ];
+
+        // Note: custom_event is intentionally NOT excluded as it serves as both
+        // a fallback mechanism for unknown events and a legitimate way for users
+        // to add custom events to their timelines
+
+        // Check if event is in the exclusion list
+        if (in_array($eventType, $excludedEvents)) {
+            return true;
+        }
+
+        // Debug-only event handling for metrics
+        if ($eventType === 'metrics' && !self::isDebugMode()) {
+            return true;
+        }
+
+        // Important: Debug events like _status_evaluation, rule_evaluation_non_canonical, etc.
+        // are NOT filtered here. They need to be processed to maintain proper process_id
+        // grouping and timeline structure. Filtering happens later in the renderer.
+
+        return false;
+    }
+
+    /**
+     * Get the list of internal-only events (single source of truth)
+     * 
+     * Internal-only events are system implementation details that should NEVER be displayed,
+     * regardless of debug settings. These are different from debug events which can be
+     * shown when the user enables debug mode and 'show debug logs' filter.
+     *
+     * @since 1.2.1
+     * @return array List of internal-only event types
+     */
+    public static function getInternalOnlyEvents(): array
+    {
+        return self::INTERNAL_ONLY_EVENTS;
+    }
+
+    /**
+     * Check if an event type is internal-only (should never be displayed)
+     *
+     * @since 1.2.1
+     * @param string $eventType The event type to check
+     * @return bool True if the event should never reach the frontend
+     */
+    public static function isInternalOnlyEvent(string $eventType): bool
+    {
+        return in_array($eventType, self::INTERNAL_ONLY_EVENTS, true);
+    }
+
+    /**
+     * Check if an event should be filtered during rendering based on debug preferences
+     *
+     * This method implements TWO-TIER filtering:
+     * 1. Internal-only events: ALWAYS filtered, regardless of debug preferences
+     * 2. Debug events: Filtered only when includeDebug=false
+     *
+     * @param string $eventType The event type to check
+     * @param bool $includeDebug Whether the user wants to see debug events
+     * @return bool True if the event should be filtered during rendering
+     */
+    public static function shouldFilterForRendering(string $eventType, bool $includeDebug): bool
+    {
+        // FIRST: Always filter internal-only events, regardless of debug setting
+        // These are system noise that should never reach the frontend
+        if (self::isInternalOnlyEvent($eventType)) {
+            return true;
+        }
+
+        // SECOND: If user wants to see debug events, don't filter anything else
+        if ($includeDebug) {
+            return false;
+        }
+
+        // THIRD: Filter debug events when includeDebug=false
+        // These are events that ARE useful for debugging but hidden by default
+        $debugOnlyEvents = [
+            'universal_event_processing_debug',  // Shows "no rules matched" outcome
+        ];
+
+        // Check if this is a debug-only event type
+        if (in_array($eventType, $debugOnlyEvents, true)) {
+            return true;
+        }
+
+        // Special handling for incomplete rule execution events
+        if ($eventType === 'rule_execution') {
+            // These are considered debug events when they lack complete rule data
+            return true;
+        }
+
+        return false;
     }
 
     /**

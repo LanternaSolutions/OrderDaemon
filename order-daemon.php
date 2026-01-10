@@ -44,6 +44,11 @@ require_once __DIR__ . '/src/Includes/class-odcm-config.php';
 // Include the strings class
 require_once __DIR__ . '/src/Includes/class-odcm-strings.php';
 
+// TEMPORARY TEST SCRIPT
+if (file_exists(__DIR__ . '/generate_audit_logs.php')) {
+    require_once __DIR__ . '/generate_audit_logs.php';
+}
+
 // Import classes
 use OrderDaemon\CompletionManager\Core\ManualStatusTracker;
 use OrderDaemon\CompletionManager\Plugin;

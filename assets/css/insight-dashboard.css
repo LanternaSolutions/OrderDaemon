@@ -802,7 +802,7 @@
 .odcm-setting-hint {
     font-size: 12px;
     color: var(--odcm-theme-grey-600);
-    margin: 0;
+    margin-bottom: var(--odcm-theme-spacing-md);
 }
 
 .odcm-settings-section label,
@@ -894,6 +894,11 @@ label.odcm-retention-option {
 
 .odcm-danger-section .description {
     color: var(--odcm-theme-grey-900);
+}
+
+.odcm-danger-button {
+    border: 1px solid var(--odcm-theme-red-700) !important;
+    color: var(--odcm-theme-red-700) !important ;
 }
 
 /* Settings Pane Content Wrapper - Absolute positioned overlay */
@@ -3125,7 +3130,7 @@ label.odcm-retention-option {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--odcm-theme-spacing-sm);
+  gap: var(--odcm-theme-spacing-lg);
 }
 
 /* Group for retention input + update button */
@@ -3139,7 +3144,7 @@ label.odcm-retention-option {
 .odcm-retention-controls .button,
 .odcm-retention-controls .button-secondary {
   min-height: 32px; /* consistent small button height */
-  padding: 6px 10px;
+  padding: var(--odcm-theme-spacing-sm) var(--odcm-theme-spacing-md);
 }
 
 /* Add separation between update policy group and cleanup section for clarity */

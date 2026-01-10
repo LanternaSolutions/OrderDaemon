@@ -333,7 +333,22 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
     {
         $level = $component['level'] ?? '';
         $event_type = $component['event_type'] ?? '';
-        
+
+        // Check for rule_no_match events specifically
+        if ($event_type === 'rule_no_match') {
+            return true;
+        }
+
+        // Check for rule_no_match in nested data
+        if (isset($component['data']['event_type']) && $component['data']['event_type'] === 'rule_no_match') {
+            return true;
+        }
+
+        // Check for rule_no_match flags
+        if (!empty($component['rule_no_match']) || !empty($component['data']['rule_no_match'])) {
+            return true;
+        }
+
         return ($level === 'debug') || ($event_type === 'process_started');
     }
     

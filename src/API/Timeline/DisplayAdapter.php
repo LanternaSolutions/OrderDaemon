@@ -749,7 +749,7 @@ abstract class DisplayAdapter
         ];
 
         // Special handling for debug events - use debug status pill
-        if (in_array($eventType, ['_status_evaluation', 'rule_evaluation_non_canonical', 'debug'])) {
+        if (in_array($eventType, ['rule_evaluation_non_canonical', 'debug'])) {
             return 'debug';
         }
 
@@ -1043,14 +1043,6 @@ abstract class DisplayAdapter
                 'theme_class' => 'odcm-component--error',
                 'primary_color' => 'red-700',
                 'status_display' => 'debug',
-                'priority' => 1,
-                'category' => 'System'
-            ],
-            '_status_evaluation' => [
-                'dashicon' => 'dashicons-warning',
-                'theme_class' => 'odcm-component--error',
-                'primary_color' => 'red-700',
-                'status_display' => 'evaluation',
                 'priority' => 1,
                 'category' => 'System'
             ],
