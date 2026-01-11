@@ -826,12 +826,22 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                                    !empty($payload['data']['process_type']) ||
                                    !empty($payload['data']['status']);
 
-            // It's incomplete if it has processing data but lacks complete rule data ()
+            // Only filter if it's an incomplete rule event (processing started)
+            // Complete rule execution events should be treated as business events, not debug events
             if ($hasProcessingMetadata && !$hasCompleteRuleData) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - incomplete rule execution event");
+                    $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - incomplete rule execution event (Rule Processing Started)");
                 }
                 return true;
+            }
+
+            // IMPORTANT: If this is a complete rule execution event, it should NEVER be filtered as debug
+            // Rule Executed events are business events, not debug events
+            if ($hasCompleteRuleData) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    $this->logDebugMessage("ODCM TIMELINE DEBUG: NOT FILTERED - complete rule execution event (Rule Executed)");
+                }
+                return false;
             }
         }
 

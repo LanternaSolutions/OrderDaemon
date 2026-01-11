@@ -176,8 +176,6 @@ final class Plugin {
 		// Load audit log filter registrations
 		require_once ODCM_PLUGIN_DIR . 'src/Core/audit-filters.php';
 		
-		// Load payload component registry for composite rendering
-		require_once ODCM_PLUGIN_DIR . 'src/Core/PayloadComponentRegistry.php';
 	}
 
 	/**

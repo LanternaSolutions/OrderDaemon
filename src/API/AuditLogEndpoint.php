@@ -2434,6 +2434,76 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
+     * Extract consistent event data using DisplayAdapter system
+     * This ensures log stream and timeline use the same logic for status and summary
+     *
+     * @param array $log The log entry
+     * @return array Array with 'status', 'status_type', and 'summary' extracted using DisplayAdapter
+     */
+    private function extractConsistentEventData(array $log): array
+    {
+        // Get the payload data
+        $payload = $log['payload'] ?? '';
+        if (empty($payload)) {
+            return [
+                'status' => $log['status'] ?? 'unknown',
+                'status_type' => 'info', // Default status type
+                'summary' => $log['summary'] ?? 'No summary available'
+            ];
+        }
+
+        $payload_data = json_decode($payload, true);
+        if (!is_array($payload_data)) {
+            return [
+                'status' => $log['status'] ?? 'unknown',
+                'status_type' => 'info', // Default status type
+                'summary' => $log['summary'] ?? 'No summary available'
+            ];
+        }
+
+        try {
+            // Use the same adapter system as timeline rendering
+            $adapter = \OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry::getAdapterForEvent($payload_data);
+            $displayData = $adapter->extractDisplayData($payload_data);
+
+            // Extract status using the same logic as timeline
+            $statusData = \OrderDaemon\CompletionManager\API\Timeline\DisplayAdapter::extractPrimaryStatus($displayData, $payload_data);
+
+            // Extract summary from display sections (same as timeline)
+            $summary = $displayData['display_sections']['event_description']['value'] ?? '';
+            if (empty($summary)) {
+                // Fallback to other potential summary fields
+                $summary = $displayData['display_sections']['event_type']['value'] ?? '';
+                if (empty($summary)) {
+                    $summary = $log['summary'] ?? 'No summary available';
+                }
+            }
+
+            return [
+                'status' => $statusData ? $statusData['label'] : ($log['status'] ?? 'unknown'),
+                'status_type' => $statusData ? $statusData['type'] : 'info',
+                'summary' => $summary
+            ];
+
+        } catch (\Throwable $e) {
+            // Fallback to original logic if DisplayAdapter fails
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM: DisplayAdapter failed for log stream consistency, falling back: ' . $e->getMessage(), 'warning');
+            }
+
+            // Use existing extractRuleExecutionStatus for rule execution events
+            $status = $this->extractRuleExecutionStatus($log);
+            $summary = $log['summary'] ?? 'No summary available';
+
+            return [
+                'status' => $status,
+                'status_type' => 'info', // Default fallback status type
+                'summary' => $summary
+            ];
+        }
+    }
+
+    /**
      * Extract the true execution status for rule execution events
      *
      * @param array $log The log entry
@@ -2522,8 +2592,15 @@ class AuditLogEndpoint extends WP_REST_Controller
                 }
             }
 
+            // Use DisplayAdapter system for consistent status and summary extraction
+            // This ensures log stream and timeline use the same logic
+            $consistentData = $this->extractConsistentEventData($log);
+
             // For consolidated entries, use the highest priority event's summary if available
-            $summary = $log['summary'];
+            $summary = $consistentData['summary'];
+            $status = $consistentData['status'];
+            $status_type = $consistentData['status_type'];
+
             if (isset($log['_is_process_group']) && $log['_is_process_group'] && isset($log['_process_logs'])) {
                 $highestPrioritySummary = $this->getHighestPrioritySummaryFromProcessLogs($log['_process_logs']);
                 if ($highestPrioritySummary !== null) {
@@ -2534,13 +2611,11 @@ class AuditLogEndpoint extends WP_REST_Controller
                 }
             }
 
-            // Extract the true status for rule execution events
-            $status = $this->extractRuleExecutionStatus($log);
-
             $formatted_log = [
                 'id' => (int) $log_id,
                 'timestamp' => $log['timestamp'],
                 'status' => $status,
+                'status_type' => $status_type,
                 'summary' => $summary,
                 'event_type' => $log['event_type'],
             ];

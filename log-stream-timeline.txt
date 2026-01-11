@@ -1,11 +1,294 @@
 Log Stream:
 
 
+                <!-- Log Entries Controls Wrapper -->
+                <div class="odcm-log-entries-controls">
+                    <!-- Batch Selection Controls -->
+                    <div class="odcm-batch-controls">
+                        <div class="odcm-select-all-container">
+                            <input type="checkbox" id="select-all-logs" x-model="selectAll" @change="toggleSelectAll()" class="odcm-select-all-checkbox">
+                            <label for="select-all-logs" class="odcm-select-all-label">
+                                Select All                            </label>
+                        </div>
+                        <div class="odcm-batch-actions" x-show="hasSelection" style="display: none;">
+                            <span class="odcm-selection-count" x-text="selectedCount + ' selected'">0 selected</span>
+                            <button type="button" class="odcm-delete-selected button button-secondary" @click="deleteSelectedLogs()" :disabled="isDeleting">
+                                <span class="dashicons dashicons-trash" :class="{ 'is-spinning': isDeleting }"></span>
+                                <span x-text="isDeleting ? 'Deleting...' : 'Delete Selected'">Delete Selected</span>
+                            </button>
+                        </div>
+                        <div class="odcm-controls-divider" aria-hidden="true"></div>
+                        <div class="odcm-stream-view-toggle odcm-segmented" role="radiogroup" aria-label="Toggle view mode">
+                            <div class="odcm-segmented-track">
+                                <div class="odcm-segmented-thumb is-right" :class="viewMode === 'flat' ? 'is-right' : 'is-left'"></div>
+                                <button type="button" class="odcm-segmented-option" role="radio" :aria-checked="viewMode === 'consolidated'" :class="{ 'is-active': viewMode === 'consolidated' }" @click="setViewMode('consolidated')" aria-checked="false">
+                                    Grouped                                </button>
+                                <button type="button" class="odcm-segmented-option is-active" role="radio" :aria-checked="viewMode === 'flat'" :class="{ 'is-active': viewMode === 'flat' }" @click="setViewMode('flat')" title="Shows all events ungrouped, in strict chronological order" aria-checked="true">
+                                    Individual                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
+                <template x-for="(log, index) in logs" :key="log?.id || ('invalid-' + index)">
+                    <div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'">
                         
                         <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
-                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1564">
-                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1564">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)"></div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id"></span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'"></span>
+                                </div>
+                                <span class="odcm-status-pill" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'"></span>
+                            </div>
+                        </div>
+                    </div>
+                </template><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1572_0">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1572_0">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:59</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">164</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Checkout Completed</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1572_1">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1572_1">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:59</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">164</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Payment Event</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry is-selected">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1573">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1573">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">11 Jan 2026, 00:00</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">164</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Rule "virtual rule" evaluated event: order_check_scheduled</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1566">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1566">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:59</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">164</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #164 (checkout-draft → pending)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1567">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1567">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:59</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">164</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #164 (pending → completed)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1568">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1568">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:59</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">164</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Rule Executed: virtual rule</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--success" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">success</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1569">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1569">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:59</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">164</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Stripe payment processed successfully - $10.00</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1570">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1570">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:59</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">164</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Rule Executed: virtual rule</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--success" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">success</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1571">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1571">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:59</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">164</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status updated</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1564_0">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1564_0">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:22</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">163</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Checkout Completed</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1564_1">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1564_1">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:22</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">163</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Payment Event</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1565">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1565">
                                 <span class="screen-reader-text">Select log entry</span>
                             </label>
                         </div>
@@ -17,341 +300,1211 @@ Log Stream:
                                     Order #<span x-text="log.order_id">163</span>
                                 </div>
                                 <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Rule "virtual rule" evaluated event: order_check_scheduled</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1559">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1559">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:22</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">163</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #163 (pending → completed)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1560">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1560">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:22</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">163</span>
+                                </div>
+                                <div class="odcm-log-summary">
                                     <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Rule Executed: virtual rule</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--success" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">success</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1561">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1561">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:22</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">163</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Stripe payment processed successfully - $10.00</span>
                                 </div>
                                 <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
                             </div>
                         </div>
-                                            
-
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1562">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1562">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:22</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">163</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Rule Executed: virtual rule</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--success" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">success</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1563">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1563">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:22</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">163</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status updated</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1558">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1558">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 23:22</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">163</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #163 (checkout-draft → pending)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1551_0">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1551_0">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:49</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">162</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Checkout Completed</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1551_1">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1551_1">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:49</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">162</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Payment Event</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1554">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1554">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:51</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">162</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Scheduled order check: no rules triggered</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1557">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1557">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:51</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">162</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Scheduled order check: no rules triggered</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1545">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1545">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:50</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">162</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #162 (pending → processing)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1548">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1548">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:50</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">162</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Processed: Stripe payment of USD 25.00 processing for Order #162</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1541">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1541">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:50</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">162</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #162 (checkout-draft → pending)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1544">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1544">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:50</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">162</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status updated</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1537">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1537">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:23</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">161</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Scheduled order check: no rules triggered</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1540">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1540">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:23</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">161</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Scheduled order check: no rules triggered</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1534_0">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1534_0">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:22</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">161</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Checkout Completed</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1534_1">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1534_1">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:22</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">161</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Payment Event</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1528">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1528">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:23</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">161</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #161 (pending → processing)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1531">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1531">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:23</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">161</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Processed: Stripe payment of USD 25.00 processing for Order #161</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1524">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1524">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:23</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">161</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #161 (checkout-draft → pending)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1527">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1527">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:23</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">161</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status updated</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1517_0">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1517_0">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:05</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">160</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Checkout Completed</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1517_1">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1517_1">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:05</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">160</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Payment Event</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1520">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1520">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:06</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">160</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Scheduled order check: no rules triggered</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1523">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1523">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:06</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">160</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Scheduled order check: no rules triggered</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1511">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1511">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:05</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">160</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #160 (pending → processing)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1514">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1514">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:05</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">160</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Processed: Stripe payment of USD 25.00 processing for Order #160</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1507">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1507">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:05</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">160</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #160 (checkout-draft → pending)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1510">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1510">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 22:05</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">160</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status updated</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1500_0">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1500_0">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 20:48</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">159</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Checkout Completed</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1500_1">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1500_1">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 20:48</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">159</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Payment Event</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1503">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1503">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:49</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">159</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">No matching rules for: Stripe Order Check Scheduled (USD 25.00) for Order #159</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1506">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1506">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:49</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">159</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">No matching rules for: Stripe Order Check Scheduled (USD 25.00) for Order #159</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1494">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1494">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:48</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">159</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #159 (pending → processing)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1497">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1497">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:48</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">159</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Processed: Stripe payment of USD 25.00 processing for Order #159</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1490">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1490">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:48</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">159</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #159 (checkout-draft → pending)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1493">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1493">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:48</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">159</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status updated</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1488_0">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1488_0">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 20:28</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">158</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Checkout Completed</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1488_1">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1488_1">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 20:28</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">158</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Payment Event</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1489">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1489">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:29</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">158</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Rule "virtual rule" evaluated event: order_check_scheduled</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1483">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1483">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:28</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">158</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #158 (pending → completed)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1484">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1484">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:28</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">158</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Rule Executed: virtual rule</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--success" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">success</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1485">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1485">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:28</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">158</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Stripe payment processed successfully - $10.00</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1486">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1486">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:28</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">158</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Rule Executed: virtual rule</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--success" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">success</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1487">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1487">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:28</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">158</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status updated</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1482">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1482">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:28</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">158</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #158 (checkout-draft → pending)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1480">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1480">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:13</div>
+                                <div x-show="log?.order_id" style="display: none;">
+                                    Order #<span x-text="log.order_id"></span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">100 audit log entries were deleted</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1481">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1481">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:13</div>
+                                <div x-show="log?.order_id" style="display: none;">
+                                    Order #<span x-text="log.order_id"></span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">95 audit log entries were deleted</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1473_0">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1473_0">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 20:11</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">157</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Checkout Completed</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1473_1">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1473_1">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 20:11</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">157</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Payment Event</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1476">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1476">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:12</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">157</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">No matching rules for: Stripe Order Check Scheduled (USD 25.00) for Order #157</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1479">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1479">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:12</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">157</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">No matching rules for: Stripe Order Check Scheduled (USD 25.00) for Order #157</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1467">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1467">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:12</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">157</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #157 (pending → processing)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1470">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1470">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:12</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">157</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Processed: Stripe payment of USD 25.00 processing for Order #157</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1463">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1463">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:12</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">157</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status change evaluation: Order #157 (checkout-draft → pending)</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--debug" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">debug</span>
+                            </div>
+                        </div>
+                    </div><div x-show="log &amp;&amp; log.id" :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'" class="odcm-log-entry">
+                        
+                        <div class="odcm-log-entry-checkbox" x-show="log &amp;&amp; log.id">
+                            <input type="checkbox" :id="'log-checkbox-' + (log?.id || 'invalid')" :checked="log?.id &amp;&amp; isLogSelected(log.id)" @change="log?.id &amp;&amp; toggleLogSelection(log.id)" @click.stop="" class="odcm-log-checkbox" id="log-checkbox-1466">
+                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label" for="log-checkbox-1466">
+                                <span class="screen-reader-text">Select log entry</span>
+                            </label>
+                        </div>
+                        
+                        <div class="odcm-log-entry-content" @click="log &amp;&amp; selectLog(log)">
+                            <div class="odcm-log-entry-header">
+                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)">10 Jan 2026, 21:12</div>
+                                <div x-show="log?.order_id">
+                                    Order #<span x-text="log.order_id">157</span>
+                                </div>
+                                <div class="odcm-log-summary">
+                                    <span x-text="log?.summary || 'admin.insight_dashboard.log_stream.no_summary'">Status updated</span>
+                                </div>
+                                <span class="odcm-status-pill odcm-status-pill--info" :class="'odcm-status-pill--' + ((log?.status &amp;&amp; typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')" x-text="log?.status || 'admin.insight_dashboard.log_stream.unknown_status'">info</span>
+                            </div>
+                        </div>
+                    </div>
+            
 
 Timeline:
 
-<div class="odcm-timeline-list"><div class="odcm-component odcm-component--order"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><span class="odcm-component-icon dashicons dashicons-migrate"></span><span class="odcm-component__title">Order Status Changed</span><div class="odcm-component__header-right"><span class="odcm-status-pill odcm-status-pill--info">pending</span></div></div></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(1768083750, $el)">10 Jan 2026, 23:22</span></div><div class="odcm-key">Status Change</div><div class="odcm-value">Checkout-draft → Pending</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
-    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"status_changed"</span><span class="token punctuation">,</span>
-    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Status changed"</span><span class="token punctuation">,</span>
-    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1768083750</span><span class="token punctuation">,</span>
-    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
-    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-        <span class="token property">"from"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
-        <span class="token property">"to"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
-        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">163</span><span class="token punctuation">,</span>
-        <span class="token property">"change_type"</span><span class="token operator">:</span> <span class="token string">"automatic"</span>
-    <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-        <span class="token property">"from_status"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
-        <span class="token property">"to_status"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
-        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span><span class="token punctuation">,</span>
-        <span class="token property">"attribution"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-            <span class="token property">"request_type"</span><span class="token operator">:</span> <span class="token string">"rest"</span><span class="token punctuation">,</span>
-            <span class="token property">"user_logged_in"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
-            <span class="token property">"source_plugin"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"type"</span><span class="token operator">:</span> <span class="token string">"unknown"</span><span class="token punctuation">,</span>
-                <span class="token property">"slug"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
-                <span class="token property">"file"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
-                <span class="token property">"frame"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
-                <span class="token property">"confidence"</span><span class="token operator">:</span> <span class="token number">0</span>
-            <span class="token punctuation">}</span><span class="token punctuation">,</span>
-            <span class="token property">"external_service"</span><span class="token operator">:</span> <span class="token string">""</span>
-        <span class="token punctuation">}</span><span class="token punctuation">,</span>
-        <span class="token property">"order_total"</span><span class="token operator">:</span> <span class="token string">"10.00"</span><span class="token punctuation">,</span>
-        <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
-        <span class="token property">"real_occurrence_timestamp"</span><span class="token operator">:</span> <span class="token number">1768083750</span><span class="token punctuation">,</span>
-        <span class="token property">"processing_timestamp"</span><span class="token operator">:</span> <span class="token number">1768083756.992306</span>
-    <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">163</span><span class="token punctuation">,</span>
-    <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-        <span class="token punctuation">{</span>
-            <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
-            <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-                <span class="token punctuation">{</span>
-                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Status changed"</span>
-                <span class="token punctuation">}</span><span class="token punctuation">,</span>
-                <span class="token punctuation">{</span>
-                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"status_changed"</span>
-                <span class="token punctuation">}</span><span class="token punctuation">,</span>
-                <span class="token punctuation">{</span>
-                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#163"</span>
-                <span class="token punctuation">}</span>
-            <span class="token punctuation">]</span>
-        <span class="token punctuation">}</span>
-    <span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
-<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--payment"><div class="odcm-component__header"><div class="odcm-component__header-top"><div class="odcm-component__header-left"><span class="odcm-component-icon dashicons dashicons-cart"></span><span class="odcm-component__title">Checkout Processed</span><div class="odcm-component__header-right"><span class="odcm-status-pill odcm-status-pill--info">Checkout-draft</span></div></div></div></div><div class="odcm-component__body"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(1768083750, $el)">10 Jan 2026, 23:22</span></div><div class="odcm-key">Payment Method</div><div class="odcm-value">Credit / Debit Card</div><div class="odcm-key">Payment Status</div><div class="odcm-value">Checkout-draft</div><div class="odcm-key">Checkout Type</div><div class="odcm-value">Block checkout</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
-    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"checkout_processed"</span><span class="token punctuation">,</span>
-    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Checkout Completed"</span><span class="token punctuation">,</span>
-    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1768083750</span><span class="token punctuation">,</span>
-    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
-    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">163</span><span class="token punctuation">,</span>
-        <span class="token property">"status"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
-        <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
-        <span class="token property">"total"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
-        <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
-        <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span>
-    <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-        <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
-        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span><span class="token punctuation">,</span>
-        <span class="token property">"real_checkout_timestamp"</span><span class="token operator">:</span> <span class="token number">1768083750</span><span class="token punctuation">,</span>
-        <span class="token property">"queued_at"</span><span class="token operator">:</span> <span class="token string">"2026-01-10T23:22:36+01:00"</span><span class="token punctuation">,</span>
-        <span class="token property">"processed_from_queue"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
-        <span class="token property">"checkout_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-            <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
-            <span class="token property">"capture_timestamp"</span><span class="token operator">:</span> <span class="token string">"2026-01-10T23:22:36+01:00"</span><span class="token punctuation">,</span>
-            <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">163</span><span class="token punctuation">,</span>
-            <span class="token property">"cart_analysis"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"total_items"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
-                <span class="token property">"product_types"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-                    <span class="token string">"simple"</span>
-                <span class="token punctuation">]</span><span class="token punctuation">,</span>
-                <span class="token property">"requires_shipping"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
-                <span class="token property">"has_virtual_products"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
-                <span class="token property">"has_downloadable_products"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
-                <span class="token property">"mixed_cart"</span><span class="token operator">:</span> <span class="token boolean">false</span>
-            <span class="token punctuation">}</span><span class="token punctuation">,</span>
-            <span class="token property">"payment_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
-                <span class="token property">"payment_method_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
-                <span class="token property">"payment_status"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
-                <span class="token property">"transaction_id"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
-                <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
-                <span class="token property">"total_amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
-                <span class="token property">"gateway_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                    <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
-                    <span class="token property">"gateway_id"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
-                    <span class="token property">"gateway_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
-                    <span class="token property">"gateway_class"</span><span class="token operator">:</span> <span class="token string">"WC_Stripe_UPE_Payment_Gateway"</span><span class="token punctuation">,</span>
-                    <span class="token property">"supports"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-                        <span class="token string">"products"</span><span class="token punctuation">,</span>
-                        <span class="token string">"refunds"</span><span class="token punctuation">,</span>
-                        <span class="token string">"tokenization"</span><span class="token punctuation">,</span>
-                        <span class="token string">"add_payment_method"</span>
-                    <span class="token punctuation">]</span>
-                <span class="token punctuation">}</span>
-            <span class="token punctuation">}</span><span class="token punctuation">,</span>
-            <span class="token property">"shipping_analysis"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"requires_shipping"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
-                <span class="token property">"shipping_methods"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
-                <span class="token property">"has_shipping_address"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
-                <span class="token property">"shipping_address"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                    <span class="token property">"country"</span><span class="token operator">:</span> <span class="token string">"US"</span><span class="token punctuation">,</span>
-                    <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"CA"</span><span class="token punctuation">,</span>
-                    <span class="token property">"postcode"</span><span class="token operator">:</span> <span class="token string">"45345"</span><span class="token punctuation">,</span>
-                    <span class="token property">"city"</span><span class="token operator">:</span> <span class="token string">"dfghdth"</span>
-                <span class="token punctuation">}</span>
-            <span class="token punctuation">}</span><span class="token punctuation">,</span>
-            <span class="token property">"customer_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"is_guest"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
-                <span class="token property">"user_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
-                <span class="token property">"email"</span><span class="token operator">:</span> <span class="token string">"yakir@lanterntech.io"</span><span class="token punctuation">,</span>
-                <span class="token property">"first_name"</span><span class="token operator">:</span> <span class="token string">"dfghdrt"</span><span class="token punctuation">,</span>
-                <span class="token property">"last_name"</span><span class="token operator">:</span> <span class="token string">"drthdrt"</span><span class="token punctuation">,</span>
-                <span class="token property">"billing_phone"</span><span class="token operator">:</span> <span class="token string">"1234567897"</span>
-            <span class="token punctuation">}</span><span class="token punctuation">,</span>
-            <span class="token property">"technical_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"wp_version"</span><span class="token operator">:</span> <span class="token string">"6.9"</span><span class="token punctuation">,</span>
-                <span class="token property">"wc_version"</span><span class="token operator">:</span> <span class="token string">"10.3.5"</span><span class="token punctuation">,</span>
-                <span class="token property">"wc_blocks_version"</span><span class="token operator">:</span> <span class="token string">"11.8.0-dev"</span><span class="token punctuation">,</span>
-                <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
-                <span class="token property">"is_store_api"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
-                <span class="token property">"theme"</span><span class="token operator">:</span> <span class="token string">"Twenty Twenty-Five"</span>
-            <span class="token punctuation">}</span>
-        <span class="token punctuation">}</span>
-    <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">163</span><span class="token punctuation">,</span>
-    <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-        <span class="token punctuation">{</span>
-            <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
-            <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-                <span class="token punctuation">{</span>
-                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Checkout Completed"</span>
-                <span class="token punctuation">}</span><span class="token punctuation">,</span>
-                <span class="token punctuation">{</span>
-                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"checkout_processed"</span>
-                <span class="token punctuation">}</span><span class="token punctuation">,</span>
-                <span class="token punctuation">{</span>
-                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#163"</span>
-                <span class="token punctuation">}</span>
-            <span class="token punctuation">]</span>
-        <span class="token punctuation">}</span>
-    <span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
-<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--payment is-parent is-child"><div class="odcm-component__header is-parent is-child"><div class="odcm-component__header-top is-parent is-child"><div class="odcm-component__header-left is-parent is-child"><span class="odcm-component-icon dashicons dashicons-cloud-saved"></span><span class="odcm-component__title">Payment.stripe.checkout processed</span></div></div></div><div class="odcm-component__body is-parent is-child"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(1768083750, $el)">10 Jan 2026, 23:22</span></div><div class="odcm-key">Payment Method</div><div class="odcm-value">Stripe</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
-    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"payment.stripe.checkout_processed"</span><span class="token punctuation">,</span>
-    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Payment Event"</span><span class="token punctuation">,</span>
-    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1768083750</span><span class="token punctuation">,</span>
-    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
-    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-        <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
-        <span class="token property">"payment_method_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
-        <span class="token property">"payment_status"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
-        <span class="token property">"transaction_id"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
-        <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
-        <span class="token property">"total_amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
-        <span class="token property">"gateway_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-            <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
-            <span class="token property">"gateway_id"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
-            <span class="token property">"gateway_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
-            <span class="token property">"gateway_class"</span><span class="token operator">:</span> <span class="token string">"WC_Stripe_UPE_Payment_Gateway"</span><span class="token punctuation">,</span>
-            <span class="token property">"supports"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-                <span class="token string">"products"</span><span class="token punctuation">,</span>
-                <span class="token string">"refunds"</span><span class="token punctuation">,</span>
-                <span class="token string">"tokenization"</span><span class="token punctuation">,</span>
-                <span class="token string">"add_payment_method"</span>
-            <span class="token punctuation">]</span>
-        <span class="token punctuation">}</span>
-    <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-        <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
-        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span><span class="token punctuation">,</span>
-        <span class="token property">"real_checkout_timestamp"</span><span class="token operator">:</span> <span class="token number">1768083750</span><span class="token punctuation">,</span>
-        <span class="token property">"queued_at"</span><span class="token operator">:</span> <span class="token string">"2026-01-10T23:22:36+01:00"</span><span class="token punctuation">,</span>
-        <span class="token property">"processed_from_queue"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
-        <span class="token property">"checkout_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-            <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
-            <span class="token property">"capture_timestamp"</span><span class="token operator">:</span> <span class="token string">"2026-01-10T23:22:36+01:00"</span><span class="token punctuation">,</span>
-            <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">163</span><span class="token punctuation">,</span>
-            <span class="token property">"cart_analysis"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"total_items"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
-                <span class="token property">"product_types"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-                    <span class="token string">"simple"</span>
-                <span class="token punctuation">]</span><span class="token punctuation">,</span>
-                <span class="token property">"requires_shipping"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
-                <span class="token property">"has_virtual_products"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
-                <span class="token property">"has_downloadable_products"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
-                <span class="token property">"mixed_cart"</span><span class="token operator">:</span> <span class="token boolean">false</span>
-            <span class="token punctuation">}</span><span class="token punctuation">,</span>
-            <span class="token property">"payment_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
-                <span class="token property">"payment_method_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
-                <span class="token property">"payment_status"</span><span class="token operator">:</span> <span class="token string">"checkout-draft"</span><span class="token punctuation">,</span>
-                <span class="token property">"transaction_id"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
-                <span class="token property">"currency"</span><span class="token operator">:</span> <span class="token string">"USD"</span><span class="token punctuation">,</span>
-                <span class="token property">"total_amount"</span><span class="token operator">:</span> <span class="token number">10</span><span class="token punctuation">,</span>
-                <span class="token property">"gateway_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                    <span class="token property">"payment_method"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
-                    <span class="token property">"gateway_id"</span><span class="token operator">:</span> <span class="token string">"stripe"</span><span class="token punctuation">,</span>
-                    <span class="token property">"gateway_title"</span><span class="token operator">:</span> <span class="token string">"Credit \/ Debit Card"</span><span class="token punctuation">,</span>
-                    <span class="token property">"gateway_class"</span><span class="token operator">:</span> <span class="token string">"WC_Stripe_UPE_Payment_Gateway"</span><span class="token punctuation">,</span>
-                    <span class="token property">"supports"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-                        <span class="token string">"products"</span><span class="token punctuation">,</span>
-                        <span class="token string">"refunds"</span><span class="token punctuation">,</span>
-                        <span class="token string">"tokenization"</span><span class="token punctuation">,</span>
-                        <span class="token string">"add_payment_method"</span>
-                    <span class="token punctuation">]</span>
-                <span class="token punctuation">}</span>
-            <span class="token punctuation">}</span><span class="token punctuation">,</span>
-            <span class="token property">"shipping_analysis"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"requires_shipping"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
-                <span class="token property">"shipping_methods"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
-                <span class="token property">"has_shipping_address"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
-                <span class="token property">"shipping_address"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                    <span class="token property">"country"</span><span class="token operator">:</span> <span class="token string">"US"</span><span class="token punctuation">,</span>
-                    <span class="token property">"state"</span><span class="token operator">:</span> <span class="token string">"CA"</span><span class="token punctuation">,</span>
-                    <span class="token property">"postcode"</span><span class="token operator">:</span> <span class="token string">"45345"</span><span class="token punctuation">,</span>
-                    <span class="token property">"city"</span><span class="token operator">:</span> <span class="token string">"dfghdth"</span>
-                <span class="token punctuation">}</span>
-            <span class="token punctuation">}</span><span class="token punctuation">,</span>
-            <span class="token property">"customer_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"is_guest"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
-                <span class="token property">"user_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
-                <span class="token property">"email"</span><span class="token operator">:</span> <span class="token string">"yakir@lanterntech.io"</span><span class="token punctuation">,</span>
-                <span class="token property">"first_name"</span><span class="token operator">:</span> <span class="token string">"dfghdrt"</span><span class="token punctuation">,</span>
-                <span class="token property">"last_name"</span><span class="token operator">:</span> <span class="token string">"drthdrt"</span><span class="token punctuation">,</span>
-                <span class="token property">"billing_phone"</span><span class="token operator">:</span> <span class="token string">"1234567897"</span>
-            <span class="token punctuation">}</span><span class="token punctuation">,</span>
-            <span class="token property">"technical_context"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"wp_version"</span><span class="token operator">:</span> <span class="token string">"6.9"</span><span class="token punctuation">,</span>
-                <span class="token property">"wc_version"</span><span class="token operator">:</span> <span class="token string">"10.3.5"</span><span class="token punctuation">,</span>
-                <span class="token property">"wc_blocks_version"</span><span class="token operator">:</span> <span class="token string">"11.8.0-dev"</span><span class="token punctuation">,</span>
-                <span class="token property">"checkout_type"</span><span class="token operator">:</span> <span class="token string">"block_checkout"</span><span class="token punctuation">,</span>
-                <span class="token property">"is_store_api"</span><span class="token operator">:</span> <span class="token boolean">false</span><span class="token punctuation">,</span>
-                <span class="token property">"theme"</span><span class="token operator">:</span> <span class="token string">"Twenty Twenty-Five"</span>
-            <span class="token punctuation">}</span>
-        <span class="token punctuation">}</span>
-    <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-        <span class="token punctuation">{</span>
-            <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
-            <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-                <span class="token punctuation">{</span>
-                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Payment Event"</span>
-                <span class="token punctuation">}</span><span class="token punctuation">,</span>
-                <span class="token punctuation">{</span>
-                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"payment.stripe.checkout_processed"</span>
-                <span class="token punctuation">}</span>
-            <span class="token punctuation">]</span>
-        <span class="token punctuation">}</span>
-    <span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
-<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div><div class="odcm-component odcm-component--order is-parent"><div class="odcm-component__header is-parent"><div class="odcm-component__header-top is-parent"><div class="odcm-component__header-left is-parent"><span class="odcm-component-icon dashicons dashicons-migrate"></span><span class="odcm-component__title">Order Status Changed</span><div class="odcm-component__header-right is-parent"><span class="odcm-status-pill odcm-status-pill--success">completed</span></div></div></div></div><div class="odcm-component__body is-parent"><div class="odcm-key-value-list"><div class="odcm-key">Timestamp</div><div class="odcm-value"><span class="js-format-timestamp" x-text="formatTimestamp(1768083757, $el)">10 Jan 2026, 23:22</span></div><div class="odcm-key">Status Change</div><div class="odcm-value">Pending → Completed</div></div><div class="odcm-expandable-section"><button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">Show raw event json</button><div class="odcm-tier-content"><div class="odcm-code-block"><div class="code-toolbar"><pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
-    <span class="token property">"event_type"</span><span class="token operator">:</span> <span class="token string">"status_changed"</span><span class="token punctuation">,</span>
-    <span class="token property">"label"</span><span class="token operator">:</span> <span class="token string">"Status changed"</span><span class="token punctuation">,</span>
-    <span class="token property">"ts"</span><span class="token operator">:</span> <span class="token number">1768083757</span><span class="token punctuation">,</span>
-    <span class="token property">"level"</span><span class="token operator">:</span> <span class="token string">"info"</span><span class="token punctuation">,</span>
-    <span class="token property">"data"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-        <span class="token property">"from"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
-        <span class="token property">"to"</span><span class="token operator">:</span> <span class="token string">"completed"</span><span class="token punctuation">,</span>
-        <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">163</span><span class="token punctuation">,</span>
-        <span class="token property">"change_type"</span><span class="token operator">:</span> <span class="token string">"automatic"</span>
-    <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"rawData"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-        <span class="token property">"from_status"</span><span class="token operator">:</span> <span class="token string">"pending"</span><span class="token punctuation">,</span>
-        <span class="token property">"to_status"</span><span class="token operator">:</span> <span class="token string">"completed"</span><span class="token punctuation">,</span>
-        <span class="token property">"source"</span><span class="token operator">:</span> <span class="token string">"manual"</span><span class="token punctuation">,</span>
-        <span class="token property">"attribution"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-            <span class="token property">"request_type"</span><span class="token operator">:</span> <span class="token string">"rest"</span><span class="token punctuation">,</span>
-            <span class="token property">"user_logged_in"</span><span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">,</span>
-            <span class="token property">"source_plugin"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
-                <span class="token property">"type"</span><span class="token operator">:</span> <span class="token string">"unknown"</span><span class="token punctuation">,</span>
-                <span class="token property">"slug"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
-                <span class="token property">"file"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
-                <span class="token property">"frame"</span><span class="token operator">:</span> <span class="token string">""</span><span class="token punctuation">,</span>
-                <span class="token property">"confidence"</span><span class="token operator">:</span> <span class="token number">0</span>
-            <span class="token punctuation">}</span><span class="token punctuation">,</span>
-            <span class="token property">"external_service"</span><span class="token operator">:</span> <span class="token string">""</span>
-        <span class="token punctuation">}</span><span class="token punctuation">,</span>
-        <span class="token property">"order_total"</span><span class="token operator">:</span> <span class="token string">"10.00"</span><span class="token punctuation">,</span>
-        <span class="token property">"customer_id"</span><span class="token operator">:</span> <span class="token number">1</span><span class="token punctuation">,</span>
-        <span class="token property">"real_occurrence_timestamp"</span><span class="token operator">:</span> <span class="token number">1768083757</span><span class="token punctuation">,</span>
-        <span class="token property">"processing_timestamp"</span><span class="token operator">:</span> <span class="token number">1768083757.044515</span>
-    <span class="token punctuation">}</span><span class="token punctuation">,</span>
-    <span class="token property">"order_id"</span><span class="token operator">:</span> <span class="token number">163</span><span class="token punctuation">,</span>
-    <span class="token property">"display_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-        <span class="token punctuation">{</span>
-            <span class="token property">"title"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
-            <span class="token property">"items"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
-                <span class="token punctuation">{</span>
-                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Summary"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"Status changed"</span>
-                <span class="token punctuation">}</span><span class="token punctuation">,</span>
-                <span class="token punctuation">{</span>
-                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Event"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"status_changed"</span>
-                <span class="token punctuation">}</span><span class="token punctuation">,</span>
-                <span class="token punctuation">{</span>
-                    <span class="token property">"key"</span><span class="token operator">:</span> <span class="token string">"Order"</span><span class="token punctuation">,</span>
-                    <span class="token property">"value"</span><span class="token operator">:</span> <span class="token string">"#163"</span>
-                <span class="token punctuation">}</span>
-            <span class="token punctuation">]</span>
-        <span class="token punctuation">}</span>
-    <span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"detail_sections"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"tech_data"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
-    <span class="token property">"actions_taken"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
-<span class="token punctuation">}</span></code></pre><div class="toolbar"><div class="toolbar-item"><button class="copy-to-clipboard-button" type="button" data-copy-state="copy"><span>Copy</span></button></div></div></div></div></div></div></div></div></div>
+<div class="odcm-timeline-list"></div>
