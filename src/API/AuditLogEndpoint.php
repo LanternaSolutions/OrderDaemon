@@ -355,6 +355,18 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'type'        => 'boolean',
                 'default'     => false,
             ],
+            // sources
+            // manual - Actions triggered by logged-in users through the WordPress admin interface
+            // webhook - Events received from external webhook calls (e.g., payment gateways)
+            // api - Events triggered through REST API or AJAX calls
+            // scheduled - Events triggered by cron jobs, action scheduler, or CLI commands
+            // system - Internal system events (default fallback)
+            'source' => [
+                'description' => 'Filter by log source (manual, scheduled, webhook, api, system)',
+                'type'        => 'string',
+                'enum'        => ['manual', 'scheduled', 'webhook', 'api', 'system', ''],
+                'default'     => '',
+            ],
         ];
     }
 
@@ -725,7 +737,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Build response
             $response_data = [
-                'logs' => $this->format_logs_for_api($page_logs),
+                'logs' => $this->format_logs_for_api($page_logs, (bool) $request->get_param('include_debug')),
                 'pagination' => [
                     'total' => $total,
                     'total_pages' => $total_pages,
@@ -1219,7 +1231,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $execution_time = microtime(true) - $start_time;
 
             return new WP_REST_Response([
-                'logs' => $this->format_logs_for_api($logs),
+                'logs' => $this->format_logs_for_api($logs, (bool) $request->get_param('include_debug')),
                 'meta' => [
                     'process_id' => $process_id,
                     'total_logs' => count($logs),
@@ -1490,6 +1502,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $order_id = $request->get_param('order_id');
             $status = $request->get_param('status');
             $event_type = $request->get_param('event_type');
+            $source = $request->get_param('source');
             $date_from = $request->get_param('date_from');
             $date_to = $request->get_param('date_to');
             $search = $request->get_param('search');
@@ -1532,8 +1545,20 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             if (!empty($event_type)) {
-                $conditions[] = "l.event_type = %s";
-                $params[] = sanitize_key($event_type);
+                // Handle nested event types for universal_event_processing events
+                // ALL event types can be stored as universal_event_processing, not just payment events
+                // Use precision LIKE matching to avoid false positives
+                // Check both "eventType" and "event_type" field variations
+                $conditions[] = "(l.event_type = %s OR (l.event_type = 'universal_event_processing' AND (p.payload LIKE %s OR p.payload LIKE %s)))";
+                $params[] = $event_type;
+                $params[] = '%"eventType":"' . $wpdb->esc_like($event_type) . '"%';
+                $params[] = '%"event_type":"' . $wpdb->esc_like($event_type) . '"%';
+            }
+
+            // Source filter
+            if (!empty($source)) {
+                $conditions[] = "l.source = %s";
+                $params[] = sanitize_key($source);
             }
 
             if (!empty($date_from)) {
@@ -1660,6 +1685,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $order_id = $request->get_param('order_id');
             $status = $request->get_param('status');
             $event_type = $request->get_param('event_type');
+            $source = $request->get_param('source');
             $date_from = $request->get_param('date_from');
             $date_to = $request->get_param('date_to');
             $search = $request->get_param('search');
@@ -1699,8 +1725,14 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             if (!empty($event_type)) {
-                $conditions[] = "l.event_type = %s";
-                $params[] = sanitize_key($event_type);
+                // Handle nested event types for universal_event_processing events
+                // ALL event types can be stored as universal_event_processing, not just payment events
+                // Use precision LIKE matching to avoid false positives
+                // Check both "eventType" and "event_type" field variations
+                $conditions[] = "(l.event_type = %s OR (l.event_type = 'universal_event_processing' AND (p.payload LIKE %s OR p.payload LIKE %s)))";
+                $params[] = $event_type;
+                $params[] = '%"eventType":"' . $wpdb->esc_like($event_type) . '"%';
+                $params[] = '%"event_type":"' . $wpdb->esc_like($event_type) . '"%';
             }
 
             if (!empty($date_from)) {
@@ -1862,8 +1894,14 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             if (!empty($event_type)) {
-                $conditions[] = "l.event_type = %s";
-                $params[] = sanitize_key($event_type);
+                // Handle nested event types for universal_event_processing events
+                // ALL event types can be stored as universal_event_processing, not just payment events
+                // Use precision LIKE matching to avoid false positives
+                // Check both "eventType" and "event_type" field variations
+                $conditions[] = "(l.event_type = %s OR (l.event_type = 'universal_event_processing' AND (p.payload LIKE %s OR p.payload LIKE %s)))";
+                $params[] = $event_type;
+                $params[] = '%"eventType":"' . $wpdb->esc_like($event_type) . '"%';
+                $params[] = '%"event_type":"' . $wpdb->esc_like($event_type) . '"%';
             }
 
             if (!empty($date_from)) {
@@ -1997,7 +2035,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         $event_type = $request->get_param('event_type');
         if (!empty($event_type)) {
             $where_clauses[] = "l.event_type = %s";
-            $where_params[] = sanitize_key($event_type);
+            $where_params[] = $event_type;
         }
 
         // Date range filters
@@ -2087,7 +2125,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         $event_type = $request->get_param('event_type');
         if (!empty($event_type)) {
             $where_clauses[] = "l.event_type = %s";
-            $where_params[] = sanitize_key($event_type);
+            $where_params[] = $event_type;
         }
 
         // Date range filters
@@ -2438,9 +2476,10 @@ class AuditLogEndpoint extends WP_REST_Controller
      * This ensures log stream and timeline use the same logic for status and summary
      *
      * @param array $log The log entry
+     * @param bool $includeDebug Whether to include debug events (from dashboard toggle)
      * @return array Array with 'status', 'status_type', and 'summary' extracted using DisplayAdapter
      */
-    private function extractConsistentEventData(array $log): array
+    private function extractConsistentEventData(array $log, bool $includeDebug = false): array
     {
         // Get the payload data
         $payload = $log['payload'] ?? '';
@@ -2461,6 +2500,30 @@ class AuditLogEndpoint extends WP_REST_Controller
             ];
         }
 
+        // Extract event type for filtering
+        $event_type = $payload_data['event_type'] ?? $payload_data['data']['event_type'] ?? $log['event_type'] ?? '';
+
+        // Use the same filtering logic as the timeline
+        // Check if this event should be filtered based on debug preferences
+        if (\OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry::shouldFilterForRendering($event_type, $includeDebug, $payload_data)) {
+            // This is a debug event that should be filtered out when includeDebug=false
+            // Return appropriate status and summary for filtered events
+            if (\OrderDaemon\CompletionManager\API\Timeline\RuleExecutionAdapter::isIncompleteRuleEvent($payload_data)) {
+                return [
+                    'status' => 'processing',
+                    'status_type' => 'debug',
+                    'summary' => __('Rule Processing Started', 'order-daemon')
+                ];
+            }
+
+            // For other debug events, return debug status
+            return [
+                'status' => $log['status'] ?? 'debug',
+                'status_type' => 'debug',
+                'summary' => $log['summary'] ?? 'Debug Event'
+            ];
+        }
+
         try {
             // Use the same adapter system as timeline rendering
             $adapter = \OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry::getAdapterForEvent($payload_data);
@@ -2471,6 +2534,12 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Extract summary from display sections (same as timeline)
             $summary = $displayData['display_sections']['event_description']['value'] ?? '';
+
+            // Special handling for incomplete rule execution events to ensure consistency
+            if (empty($summary) && \OrderDaemon\CompletionManager\API\Timeline\RuleExecutionAdapter::isIncompleteRuleEvent($payload_data)) {
+                $summary = __('Rule Processing Started', 'order-daemon');
+            }
+
             if (empty($summary)) {
                 // Fallback to other potential summary fields
                 $summary = $displayData['display_sections']['event_type']['value'] ?? '';
@@ -2489,6 +2558,16 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Fallback to original logic if DisplayAdapter fails
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage('ODCM: DisplayAdapter failed for log stream consistency, falling back: ' . $e->getMessage(), 'warning');
+            }
+
+            // Special handling for incomplete rule execution events in fallback mode
+            $payload_data = json_decode($payload, true);
+            if (is_array($payload_data) && \OrderDaemon\CompletionManager\API\Timeline\RuleExecutionAdapter::isIncompleteRuleEvent($payload_data)) {
+                return [
+                    'status' => 'processing',
+                    'status_type' => 'debug',
+                    'summary' => __('Rule Processing Started', 'order-daemon')
+                ];
             }
 
             // Use existing extractRuleExecutionStatus for rule execution events
@@ -2547,9 +2626,10 @@ class AuditLogEndpoint extends WP_REST_Controller
      * Format logs for API response
      *
      * @param array $logs Array of log entries
+     * @param bool $include_debug Whether to include debug events
      * @return array Formatted logs
      */
-    private function format_logs_for_api(array $logs): array
+    private function format_logs_for_api(array $logs, bool $include_debug = false): array
     {
         $formatted_logs = [];
 
@@ -2594,7 +2674,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Use DisplayAdapter system for consistent status and summary extraction
             // This ensures log stream and timeline use the same logic
-            $consistentData = $this->extractConsistentEventData($log);
+            $consistentData = $this->extractConsistentEventData($log, $include_debug);
 
             // For consolidated entries, use the highest priority event's summary if available
             $summary = $consistentData['summary'];
@@ -3407,7 +3487,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         // Event type filter
         if (!empty($event_type)) {
             $where_conditions[] = "l.event_type = %s";
-            $where_values[] = sanitize_key($event_type);
+            $where_values[] = $event_type;
         }
 
         // Date range filters
@@ -3505,7 +3585,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $execution_time = microtime(true) - $start_time;
 
                 return new WP_REST_Response([
-                    'logs' => $this->format_logs_for_api($summary_results),
+                    'logs' => $this->format_logs_for_api($summary_results, (bool) $request->get_param('include_debug')),
                     'pagination' => [
                         'total' => $total,
                         'total_pages' => max(1, (int) ceil($total / $per_page)),
@@ -3620,6 +3700,16 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ORDER BY event_type
             ");
 
+            // Get available sources
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Direct query is needed for performance-critical filter options
+            $sources = $wpdb->get_col("
+                SELECT DISTINCT source
+                FROM {$wpdb->prefix}odcm_audit_log
+                WHERE source != ''
+                ORDER BY source
+            ");
+
             // Get order IDs with logs
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical filter options
@@ -3631,15 +3721,87 @@ class AuditLogEndpoint extends WP_REST_Controller
                 LIMIT 100
             ");
 
+            // Filter out internal-only events from event_types
+            // These are system events that should never be shown to users as they are just noise
+            $internal_only_events = AdapterRegistry::getInternalOnlyEvents();
+            $filtered_event_types = array_filter($event_types, function($event_type) use ($internal_only_events) {
+                return !in_array($event_type, $internal_only_events, true);
+            });
+
+            // Extract nested event types from universal_event_processing payloads
+            // Payment gateway events and other lifecycle events are stored as 'universal_event_processing'
+            // with the actual event type nested in the payload JSON
+            $universal_event_types = [];
+            if (in_array('universal_event_processing', $event_types, true)) {
+                // Get payloads for universal_event_processing events
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                $universal_payloads = $wpdb->get_results("
+                    SELECT DISTINCT p.payload
+                    FROM {$wpdb->prefix}odcm_audit_log l
+                    JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
+                    WHERE l.event_type = 'universal_event_processing'
+                    AND p.payload IS NOT NULL
+                    LIMIT 1000
+                ");
+
+                // Extract nested event types from payloads
+                foreach ($universal_payloads as $payload_row) {
+                    $payload_data = json_decode($payload_row->payload, true);
+                    if (is_array($payload_data) && isset($payload_data['eventType'])) {
+                        $nested_event_type = $payload_data['eventType'];
+                        if (!empty($nested_event_type) && !in_array($nested_event_type, $internal_only_events, true)) {
+                            $universal_event_types[$nested_event_type] = $nested_event_type;
+                        }
+                    }
+
+                    // Also check components for nested event types (ProcessLogger format)
+                    if (is_array($payload_data) && isset($payload_data['components']) && is_array($payload_data['components'])) {
+                        foreach ($payload_data['components'] as $component) {
+                            if (isset($component['event_type']) && !empty($component['event_type']) &&
+                                !in_array($component['event_type'], $internal_only_events, true)) {
+                                $universal_event_types[$component['event_type']] = $component['event_type'];
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Merge universal event types with regular event types
+            $all_event_types = array_merge($filtered_event_types, $universal_event_types);
+
+            // Remove duplicates and sort alphabetically
+            $all_event_types = array_unique($all_event_types);
+            sort($all_event_types);
+
+            // Format response with proper structure for JavaScript dropdowns
+            // Convert simple arrays to arrays of objects with label and value properties
+            $format_options = function($items) {
+                $formatted = [];
+                foreach ($items as $item) {
+                    if (!empty($item)) {
+                        $formatted[] = [
+                            'value' => $item,
+                            'label' => $item
+                        ];
+                    }
+                }
+                return $formatted;
+            };
+
             // Format response
             $response_data = [
-                'statuses' => array_values(array_filter($statuses)),
-                'event_types' => array_values(array_filter($event_types)),
+                'filter_options' => [
+                    'statuses' => $format_options(array_filter($statuses)),
+                    'event_types' => $format_options(array_filter($all_event_types)),
+                    'sources' => $format_options(array_filter($sources))
+                ],
                 'order_ids' => array_map('intval', array_filter($order_ids)),
                 'meta' => [
                     'execution_time' => microtime(true) - $start_time,
                     'timestamp' => current_time('mysql'),
                     'max_results' => 100,
+                    'filtered_internal_events' => $internal_only_events,
+                    'universal_event_types_found' => count($universal_event_types),
                 ],
             ];
 

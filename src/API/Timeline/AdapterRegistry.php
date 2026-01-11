@@ -421,9 +421,10 @@ class AdapterRegistry
      *
      * @param string $eventType The event type to check
      * @param bool $includeDebug Whether the user wants to see debug events
+     * @param array|null $payload Optional payload for more sophisticated filtering
      * @return bool True if the event should be filtered during rendering
      */
-    public static function shouldFilterForRendering(string $eventType, bool $includeDebug): bool
+    public static function shouldFilterForRendering(string $eventType, bool $includeDebug, ?array $payload = null): bool
     {
         // FIRST: Always filter internal-only events, regardless of debug setting
         // These are system noise that should never reach the frontend
@@ -447,10 +448,65 @@ class AdapterRegistry
             return true;
         }
 
-        // Special handling for incomplete rule execution events
+        // Special handling for rule execution events
+        // Use sophisticated logic to distinguish between complete and incomplete rule executions
         if ($eventType === 'rule_execution') {
-            // These are considered debug events when they lack complete rule data
-            return true;
+            // Use the same logic as RegistryTimelineRenderer::shouldFilterDebugEvent()
+            // to properly distinguish between complete and incomplete rule executions
+
+            // Check if we have payload data to analyze
+            if (is_array($payload)) {
+                // Check for explicit debug_only flag
+                if (!empty($payload['debug_only']) && $payload['debug_only'] === true) {
+                    return true;
+                }
+
+                // Check for specific "Rule Processing Started" flag
+                if (!empty($payload['is_rule_processing_started']) && $payload['is_rule_processing_started'] === true) {
+                    return true;
+                }
+
+                // Use the RuleExecutionAdapter helper method for incomplete rule detection
+                // This is the same logic used in RegistryTimelineRenderer
+                if (class_exists('\OrderDaemon\CompletionManager\API\Timeline\RuleExecutionAdapter') &&
+                    method_exists('\OrderDaemon\CompletionManager\API\Timeline\RuleExecutionAdapter', 'isIncompleteRuleEvent')) {
+                    try {
+                        $isIncomplete = \OrderDaemon\CompletionManager\API\Timeline\RuleExecutionAdapter::isIncompleteRuleEvent($payload);
+                        if ($isIncomplete) {
+                            return true;
+                        }
+                    } catch (\Throwable $e) {
+                        // If the helper method fails, fall back to our own analysis
+                        self::logDebugMessage('RuleExecutionAdapter::isIncompleteRuleEvent failed: ' . $e->getMessage(), 'warning');
+                    }
+                }
+
+                // Fallback: Analyze the payload structure to determine completeness
+                $hasCompleteRuleData = !empty($payload['rule_execution']['rule_name']) ||
+                                      !empty($payload['rule_execution']['rule_configuration']['rule_name']) ||
+                                      !empty($payload['rule_name']) ||
+                                      !empty($payload['data']['rule_name']);
+
+                $hasProcessingMetadata = !empty($payload['data']['correlation_id']) ||
+                                       !empty($payload['data']['process_type']) ||
+                                       !empty($payload['data']['status']);
+
+                // Only filter if it's an incomplete rule event (processing started)
+                // Complete rule execution events should be treated as business events, not debug events
+                if ($hasProcessingMetadata && !$hasCompleteRuleData) {
+                    return true;
+                }
+
+                // IMPORTANT: If this is a complete rule execution event, it should NEVER be filtered as debug
+                // Rule Executed events are business events, not debug events
+                if ($hasCompleteRuleData) {
+                    return false;
+                }
+            }
+
+            // If we don't have payload data or can't determine completeness, default to showing the event
+            // This prevents false positives where legitimate business events get filtered out
+            return false;
         }
 
         return false;

@@ -383,7 +383,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $themeClass = $eventConfig['theme_class'] ?? 'odcm-component--system';
 
         // Override theme class for incomplete rule events
-        if ($this->isIncompleteRuleEvent($rawPayload)) {
+        if (RuleExecutionAdapter::isIncompleteRuleEvent($rawPayload)) {
             $themeClass = 'odcm-component--debug';
         }
 
@@ -846,7 +846,8 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         }
 
         // SIXTH: Use AdapterRegistry for any remaining debug event filtering
-        if (AdapterRegistry::shouldFilterForRendering($event_type, $includeDebug)) {
+        // Pass the payload for sophisticated rule execution filtering
+        if (AdapterRegistry::shouldFilterForRendering($event_type, $includeDebug, $payload)) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage("ODCM TIMELINE DEBUG: FILTERED - AdapterRegistry debug filter");
             }
@@ -904,34 +905,5 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 FILE_APPEND
             );
         }
-    }
-
-
-    /**
-     * Check if this is an incomplete rule event (processing started)
-     * These events should use debug styling instead of rule styling
-     *
-     * @param array $payload The event payload
-     * @return bool True if this is an incomplete rule event
-     */
-    private function isIncompleteRuleEvent(array $payload): bool
-    {
-        // Must be a rule execution event
-        if (strpos($payload['event_type'] ?? '', 'rule_execution') === false) {
-            return false;
-        }
-
-        // Check for complete rule data
-        $hasCompleteData = !empty($payload['rule_execution']['rule_name']) ||
-                          !empty($payload['rule_execution']['rule_configuration']['rule_name']) ||
-                          !empty($payload['rule_name']) ||
-                          !empty($payload['data']['rule_name']);
-
-        // If no complete rule data but has processing metadata, it's incomplete
-        $hasProcessingData = !empty($payload['data']['correlation_id']) ||
-                            !empty($payload['data']['process_type']) ||
-                            !empty($payload['data']['status']);
-
-        return !$hasCompleteData && $hasProcessingData;
     }
 }

@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * - Offers tooltips, modal overlays, and inline help content
  * - Stores user preferences (dismissals and frequency) per-user
  * - No direct sales links or payment processing links
- *
+ * TODO: completely remove this file and all of its wiring in order to make the plugin wordpress.org compliant
  * All outputs are intended to be educational and helpful, not sales-focused.
  *
  * @package OrderDaemon\CompletionManager\Includes

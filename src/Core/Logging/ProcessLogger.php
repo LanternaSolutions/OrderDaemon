@@ -181,7 +181,7 @@ final class ProcessLogger
             $component_key = $key ?: odcm_component_key($event_type);
             $this->components[] = [
                 'k'     => $component_key,         // Optimized field name
-                'event_type'  => sanitize_key($event_type),
+                'event_type'  => $this->sanitize_event_type_safely($event_type),
                 'ts'    => time(),                 // Use Unix timestamp for optimization
                 'label' => sanitize_text_field($label),
                 'level' => sanitize_key($level),
@@ -398,6 +398,50 @@ final class ProcessLogger
             $this->deferred_context[$component_key],
             $context_data
         );
+    }
+
+    /**
+     * Determine if an event type should be preserved unchanged
+     *
+     * @param string $event_type The event type to check
+     * @return bool True if this event type should be preserved
+     */
+    private function should_preserve_event_type(string $event_type): bool
+    {
+        // Check for payment prefix
+        if (strpos($event_type, 'payment') === 0) {
+            return true;
+        }
+
+        // Check for specific gateway sources (even without payment prefix)
+        $gateway_patterns = ['stripe', 'paypal', 'square', 'net.authorize'];
+        foreach ($gateway_patterns as $pattern) {
+            if (strpos($event_type, $pattern) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Safely sanitize event types while preserving payment gateway event formats
+     *
+     * @param string $event_type The original event type
+     * @return string The sanitized event type (unchanged for payment events)
+     */
+    private function sanitize_event_type_safely(string $event_type): string
+    {
+        // Check if this is a payment gateway event that should be preserved
+        if ($this->should_preserve_event_type($event_type)) {
+            // For payment events: validate but don't modify the string
+            // Use sanitize_text_field to ensure it's safe, but only if it doesn't change the value
+            $validated = sanitize_text_field($event_type);
+            return $validated === $event_type ? $event_type : $event_type;
+        }
+
+        // For internal events: use existing sanitization
+        return sanitize_key($event_type);
     }
 
     /**

@@ -25,8 +25,13 @@ class RuleExecutionAdapter extends DisplayAdapter
 
     /**
      * Check if this is an incomplete rule event
+     * This method is now public and static so it can be reused by other components
+     * to ensure consistent detection of incomplete rule execution events.
+     *
+     * @param array $payload The event payload
+     * @return bool True if this is an incomplete rule event
      */
-    private function isIncompleteRuleEvent(array $payload): bool
+    public static function isIncompleteRuleEvent(array $payload): bool
     {
         // Must be a rule execution event
         if (strpos($payload['event_type'] ?? '', 'rule_execution') === false) {

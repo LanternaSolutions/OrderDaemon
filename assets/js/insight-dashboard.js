@@ -556,12 +556,20 @@ function insightDashboard() {
                 // Check premium access from PHP config (set by pro plugin if licensed)
                 this.canUsePremiumFilters = !!(this.config && this.config.premium_access);
 
-                // Dynamic filter options
-                const fo = data.filter_options || { sources: [], event_types: [], statuses: [] };
+                // Handle the new response structure where filter_options contains nested arrays
+                // The API now returns: { filter_options: { statuses: [], event_types: [], sources: [] } }
+                const filterOptionsData = data.filter_options || data;
+
+                // Extract the arrays from the nested structure
+                const statuses = Array.isArray(filterOptionsData.statuses) ? filterOptionsData.statuses : [];
+                const eventTypes = Array.isArray(filterOptionsData.event_types) ? filterOptionsData.event_types : [];
+                const sources = Array.isArray(filterOptionsData.sources) ? filterOptionsData.sources : [];
+
+                // Store the filter options
                 this.filterOptions = {
-                    sources: Array.isArray(fo.sources) ? fo.sources : [],
-                    event_types: Array.isArray(fo.event_types) ? fo.event_types : [],
-                    statuses: Array.isArray(fo.statuses) ? fo.statuses : []
+                    sources: sources,
+                    event_types: eventTypes,
+                    statuses: statuses
                 };
 
                 // Populate DOM selects dynamically for backward-compatible templates
@@ -658,9 +666,17 @@ function insightDashboard() {
             };
 
             if (this.canUsePremiumFilters) {
-                repopulate(statusSelect, this.filterOptions.statuses, allLabels.statuses);
-                repopulate(eventTypeSelect, this.filterOptions.event_types, allLabels.eventTypes);
-                repopulate(sourceSelect, this.filterOptions.sources, allLabels.sources);
+                // Handle the new response structure where filter_options contains nested arrays
+                const filterOptions = this.filterOptions.filter_options || this.filterOptions;
+
+                // Extract the arrays from the nested structure
+                const statuses = Array.isArray(filterOptions.statuses) ? filterOptions.statuses : [];
+                const eventTypes = Array.isArray(filterOptions.event_types) ? filterOptions.event_types : [];
+                const sources = Array.isArray(filterOptions.sources) ? filterOptions.sources : [];
+
+                repopulate(statusSelect, statuses, allLabels.statuses);
+                repopulate(eventTypeSelect, eventTypes, allLabels.eventTypes);
+                repopulate(sourceSelect, sources, allLabels.sources);
             }
         },
 
@@ -1414,12 +1430,25 @@ function insightDashboard() {
 
             // Premium filters (only if user has access)
             if (this.canUsePremiumFilters) {
-                if (this.filters.status) activeFilters.status = this.filters.status;
-                if (this.filters.event_type) activeFilters.event_type = this.filters.event_type;
-                if (this.filters.source) activeFilters.source = this.filters.source;
-                if (this.filters.order_id) activeFilters.order_id = this.filters.order_id;
-                if (this.filters.date_start) activeFilters.date_start = this.filters.date_start;
-                if (this.filters.date_end) activeFilters.date_end = this.filters.date_end;
+                if (this.filters.status) {
+                    activeFilters.status = this.filters.status;
+                }
+                if (this.filters.event_type) {
+                    activeFilters.event_type = this.filters.event_type;
+                }
+                if (this.filters.source) {
+                    activeFilters.source = this.filters.source;
+                }
+                if (this.filters.order_id) {
+                    activeFilters.order_id = this.filters.order_id;
+                }
+                // Fix: Use date_from and date_to to match API expectations
+                if (this.filters.date_start) {
+                    activeFilters.date_from = this.filters.date_start;
+                }
+                if (this.filters.date_end) {
+                    activeFilters.date_to = this.filters.date_end;
+                }
             }
 
             // Include tests (always available)
