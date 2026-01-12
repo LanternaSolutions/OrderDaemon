@@ -125,8 +125,6 @@ function insightDashboard() {
 
         // Toast notifications (using shared system)
 
-        // Premium access
-        canUsePremiumFilters: false,
 
         // Dynamic filter options and client-side caching (5 minutes)
         filterOptions: {
@@ -137,26 +135,19 @@ function insightDashboard() {
         filterOptionsCache: null,
         filterOptionsCacheExpiry: null,
 
+        // Default labels for filter dropdowns (used when repopulating DOM)
+        allLabels: {
+            statuses: 'All Statuses',
+            eventTypes: 'All Event Types',
+            sources: 'All Sources'
+        },
+
         // Configuration from PHP
         config: window.odcmInsightConfig || {},
         i18n: window.odcmInsightConfig?.i18n || {},
 
-        // Server state tracking for retention policy
-        serverRetentionState: null,
-
-
-
         // Reprocess pending orders state
         isReprocessing: false,
-
-        // Export logs state (premium feature)
-        isExporting: false,
-        exportFormat: null,
-        // Export logs state (premium feature)
-        isExporting: false,
-        exportFormat: null,
-
-        // Generate sample logs state
 
         // =================================================================
         // INITIALIZATION
@@ -215,7 +206,6 @@ function insightDashboard() {
                 this.setupFilterWatchers();
                 this.setupDebouncedFetch();
                 this.setupSettingsWatchers();
-                this.initializeServerRetentionState();
                 this.setupPrismWatchers();
 
                 if (odcmIsDebug()) { console.log('ODCM Insight Dashboard: Initialized successfully'); }
@@ -553,9 +543,6 @@ function insightDashboard() {
                     throw new Error('Invalid response format from server');
                 }
 
-                // Check premium access from PHP config (set by pro plugin if licensed)
-                this.canUsePremiumFilters = !!(this.config && this.config.premium_access);
-
                 // Handle the new response structure where filter_options contains nested arrays
                 // The API now returns: { filter_options: { statuses: [], event_types: [], sources: [] } }
                 const filterOptionsData = data.filter_options || data;
@@ -658,26 +645,17 @@ function insightDashboard() {
                 }
             };
 
-            // Only populate for premium users for status/event_type/source
-            const allLabels = {
-                statuses: this.i18n?.allStatuses || 'All Statuses',
-                eventTypes: this.i18n?.allEventTypes || 'All Event Types',
-                sources: this.i18n?.allSources || 'All Sources'
-            };
-
-            if (this.canUsePremiumFilters) {
                 // Handle the new response structure where filter_options contains nested arrays
-                const filterOptions = this.filterOptions.filter_options || this.filterOptions;
+            const filterOptions = this.filterOptions.filter_options || this.filterOptions;
 
-                // Extract the arrays from the nested structure
-                const statuses = Array.isArray(filterOptions.statuses) ? filterOptions.statuses : [];
-                const eventTypes = Array.isArray(filterOptions.event_types) ? filterOptions.event_types : [];
-                const sources = Array.isArray(filterOptions.sources) ? filterOptions.sources : [];
+            // Extract the arrays from the nested structure
+            const statuses = Array.isArray(filterOptions.statuses) ? filterOptions.statuses : [];
+            const eventTypes = Array.isArray(filterOptions.event_types) ? filterOptions.event_types : [];
+            const sources = Array.isArray(filterOptions.sources) ? filterOptions.sources : [];
 
-                repopulate(statusSelect, statuses, allLabels.statuses);
-                repopulate(eventTypeSelect, eventTypes, allLabels.eventTypes);
-                repopulate(sourceSelect, sources, allLabels.sources);
-            }
+            repopulate(statusSelect, statuses, this.allLabels.statuses);
+            repopulate(eventTypeSelect, eventTypes, this.allLabels.eventTypes);
+            repopulate(sourceSelect, sources, this.allLabels.sources);
         },
 
         async fetchLogDetails(logId, viewMode = 'consolidated') {
@@ -1073,45 +1051,6 @@ function insightDashboard() {
                 this.showToast('Failed to save debug setting', 'error');
             }
         },
-        async saveRetentionSetting() {
-            try {
-                const selected = (document.querySelector('input[name="odcm_log_retention_days"]:checked') || {}).value || '0';
-                const daysInput = document.querySelector('input[name="odcm_custom_retention_days"]');
-                const customDays = daysInput ? Math.max(1, Math.min(365, parseInt(daysInput.value) || 30)) : 30;
-                const payload = new URLSearchParams({ _wpnonce: this.config.nonce });
-                payload.append('odcm_log_retention_days', selected);
-                if (selected === 'custom') {
-                    payload.append('odcm_custom_retention_days', String(customDays));
-                }
-                const resp = await fetch(`${this.config.ajaxUrl}?action=odcm_save_retention_policy`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: payload
-                });
-                const data = await resp.json().catch(() => null);
-                if (resp.ok && data && data.success) {
-                    this.showToast(data.data?.message || 'Retention policy updated', 'success');
-                    this.serverRetentionState = { mode: selected === '0' ? 'forever' : 'custom', days: selected === '0' ? 0 : customDays };
-                } else {
-                    const msg = (data && (data.data?.message || data.message)) || `HTTP ${resp.status}`;
-                    this.showToast(msg || 'Failed to update retention policy', 'error');
-                }
-            } catch (e) {
-                this.showToast('Failed to update retention policy', 'error');
-            }
-        },
-        initializeServerRetentionState() {
-            try {
-                const selected = (document.querySelector('input[name="odcm_log_retention_days"]:checked') || {}).value || '0';
-                const daysInput = document.querySelector('input[name="odcm_custom_retention_days"]');
-                const customDays = daysInput ? Math.max(1, Math.min(365, parseInt(daysInput.value) || 30)) : 30;
-                this.serverRetentionState = { mode: selected === '0' ? 'forever' : 'custom', days: selected === '0' ? 0 : customDays };
-                if (odcmIsDebug()) { console.log('ODCM: Initialized serverRetentionState:', this.serverRetentionState); }
-            } catch (e) {
-                if (odcmIsDebug()) { console.warn('ODCM: initializeServerRetentionState failed:', e); }
-                this.serverRetentionState = { mode: 'unknown', days: null };
-            }
-        },
 
         // =================================================================
         // AUTO-REFRESH
@@ -1428,27 +1367,25 @@ function insightDashboard() {
                 activeFilters.search = this.filters.search;
             }
 
-            // Premium filters (only if user has access)
-            if (this.canUsePremiumFilters) {
-                if (this.filters.status) {
-                    activeFilters.status = this.filters.status;
-                }
-                if (this.filters.event_type) {
-                    activeFilters.event_type = this.filters.event_type;
-                }
-                if (this.filters.source) {
-                    activeFilters.source = this.filters.source;
-                }
-                if (this.filters.order_id) {
-                    activeFilters.order_id = this.filters.order_id;
-                }
-                // Fix: Use date_from and date_to to match API expectations
-                if (this.filters.date_start) {
-                    activeFilters.date_from = this.filters.date_start;
-                }
-                if (this.filters.date_end) {
-                    activeFilters.date_to = this.filters.date_end;
-                }
+            // All filters are now available in the free version
+            if (this.filters.status) {
+                activeFilters.status = this.filters.status;
+            }
+            if (this.filters.event_type) {
+                activeFilters.event_type = this.filters.event_type;
+            }
+            if (this.filters.source) {
+                activeFilters.source = this.filters.source;
+            }
+            if (this.filters.order_id) {
+                activeFilters.order_id = this.filters.order_id;
+            }
+            // Fix: Use date_from and date_to to match API expectations
+            if (this.filters.date_start) {
+                activeFilters.date_from = this.filters.date_start;
+            }
+            if (this.filters.date_end) {
+                activeFilters.date_to = this.filters.date_end;
             }
 
             // Include tests (always available)
@@ -1507,15 +1444,13 @@ function insightDashboard() {
                 const f = this.filters || {};
                 // Basic search
                 if (typeof f.search === 'string' && f.search.trim() !== '') return true;
-                // Premium filters if available
-                if (this.canUsePremiumFilters) {
-                    if (f.status) return true;
-                    if (f.event_type) return true;
-                    if (f.source) return true;
-                    if (f.order_id) return true;
-                    if (f.date_start) return true;
-                    if (f.date_end) return true;
-                }
+                // All filters are now available in the free version
+                if (f.status) return true;
+                if (f.event_type) return true;
+                if (f.source) return true;
+                if (f.order_id) return true;
+                if (f.date_start) return true;
+                if (f.date_end) return true;
                 // Toggles available for all
                 if (f.include_tests === true) return true;
                 if (f.include_debug === true) return true;
@@ -1765,148 +1700,6 @@ function insightDashboard() {
             }
         },
 
-        // =================================================================
-        // LOG EXPORT (PREMIUM FEATURE)
-        // =================================================================
-        exportLogs(format) {
-            try {
-                // Prevent multiple simultaneous exports
-                if (this.isExporting) {
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: Export already in progress');
-                    }
-                    return;
-                }
-
-                // Validate format
-                if (format !== 'csv' && format !== 'json') {
-                    this.showToast('Invalid export format', 'error');
-                    return;
-                }
-
-                // Set exporting state
-                this.isExporting = true;
-                this.exportFormat = format;
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Starting export via admin-post.php:', {
-                        format: format,
-                        adminPostUrl: this.config.adminPostUrl,
-                        nonce: this.config.nonce ? 'present' : 'missing',
-                        filters: this.getActiveFilters()
-                    });
-                }
-
-                // Create a hidden form to submit the export request with current filters
-                // Use admin-post.php (WordPress way) for clean file downloads without admin UI
-                const form = document.createElement('form');
-                form.method = 'POST';
-
-                // Use configured URL or fail gracefully
-                if (!this.config.adminPostUrl) {
-                    console.error('ODCM: Admin Post URL not configured');
-                    this.showToast('Export configuration missing. Please refresh the page.', 'error');
-                    this.isExporting = false;
-                    return;
-                }
-                form.action = this.config.adminPostUrl;
-
-                form.target = '_self'; // Ensure it doesn't open in new window
-                form.style.display = 'none';
-
-                // Add action parameter
-                const actionInput = document.createElement('input');
-                actionInput.type = 'hidden';
-                actionInput.name = 'action';
-                actionInput.value = format === 'csv' ? 'odcm_export_logs_csv' : 'odcm_export_logs_json';
-                form.appendChild(actionInput);
-
-                // Add nonce
-                const nonceInput = document.createElement('input');
-                nonceInput.type = 'hidden';
-                nonceInput.name = '_wpnonce';
-                nonceInput.value = this.config.nonce;
-                form.appendChild(nonceInput);
-
-                // Add current filter parameters so export respects active filters
-                const activeFilters = this.getActiveFilters();
-                Object.keys(activeFilters).forEach(key => {
-                    const filterInput = document.createElement('input');
-                    filterInput.type = 'hidden';
-                    filterInput.name = key;
-                    filterInput.value = activeFilters[key];
-                    form.appendChild(filterInput);
-                });
-
-                // Add sorting parameters
-                const orderbyInput = document.createElement('input');
-                orderbyInput.type = 'hidden';
-                orderbyInput.name = 'orderby';
-                orderbyInput.value = 'timestamp'; // Default sorting
-                form.appendChild(orderbyInput);
-
-                const orderInput = document.createElement('input');
-                orderInput.type = 'hidden';
-                orderInput.name = 'order';
-                orderInput.value = 'DESC'; // Default order
-                form.appendChild(orderInput);
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Form created with fields:', {
-                        action: actionInput.value,
-                        nonce: nonceInput.value ? 'present' : 'missing',
-                        filterCount: Object.keys(activeFilters).length
-                    });
-                }
-
-                // Append form to body and submit
-                document.body.appendChild(form);
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Submitting form to:', form.action);
-                }
-
-                form.submit();
-
-                // Show info toast
-                this.showToast(
-                    format === 'csv'
-                        ? 'Preparing CSV download...'
-                        : 'Preparing JSON download...',
-                    'info'
-                );
-
-                // Reset button state immediately - the form submission is complete
-                // The browser handles the download independently
-                this.$nextTick(() => {
-                    this.isExporting = false;
-                    this.exportFormat = null;
-
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: Export initiated, button state reset');
-                    }
-                });
-
-                // Clean up form after a brief delay
-                setTimeout(() => {
-                    try {
-                        if (form.parentNode) {
-                            document.body.removeChild(form);
-                        }
-                    } catch (e) {
-                        if (odcmIsDebug()) {
-                            console.warn('ODCM: Error removing form:', e);
-                        }
-                    }
-                }, 100);
-
-            } catch (error) {
-                console.error('ODCM: Error during export:', error);
-                this.showToast('Failed to initiate export', 'error');
-                this.isExporting = false;
-                this.exportFormat = null;
-            }
-        },
 
         // =================================================================
         // SELECTION MANAGEMENT

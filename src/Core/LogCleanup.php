@@ -32,7 +32,6 @@ class LogCleanup
     /**
      * Cleanup old audit trail logs based on the retention policy.
      * This method performs safe batch deletion to prevent database performance issues.
-     * Implements differentiated retention logic for free vs premium users.
      *
      * @return void
      */
@@ -40,8 +39,8 @@ class LogCleanup
     {
         global $wpdb;
 
-        // Free/Core plugin: use a fixed retention period to keep DB lean
-        $retention_days = 30; // Fixed for free/core - 30 days provides good balance
+        // 30 day retention period to keep DB lean
+        $retention_days = 30;
 
         // Define table names - use esc_sql for table identifiers
         $log_table = $wpdb->prefix . 'odcm_audit_log';
@@ -219,7 +218,7 @@ class LogCleanup
     private function log_cleanup_activity(int $deleted_count, int $retention_days): void
     {
 
-        $retention_type = 'free';
+        $retention_type = 'standard';
 
         $details = [
             'deleted_count'    => $deleted_count,
@@ -249,7 +248,6 @@ class LogCleanup
     /**
      * Manually trigger log cleanup (for testing or manual execution).
      * This method can be called from WP-CLI or other admin interfaces.
-     * Implements differentiated retention logic for free vs premium users.
      *
      * @return array Results of the cleanup operation.
      */
@@ -257,7 +255,6 @@ class LogCleanup
     {
         global $wpdb;
 
-        // Free/Core plugin: use a fixed retention period
         $retention_days = 30;
 
         $log_table = $wpdb->prefix . 'odcm_audit_log';

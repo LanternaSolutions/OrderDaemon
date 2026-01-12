@@ -29,10 +29,6 @@ class OrderTotalAmountCondition implements ConditionInterface
         return __('rule_component.condition.order_total.description', 'order-daemon');
     }
 
-    public function get_capability(): string
-    {
-        return 'condition_order_total'; // Free tier
-    }
 
     public function get_settings_schema(): ?array
     {

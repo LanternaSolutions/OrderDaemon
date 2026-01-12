@@ -6,56 +6,31 @@ declare(strict_types=1);
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
- * Global Helper Functions - Entitlement System & Core Utilities
+ * Global Helper Functions - Core Utilities
  *
  * This file contains globally available helper functions that power the
- * Order Daemon For Woocommerce plugin. It serves as the foundation for
- * the plugin's entitlement-aware architecture and provides essential
- * utilities used throughout the codebase.
+ * Order Daemon For Woocommerce plugin. It provides essential utilities used
+ * throughout the codebase.
  *
- * ENTITLEMENT SYSTEM OVERVIEW:
- * ============================
- * 
- * The plugin uses a capability-based entitlement system that controls access
- * to features based on user licensing. This creates a seamless freemium
- * experience where features are dynamically enabled/disabled.
- * 
- * Key Components:
- * - odcm_can_use(): Central entitlement checking function
- * - Capability keys: Unique identifiers for each feature
- * - Tier-based access: Free, Premium, and future Enterprise tiers
- * - Development mode: Testing toggle for premium features
- * 
  * ARCHITECTURE PRINCIPLES:
  * =======================
- * 
- * 1. Single Source of Truth: All entitlement logic in odcm_can_use()
- * 2. Fail-Safe Defaults: Unknown features default to restricted
- * 3. Performance First: Minimal overhead for capability checks
- * 4. Future-Proof: Easy to extend for new licensing systems
- * 5. Developer-Friendly: Clear naming and comprehensive documentation
- * 
+ *
+ * 1. Performance First: Minimal overhead for core operations
+ * 2. Future-Proof: Easy to extend for new functionality
+ * 3. Developer-Friendly: Clear naming and comprehensive documentation
+ *
  * INTEGRATION POINTS:
  * ==================
- * 
- * - OptionRegistry: Each registered option has a capability key
- * - MetaBox UI: Dynamic rendering based on user entitlements
- * - Core Logic: Feature execution gated by capability checks
- * - Admin Interface: Premium features shown as upgrade opportunitiese
- * 
- * DEVELOPMENT WORKFLOW:
- * ====================
- * 
- * 1. Add new capability to odcm_can_use() switch statement
- * 2. Register option with capability in options.php
- * 3. Check capability in UI rendering (MetaBox.php)
- * 4. Gate feature execution in business logic
- * 5. Test with both free and premium scenarios
+ *
+ * - OptionRegistry: Central hub for all triggers, conditions, and actions
+ * - MetaBox UI: Dynamic rendering based on component availability
+ * - Core Logic: Feature execution with proper validation
+ * - Admin Interface: User-friendly management of completion rules
  *
  * @package OrderDaemon\CompletionManager\Includes
  * @since   1.0.0
  * @author  OrderDaemon Development Team
- * @link    https://docs.OrderDaemon.com/completion-manager/entitlements
+ * @link    https://drderdaemon.com/docs
  */
 
 /**
@@ -262,80 +237,64 @@ function odcm_critical_log(string $message): void
 
 
 /**
- * Get the Global OptionRegistry Instance - Central Hub for Entitlement-Aware Options
+ * Get the Global OptionRegistry Instance - Central Hub for Options
  *
  * This function provides global access to the OptionRegistry singleton instance,
- * which serves as the central hub for all triggers, conditions, and actions in
- * the entitlement system. It implements the singleton pattern to ensure all
- * parts of the plugin work with the same registry data.
+ * which serves as the central hub for all triggers, conditions, and actions.
+ * It implements the singleton pattern to ensure all parts of the plugin work
+ * with the same registry data.
  *
  * ARCHITECTURAL ROLE:
  * ==================
- * 
- * The OptionRegistry is the cornerstone of the plugin's entitlement-aware
- * architecture. It bridges the gap between:
- * 
+ *
+ * The OptionRegistry is the cornerstone of the plugin's architecture. It bridges
+ * the gap between:
+ *
  * 1. Option Registration (options.php) - Where features are defined
- * 2. Entitlement Checking (odcm_can_use()) - Where access is controlled
- * 3. UI Rendering (MetaBox.php) - Where features are displayed
- * 4. Business Logic (Executor.php) - Where features are executed
- * 
+ * 2. UI Rendering (MetaBox.php) - Where features are displayed
+ * 3. Business Logic (Executor.php) - Where features are executed
+ *
  * SINGLETON PATTERN:
  * =================
- * 
+ *
  * Uses static variable to ensure only one registry instance exists throughout
  * the plugin lifecycle. This guarantees:
  * - Consistent data across all plugin components
  * - No duplicate registrations
  * - Efficient memory usage
  * - Predictable behavior
- * 
+ *
  * USAGE PATTERNS:
  * ==============
- * 
+ *
  * 1. Option Registration (typically in options.php):
  *    $registry = odcm_get_registry_instance();
  *    $registry->register_condition([...]);
- * 
+ *
  * 2. UI Rendering (typically in MetaBox.php):
  *    $registry = odcm_get_registry_instance();
  *    $conditions = $registry->get_conditions();
- * 
+ *
  * 3. Feature Validation (anywhere in the plugin):
  *    $registry = odcm_get_registry_instance();
  *    $triggers = $registry->get_triggers();
- * 
- * INTEGRATION WITH ENTITLEMENT SYSTEM:
- * ====================================
- * 
- * The registry works seamlessly with the entitlement system:
- * - Each registered option has a capability key
- * - UI components use odcm_can_use() to check access
- * - Features are dynamically shown/hidden based on user license
- * - No code changes needed when user upgrades
- * 
+ *
  * PERFORMANCE CONSIDERATIONS:
  * ==========================
- * 
+ *
  * - Singleton pattern prevents multiple instantiations
  * - Registry data is stored in memory (no database queries)
  * - Options are registered once during plugin initialization
  * - Retrieval operations are simple array access (O(1))
- * 
- * THREAD SAFETY:
- * =============
- * 
- * WordPress is single-threaded, so no additional synchronization is needed.
- * The static variable provides sufficient isolation for the singleton pattern.
  *
  * @since 1.0.0
  *
  * @return \OrderDaemon\CompletionManager\Core\OptionRegistry {
  *     The singleton OptionRegistry instance containing all registered options.
- *     
+ *
  *     The returned instance provides these methods:
  *     - register_trigger(array $args): void
- *     - register_condition(array $args): void  
+ *     - register_condition(array $args): void
  *     - register_action(array $args): void
  *     - get_triggers(): array
  *     - get_conditions(): array
@@ -350,34 +309,28 @@ function odcm_critical_log(string $message): void
  *     'id'              => 'my_condition',
  *     'label'           => __('My Condition', 'domain'),
  *     'description'     => __('A custom condition.', 'domain'),
- *     'capability'      => 'condition_my_condition',
  *     'render_callback' => [$this, 'render_my_condition'],
  * ]);
- * 
- * // UI rendering - get options and render based on entitlements
+ *
+ * // UI rendering - get options and render
  * $registry = odcm_get_registry_instance();
  * $conditions = $registry->get_conditions();
- * 
+ *
  * foreach ($conditions as $condition) {
- *     if (odcm_can_use($condition['capability'])) {
- *         // User can access this condition
- *         echo '<input type="radio" value="' . esc_attr($condition['id']) . '">';
- *         echo esc_html($condition['label']);
- *     } else {
- *         // Show as premium feature
- *         echo '<span class="premium">' . esc_html($condition['label']) . ' (Premium)</span>';
- *     }
+ *     // User can access this condition
+ *     echo '<input type="radio" value="' . esc_attr($condition['id']) . '">';
+ *     echo esc_html($condition['label']);
  * }
- * 
+ *
  * // Validation - check if a specific option exists
  * $registry = odcm_get_registry_instance();
  * $triggers = $registry->get_triggers();
- * 
+ *
  * if (isset($triggers['my_trigger'])) {
  *     // Trigger is registered and available
  *     $trigger_data = $triggers['my_trigger'];
  * }
- * 
+ *
  * // Multiple calls return the same instance (singleton)
  * $registry1 = odcm_get_registry_instance();
  * $registry2 = odcm_get_registry_instance();
@@ -398,78 +351,60 @@ function odcm_get_registry_instance(): \OrderDaemon\CompletionManager\Core\Optio
 
 
 /**
- * Get the Global FilterRegistry Instance - Central Hub for Entitlement-Aware Audit Log Filters
+ * Get the Global FilterRegistry Instance - Central Hub for Audit Log Filters
  *
  * This function provides global access to the FilterRegistry singleton instance,
- * which serves as the central hub for all audit log filters in the entitlement
- * system. It implements the singleton pattern to ensure all parts of the plugin
+ * which serves as the central hub for all audit log filters.
+ * It implements the singleton pattern to ensure all parts of the plugin
  * work with the same registry data.
  *
  * ARCHITECTURAL ROLE:
  * ==================
- * 
- * The FilterRegistry is a specialized component of the plugin's entitlement-aware
- * architecture. It bridges the gap between:
- * 
+ *
+ * The FilterRegistry is a specialized component of the plugin's architecture. It bridges the gap between:
+ *
  * 1. Filter Registration (audit-filters.php) - Where filters are defined
- * 2. Entitlement Checking (odcm_can_use()) - Where access is controlled
- * 3. UI Rendering (AuditTrailListTable.php) - Where filters are displayed
- * 4. Query Processing (get_logs()) - Where filters are applied
- * 
+ * 2. UI Rendering - Where filters are displayed
+ * 3. Query Processing (get_logs()) - Where filters are applied
+ *
  * SINGLETON PATTERN:
  * =================
- * 
+ *
  * Uses static variable to ensure only one registry instance exists throughout
  * the plugin lifecycle. This guarantees:
  * - Consistent filter data across all plugin components
  * - No duplicate filter registrations
  * - Efficient memory usage
  * - Predictable behavior
- * 
+ *
  * USAGE PATTERNS:
  * ==============
- * 
+ *
  * 1. Filter Registration (typically in audit-filters.php):
  *    $registry = odcm_get_filter_registry_instance();
  *    $registry->register_filter([...]);
- * 
- * 2. UI Rendering (typically in AuditTrailListTable.php):
+ *
+ * 2. UI Rendering:
  *    $registry = odcm_get_filter_registry_instance();
  *    $filters = $registry->get_filters();
- * 
- * 3. Feature Validation (anywhere in the plugin):
+ *
+ * 3. Feature Validation:
  *    $registry = odcm_get_filter_registry_instance();
  *    $date_filter = $registry->get_filter('date_range');
- * 
- * INTEGRATION WITH ENTITLEMENT SYSTEM:
- * ====================================
- * 
- * The registry works seamlessly with the entitlement system:
- * - Each registered filter has a capability key and tier designation
- * - UI components use odcm_can_use() to check access
- * - Filters are dynamically enabled/disabled based on user license
- * - Premium filters show PREMIUM badges when user lacks access
- * - No code changes needed when user upgrades
- * 
+ *
  * PERFORMANCE CONSIDERATIONS:
  * ==========================
- * 
+ *
  * - Singleton pattern prevents multiple instantiations
  * - Registry data is stored in memory (no database queries)
  * - Filters are registered once during plugin initialization
  * - Retrieval operations are simple array access (O(1))
- * 
- * THREAD SAFETY:
- * =============
- * 
- * WordPress is single-threaded, so no additional synchronization is needed.
- * The static variable provides sufficient isolation for the singleton pattern.
  *
  * @since 1.0.0
  *
  * @return \OrderDaemon\CompletionManager\Core\FilterRegistry {
  *     The singleton FilterRegistry instance containing all registered filters.
- *     
+ *
  *     The returned instance provides these methods:
  *     - register_filter(array $args): void
  *     - get_filters(): array
@@ -485,45 +420,29 @@ function odcm_get_registry_instance(): \OrderDaemon\CompletionManager\Core\Optio
  * $registry->register_filter([
  *     'id'              => 'date_range',
  *     'label'           => __('Date Range', 'domain'),
- *     'tier'            => 'premium',
- *     'capability'      => 'audit_log_filter_advanced',
  *     'render_callback' => [$this, 'render_date_range_filter'],
  * ]);
- * 
- * // UI rendering - get filters and render based on entitlements
+ *
+ * // UI rendering - get filters and render
  * $registry = odcm_get_filter_registry_instance();
  * $filters = $registry->get_filters();
- * 
+ *
  * foreach ($filters as $filter) {
- *     $has_permission = odcm_can_use($filter['capability']);
- *     
  *     echo '<div class="filter-container">';
- *     echo '<label>' . esc_html($filter['label']);
- *     
- *     if ($filter['tier'] === 'premium') {
- *         echo ' <span class="premium-badge">PREMIUM</span>';
- *     }
- *     
- *     echo '</label>';
- *     
- *     // Call the render callback with permission status
- *     call_user_func($filter['render_callback'], $has_permission);
- *     
+ *     echo '<label>' . esc_html($filter['label']) . '</label>';
+ *     // Call the render callback
+ *     call_user_func($filter['render_callback']);
  *     echo '</div>';
  * }
- * 
+ *
  * // Validation - check if a specific filter exists
  * $registry = odcm_get_filter_registry_instance();
- * 
+ *
  * if ($registry->has_filter('date_range')) {
  *     // Date range filter is available
  *     $filter = $registry->get_filter('date_range');
  * }
- * 
- * // Get filters by tier for separate rendering
- * $free_filters = $registry->get_filters_by_tier('free');
- * $premium_filters = $registry->get_filters_by_tier('premium');
- * 
+ *
  * // Multiple calls return the same instance (singleton)
  * $registry1 = odcm_get_filter_registry_instance();
  * $registry2 = odcm_get_filter_registry_instance();

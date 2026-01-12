@@ -29,10 +29,6 @@ class ProductCategoryCondition implements ConditionInterface
         return __('rule_component.condition.product_category.description', 'order-daemon');
     }
 
-    public function get_capability(): string
-    {
-        return 'condition_single_category'; // Free tier
-    }
 
     public function get_settings_schema(): ?array
     {

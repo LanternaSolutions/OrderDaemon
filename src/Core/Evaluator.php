@@ -65,14 +65,39 @@ final class Evaluator
         foreach ($conditions as $idx => $cond) {
             $id = is_array($cond) ? ($cond['id'] ?? '') : '';
             if (!is_string($id) || $id === '' || !isset($registered[$id])) {
-                $trace['conditions'][] = [
-                    'id' => (string)$id,
-                    'label' => 'Unknown condition',
-                    'result' => 'fail',
-                    'reason' => 'unknown_component',
-                ];
-                $trace['matched'] = false;
-                return $trace; // Fail closed
+                // Apply filter to handle missing components
+                $fallback_result = apply_filters('odcm_rule_component_missing', null, 'condition', $id);
+
+                if ($fallback_result === false) {
+                    // Condition not met - fail the rule
+                    $trace['conditions'][] = [
+                        'id' => (string)$id,
+                        'label' => 'Unknown condition',
+                        'result' => 'fail',
+                        'reason' => 'unknown_component',
+                    ];
+                    $trace['matched'] = false;
+                    return $trace; // Fail closed
+                } elseif ($fallback_result === true) {
+                    // Condition is met - continue evaluation
+                    $trace['conditions'][] = [
+                        'id' => (string)$id,
+                        'label' => 'Unknown condition',
+                        'result' => 'pass',
+                        'reason' => 'unknown_component_allowed',
+                    ];
+                    continue;
+                } else {
+                    // Default behavior - fail the rule
+                    $trace['conditions'][] = [
+                        'id' => (string)$id,
+                        'label' => 'Unknown condition',
+                        'result' => 'fail',
+                        'reason' => 'unknown_component',
+                    ];
+                    $trace['matched'] = false;
+                    return $trace; // Fail closed
+                }
             }
 
             $component = $registered[$id];
@@ -390,14 +415,39 @@ final class Evaluator
         foreach ($conditions as $idx => $cond) {
             $id = is_array($cond) ? ($cond['id'] ?? '') : '';
             if (!is_string($id) || $id === '' || !isset($registered[$id])) {
-                $trace['conditions'][] = [
-                    'id' => (string)$id,
-                    'label' => 'Unknown condition',
-                    'result' => 'fail',
-                    'reason' => 'unknown_component',
-                ];
-                $trace['matched'] = false;
-                return $trace; // Fail closed
+                // Apply filter to handle missing components
+                $fallback_result = apply_filters('odcm_rule_component_missing', null, 'condition', $id);
+
+                if ($fallback_result === false) {
+                    // Condition not met - fail the rule
+                    $trace['conditions'][] = [
+                        'id' => (string)$id,
+                        'label' => 'Unknown condition',
+                        'result' => 'fail',
+                        'reason' => 'unknown_component',
+                    ];
+                    $trace['matched'] = false;
+                    return $trace; // Fail closed
+                } elseif ($fallback_result === true) {
+                    // Condition is met - continue evaluation
+                    $trace['conditions'][] = [
+                        'id' => (string)$id,
+                        'label' => 'Unknown condition',
+                        'result' => 'pass',
+                        'reason' => 'unknown_component_allowed',
+                    ];
+                    continue;
+                } else {
+                    // Default behavior - fail the rule
+                    $trace['conditions'][] = [
+                        'id' => (string)$id,
+                        'label' => 'Unknown condition',
+                        'result' => 'fail',
+                        'reason' => 'unknown_component',
+                    ];
+                    $trace['matched'] = false;
+                    return $trace; // Fail closed
+                }
             }
 
             $component = $registered[$id];

@@ -206,7 +206,16 @@ class DiagnosticDashboard
                                 <h4><?php echo esc_html__('Run by Category:', 'order-daemon'); ?></h4>
                                 <div class="odcm-button-group">
                                     <?php
-                                    $categories = ['core', 'api', 'performance', 'frontend'];
+                                    // Get all unique categories dynamically from available diagnostics
+                                    $categories = [];
+                                    foreach ($available_diagnostics as $diag) {
+                                        $category = $diag['category'];
+                                        if (!in_array($category, $categories)) {
+                                            $categories[] = $category;
+                                        }
+                                    }
+                                    // Sort categories for consistent display
+                                    sort($categories);
                                     foreach ($categories as $category):
                                         if (empty(array_filter($available_diagnostics, function($diag) use ($category) { return $diag['category'] === $category; }))) continue;
                                     ?>

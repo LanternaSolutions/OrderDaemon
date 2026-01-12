@@ -59,10 +59,6 @@ function ruleBuilder() {
             secondaryActions: []
         },
         
-        // License state detection
-        get isLicensed() {
-            return (window.odcmRuleBuilderConfig && window.odcmRuleBuilderConfig.license && !!window.odcmRuleBuilderConfig.license.active) || false;
-        },
         
         
         // Modern UI State for Inline Expanders
@@ -318,10 +314,18 @@ function ruleBuilder() {
          * Build Product Category condition summary.
          */
         buildProductCategorySummary(settings, componentDef) {
-            const categories = this.formatValue(settings.categories || [], componentDef?.schema?.properties?.categories);
-            const matchType = settings.match_type === 'all' ? 'All match' : 'Any match';
-            
-            return `<span class="odcm-summary-title">Product Category</span>: <span class="odcm-summary-values">${this.escapeHtml(categories)}</span> <span class="odcm-summary-match">(${matchType})</span>`;
+            // Product category uses single select (category), not multi-select (categories)
+            const category = settings.category || '';
+            const categoriesEnum = componentDef?.schema?.properties?.category?.enum || {};
+
+            if (!category || category === '0') {
+                // No category selected means match all orders
+                return `<span class="odcm-summary-title">Product Category</span>: <span class="odcm-summary-values">Any category</span>`;
+            } else {
+                // Specific category selected
+                const categoryLabel = categoriesEnum[category] || category;
+                return `<span class="odcm-summary-title">Product Category</span>: <span class="odcm-summary-values">${this.escapeHtml(categoryLabel)}</span>`;
+            }
         },
 
         /**
@@ -681,28 +685,21 @@ function ruleBuilder() {
             }
         },
 
-        // Get default primary action based on freemium model
+        // Get default primary action
         getDefaultPrimaryAction() {
-            // For free users, default to "Complete Order" action
-            // For premium users, they can choose any primary action
-            const freeAction = this.components.primaryActions?.find(action => 
-                action.id === 'change_status_to_completed' && action.accessible
+            // Default to "Complete Order" action
+            const defaultAction = this.components.primaryActions?.find(action => 
+                action.id === 'change_status_to_completed'
             );
-            
-            if (freeAction) {
+
+            if (defaultAction) {
                 return {
                     id: 'change_status_to_completed',
                     settings: {}
                 };
             }
-            
-            return null;
-        },
 
-        // Check if user has access to multiple primary actions (premium feature)
-        canChangePrimaryAction() {
-            const accessiblePrimaryActions = this.components.primaryActions?.filter(action => action.accessible) || [];
-            return accessiblePrimaryActions.length > 1;
+            return null;
         },
 
     async saveRule() {
@@ -882,8 +879,7 @@ function ruleBuilder() {
             
             // Guard: Block selection of inaccessible components.
             if (!component.accessible) {
-                const msg = (window.odcmRuleBuilderConfig && window.odcmRuleBuilderConfig.upgrade && window.odcmRuleBuilderConfig.upgrade.message) ? window.odcmRuleBuilderConfig.upgrade.message : 'This feature is available in the pro version. Learn more in the documentation.';
-                this.showToast(msg, 'info');
+                this.showToast('This component is not available.', 'info');
                 return;
             }
 
@@ -1142,14 +1138,6 @@ function ruleBuilder() {
             return component;
         },
 
-        // Centralized helper method to determine if a component should show a premium badge
-        // This ensures consistent premium badge display logic across the entire rule builder
-        shouldShowPremiumBadge(componentDef) {
-            return componentDef && 
-                   !componentDef.accessible && 
-                   componentDef.capability && 
-                   componentDef.capability !== 'free';
-        },
 
 
 
@@ -1685,7 +1673,7 @@ function settingsPanel(componentType, index) {
                                 value: (currentSettings && currentSettings[propKey] !== undefined) ? currentSettings[propKey] : (prop.default ?? ''),
                                 enumOptions: enumOptions,
                                 selectedValues: Array.isArray(currentSettings?.[propKey]) ? currentSettings[propKey] : Array.isArray(prop.default) ? prop.default : [],
-                                premiumOptions: prop['ui:premium_options'] || [],
+                                premiumOptions: [],
                                 placeholder: prop['ui:placeholder'] || 'Search options...',
                                 minimum: prop.minimum ?? null,
                                 maximum: prop.maximum ?? null,
@@ -1724,7 +1712,7 @@ function searchableWidget(fieldId) {
         options: [],
         filteredOptions: [],
         selectedValues: [],
-        premiumOptions: [],
+            premiumOptions: [],
         key: '',
         searchTerm: '',
         showAll: false,
@@ -1741,8 +1729,7 @@ function searchableWidget(fieldId) {
         },
         getOptionClasses(value) {
             const isSelected = this.selectedValues.includes(value);
-            const isPremium = this.premiumOptions.includes(value);
-            return `odcm-checkbox-label${isSelected ? ' is-selected' : ''}${isPremium ? ' is-premium' : ''}`;
+            return `odcm-checkbox-label${isSelected ? ' is-selected' : ''}`;
         },
         shouldShowOption(value, label) {
             if (this.showAll) return true;
@@ -1750,8 +1737,7 @@ function searchableWidget(fieldId) {
             return label.toLowerCase().includes(term);
         },
         shouldDisableOption(value) {
-            // Do not allow selecting premium options when not available; UI-level hint only
-            return this.premiumOptions.includes(value) && !(window.odcmRuleBuilderConfig?.uiCapabilities?.canAccessPremiumComponents);
+            return false;
         },
         handleCheckboxChange(key, value, checked, componentType, index) {
             if (checked && !this.selectedValues.includes(value)) this.selectedValues.push(value);
@@ -1763,25 +1749,21 @@ function searchableWidget(fieldId) {
             window.ruleBuilderInstance?.updateSetting(key, [], componentType, index);
         },
         selectAll(key, componentType, index) {
-            // Get all available (non-premium or accessible premium) options
-            const availableOptions = this.options.filter(option => 
-                !this.shouldDisableOption(option.value)
-            ).map(option => option.value);
+            // Get all available options
+            const availableOptions = this.options.map(option => option.value);
             
             this.selectedValues = [...availableOptions];
             window.ruleBuilderInstance?.updateSetting(key, availableOptions, componentType, index);
         },
         get canSelectAll() {
-            // Check if there are any unselected available options
-            const availableOptions = this.options.filter(option => 
-                !this.shouldDisableOption(option.value)
-            ).map(option => option.value);
+            // Check if there are any unselected options
+            const availableOptions = this.options.map(option => option.value);
             
             return availableOptions.some(value => !this.selectedValues.includes(value));
         },
         get hasSelectableOptions() {
             // Check if there are any options that can be selected
-            return this.options.some(option => !this.shouldDisableOption(option.value));
+            return this.options.length > 0;
         }
     };
 }

@@ -8,7 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 use OrderDaemon\CompletionManager\Core\RuleComponents\RuleComponentRegistry;
 use OrderDaemon\CompletionManager\Core\RuleComponents\RuleIndexBuilder;
-use OrderDaemon\CompletionManager\Includes\DependencyChecker;
 
 /**
  * Rule Builder for the Order Daemon Completion Manager
@@ -317,15 +316,8 @@ final class RuleBuilder
                 'summary' => rest_url('odcm/v1/rule-builder/summary'),
             ],
             
-            'uiCapabilities' => [
-                'canSelectMultipleProductCategories' => function_exists('odcm_can_use') && odcm_can_use('condition_multi_category'),
-                // In core (free) plugin, premium components are educational-only; keep disabled in UI
-                'canAccessPremiumComponents' => false,
-            ],
             // Debug info
             'debug' => [
-                'condition_multi_category' => function_exists('odcm_can_use') ? odcm_can_use('condition_multi_category') : false,
-                'premium_features' => function_exists('odcm_can_use') ? odcm_can_use('premium_features') : false,
                 'php_version' => PHP_VERSION
             ],
             'i18n' => [
@@ -450,28 +442,22 @@ final class RuleBuilder
     private function format_components(array $components, array $rule_data): array
     {
         $formatted = [];
-        
+
         foreach ($components as $component) {
-            $can_use = function_exists('odcm_can_use') && odcm_can_use($component->get_capability());
+            $can_use = true;
             $already_in_rule = $this->is_component_in_current_rule($component->get_id(), $rule_data);
-            
-            // Determine component state
+
+            // All components default to available
             $component_state = 'available';
-            if (!$can_use && $already_in_rule) {
-                $component_state = 'already_selected_unavailable';
-            } elseif (!$can_use) {
-                $component_state = 'unavailable';
-            }
-            
+
             // Always include schema so settings can render in UI; capability is enforced at runtime
             $schema = $component->get_settings_schema();
-            
+
             $formatted[] = [
                 'id'          => $component->get_id(),
                 'label'       => $component->get_label(),
                 'description' => $component->get_description(),
                 'schema'      => $schema,
-                'capability'  => $component->get_capability(),
                 'accessible'  => $can_use,
                 'state'       => $component_state,
                 'already_in_rule' => $already_in_rule,
@@ -479,18 +465,15 @@ final class RuleBuilder
                 'priority'    => method_exists($component, 'get_priority') ? $component->get_priority() : 999,
             ];
         }
-        
-        // Sort by accessibility and priority
+
+        // Sort by priority only
         usort($formatted, function($a, $b) {
-            if ($a['accessible'] !== $b['accessible']) {
-                return $b['accessible'] - $a['accessible'];
-            }
             if ($a['priority'] !== $b['priority']) {
                 return $a['priority'] - $b['priority'];
             }
             return strcmp($a['label'], $b['label']);
         });
-        
+
         return $formatted;
     }
 
@@ -701,9 +684,6 @@ final class RuleBuilder
                 $enum_options = $property['enum'];
             }
             
-            // Get premium options
-            $premium_options = $property['ui:premium_options'] ?? [];
-            
             $fields[$key] = [
                 'id' => $field_id,
                 'key' => $key,
@@ -713,7 +693,6 @@ final class RuleBuilder
                 'value' => $current_value !== null ? $current_value : $default_value,
                 'enumOptions' => $enum_options,
                 'selectedValues' => $selected_values,
-                'premiumOptions' => $premium_options,
                 'placeholder' => $property['ui:placeholder'] ?? 'Search options...',
                 // Numeric attributes for number/integer inputs
                 'minimum' => isset($property['minimum']) ? $property['minimum'] : null,
@@ -899,7 +878,7 @@ final class RuleBuilder
                                                 <template x-if="field.enumOptions && Object.keys(field.enumOptions).length > 0">
                                                     <div class="odcm-searchable-checkboxes" 
                                                          x-data="searchableWidget(field.id)" 
-                                                         x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.premiumOptions, field.key))">
+                                                         x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.key))">
                                                     <div class="odcm-search-header">
                                                         <input type="text" 
                                                                :id="field.id + '_search'"
@@ -926,7 +905,6 @@ final class RuleBuilder
                                                                            @change="handleCheckboxChange(field.key, option.value, $event.target.checked, 'trigger', 0)">
                                                                     <div class="odcm-checkbox-content">
                                                                         <span class="odcm-checkbox-text" x-text="option.label"></span>
-                                                                        <span x-show="premiumOptions.includes(option.value)" class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
                                                                     </div>
                                                                 </label>
                                                             </template>
@@ -1083,15 +1061,11 @@ final class RuleBuilder
                             <template x-for="trigger in filteredTriggers" :key="trigger.id">
                                 <button type="button" 
                                         @click="selectComponent('trigger', trigger.id)" 
-                                        class="odcm-selector-option"
-                                        :class="{ 'odcm-premium-option': shouldShowPremiumBadge(trigger) }">
+                                        class="odcm-selector-option">
                                     <div class="odcm-option-content">
                                         <div class="odcm-option-title" x-text="trigger.label"></div>
                                         <div class="odcm-option-description" x-text="trigger.description"></div>
                                     </div>
-                                    <span x-show="shouldShowPremiumBadge(trigger)"
-                                    class="odcm-premium-badge odcm-premium-badge--inline"
-                                    :title="odcmRuleBuilderConfig?.upgrade?.message || ''">PRO</span>
                                 </button>
                             </template>
                         </div>
@@ -1150,7 +1124,7 @@ final class RuleBuilder
                                                 <template x-if="field.enumOptions && Object.keys(field.enumOptions).length > 0">
                                                     <div class="odcm-searchable-checkboxes" 
                                                          x-data="searchableWidget(field.id)" 
-                                                         x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.premiumOptions, field.key))">
+                                                         x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.key))">
                                                     <div class="odcm-search-header">
                                                         <input type="text" 
                                                                :id="field.id + '_search'"
@@ -1176,9 +1150,8 @@ final class RuleBuilder
                                                                            :disabled="shouldDisableOption(option.value)"
                                                                            @change="handleCheckboxChange(field.key, option.value, $event.target.checked, 'condition', index)">
                                                                     <div class="odcm-checkbox-content">
-                                                                        <span class="odcm-checkbox-text" x-text="option.label"></span>
-                                                                        <span x-show="premiumOptions.includes(option.value)" class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
-                                                                    </div>
+                                                                    <span class="odcm-checkbox-text" x-text="option.label"></span>
+                                                                </div>
                                                                 </label>
                                                             </template>
                                                             <div x-show="filteredOptions.length === 0" class="odcm-no-results">
@@ -1335,15 +1308,11 @@ final class RuleBuilder
                             <template x-for="condition in filteredConditions" :key="condition.id">
                                 <button type="button" 
                                         @click="selectComponent('condition', condition.id)" 
-                                        class="odcm-selector-option"
-                                        :class="{ 'odcm-premium-option': shouldShowPremiumBadge(condition) }">
+                                        class="odcm-selector-option">
                                     <div class="odcm-option-content">
                                         <div class="odcm-option-title" x-text="condition.label"></div>
                                         <div class="odcm-option-description" x-text="condition.description"></div>
                                     </div>
-                                    <span x-show="shouldShowPremiumBadge(condition)"
-                                    class="odcm-premium-badge odcm-premium-badge--inline"
-                                    :title="odcmRuleBuilderConfig?.upgrade?.message || ''">PRO</span>
                                 </button>
                             </template>
                         </div>
@@ -1407,7 +1376,7 @@ final class RuleBuilder
                                             <template x-if="field.enumOptions && Object.keys(field.enumOptions).length > 0">
                                                 <div class="odcm-searchable-checkboxes" 
                                                      x-data="searchableWidget(field.id)" 
-                                                     x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.premiumOptions, field.key))">
+                                                     x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.key))">
                                                 <div class="odcm-search-header">
                                                     <input type="text" 
                                                            :id="field.id + '_search'"
@@ -1434,7 +1403,6 @@ final class RuleBuilder
                                                                        @change="handleCheckboxChange(field.key, option.value, $event.target.checked, 'primaryAction', null)">
                                                                 <div class="odcm-checkbox-content">
                                                                     <span class="odcm-checkbox-text" x-text="option.label"></span>
-                                                                    <span x-show="premiumOptions.includes(option.value)" class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
                                                                 </div>
                                                             </label>
                                                         </template>
@@ -1503,17 +1471,14 @@ final class RuleBuilder
                             </div>
                             <div class="odcm-selector-list">
                                 <template x-for="action in filteredPrimaryActions" :key="action.id">
-                                    <button type="button" 
-                                            @click="selectComponent('primaryAction', action.id)" 
-                                            class="odcm-selector-option"
-                                            :class="{ 'odcm-premium-option': shouldShowPremiumBadge(action) }">
-                                        <div class="odcm-option-content">
-                                            <div class="odcm-option-title" x-text="action.label"></div>
-                                            <div class="odcm-option-description" x-text="action.description"></div>
-                                        </div>
-                                        <span x-show="shouldShowPremiumBadge(action)" 
-                                              class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
-                                    </button>
+                                <button type="button" 
+                                        @click="selectComponent('primaryAction', action.id)" 
+                                        class="odcm-selector-option">
+                                    <div class="odcm-option-content">
+                                        <div class="odcm-option-title" x-text="action.label"></div>
+                                        <div class="odcm-option-description" x-text="action.description"></div>
+                                    </div>
+                                </button>
                                 </template>
                             </div>
                         </div>
@@ -1565,7 +1530,7 @@ final class RuleBuilder
                                                     <template x-if="field.enumOptions && Object.keys(field.enumOptions).length > 0">
                                                         <div class="odcm-searchable-checkboxes" 
                                                              x-data="searchableWidget(field.id)" 
-                                                             x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.premiumOptions, field.key))">
+                                                             x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.key))">
                                                         <div class="odcm-search-header">
                                                             <input type="text" 
                                                                    :id="field.id + '_search'"
@@ -1591,9 +1556,8 @@ final class RuleBuilder
                                                                                :disabled="shouldDisableOption(option.value)"
                                                                                @change="handleCheckboxChange(field.key, option.value, $event.target.checked, 'action', index)">
                                                                         <div class="odcm-checkbox-content">
-                                                                            <span class="odcm-checkbox-text" x-text="option.label"></span>
-                                                                            <span x-show="premiumOptions.includes(option.value)" class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
-                                                                        </div>
+                                                                    <span class="odcm-checkbox-text" x-text="option.label"></span>
+                                                                </div>
                                                                     </label>
                                                                 </template>
                                                                 <div x-show="filteredOptions.length === 0" class="odcm-no-results">
@@ -1724,14 +1688,11 @@ final class RuleBuilder
                                 <template x-for="action in filteredSecondaryActions" :key="action.id">
                                     <button type="button" 
                                             @click="selectComponent('action', action.id)" 
-                                            class="odcm-selector-option"
-                                            :class="{ 'odcm-premium-option': shouldShowPremiumBadge(action) }">
+                                            class="odcm-selector-option">
                                         <div class="odcm-option-content">
                                             <div class="odcm-option-title" x-text="action.label"></div>
                                             <div class="odcm-option-description" x-text="action.description"></div>
                                         </div>
-                                        <span x-show="shouldShowPremiumBadge(action)" 
-                                              class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
                                     </button>
                                 </template>
                             </div>

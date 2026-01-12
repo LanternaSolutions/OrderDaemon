@@ -6,7 +6,6 @@ namespace OrderDaemon\CompletionManager\Admin;
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
-use OrderDaemon\CompletionManager\Includes\DependencyChecker;
 use OrderDaemon\CompletionManager\View\DashboardComponents\UnifiedHeaderRenderer;
 use OrderDaemon\CompletionManager\View\DashboardComponents\FilterPaneRenderer;
 use OrderDaemon\CompletionManager\View\DashboardComponents\LogStreamRenderer;
@@ -77,10 +76,6 @@ class InsightDashboard
 
         // Register AJAX handlers for onboarding
         add_action('wp_ajax_odcm_check_welcome_scenario', [$this, 'handle_welcome_scenario_check']);
-
-        // Register admin-post handlers for file downloads (WordPress way)
-        add_action('admin_post_odcm_export_logs_csv', [$this, 'handle_export_csv']);
-        add_action('admin_post_odcm_export_logs_json', [$this, 'handle_export_json']);
     }
 
     /**
@@ -273,7 +268,7 @@ class InsightDashboard
         // CSS loading validation and emergency fallback styles
         wp_add_inline_script(
             'odcm-insight-dashboard-js',
-            "(function(){try{var r=document.documentElement;var v=getComputedStyle(r).getPropertyValue('--odcm-theme-grey-100');if(!v||v.trim()===''){var s=document.createElement('style');s.setAttribute('data-odcm-inline-fallback','1');s.textContent='/* ODCM minimal fallback */ .odcm-insight-dashboard{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:#222;background:#fff;} .odcm-insight-dashboard .odcm-unified-header{position:sticky;top:0;background:#fff;border-bottom:1px solid #ddd;padding:8px;z-index:10;} .odcm-insight-dashboard .odcm-content-grid{display:flex;gap:8px;margin-top:8px;} .odcm-insight-dashboard .odcm-filter-pane,.odcm-insight-dashboard .odcm-log-stream,.odcm-insight-dashboard .odcm-detail-pane{border:1px solid #ddd;border-radius:4px;background:#fff;min-height:200px;padding:8px;flex:1;} @media(max-width:782px){.odcm-insight-dashboard .odcm-content-grid{flex-direction:column;}} .odcm-css-warning{border:1px solid #f0c36d;background:#fff8e5;color:#5f3b00;padding:8px;border-radius:4px;margin:8px 0;font-size:13px;} .odcm-badge--error{display:inline-block;background:#dc3545;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;} .odcm-premium-filter-group input:disabled,.odcm-premium-filter-group select:disabled{background:#eee;cursor:not-allowed;opacity:.7;}';document.head.appendChild(s);var b=document.createElement('div');b.className='odcm-css-warning';b.textContent='Order Daemon: Some styles failed to load. Using minimal fallback for safe display.';var c=document.getElementById('odcm-insight-dashboard');if(c){c.insertBefore(b,c.firstChild);}document.body.classList.add('odcm-css-fallback-mode');}}catch(e){}})();",
+            "(function(){try{var r=document.documentElement;var v=getComputedStyle(r).getPropertyValue('--odcm-theme-grey-100');if(!v||v.trim()===''){var s=document.createElement('style');s.setAttribute('data-odcm-inline-fallback','1');s.textContent='/* ODCM minimal fallback */ .odcm-insight-dashboard{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:#222;background:#fff;} .odcm-insight-dashboard .odcm-unified-header{position:sticky;top:0;background:#fff;border-bottom:1px solid #ddd;padding:8px;z-index:10;} .odcm-insight-dashboard .odcm-content-grid{display:flex;gap:8px;margin-top:8px;} .odcm-insight-dashboard .odcm-filter-pane,.odcm-insight-dashboard .odcm-log-stream,.odcm-insight-dashboard .odcm-detail-pane{border:1px solid #ddd;border-radius:4px;background:#fff;min-height:200px;padding:8px;flex:1;} @media(max-width:782px){.odcm-insight-dashboard .odcm-content-grid{flex-direction:column;}} .odcm-css-warning{border:1px solid #f0c36d;background:#fff8e5;color:#5f3b00;padding:8px;border-radius:4px;margin:8px 0;font-size:13px;} .odcm-badge--error{display:inline-block;background:#dc3545;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;} .odcm-advanced-filter-group input:disabled,.odcm-advanced-filter-group select:disabled{background:#eee;cursor:not-allowed;opacity:.7;}';document.head.appendChild(s);var b=document.createElement('div');b.className='odcm-css-warning';b.textContent='Order Daemon: Some styles failed to load. Using minimal fallback for safe display.';var c=document.getElementById('odcm-insight-dashboard');if(c){c.insertBefore(b,c.firstChild);}document.body.classList.add('odcm-css-fallback-mode');}}catch(e){}})();",
             'before'
         );
 
@@ -298,7 +293,6 @@ class InsightDashboard
             'adminPostUrl' => admin_url('admin-post.php'),
             'nonce' => wp_create_nonce('wp_rest'),
             'restNonce' => wp_create_nonce('wp_rest'),
-            'premium_access' => (bool) apply_filters('odcm_is_premium_user', false),
             'perPage' => $this->get_user_per_page_setting(),
             'autoRefreshInterval' => 5000, // 5 seconds
             'debug' => self::is_global_debug_active(),
@@ -412,17 +406,12 @@ class InsightDashboard
     {
         // Verify nonce
         if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
-            wp_die(esc_html__('upgrade_prompts.ajax.security_check_failed', 'order-daemon'));
+            wp_die(esc_html__('Security check failed', 'order-daemon'));
         }
 
         // Check user capabilities - use WooCommerce standard for reports (allows Shop Managers)
         if (!current_user_can('view_woocommerce_reports') && !current_user_can('manage_woocommerce')) {
             wp_send_json_error(__('admin.insight_dashboard.permission.insufficient_permissions', 'order-daemon'));
-        }
-
-        // Check if user has access to insight dashboard (defensive check)
-        if (function_exists('odcm_can_use') && !odcm_can_use('insight_dashboard')) {
-            wp_send_json_error(__('admin.insight_dashboard.ajax.feature_not_available', 'order-daemon'));
         }
 
         try {
@@ -623,14 +612,6 @@ class InsightDashboard
             wp_die(esc_html__('admin.insight_dashboard.permission.insufficient_permissions', 'order-daemon'));
         }
 
-        // Check if user has access to audit trail functionality
-        // Since insight dashboard is a free feature, only restrict if function explicitly denies access
-        if (function_exists('odcm_can_use') && !odcm_can_use('insight_dashboard')) {
-            // This should not happen for free features, but provide fallback
-            $this->render_upgrade_notice();
-            return;
-        }
-
         if ($this->use_component_dashboard()) {
             $this->initializeComponents();
             $this->render_dashboard_html_components();
@@ -812,17 +793,15 @@ class InsightDashboard
                     </div>
                 </div>
 
-                <!-- Premium Filters Group -->
-                <div class="odcm-premium-filter-group" :class="{ 'is-disabled': !canUsePremiumFilters }">
-                    <div class="odcm-premium-badge odcm-premium-badge--absolute"><?php echo esc_html__('admin.insight_dashboard.premium.badge', 'order-daemon'); ?></div>
-                    <div class="odcm-premium-overlay" x-show="!canUsePremiumFilters" @click.prevent.stop="if (config?.upgrade?.enabled) { showToast(config.upgrade.message, 'info'); }" :title="config?.upgrade?.enabled ? config.upgrade.message : ''" aria-hidden="true"></div>
+                <!-- Advanced Filters Group -->
+                <div class="odcm-advanced-filter-group">
                     
                     <!-- Status Filter -->
                     <div class="odcm-filter-group">
                         <label for="filter-status"><?php echo esc_html__('admin.insight_dashboard.filters.status.label', 'order-daemon'); ?></label>
                         <select id="filter-status" 
                                 x-model="filters.status"
-                                :disabled="!canUsePremiumFilters">
+                                >
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.status.all', 'order-daemon'); ?></option>
                             <option value="success"><?php echo esc_html__('status.success', 'order-daemon'); ?></option>
                             <option value="error"><?php echo esc_html__('status.error', 'order-daemon'); ?></option>
@@ -835,8 +814,7 @@ class InsightDashboard
                     <div class="odcm-filter-group">
                         <label for="filter-event-type"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.label', 'order-daemon'); ?></label>
                         <select id="filter-event-type" 
-                                x-model="filters.event_type"
-                                :disabled="!canUsePremiumFilters">
+                                x-model="filters.event_type">
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.event_type.all', 'order-daemon'); ?></option>
                             <option value="rule_check"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.rule_check', 'order-daemon'); ?></option>
                             <option value="order_completion"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.order_completion', 'order-daemon'); ?></option>
@@ -851,8 +829,7 @@ class InsightDashboard
                     <div class="odcm-filter-group">
                         <label for="filter-source"><?php echo esc_html__('admin.insight_dashboard.filters.source.label', 'order-daemon'); ?></label>
                         <select id="filter-source" 
-                                x-model="filters.source"
-                                :disabled="!canUsePremiumFilters">
+                                x-model="filters.source">
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.source.all', 'order-daemon'); ?></option>
                             <option value="manual"><?php echo esc_html__('admin.insight_dashboard.filters.source.manual', 'order-daemon'); ?></option>
                             <option value="scheduled"><?php echo esc_html__('admin.insight_dashboard.filters.source.scheduled', 'order-daemon'); ?></option>
@@ -868,12 +845,10 @@ class InsightDashboard
                         <div class="odcm-date-range">
                             <input type="date" 
                                    x-model="filters.date_start"
-                                   :disabled="!canUsePremiumFilters"
                                    class="regular-text">
                             <span>–</span>
                             <input type="date" 
                                    x-model="filters.date_end"
-                                   :disabled="!canUsePremiumFilters"
                                    class="regular-text">
                         </div>
                     </div>
@@ -961,7 +936,7 @@ class InsightDashboard
                         <label class="odcm-setting-label">Reprocess Pending Orders</label>
                         <div class="odcm-setting-control">
                             <span class="odcm-setting-hint">Batch operation to reprocess orders with processing/on-hold statuses. (Useful after payment system failures and rule changes.)</span>
-                            <button type="button" 
+                            <button type="button"
                                     class="odcm-refresh-button button"
                                     @click="reprocessPendingOrders()"
                                     :disabled="isReprocessing">
@@ -973,20 +948,15 @@ class InsightDashboard
                 </div>
             </div>
 
-            <?php
-            // Allow pro plugin to add additional settings sections
-            do_action('odcm_insight_dashboard_settings_sections');
-            ?>
-
             <!-- Debug Settings Section -->
             <div class="odcm-settings-section">
                 <div class="odcm-settings-group">
                     <div class="odcm-setting-row">
                         <h3 class="odcm-settings-section-title">Debug</h3>
                         <label for="odcm_global_debug" class="odcm-setting-label">
-                            <input type="checkbox" 
-                                   name="odcm_global_debug" 
-                                   id="odcm_global_debug" 
+                            <input type="checkbox"
+                                   name="odcm_global_debug"
+                                   id="odcm_global_debug"
                                    <?php checked($global_debug); ?>
                                    @change="saveDebugSetting('odcm_global_debug', $event.target.checked)">
                             Toggle Global ODCM Debug Mode
@@ -995,9 +965,9 @@ class InsightDashboard
                     </div>
                     <div class="odcm-setting-row">
                         <label for="odcm_detailed_notes" class="odcm-setting-label">
-                            <input type="checkbox" 
-                                   name="odcm_detailed_notes" 
-                                   id="odcm_detailed_notes" 
+                            <input type="checkbox"
+                                   name="odcm_detailed_notes"
+                                   id="odcm_detailed_notes"
                                    <?php checked($detailed_notes); ?>
                                    @change="saveDebugSetting('odcm_detailed_notes', $event.target.checked)">
                             Add Detailed Order Notes
@@ -1007,99 +977,11 @@ class InsightDashboard
                 </div>
             </div>
 
-            <!-- Data Management Section -->
-            <div class="odcm-settings-section">
-                <div class="odcm-settings-group">
-                    <?php
-                    $is_premium = (bool) apply_filters('odcm_is_premium_user', false);
-                    $pro_plugin_active = defined('ODCM_PRO_VERSION');
-                    $pro_plugin_installed = file_exists(WP_PLUGIN_DIR . '/order-daemon-pro/order-daemon-pro.php');
-                    ?>
-
-                    <h3 class="odcm-settings-section-title">Data Management</h3>
-                    
-                    <!-- Export Logs Feature -->
-                    <?php if (!$is_premium): ?>
-                        <div class="odcm-setting-row odcm-premium-notice-small">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
-                            <p><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
-                            <a href="https://orderdaemon.com/pricing" class="button-secondary odcm-button-small" target="_blank">
-                                <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
-                            </a>
-                        </div>
-                    <?php else: ?>
-                        <!-- Premium Export Logs Feature - Active -->
-                        <div class="odcm-setting-row">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
-                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
-                            <div class="odcm-export-controls">
-                                <button type="button" 
-                                        class="button"
-                                        @click="exportLogs('csv')"
-                                        :disabled="isExporting && exportFormat === 'csv'">
-                                    <span class="dashicons dashicons-download"></span>
-                                    <span x-text="isExporting && exportFormat === 'csv' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export CSV', 'order-daemon')); ?>'"></span>
-                                </button>
-                                <button type="button" 
-                                        class="button"
-                                        @click="exportLogs('json')"
-                                        :disabled="isExporting && exportFormat === 'json'">
-                                    <span class="dashicons dashicons-download"></span>
-                                    <span x-text="isExporting && exportFormat === 'json' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export JSON', 'order-daemon')); ?>'"></span>
-                                </button>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Log Retention Policy Feature -->
-                    <?php if (!$is_premium): ?>
-                        <div class="odcm-setting-row odcm-danger-section">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
-                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
-                            <a href="https://orderdaemon.com/pricing" class="button-secondary odcm-button-small" target="_blank">
-                                <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
-                            </a>
-                        </div>
-                    <?php else: ?>
-                        <!-- Premium Log Retention Policy Feature - Active -->
-                        <div class="odcm-setting-row odcm-danger-section">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
-                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
-                            <div class="odcm-retention-controls">
-                                <div>
-                                    <label for="retention-days"><?php echo esc_html__('Retention Period:', 'order-daemon'); ?></label>
-                                    <div class="odcm-retention-setting">
-                                        <input type="number"
-                                               id="retention-days"
-                                               x-model="retentionDays"
-                                               min="1"
-                                               max="365"
-                                               class="small-text"
-                                               @click.stop>
-                                        <span><?php echo esc_html__('days', 'order-daemon'); ?></span>
-                                        <button type="button"
-                                                class="button button-small"
-                                                @click="updateRetentionPolicy()"
-                                                :disabled="isUpdatingRetention">
-                                            <span x-text="isUpdatingRetention ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.updating', 'order-daemon')); ?>' : '<?php echo esc_js(__('Update Policy', 'order-daemon')); ?>'"></span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="odcm-cleanup-section">
-                                    <button type="button" 
-                                            class="button button-secondary odcm-danger-button"
-                                            @click="cleanupOldLogs()"
-                                            :disabled="isCleaningUp">
-                                        <span class="dashicons dashicons-trash"></span>
-                                        <span x-text="isCleaningUp ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.cleaning', 'order-daemon')); ?>' : '<?php echo esc_js(__('Cleanup Now', 'order-daemon')); ?>'"></span>
-                                    </button>
-                                    <p class="description"><?php echo esc_html__('This will remove all event logs older than the retention period.', 'order-daemon'); ?></p>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
+            <?php
+            // Allow extension plugins to add additional settings sections
+            // Placed at the bottom to maintain UI consistency - extensions should appear after core settings
+            do_action('odcm_insight_dashboard_settings_sections');
+            ?>
         </div>
         <?php
     }
@@ -1117,7 +999,7 @@ class InsightDashboard
 
         // Verify nonce
         if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
-            wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
         }
 
         // Get and validate input
@@ -1158,8 +1040,8 @@ class InsightDashboard
 
         // Verify nonce
         if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
-            wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
-        } 
+            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
+        }
 
         // Get and validate input - only process the setting that was sent
         $updated_settings = [];
@@ -1310,7 +1192,7 @@ class InsightDashboard
 
         // Verify nonce
         if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
-            wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
         }
 
         try {
@@ -1368,114 +1250,6 @@ class InsightDashboard
         $pl->finish('success', sprintf('Admin requested reprocessing of %d orders', $count));
     }
 
-    /**
-     * Handle CSV export via admin-post.php (WordPress way)
-     * This is called by the admin_post_odcm_export_logs_csv action
-     */
-    public function handle_export_csv(): void
-    {
-        $this->handle_export_request('csv');
-    }
-
-    /**
-     * Handle JSON export via admin-post.php (WordPress way)
-     * This is called by the admin_post_odcm_export_logs_json action
-     */
-    public function handle_export_json(): void
-    {
-        $this->handle_export_request('json');
-    }
-
-    /**
-     * Handle export requests via admin-post.php (WordPress way)
-     * This method is called by admin-post handlers, which don't load the admin UI
-     * 
-     * Note: Export requires manage_woocommerce (Administrator only) as this is
-     * a data export operation that could contain sensitive information.
-     * 
-     * @param string $format Export format ('csv' or 'json')
-     */
-    private function handle_export_request(string $format): void
-    {
-        // Clear any existing output buffers immediately to ensure clean headers
-        // This is critical to prevent "headers already sent" errors or inline display
-        while (ob_get_level() > 0) {
-            ob_end_clean();
-        }
-
-        try {
-            // Check if headers have already been sent, which would break the download
-            if (headers_sent($file, $line)) {
-                if (self::is_global_debug_active() && function_exists('odcm_log_message')) {
-                    odcm_log_message(sprintf('Export: Headers already sent in %s:%d', $file, $line), 'error');
-                }
-                // If headers are sent, we can't force a download. Output a plain error.
-                http_response_code(500);
-                echo esc_html( sprintf(
-                                    /* translators: 1: file name, 2: line number */
-                                    __( 'Error: Output started in %1$s:%2$d. Cannot start file download.', 'order-daemon' ),
-                                    $file,
-                                    $line
-                                ) );
-                exit;
-            }
-
-            // Check user capabilities - require manage_woocommerce for data export
-            if (!current_user_can('manage_woocommerce')) {
-                wp_die(esc_html__('admin.insight_dashboard.ajax.permission_denied', 'order-daemon'), 403);
-            }
-
-            // Verify nonce
-            $nonce = isset($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '';
-            if (!wp_verify_nonce($nonce, 'wp_rest')) {
-                if (self::is_global_debug_active()) {
-                    odcm_log_message('ODCM Export: Nonce verification failed. Nonce: ' . $nonce, 'error');
-                }
-                wp_die(esc_html__('upgrade_prompts.ajax.security_check_failed', 'order-daemon'), 403);
-            }
-
-            // Check premium access
-            if (!apply_filters('odcm_is_premium_user', false)) {
-                wp_die(esc_html__('This is a premium feature. Please upgrade to access log export.', 'order-daemon'), 403);
-            }
-
-            // Check if LogExporter class exists (pro plugin must be active)
-            if (!class_exists('OrderDaemon\CompletionManager\Pro\Admin\LogExporter')) {
-                wp_die(esc_html__('Export functionality is not available. Please ensure the Pro plugin is active.', 'order-daemon'), 500);
-            }
-
-            if (self::is_global_debug_active()) {
-                // Use WordPress debug logging instead of error_log for production compliance
-                if (function_exists('odcm_log_message')) {
-                    odcm_log_message('Starting export via admin-post.php - Format: ' . $format, 'debug');
-                    odcm_log_message('Request parameters: ' . wp_json_encode($_REQUEST), 'debug');
-                }
-            }
-
-            // Initialize LogExporter
-            global $wpdb;
-            $exporter = new \OrderDaemon\CompletionManager\Pro\Admin\LogExporter($wpdb);
-
-            // Call the appropriate export method based on format
-            if ($format === 'csv') {
-                $exporter->export_csv();
-            } else {
-                $exporter->export_json();
-            }
-
-            // Note: export methods call exit, so execution stops here
-
-        } catch (\Exception $e) {
-            if (self::is_global_debug_active()) {
-                // Use WordPress debug logging instead of error_log for production compliance
-                if (function_exists('odcm_log_message')) {
-                    odcm_log_message('Export Error: ' . $e->getMessage(), 'error');
-                    odcm_log_message('Export Stack Trace: ' . $e->getTraceAsString(), 'error');
-                }
-            }
-            wp_die('Export failed: ' . esc_html($e->getMessage()), 500);
-        }
-    }
 
 
     /**

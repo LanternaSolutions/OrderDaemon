@@ -48,19 +48,20 @@ Order Daemon revolutionizes how you handle WooCommerce orders by providing intel
 
 **Free Version Includes**
 
-* One active automation rule
-* Basic rule creation and management
+* Unlimited active automation rules
+* Rule creation and management
 * Order processing trigger
 * Product type and category conditions
 * Order completion action
-* Audit logging and basic reporting
+* Audit logging and reporting
 * Security and performance monitoring
+* Diagnostics dashboard
 
 **Premium Version Adds**
 
-* Unlimited active automation rules
 * Advanced triggers and conditions
 * Additional actions and integrations
+* Rule builder debug tool
 * Priority support and updates
 
 **Why Choose Order Daemon?**
@@ -69,7 +70,7 @@ Unlike other automation plugins that try to do everything, Order Daemon focuses 
 
 * **Superior Performance** - Optimized specifically for order processing workflows
 * **Reliability** - Robust error handling and fallback systems ensure orders are never missed
-* * **Simplicity** - Clean, intuitive interface that doesn't overwhelm you with unnecessary features
+* **Simplicity** - Clean, intuitive interface that doesn't overwhelm you with unnecessary features
 * **Compatibility** - Works seamlessly with popular payment gateways, themes, and plugins
 * **Support** - Dedicated support team with deep WooCommerce expertise
 
@@ -111,7 +112,7 @@ No. Order Daemon is built with performance as a top priority. It uses efficient 
 
 = Can I create multiple automation rules? =
 
-The free version allows you to create one active automation rule, which is perfect for getting started with order automation. The premium version removes this limitation, allowing unlimited active rules to handle various scenarios for different products or customer types. You can upgrade at any time to unlock unlimited rules and additional features.
+Yes! The free plugin allows you to create unlimited active rules to handle various scenarios.
 
 = Is it safe to automate order completion? =
 

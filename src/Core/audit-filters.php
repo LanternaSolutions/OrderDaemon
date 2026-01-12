@@ -2,38 +2,27 @@
 declare(strict_types=1);
 
 /**
- * Audit Log Filter Definitions - Entitlement-Aware Filter Registry
+ * Audit Log Filter Definitions
  *
  * This file contains all filter registrations for the audit log interface.
- * It follows the same pattern as options.php but is specifically designed
- * for audit log filtering capabilities.
+ * It provides comprehensive filtering capabilities for the audit log system.
  *
  * FILTER ARCHITECTURE:
  * ===================
- * 
+ *
  * Each filter is registered with:
  * - id: Unique identifier (e.g., 'date_range')
  * - label: Human-readable name for UI
- * - tier: Product tier ('free' or 'premium')
- * - capability: Entitlement key for access control
  * - render_callback: Function to render filter input UI
- * 
- * ENTITLEMENT INTEGRATION:
- * =======================
- * 
- * Filters are automatically integrated with the entitlement system:
- * - Free filters are always available
- * - Premium filters show PREMIUM badges
- * - Disabled state for users without access
- * - Server-side validation prevents bypass attempts
- * 
+ *
  * RENDER CALLBACKS:
  * ================
- * 
- * Each filter has a render callback that receives permission status:
- * - $has_permission (bool): Whether user can use this filter
- * - Callback should render appropriate UI (enabled/disabled)
- * - Premium filters should show upgrade prompts when disabled
+ *
+ * Each filter has a render callback that receives:
+ * - $filter: Filter configuration array
+ * - $has_permission: Whether user can use this filter
+ * - $current_value: Current filter value
+ * - Callback should render appropriate UI based on permission status
  *
  * @package OrderDaemon\CompletionManager\Core
  * @since   1.0.0
@@ -60,39 +49,27 @@ function odcm_register_audit_filters(): void
 {
     $registry = odcm_get_filter_registry_instance();
 
-    // ============================================================================
-    // FREE TIER FILTERS - Available to all users
-    // ============================================================================
-
     /**
      * Basic Search Filter
      * 
      * Provides text-based search across log summaries, event types, and sources.
-     * This is the core search functionality available to all users.
+     * This is the core search functionality.
      */
     $registry->register_filter([
         'id'              => 'basic_search',
         'label'           => __('admin.insight_dashboard.filters.search.label', 'order-daemon'),
-        'tier'            => 'free',
-        'capability'      => 'audit_log_basic_search',
         'render_callback' => 'odcm_render_basic_search_filter',
     ]);
-
-    // ============================================================================
-    // PREMIUM TIER FILTERS - Require premium license
-    // ============================================================================
 
     /**
      * Date Range Filter
      * 
      * Allows filtering by specific date ranges using date pickers.
-     * Premium feature that provides precise temporal filtering.
+     * Provides precise temporal filtering.
      */
     $registry->register_filter([
         'id'              => 'date_range',
         'label'           => __('admin.insight_dashboard.filters.date_range.label', 'order-daemon'),
-        'tier'            => 'premium',
-        'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_date_range_filter',
     ]);
 
@@ -105,8 +82,6 @@ function odcm_register_audit_filters(): void
     $registry->register_filter([
         'id'              => 'status',
         'label'           => __('admin.insight_dashboard.filters.status.label', 'order-daemon'),
-        'tier'            => 'premium',
-        'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_status_filter',
     ]);
 
@@ -119,8 +94,6 @@ function odcm_register_audit_filters(): void
     $registry->register_filter([
         'id'              => 'event_type',
         'label'           => __('admin.insight_dashboard.filters.event_type.label', 'order-daemon'),
-        'tier'            => 'premium',
-        'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_event_type_filter',
     ]);
 
@@ -134,8 +107,6 @@ function odcm_register_audit_filters(): void
     $registry->register_filter([
         'id'              => 'source',
         'label'           => __('admin.insight_dashboard.filters.source.label', 'order-daemon'),
-        'tier'            => 'premium',
-        'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_source_filter',
     ]);
 }
@@ -145,10 +116,9 @@ function odcm_register_audit_filters(): void
 // ============================================================================
 
 /**
- * Render Basic Search Filter Input
+ * Render Search Filter Input
  * 
- * Renders a simple text input for basic search functionality.
- * Always enabled for free users.
+ * Renders a text input for search functionality.
  * 
  * @since 1.0.0
  * @param array $filter Filter configuration array
@@ -179,7 +149,6 @@ function odcm_render_basic_search_filter(array $filter, bool $has_permission, st
  * Render Date Range Filter Inputs
  * 
  * Renders date picker inputs for start and end dates.
- * Shows as disabled for free users.
  * 
  * @since 1.0.0
  * @param array $filter Filter configuration array

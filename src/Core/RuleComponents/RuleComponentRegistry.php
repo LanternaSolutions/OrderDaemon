@@ -250,7 +250,10 @@ final class RuleComponentRegistry
                   count($this->conditions) . ' conditions, ' . 
                   count($this->actions) . ' actions', 'debug');
         }
-        
+
+        // Allow external plugins to register additional components via the extension API
+        do_action('odcm_register_components', $this);
+
         $this->is_loaded = true;
     }
 
@@ -268,6 +271,72 @@ final class RuleComponentRegistry
         } elseif ($component instanceof ActionInterface) {
             $this->actions[$component->get_id()] = $component;
         }
+    }
+
+    /**
+     * Register a trigger component.
+     *
+     * This public method allows external plugins to register additional triggers with the
+     * rule component registry.
+     *
+     * @param TriggerInterface $trigger The trigger component to register.
+     *
+     * @example
+     * ```php
+     * // In a third-party extension:
+     * $registry = RuleComponentRegistry::instance();
+     * $registry->register_trigger(new MyCustomTrigger());
+     * ```
+     *
+     * @since 2.0.0
+     */
+    public function register_trigger(TriggerInterface $trigger): void
+    {
+        $this->triggers[$trigger->get_id()] = $trigger;
+    }
+
+    /**
+     * Register a condition component.
+     *
+     * This public method allows external plugins to register additional conditions with the
+     * rule component registry.
+     *
+     * @param ConditionInterface $condition The condition component to register.
+     *
+     * @example
+     * ```php
+     * // In a third-party extension:
+     * $registry = RuleComponentRegistry::instance();
+     * $registry->register_condition(new MyCustomCondition());
+     * ```
+     *
+     * @since 2.0.0
+     */
+    public function register_condition(ConditionInterface $condition): void
+    {
+        $this->conditions[$condition->get_id()] = $condition;
+    }
+
+    /**
+     * Register an action component.
+     *
+     * This public method allows external plugins to register additional actions
+     * with the rule component registry.
+     *
+     * @param ActionInterface $action The action component to register.
+     *
+     * @example
+     * ```php
+     * // In a third-party extension:
+     * $registry = RuleComponentRegistry::instance();
+     * $registry->register_action(new MyCustomAction());
+     * ```
+     *
+     * @since 2.0.0
+     */
+    public function register_action(ActionInterface $action): void
+    {
+        $this->actions[$action->get_id()] = $action;
     }
 
     /**

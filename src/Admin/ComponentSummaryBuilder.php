@@ -441,12 +441,26 @@ final class ComponentSummaryBuilder
         // Conditions specialized phrasing
         switch ($component_id) {
             case 'product_category':
-                // Mode derived from match_type: any => includes, all => includes all of
-                return $this->build_summary_html([
-                    'title' => $title,
-                    'match_mode' => $mode,
-                    'details' => $details,
-                ]);
+                // Product category uses single select (category), not multi-select
+                $category = $settings['category'] ?? '';
+                $category_enum = $component->get_settings_schema()['properties']['category']['enum'] ?? [];
+
+                if (!empty($category) && $category !== '0') {
+                    // Specific category selected
+                    $category_label = $category_enum[$category] ?? $category;
+                    return $this->build_summary_html([
+                        'title' => $title,
+                        'match_mode' => '',
+                        'details' => [$category_label],
+                    ]);
+                } else {
+                    // No category selected means match all orders
+                    return $this->build_summary_html([
+                        'title' => $title,
+                        'match_mode' => '',
+                        'details' => [__('Any category', 'order-daemon')],
+                    ]);
+                }
 
             case 'product_selection':
                 // e.g., "Specific Products includes A, B (including product variations)"

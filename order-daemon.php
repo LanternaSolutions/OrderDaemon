@@ -82,7 +82,6 @@ if ( ! defined( 'ODCM_DOCS_URL' ) ) {
     define('ODCM_DOCS_URL', Odcm_Config::$docs_uri);
 }
 define('ODCM_SUPPORT_URL', Odcm_Config::$plugin_uri . '/support');
-define('ODCM_PREMIUM_URL', Odcm_Config::$plugin_uri . '/pricing');
 
 // Include global helper functions
 require_once __DIR__ . '/src/Includes/functions.php';

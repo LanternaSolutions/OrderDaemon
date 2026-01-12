@@ -210,30 +210,6 @@
     background-color: var(--odcm-color-bg-lighter); /* A subtle background to differentiate it */
 }
 
-/* Premium Features */
-.odcm-premium-badge {
-    display: inline-block;
-    background: #f0c33c;
-    color: #000;
-    font-size: 11px;
-    line-height: 1.2;
-    padding: 2px 6px;
-    border-radius: 3px;
-    margin-left: 5px;
-    font-weight: 600;
-    text-transform: uppercase;
-    vertical-align: middle;
-}
-
-.odcm-premium-option {
-    opacity: 0.75;
-    position: relative;
-    cursor: not-allowed;
-}
-
-.odcm-premium-option:hover {
-    opacity: 0.9;
-}
 /* Meta Box Container */
 .odcm-meta-box-container {
     margin: 15px 0;

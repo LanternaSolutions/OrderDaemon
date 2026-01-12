@@ -25,7 +25,6 @@ class DiagnosticRunner
      */
     private const DIAGNOSTIC_CATEGORIES = [
         'Core' => [
-            'WpCliDiagnostic',
             'WooCommerceIntegrationDiagnostic',
             'EnvironmentDiagnostic',
             'PluginStateDiagnostic',
@@ -70,19 +69,33 @@ class DiagnosticRunner
                 $this->register_diagnostic($category, $diagnostic_class);
             }
         }
+
+        // Allow plugins to register additional diagnostics
+        $additional_diagnostics = apply_filters('odcm_register_additional_diagnostics', []);
+        foreach ($additional_diagnostics as $category => $diagnostic_classes) {
+            foreach ($diagnostic_classes as $diagnostic_class) {
+                $this->register_diagnostic($category, $diagnostic_class);
+            }
+        }
     }
 
     /**
      * Register a single diagnostic test
      *
      * @param string $category The diagnostic category
-     * @param string $diagnostic_class The diagnostic class name
+     * @param string $diagnostic_class The diagnostic class name (can be fully qualified)
      * @return void
      */
     private function register_diagnostic(string $category, string $diagnostic_class): void
     {
-        $full_class_name = "OrderDaemon\\CompletionManager\\Diagnostics\\{$category}\\{$diagnostic_class}";
-        
+        // Check if it's already a fully qualified class name
+        $full_class_name = $diagnostic_class;
+
+        // If not fully qualified, construct the class name using the plugin's namespace structure
+        if (strpos($diagnostic_class, '\\') === false) {
+            $full_class_name = "OrderDaemon\\CompletionManager\\Diagnostics\\{$category}\\{$diagnostic_class}";
+        }
+
         if (class_exists($full_class_name)) {
             $instance = new $full_class_name();
             if ($instance instanceof DiagnosticInterface) {
@@ -201,10 +214,10 @@ class DiagnosticRunner
      */
     private function get_diagnostic_category(string $key): string
     {
-        foreach (array_keys(self::DIAGNOSTIC_CATEGORIES) as $category) {
-            if (strpos($key, strtolower($category) . '_') === 0) {
-                return strtolower($category);
-            }
+        // Extract category from the diagnostic key (format: category_diagnosticname)
+        $parts = explode('_', $key, 2);
+        if (isset($parts[0])) {
+            return $parts[0];
         }
         return 'unknown';
     }
@@ -325,7 +338,7 @@ class DiagnosticRunner
      */
     public function get_health_status(): array
     {
-        $critical_tests = ['core_wpcli', 'core_woocommerceintegration', 'core_pluginstate', 'api_restapi'];
+        $critical_tests = ['core_woocommerceintegration', 'core_pluginstate', 'api_restapi'];
         $status = [
             'overall' => 'healthy',
             'issues' => 0,

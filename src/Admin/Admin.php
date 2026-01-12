@@ -521,46 +521,6 @@ class Admin
                 return;
             }
 
-            // Check if user can use unlimited rules
-            $can_use_unlimited_rules = odcm_can_use('unlimited_rules');
-
-            // For freemium users, enforce priority 0 constraint for active rules
-            if (!$can_use_unlimited_rules) {
-                if ($post->post_status !== 'publish') {
-                    // Activating a rule - ensure it gets priority 0 and deactivate others
-                    
-                    // First, set this rule to priority 0 (highest priority)
-                    wp_update_post([
-                        'ID' => $post_id,
-                        'menu_order' => 0,
-                    ]);
-
-                    // Get all published rules (excluding current rule via PHP filtering,
-                    // avoiding performance issues with post__not_in parameter)
-                    $published_rules = get_posts([
-                        'post_type'      => 'odcm_order_rule',
-                        'post_status'    => 'publish',
-                        'posts_per_page' => -1,
-                        'fields'         => 'ids',
-                    ]);
-                    
-                    // Filter out the current post ID from results
-                    $published_rules = array_filter($published_rules, function($rule_id) use ($post_id) {
-                        return $rule_id != $post_id;
-                    });
-
-                    // Set all other published rules to draft
-                    foreach ($published_rules as $rule_id) {
-                        wp_update_post([
-                            'ID'          => $rule_id,
-                            'post_status' => 'draft',
-                        ]);
-                    }
-                } else {
-                    // Deactivating the current rule - no additional action needed
-                    // Free version users can deactivate their single rule
-                }
-            }
 
             // Toggle the post status
             $new_post_status = $post->post_status === 'publish' ? 'draft' : 'publish';
@@ -589,8 +549,6 @@ class Admin
                 wp_send_json_success([
                     'message'        => __('Rule status updated successfully', 'order-daemon'),
                     'new_status'     => $new_post_status === 'publish' ? '1' : '0',
-                    'is_premium'     => $can_use_unlimited_rules,
-                    'affected_rules' => !$can_use_unlimited_rules && $new_post_status === 'publish' ? count($published_rules ?? []) : 0,
                     'date_text'      => $date_text,
                     'display_title'  => $display_title,
                     'post_title'     => $post_title,
