@@ -408,7 +408,8 @@ class ManualStatusTracker
 
         // Check if we're on the orders list page with edit action
         if ($pagenow === 'edit.php' && $typenow === 'shop_order') {
-            $action = isset($_GET['action']) ? sanitize_key($_GET['action']) : '';
+            $action_raw = filter_input(INPUT_GET, 'action', FILTER_UNSAFE_RAW);
+            $action = $action_raw ? sanitize_key($action_raw) : '';
             return $action === 'edit';
         }
 

@@ -1673,7 +1673,6 @@ function settingsPanel(componentType, index) {
                                 value: (currentSettings && currentSettings[propKey] !== undefined) ? currentSettings[propKey] : (prop.default ?? ''),
                                 enumOptions: enumOptions,
                                 selectedValues: Array.isArray(currentSettings?.[propKey]) ? currentSettings[propKey] : Array.isArray(prop.default) ? prop.default : [],
-                                premiumOptions: [],
                                 placeholder: prop['ui:placeholder'] || 'Search options...',
                                 minimum: prop.minimum ?? null,
                                 maximum: prop.maximum ?? null,
@@ -1712,15 +1711,13 @@ function searchableWidget(fieldId) {
         options: [],
         filteredOptions: [],
         selectedValues: [],
-            premiumOptions: [],
         key: '',
         searchTerm: '',
         showAll: false,
-        init(enumOptions, selectedValues, premiumOptions, key) {
+        init(enumOptions, selectedValues, key) {
             this.options = Object.entries(enumOptions || {}).map(([value, label]) => ({ value, label }));
             this.filteredOptions = this.options;
             this.selectedValues = Array.isArray(selectedValues) ? selectedValues : [];
-            this.premiumOptions = Array.isArray(premiumOptions) ? premiumOptions : [];
             this.key = key || '';
         },
         filterOptions() {

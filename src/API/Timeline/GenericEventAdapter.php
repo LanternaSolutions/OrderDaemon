@@ -466,7 +466,7 @@ class GenericEventAdapter extends DisplayAdapter
         if ($timestamp) {
             $fields['sent_timestamp'] = [
                 'label' => $this->translate('Sent At'),
-                'value' => is_numeric($timestamp) ? date('Y-m-d H:i:s', $timestamp) : $timestamp,
+                'value' => is_numeric($timestamp) ? gmdate('Y-m-d H:i:s', $timestamp) : $timestamp,
                 'section' => 'event_details'
             ];
         }
@@ -565,7 +565,7 @@ class GenericEventAdapter extends DisplayAdapter
         if ($timestamp) {
             $fields['operation_timestamp'] = [
                 'label' => $this->translate('Operation Timestamp'),
-                'value' => is_numeric($timestamp) ? date('Y-m-d H:i:s', $timestamp) : $timestamp,
+                'value' => is_numeric($timestamp) ? gmdate('Y-m-d H:i:s', $timestamp) : $timestamp,
                 'section' => 'event_details'
             ];
         }
@@ -659,7 +659,7 @@ class GenericEventAdapter extends DisplayAdapter
         if ($timestamp) {
             $fields['event_timestamp'] = [
                 'label' => $this->translate('Timestamp'),
-                'value' => is_numeric($timestamp) ? date('Y-m-d H:i:s', $timestamp) : $timestamp,
+                'value' => is_numeric($timestamp) ? gmdate('Y-m-d H:i:s', $timestamp) : $timestamp,
                 'section' => 'event_details'
             ];
         }
@@ -1028,7 +1028,7 @@ class GenericEventAdapter extends DisplayAdapter
         if ($timestamp) {
             $fields['evaluation_timestamp'] = [
                 'label' => $this->translate('Timestamp'),
-                'value' => is_numeric($timestamp) ? date('Y-m-d H:i:s', $timestamp) : $timestamp,
+                'value' => is_numeric($timestamp) ? gmdate('Y-m-d H:i:s', $timestamp) : $timestamp,
                 'section' => 'event_details'
             ];
         }

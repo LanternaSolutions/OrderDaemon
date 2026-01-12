@@ -37,9 +37,6 @@ class ProductTypeCondition implements ConditionInterface
         // Get all available product types dynamically
         $product_types = $this->get_available_product_types();
         
-        // All product types are available in the free plugin
-        $can_access_premium = true;
-        
         return [
             'type' => 'object',
             'properties' => [
@@ -138,11 +135,11 @@ class ProductTypeCondition implements ConditionInterface
     {
         $types = [];
 
-        // Free tier types (always available)
+        // Core types (always available)
         $types['virtual'] = __('rule_component.condition.product_type.option.virtual', 'order-daemon');
         $types['downloadable'] = __('rule_component.condition.product_type.option.downloadable', 'order-daemon');
 
-        // Get WooCommerce product types (premium tier)
+        // Get WooCommerce product types
         if (function_exists('wc_get_product_types')) {
             $wc_types = wc_get_product_types();
             

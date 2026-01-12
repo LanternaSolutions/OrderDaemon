@@ -390,7 +390,7 @@ class OrderEventAdapter extends DisplayAdapter
         if ($nextPaymentDate) {
             $fields['next_payment_date'] = [
                 'label' => $this->translate('Next Payment Date'),
-                'value' => is_numeric($nextPaymentDate) ? date('Y-m-d', $nextPaymentDate) : $nextPaymentDate,
+                'value' => is_numeric($nextPaymentDate) ? gmdate('Y-m-d', $nextPaymentDate) : $nextPaymentDate,
                 'section' => 'primary'
             ];
         }
@@ -447,7 +447,7 @@ class OrderEventAdapter extends DisplayAdapter
         if ($timestamp) {
             $fields['subscription_timestamp'] = [
                 'label' => $this->translate('Timestamp'),
-                'value' => is_numeric($timestamp) ? date('Y-m-d H:i:s', $timestamp) : $timestamp,
+                'value' => is_numeric($timestamp) ? gmdate('Y-m-d H:i:s', $timestamp) : $timestamp,
                 'section' => 'event_details'
             ];
         }
@@ -723,4 +723,3 @@ class OrderEventAdapter extends DisplayAdapter
         return $methodLabels[$paymentMethod] ?? ucwords(str_replace('_', ' ', $paymentMethod));
     }
 }
-
