@@ -2472,8 +2472,8 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
-     * Extract consistent event data using DisplayAdapter system
-     * This ensures log stream and timeline use the same logic for status and summary
+     * Extract consistent event data using DisplayAdapter unified system
+     * This ensures log stream and timeline use EXACTLY the same logic for status and summary
      *
      * @param array $log The log entry
      * @param bool $includeDebug Whether to include debug events (from dashboard toggle)
@@ -2525,27 +2525,21 @@ class AuditLogEndpoint extends WP_REST_Controller
         }
 
         try {
-            // Use the same adapter system as timeline rendering
-            $adapter = \OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry::getAdapterForEvent($payload_data);
-            $displayData = $adapter->extractDisplayData($payload_data);
+            // PRIMARY PATH: Use the UNIFIED method - same as RegistryTimelineRenderer::renderPrimaryInfo()
+            // This ensures EXACTLY the same title and status in both log stream and timeline
+            $unifiedData = \OrderDaemon\CompletionManager\API\Timeline\DisplayAdapter::generateUnifiedEventData($payload_data, $log);
 
-            // Extract status using the same logic as timeline
-            $statusData = \OrderDaemon\CompletionManager\API\Timeline\DisplayAdapter::extractPrimaryStatus($displayData, $payload_data);
-
-            // Extract summary from display sections (same as timeline)
-            $summary = $displayData['display_sections']['event_description']['value'] ?? '';
+            $summary = $unifiedData['summary'];
+            $statusData = $unifiedData['status'];
 
             // Special handling for incomplete rule execution events to ensure consistency
             if (empty($summary) && \OrderDaemon\CompletionManager\API\Timeline\RuleExecutionAdapter::isIncompleteRuleEvent($payload_data)) {
                 $summary = __('Rule Processing Started', 'order-daemon');
             }
 
+            // Fallback if unified method returned empty summary
             if (empty($summary)) {
-                // Fallback to other potential summary fields
-                $summary = $displayData['display_sections']['event_type']['value'] ?? '';
-                if (empty($summary)) {
-                    $summary = $log['summary'] ?? 'No summary available';
-                }
+                $summary = $log['summary'] ?? 'No summary available';
             }
 
             return [
@@ -2557,7 +2551,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         } catch (\Throwable $e) {
             // Fallback to original logic if DisplayAdapter fails
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage('ODCM: DisplayAdapter failed for log stream consistency, falling back: ' . $e->getMessage(), 'warning');
+                $this->logDebugMessage('ODCM: DisplayAdapter unified method failed for log stream consistency, falling back: ' . $e->getMessage(), 'warning');
             }
 
             // Special handling for incomplete rule execution events in fallback mode

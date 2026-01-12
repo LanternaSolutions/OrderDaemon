@@ -23,27 +23,20 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
      */
     private function renderPrimaryInfo(array $displayData, array $rawPayload): string
     {
-        $sections = $displayData['display_sections'] ?? [];
+        // Use the unified method to get consistent title and status
+        $unifiedData = DisplayAdapter::generateUnifiedEventData($rawPayload, []);
 
-        // Extract key information for header
-        $title = $sections['event_description']['value'] ?? 
-                $sections['event_type']['value'] ?? 
-                __('Timeline Event', 'order-daemon');
-
-        // Use the new debug event title generation for universal_event_processing_debug events
-        $eventType = $rawPayload['event_type'] ?? 'unknown';
-        if ($eventType === 'universal_event_processing_debug') {
-            $title = DisplayAdapter::generateDebugEventTitle($rawPayload);
-        }
+        $title = $unifiedData['summary'];
+        $statusData = $unifiedData['status'];
 
         // Extract primary status for status pill
-        $statusData = DisplayAdapter::extractPrimaryStatus($displayData, $rawPayload);
         $statusPill = null;
         if ($statusData) {
             $statusPill = DisplayAdapter::renderStatusPill($statusData['label'], $statusData['type']);
         }
 
         // Get event type configuration for icon
+        $eventType = $rawPayload['event_type'] ?? 'unknown';
         $eventConfig = DisplayAdapter::getEventTypeConfig($eventType);
         $dashicon = $eventConfig['dashicon'] ?? 'dashicons-admin-generic';
         $themeClass = $eventConfig['theme_class'] ?? 'odcm-component--system';

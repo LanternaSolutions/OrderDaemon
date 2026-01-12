@@ -10,6 +10,25 @@ namespace OrderDaemon\CompletionManager\API\Timeline;
  * It provides a standardized way to extract and organize data from different event types
  * while preserving all original data.
  *
+ * **SINGLE SOURCE OF TRUTH - SUMMARIES AND STATUS PILLS**
+ *
+ * This class contains the canonical methods for generating event summaries and status pills
+ * that are used by BOTH the log stream (AuditLogEndpoint) and timeline (RegistryTimelineRenderer).
+ * Any changes to how summaries or status pills are generated should be made HERE to ensure
+ * consistency across all views.
+ *
+ * Key unified methods:
+ * - `generateUnifiedEventData()` - Returns both summary and status pill data for any event
+ * - `generateUnifiedEventSummary()` - Returns the event title/summary string
+ * - `extractPrimaryStatusForUnifiedUse()` - Returns status pill label and type
+ *
+ * Usage:
+ * - Log Stream (AuditLogEndpoint::extractConsistentEventData): Calls generateUnifiedEventData()
+ * - Timeline (RegistryTimelineRenderer::renderPrimaryInfo): Calls generateUnifiedEventData()
+ *
+ * This ensures that the same event displays EXACTLY the same title and status pill
+ * whether viewed in the log stream list or the timeline detail view.
+ *
  * @package OrderDaemon\CompletionManager\API\Timeline
  * @since   1.2.0
  */
@@ -628,6 +647,199 @@ abstract class DisplayAdapter
 
         // Fallback for non-debug events
         return ucwords(str_replace('_', ' ', $eventType));
+    }
+
+    /**
+     * Check if this is a rule trace event
+     *
+     * @param array $payload The event payload
+     * @param string $eventType The event type
+     * @return bool True if this is a rule trace event
+     */
+    public static function isRuleTrace(array $payload, string $eventType): bool
+    {
+        $summary = $payload['summary'] ?? '';
+        $ruleKeywords = ['rule', 'condition', 'evaluation', 'match', 'decision'];
+        $text = strtolower($summary . ' ' . $eventType);
+
+        foreach ($ruleKeywords as $keyword) {
+            if (strpos($text, $keyword) !== false) {
+                return true;
+            }
+        }
+
+        return strpos($eventType, 'rule_evaluation') !== false ||
+               strpos($summary, 'rule evaluated') !== false;
+    }
+
+    /**
+     * Generate unified event summary for both log stream and timeline
+     *
+     * **SINGLE SOURCE OF TRUTH FOR EVENT SUMMARIES**
+     *
+     * This method generates the canonical event summary/title that is displayed in:
+     * - Log Stream list view (via AuditLogEndpoint::extractConsistentEventData)
+     * - Timeline detail view (via RegistryTimelineRenderer::renderPrimaryInfo)
+     *
+     * Any changes to how event summaries are generated should be made HERE to ensure
+     * both views display EXACTLY the same title for the same event.
+     *
+     * Priority order for summary generation:
+     * 1. Debug events (universal_event_processing_debug) - use simplified titles
+     * 2. Rule traces - apply consistent prefixing
+     * 3. Rule execution events - use adapter to extract event_description
+     * 4. Default - use original summary from payload/log entry, or format event type
+     *
+     * @param array $payload The event payload (from JSON payload column)
+     * @param array $logEntry The log entry context (from audit_log row)
+     * @return string Unified event summary string
+     */
+    public static function generateUnifiedEventSummary(array $payload, array $logEntry): string
+    {
+        $eventType = $payload['event_type'] ?? $logEntry['event_type'] ?? 'unknown';
+        $originalSummary = $payload['summary'] ?? $logEntry['summary'] ?? '';
+
+        // Case 1: Debug events - use simplified titles in both views
+        if ($eventType === 'universal_event_processing_debug') {
+            return self::generateDebugEventTitle($payload);
+        }
+
+        // Case 2: Rule traces - apply consistent prefixing
+        if (self::isRuleTrace($payload, $eventType)) {
+            if ($originalSummary === $eventType) {
+                return 'Rule Evaluation: ' . ucfirst(str_replace('_', ' ', $eventType));
+            }
+            if (!empty($originalSummary)) {
+                return $originalSummary;
+            }
+        }
+
+        // Case 3: Rule execution events - use adapter to extract proper summary
+        if ($eventType === 'rule_execution' || strpos($eventType, 'rule_execution') === 0) {
+            try {
+                $adapter = AdapterRegistry::getAdapterForEvent($payload);
+                $displayData = $adapter->extractDisplayData($payload);
+                $adapterSummary = $displayData['display_sections']['event_description']['value'] ?? '';
+                if (!empty($adapterSummary)) {
+                    return $adapterSummary;
+                }
+            } catch (\Throwable $e) {
+                // Fallback to original summary or default
+            }
+        }
+
+        // Case 4: Default - use original summary or format from event type
+        if (!empty($originalSummary)) {
+            return $originalSummary;
+        }
+
+        return ucfirst(str_replace('_', ' ', $eventType));
+    }
+
+    /**
+     * Extract primary status for unified use (both log stream and timeline)
+     *
+     * **SINGLE SOURCE OF TRUTH FOR STATUS PILLS**
+     *
+     * This method generates the canonical status pill data that is displayed in:
+     * - Log Stream list view (via AuditLogEndpoint::extractConsistentEventData)
+     * - Timeline detail view (via RegistryTimelineRenderer::renderPrimaryInfo)
+     *
+     * Any changes to how status pills are generated should be made HERE to ensure
+     * both views display EXACTLY the same status pill for the same event.
+     *
+     * Key behaviors:
+     * - For status change events: Shows only the NEW status (not "from → to")
+     * - For other events: Extracts status from display sections or raw payload
+     * - Maps status values to appropriate pill CSS classes (success, error, warning, etc.)
+     *
+     * @param array $payload The event payload (from JSON payload column)
+     * @param array $logEntry The log entry context (from audit_log row)
+     * @return array|null Array with 'label' (display text) and 'type' (CSS class), or null if no status
+     */
+    public static function extractPrimaryStatusForUnifiedUse(array $payload, array $logEntry): ?array
+    {
+        $mergedData = array_merge($payload, $logEntry);
+        $eventType = $mergedData['event_type'] ?? 'unknown';
+
+        // Special handling for status change events - extract ONLY the resulting status
+        $currentStatus = $mergedData['data']['to'] ??
+                       $mergedData['rawData']['to_status'] ??
+                       $mergedData['to_status'] ??
+                       null;
+
+        // If this is a status change event and we found the new status, use it
+        if ($currentStatus && self::isStatusChangeEvent($eventType)) {
+            $pillType = self::mapStatusToPillType($eventType, $currentStatus);
+            return [
+                'label' => $currentStatus,  // Only show the NEW status
+                'type' => $pillType
+            ];
+        }
+
+        // For non-status-change events
+        $displayData = [];
+        if (isset($payload['display_sections'])) {
+            $displayData = ['display_sections' => $payload['display_sections']];
+        }
+
+        $statusData = self::extractPrimaryStatus($displayData, $mergedData);
+
+        // Ensure we always have a status for log stream compatibility
+        if (!$statusData && isset($logEntry['status'])) {
+            $statusData = [
+                'label' => $logEntry['status'],
+                'type' => self::mapStatusToPillType($eventType, $logEntry['status'])
+            ];
+        }
+
+        return $statusData;
+    }
+
+    /**
+     * Check if this is a status change event
+     *
+     * @param string $eventType The event type
+     * @return bool True if this is a status change event
+     */
+    private static function isStatusChangeEvent(string $eventType): bool
+    {
+        return strpos($eventType, 'status_changed') !== false ||
+               strpos($eventType, 'status_change') !== false ||
+               strpos($eventType, 'order_status_changed') !== false;
+    }
+
+    /**
+     * Generate unified event data (summary + status) for both log stream and timeline
+     *
+     * **SINGLE SOURCE OF TRUTH FOR BOTH SUMMARIES AND STATUS PILLS**
+     *
+     * This is the primary entry point that should be called by both:
+     * - Log Stream (AuditLogEndpoint::extractConsistentEventData)
+     * - Timeline (RegistryTimelineRenderer::renderPrimaryInfo)
+     *
+     * It combines generateUnifiedEventSummary() and extractPrimaryStatusForUnifiedUse()
+     * to return a complete, consistent data structure for displaying any event.
+     *
+     * @param array $payload The event payload (from JSON payload column)
+     * @param array $logEntry The log entry context (from audit_log row)
+     * @return array {
+     *     @type string $summary The event title/summary for display
+     *     @type array|null $status {
+     *         @type string $label The status text to display in the pill
+     *         @type string $type The CSS class type (success, error, warning, info, etc.)
+     *     }
+     * }
+     */
+    public static function generateUnifiedEventData(array $payload, array $logEntry): array
+    {
+        $summary = self::generateUnifiedEventSummary($payload, $logEntry);
+        $status = self::extractPrimaryStatusForUnifiedUse($payload, $logEntry);
+
+        return [
+            'summary' => $summary,
+            'status' => $status
+        ];
     }
 
 

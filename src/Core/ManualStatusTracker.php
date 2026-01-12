@@ -163,17 +163,29 @@ class ManualStatusTracker
 
     /**
      * Track manual order edits from the admin interface.
-     * 
+     *
      * This method captures when a user manually edits an order through
      * the WooCommerce admin interface, providing additional chain of custody context.
+     * Supports both legacy WP_Post objects and HPOS order objects.
      *
      * @param int $post_id The order post ID.
-     * @param \WP_Post $post The order post object.
+     * @param mixed $post_or_order The order post object (WP_Post) or HPOS order object.
      */
-    public static function track_manual_order_edit(int $post_id, \WP_Post $post): void
+    public static function track_manual_order_edit(int $post_id, mixed $post_or_order): void
     {
+        // Extract order ID from either WP_Post or HPOS order object
+        if ($post_or_order instanceof \WP_Post) {
+            $order_id = $post_or_order->ID;
+        } elseif (is_object($post_or_order) && method_exists($post_or_order, 'get_id')) {
+            // Handle HPOS order objects (Automattic\WooCommerce\Admin\Overrides\Order)
+            $order_id = $post_or_order->get_id();
+        } else {
+            // Fallback to the provided post_id if we can't determine from the object
+            $order_id = $post_id;
+        }
+
         // Only track if user is logged in and this is an order
-        if (!is_user_logged_in() || !\OrderDaemon\CompletionManager\Includes\Utils\OrderTypeDetector::is_processable_order($post_id)) {
+        if (!is_user_logged_in() || !\OrderDaemon\CompletionManager\Includes\Utils\OrderTypeDetector::is_processable_order($order_id)) {
             return;
         }
 
@@ -182,7 +194,7 @@ class ManualStatusTracker
         $user_display_name = $current_user->display_name ?: $current_user->user_login;
 
         // Get the order object
-        $order = wc_get_order($post_id);
+        $order = wc_get_order($order_id);
         if (!$order) {
             return;
         }

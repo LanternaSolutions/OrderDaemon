@@ -1505,6 +1505,58 @@ class UniversalEventProcessor
             // Return false to completely skip rule evaluation for invalid order IDs
             return false;
         }
+
+        // Filter rules based on current order status for ALL order-related events
+        // This prevents rules with triggers that don't match the current status from executing
+        // Example: A rule with "order_processing" trigger should NOT fire when order is "on-hold"
+        $current_order_status = $context->order ? $context->order->get_status() : null;
+        if ($current_order_status) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Filtering rules for order_check_scheduled event. Current order status: {$current_order_status}", 'debug');
+            }
+
+            // Filter rules to only include those whose trigger matches the current order status
+            $filtered_rules = [];
+            foreach ($rules_query->posts as $rule) {
+                $json = get_post_meta((int)$rule->ID, '_odcm_rule_data', true);
+                $rule_data = is_string($json) ? json_decode($json, true) : null;
+
+                if (is_array($rule_data) && isset($rule_data['trigger']['id'])) {
+                    $trigger_id = $rule_data['trigger']['id'];
+
+                    // Check if this trigger should be allowed for the current order status
+                    if ($this->shouldTriggerForStatus($trigger_id, $current_order_status)) {
+                        $filtered_rules[] = $rule;
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Rule '{$rule->post_title}' (ID: {$rule->ID}) ALLOWED for status '{$current_order_status}' with trigger '{$trigger_id}'", 'debug');
+                        }
+                    } else {
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Rule '{$rule->post_title}' (ID: {$rule->ID}) SKIPPED - trigger '{$trigger_id}' does not match current status '{$current_order_status}'", 'debug');
+                        }
+                    }
+                }
+            }
+
+            // Replace the query results with filtered rules
+            if (count($filtered_rules) < count($rules_query->posts)) {
+                $original_count = count($rules_query->posts);
+                $rules_query->posts = $filtered_rules;
+                $rules_query->post_count = count($filtered_rules);
+                
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Filtered from {$original_count} to " . count($filtered_rules) . " rules that match current status '{$current_order_status}'", 'debug');
+                }
+            }
+
+            // If no rules match the current status, return early
+            if (empty($filtered_rules)) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - No rules match current status '{$current_order_status}' - skipping rule evaluation", 'debug');
+                }
+                return false;
+            }
+        }
         
         // CANONICAL TIMELINE EVENT LOGIC
         // Only create ProcessLogger timeline events for the canonical rule evaluation trigger.
@@ -1700,6 +1752,83 @@ class UniversalEventProcessor
         return false; // No rules matched
     }
     
+    /**
+     * Determine if a trigger type should fire for a given order status
+     *
+     * This method maps trigger types to the order statuses they are designed to match.
+     * For example, an "order_processing" trigger should ONLY fire when the order is
+     * actually in "processing" status, not when it's in "on-hold" or other statuses.
+     *
+     * This prevents rules from being incorrectly triggered when an order_check_scheduled
+     * event is processed for an order that has been manually changed to a different status.
+     *
+     * @param string $trigger_id The trigger type ID (e.g., 'order_processing', 'order_completed')
+     * @param string $current_status The current WooCommerce order status (without 'wc-' prefix)
+     * @return bool True if this trigger should be allowed for the given status
+     */
+    private function shouldTriggerForStatus(string $trigger_id, string $current_status): bool
+    {
+        // Map trigger types to their applicable order statuses
+        // Each trigger type is designed to fire for specific order statuses
+        $trigger_status_map = [
+            // "Order Processing" trigger - only fires when order is in "processing" status
+            'order_processing' => ['processing'],
+            
+            // "Order Completed" trigger - only fires when order is in "completed" status
+            'order_completed' => ['completed'],
+            
+            // "Order On Hold" trigger - only fires when order is in "on-hold" status
+            'order_on_hold' => ['on-hold'],
+            
+            // "Order Pending" trigger - only fires when order is in "pending" status
+            'order_pending' => ['pending'],
+            
+            // "Order Failed" trigger - only fires when order is in "failed" status
+            'order_failed' => ['failed'],
+            
+            // "Order Cancelled" trigger - only fires when order is in "cancelled" status
+            'order_cancelled' => ['cancelled'],
+            
+            // "Order Refunded" trigger - only fires when order is in "refunded" status
+            'order_refunded' => ['refunded'],
+            
+            // "Any Status Change" trigger - fires for any status (used for generic automation)
+            'order_status_any_change' => [], // Empty array = matches all statuses
+        ];
+
+        // Check if this trigger type has a defined status mapping
+        if (isset($trigger_status_map[$trigger_id])) {
+            $allowed_statuses = $trigger_status_map[$trigger_id];
+            
+            // Empty array means this trigger matches ALL statuses
+            if (empty($allowed_statuses)) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_DEBUG_TRACE: shouldTriggerForStatus - Trigger '{$trigger_id}' matches ALL statuses (current: '{$current_status}')", 'debug');
+                }
+                return true;
+            }
+            
+            // Check if current status is in the allowed list
+            $is_allowed = in_array($current_status, $allowed_statuses, true);
+            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $allowed_str = implode(', ', $allowed_statuses);
+                $result_str = $is_allowed ? 'ALLOWED' : 'NOT ALLOWED';
+                odcm_log_message("ODCM_DEBUG_TRACE: shouldTriggerForStatus - Trigger '{$trigger_id}' {$result_str} for status '{$current_status}' (allowed: {$allowed_str})", 'debug');
+            }
+            
+            return $is_allowed;
+        }
+
+        // For unknown trigger types, allow them by default to avoid breaking custom triggers
+        // This ensures backward compatibility with custom/third-party triggers
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("ODCM_DEBUG_TRACE: shouldTriggerForStatus - Unknown trigger '{$trigger_id}' allowed by default for status '{$current_status}'", 'debug');
+        }
+        
+        return true;
+    }
+
     /**
      * Record a trigger event for an order
      *
