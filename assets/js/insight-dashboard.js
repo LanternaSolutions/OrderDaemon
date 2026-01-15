@@ -16,6 +16,38 @@
  * @since   1.0.0
  */
 
+/**
+ * Global request tracking for cleanup and monitoring
+ */
+if (typeof window.odcmActiveRequests === 'undefined') {
+    window.odcmActiveRequests = new Set();
+    window.odcmRequestCounter = 0;
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        // Abort active requests if possible
+        // Note: This is limited since we don't have direct access to the fetch controllers
+        window.odcmActiveRequests.clear();
+    });
+}
+
+/**
+ * Request cleanup utility
+ */
+function cleanupODCMRequests() {
+    try {
+        if (window.odcmActiveRequests && window.odcmActiveRequests.size > 0) {
+            console.warn(`ODCM: Cleaning up ${window.odcmActiveRequests.size} active requests`);
+            window.odcmActiveRequests.clear();
+        }
+    } catch (error) {
+        console.error('ODCM: Error cleaning up requests:', error);
+    }
+}
+
+// Add to window for global access
+window.cleanupODCMRequests = cleanupODCMRequests;
+
 // Lightweight debug flag resolver for gated logs
 function odcmIsDebug() {
     try {

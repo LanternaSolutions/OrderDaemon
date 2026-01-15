@@ -39,7 +39,7 @@ class ProductCategoryCondition implements ConditionInterface
                 'taxonomy' => 'product_cat',
                 'hide_empty' => false,
             ]);
-            
+
             if (!is_wp_error($terms)) {
                 foreach ($terms as $term) {
                     $categories[$term->term_id] = $term->name;
@@ -57,6 +57,17 @@ class ProductCategoryCondition implements ConditionInterface
         $schema = [
             'type' => 'object',
             'properties' => [
+                'operator' => [
+                    'type' => 'string',
+                    'title' => __('rule_component.condition.product_category.operator_label', 'order-daemon'),
+                    'description' => __('rule_component.condition.product_category.operator_description', 'order-daemon'),
+                    'enum' => [
+                        'in' => __('rule_component.condition.product_category.operator.in', 'order-daemon'),
+                        'not_in' => __('rule_component.condition.product_category.operator.not_in', 'order-daemon'),
+                        'all_in' => __('rule_component.condition.product_category.operator.all_in', 'order-daemon'),
+                    ],
+                    'default' => 'in',
+                ],
                 'category' => [
                     'type' => 'string',
                     'title' => __('rule_component.condition.product_category.label', 'order-daemon'),
@@ -75,11 +86,85 @@ class ProductCategoryCondition implements ConditionInterface
     public function evaluate(WC_Order $order, array $settings): bool
     {
         $selected_category = $settings['category'] ?? '';
+        $operator = $settings['operator'] ?? 'in';
+
         if (empty($selected_category)) {
             return true; // No category selected means match all
         }
 
         $order_items = $order->get_items();
+        if (empty($order_items)) {
+            return false;
+        }
+
+        switch ($operator) {
+            case 'all_in':
+                return $this->evaluate_all_in($order_items, $selected_category);
+
+            case 'not_in':
+                return $this->evaluate_not_in($order_items, $selected_category);
+
+            case 'in':
+            default:
+                return $this->evaluate_in($order_items, $selected_category);
+        }
+    }
+
+    /**
+     * Evaluate 'in' operator: returns true if ANY product in the order belongs to the selected category.
+     */
+    private function evaluate_in(array $order_items, string $selected_category): bool
+    {
+        foreach ($order_items as $item) {
+            $product_id = $item->get_product_id();
+            $variation_id = $item->get_variation_id();
+            $check_product_id = $variation_id ? $variation_id : $product_id;
+
+            $product_categories = wp_get_post_terms($check_product_id, 'product_cat', ['fields' => 'ids']);
+            if (is_wp_error($product_categories)) {
+                continue;
+            }
+
+            foreach ($product_categories as $category_id) {
+                if ((string)$category_id === (string)$selected_category) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Evaluate 'not_in' operator: returns true if NO products in the order belong to the selected category.
+     */
+    private function evaluate_not_in(array $order_items, string $selected_category): bool
+    {
+        foreach ($order_items as $item) {
+            $product_id = $item->get_product_id();
+            $variation_id = $item->get_variation_id();
+            $check_product_id = $variation_id ? $variation_id : $product_id;
+
+            $product_categories = wp_get_post_terms($check_product_id, 'product_cat', ['fields' => 'ids']);
+            if (is_wp_error($product_categories)) {
+                continue;
+            }
+
+            foreach ($product_categories as $category_id) {
+                if ((string)$category_id === (string)$selected_category) {
+                    return false; // Found a product in the selected category, so condition fails
+                }
+            }
+        }
+
+        return true; // No products found in the selected category
+    }
+
+    /**
+     * Evaluate 'all_in' operator: returns true if ALL products in the order belong to the selected category.
+     */
+    private function evaluate_all_in(array $order_items, string $selected_category): bool
+    {
         if (empty($order_items)) {
             return false;
         }
@@ -94,13 +179,21 @@ class ProductCategoryCondition implements ConditionInterface
                 continue;
             }
 
+            // Check if this product belongs to the selected category
+            $product_in_category = false;
             foreach ($product_categories as $category_id) {
                 if ((string)$category_id === (string)$selected_category) {
-                    return true; // Any item matching the single selected category passes
+                    $product_in_category = true;
+                    break;
                 }
+            }
+
+            // If any product is not in the selected category, the condition fails
+            if (!$product_in_category) {
+                return false;
             }
         }
 
-        return false;
+        return true; // All products are in the selected category
     }
 }
