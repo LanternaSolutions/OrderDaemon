@@ -101,6 +101,11 @@ function insightDashboard() {
         // New installation
         isWelcomeScenario: false,
 
+        // Network status monitoring
+        networkOnline: true,
+        lastNetworkCheck: null,
+        networkIssues: [],
+
         // Log data
         logs: [],
         selectedLog: null,
@@ -194,6 +199,9 @@ function insightDashboard() {
 
                 // Load persistent settings
                 this.loadSettings();
+
+                // Initialize network monitoring
+                this.setupNetworkMonitoring();
 
                 // Load view mode from localStorage
                 try {
@@ -692,121 +700,164 @@ function insightDashboard() {
 
         async fetchLogDetails(logId, viewMode = 'consolidated') {
             this.detailLoading = true;
+            const maxRetries = 3;
+            const baseDelay = 1000; // Start with 1 second delay
+            let lastError = null;
+            let timeoutId = null; // Declare outside try block for proper scoping in finally
 
-            try {
-                // Debug logging to track the complete request pipeline
-                if (odcmIsDebug()) {
-                    console.log('ODCM: fetchLogDetails called with logId:', logId);
-                    console.log('ODCM: fetchLogDetails called with viewMode:', viewMode);
-                    console.log('ODCM: this.config.apiUrl:', this.config.apiUrl);
-                    console.log('ODCM: this.config.nonce:', this.config.nonce ? 'present' : 'missing');
-                    console.log('ODCM: this.filters.include_debug:', this.filters.include_debug);
-                }
-
-                // Use the localized renderUrl when available to avoid path mismatches
-                const renderEndpoint = this.config.renderUrl || `${this.config.apiUrl}render-components/`;
-                const requestPayload = {
-                    log_id: logId,
-                    include_debug: this.filters.include_debug,
-                    view_mode: viewMode
-                };
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Making POST request to:', renderEndpoint);
-                    console.log('ODCM: Request payload:', requestPayload);
-                }
-
-                const response = await fetch(renderEndpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-WP-Nonce': this.config.nonce
-                    },
-                    body: JSON.stringify(requestPayload)
-                });
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Response status:', response.status);
-                    console.log('ODCM: Response headers:', Object.fromEntries(response.headers.entries()));
-                }
-
-                if (!response.ok) {
-                    // Handle debug-filtered entries gracefully
-                    if (response.status === 403) {
-                        if (odcmIsDebug()) {
-                            console.log('ODCM: Entry filtered due to debug settings');
-                        }
-                        return '<div class="odcm-debug-filtered">This log entry is only visible when "Include Debug Logs" is enabled.</div>';
-                    }
-
-                    if (odcmIsDebug()) {
-                        const responseText = await response.text().catch(() => 'Unable to read response');
-                        console.error('ODCM: API Error Response:', responseText);
-                    }
-
-                    // Try to parse structured error to surface any helpful message
-                    try {
-                        const errData = await response.clone().json();
-                        if (errData && typeof errData === 'object') {
-                            if (errData.html) {
-                                return errData.html;
-                            }
-                            if (errData.message) {
-                                return `<div class="odcm-error">${errData.message}</div>`;
-                            }
-                        }
-                    } catch (e) {
-                        // Ignore JSON parse errors
-                    }
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Response data:', data);
-                    console.log('ODCM: HTML length:', (data.html || '').length);
-                }
-
-                // Handle special case for error templates that should be displayed directly
-                if (data.error === 'odcm_render_error' && data.html &&
-                    (data.use_error_template === true ||
-                     (data.meta && data.meta.render_directly === true))) {
-
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: Using error template directly from response');
-                    }
-
-                    return data.html;
-                }
-
-                return data.html || '';
-
-            } catch (error) {
-                console.error('ODCM: Error fetching log details:', error);
-                if (odcmIsDebug()) {
-                    console.error('ODCM: Full error details:', {
-                        name: error.name,
-                        message: error.message,
-                        stack: error.stack
-                    });
-                }
-                this.showToast('Failed to load log details', 'error');
-
-                // Check for error details in the error object to provide more context
-                let errorDetails = '';
-                if (odcmIsDebug() && error && error.message) {
-                    errorDetails = `<p class="odcm-error-details">${error.message}</p>`;
-                }
-
-                return `<div class="odcm-error">
-                    <h3>Failed to load details</h3>
-                    ${errorDetails}
-                    <p>Please try again or check the debug log for more information.</p>
-                </div>`;
-            } finally {
-                this.detailLoading = false;
+            // Track this request for cleanup
+            const requestId = `fetchDetails_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            if (window.odcmActiveRequests) {
+                window.odcmActiveRequests.add(requestId);
             }
+
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                // Create abort controller for timeout - declared outside try for proper cleanup
+                const controller = new AbortController();
+                timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+                try {
+                    // Debug logging
+                    if (odcmIsDebug()) {
+                        console.log(`ODCM: fetchLogDetails attempt ${attempt}/${maxRetries} for logId: ${logId}`);
+                    }
+
+                    const renderEndpoint = this.config.renderUrl || `${this.config.apiUrl}render-components/`;
+                    const requestPayload = {
+                        log_id: logId,
+                        include_debug: this.filters.include_debug,
+                        view_mode: viewMode
+                    };
+
+                    const response = await fetch(renderEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-WP-Nonce': this.config.nonce
+                        },
+                        body: JSON.stringify(requestPayload),
+                        signal: controller.signal
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) {
+                        // Handle specific HTTP errors
+                        if (response.status === 404) {
+                            return this.getNotFoundTemplate(logId);
+                        }
+
+                        if (response.status === 403) {
+                            return this.getPermissionDeniedTemplate();
+                        }
+
+                        if (response.status >= 500 && attempt < maxRetries) {
+                            // Server error - retry with exponential backoff
+                            const delay = baseDelay * Math.pow(2, attempt - 1);
+                            if (odcmIsDebug()) {
+                                console.log(`ODCM: Server error ${response.status}, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`);
+                            }
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue;
+                        }
+
+                        // For other HTTP errors, try to extract meaningful error message
+                        try {
+                            const errorData = await response.json();
+                            if (errorData && errorData.message) {
+                                throw new Error(`API Error: ${errorData.message}`);
+                            }
+                        } catch (e) {
+                            // Ignore JSON parse errors
+                        }
+
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+
+                    // Validate response structure
+                    if (!data || typeof data !== 'object') {
+                        throw new Error('Invalid API response format');
+                    }
+
+                    // Check for error response from server
+                    if (data.error) {
+                        if (data.html) {
+                            // Server provided an error template
+                            return data.html;
+                        }
+                        throw new Error(data.error || 'Server returned an error');
+                    }
+
+                    return data.html || this.getEmptyTemplate();
+
+                } catch (error) {
+                    lastError = error;
+
+                    // Determine if we should retry
+                    const isNetworkError = error.name === 'TypeError' ||
+                                         error.name === 'AbortError' ||
+                                         error.name === 'TimeoutError' ||
+                                         (error.message && (
+                                             error.message.includes('NetworkError') ||
+                                             error.message.includes('network') ||
+                                             error.message.includes('Failed to fetch')
+                                         ));
+
+                    const isServerError = error.message && (
+                        error.message.includes('500') ||
+                        error.message.includes('502') ||
+                        error.message.includes('503') ||
+                        error.message.includes('504')
+                    );
+
+                    const shouldRetry = (isNetworkError || isServerError) && attempt < maxRetries;
+
+                    if (shouldRetry) {
+                        const delay = baseDelay * Math.pow(2, attempt - 1);
+                        if (odcmIsDebug()) {
+                            console.warn(`ODCM: Retry ${attempt + 1}/${maxRetries} for log ${logId} after ${delay}ms. Error: ${error.message}`);
+                        }
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+
+                    // Don't retry for other errors (404, 403, validation errors, etc.)
+                    if (odcmIsDebug()) {
+                        console.error(`ODCM: Final error for log ${logId} (no retry):`, error);
+                    }
+                    break;
+
+                } finally {
+                    // Cleanup for this attempt
+                    clearTimeout(timeoutId);
+                }
+            }
+
+            // Cleanup request tracking
+            if (window.odcmActiveRequests) {
+                window.odcmActiveRequests.delete(requestId);
+            }
+
+            // Handle final error state
+            if (lastError) {
+                console.error('ODCM: Error fetching log details after retries:', lastError);
+
+                // Show appropriate error message based on error type
+                if (lastError.name === 'AbortError') {
+                    this.showToast('Request timed out. Please try again.', 'error');
+                } else if (lastError.message.includes('NetworkError')) {
+                    this.showToast('Network error occurred. Please check your connection.', 'error');
+                } else {
+                    this.showToast('Failed to load log details. Please try again.', 'error');
+                }
+
+                // Return user-friendly error template
+                return this.getErrorTemplate(lastError, logId);
+            }
+
+            this.detailLoading = false;
         },
 
         // =================================================================
@@ -1586,59 +1637,218 @@ function insightDashboard() {
         },
 
         // =================================================================
+        // ERROR TEMPLATE HELPERS
+        // =================================================================
+
+        /**
+         * Get template for not found log entries
+         */
+        getNotFoundTemplate(logId) {
+            return `<div class="odcm-error-template">
+                <div class="odcm-error-icon">
+                    <span class="dashicons dashicons-warning"></span>
+                </div>
+                <h3>Log Entry Not Found</h3>
+                <p>Log entry #${logId} could not be found.</p>
+                <p>It may have been deleted or the ID is incorrect.</p>
+                <div class="odcm-error-actions">
+                    <button class="button button-primary" onclick="this.fetchLogs()">
+                        <span class="dashicons dashicons-update"></span> Refresh Log List
+                    </button>
+                    <button class="button" onclick="this.closeDetails()">
+                        <span class="dashicons dashicons-no-alt"></span> Close
+                    </button>
+                </div>
+                <div class="odcm-error-hint">
+                    <p><strong>Troubleshooting tips:</strong></p>
+                    <ul>
+                        <li>Check if the log was recently deleted</li>
+                        <li>Verify the log ID is correct</li>
+                        <li>Try refreshing the entire page</li>
+                        <li>Check if filters are hiding this log</li>
+                    </ul>
+                </div>
+            </div>`;
+        },
+
+        /**
+         * Get template for permission denied errors
+         */
+        getPermissionDeniedTemplate() {
+            return `<div class="odcm-error-template">
+                <div class="odcm-error-icon">
+                    <span class="dashicons dashicons-lock"></span>
+                </div>
+                <h3>Access Denied</h3>
+                <p>You don't have permission to view this log entry.</p>
+                <p>Please contact your administrator if you believe this is an error.</p>
+                <div class="odcm-error-actions">
+                    <button class="button" onclick="this.closeDetails()">
+                        <span class="dashicons dashicons-no-alt"></span> Close
+                    </button>
+                </div>
+            </div>`;
+        },
+
+        /**
+         * Get template for empty responses
+         */
+        getEmptyTemplate() {
+            return `<div class="odcm-empty-template">
+                <div class="odcm-empty-icon">
+                    <span class="dashicons dashicons-info"></span>
+                </div>
+                <h3>No Details Available</h3>
+                <p>This log entry doesn't have additional details.</p>
+            </div>`;
+        },
+
+        /**
+         * Get template for error states
+         */
+        getErrorTemplate(error, logId) {
+            const errorType = error.name || 'unknown';
+            const errorMessage = error.message || 'Unknown error';
+
+            // Sanitize error message for display
+            const displayMessage = errorMessage
+                .replace(/^Error:\s*/, '')
+                .replace(/HTTP \d+: /, '')
+                .replace(/\[.*?\]\s*/g, '')
+                .trim();
+
+            return `<div class="odcm-error-template">
+                <div class="odcm-error-icon">
+                    <span class="dashicons dashicons-dismiss"></span>
+                </div>
+                <h3>Failed to Load Details</h3>
+                <p><strong>Error:</strong> ${displayMessage}</p>
+
+                <div class="odcm-error-actions">
+                    <button class="button button-primary" onclick="this.selectLog(this.selectedLog)">
+                        <span class="dashicons dashicons-update"></span> Retry
+                    </button>
+                    <button class="button" onclick="this.closeDetails()">
+                        <span class="dashicons dashicons-no-alt"></span> Close
+                    </button>
+                </div>
+
+                <div class="odcm-error-hint">
+                    <p><strong>Troubleshooting steps:</strong></p>
+                    <ol>
+                        <li><strong>Check your connection:</strong> Ensure you have stable internet</li>
+                        <li><strong>Refresh the page:</strong> Sometimes a full refresh helps</li>
+                        <li><strong>Try a different browser:</strong> Browser extensions can cause issues</li>
+                        <li><strong>Check console logs:</strong> Press F12 for technical details</li>
+                        <li><strong>Contact support:</strong> If the issue persists, provide the error details</li>
+                    </ol>
+                </div>
+
+                ${odcmIsDebug() ? `
+                <div class="odcm-error-debug" style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 4px; font-size: 12px; font-family: monospace;">
+                    <strong>Debug Information:</strong><br>
+                    <pre style="margin: 5px 0; white-space: pre-wrap;">${errorType}: ${errorMessage}\n\n${error.stack ? error.stack : 'No stack trace available'}</pre>
+                </div>
+                ` : ''}
+            </div>`;
+        },
+
+        // =================================================================
         // TOAST HELPERS
         // =================================================================
-        showToast(message, type = 'info') {
+        showToast(message, type = 'info', options = {}) {
             try {
-                // Debug toast system availability
-                if (odcmIsDebug()) {
-                    console.log('ODCM: showToast called:', { message, type });
-                    console.log('ODCM: Toast system check:', {
-                        windowExists: typeof window !== 'undefined',
-                        ODCMToastsExists: !!window.ODCMToasts,
-                        addToastExists: window.ODCMToasts && typeof window.ODCMToasts.addToast === 'function'
-                    });
+                // Default options
+                const defaultOptions = {
+                    persistent: false,
+                    timeout: 5000,
+                    action: null,
+                    actionLabel: null
+                };
+
+                const mergedOptions = { ...defaultOptions, ...options };
+
+                // Enhanced message based on error type
+                let enhancedMessage = message;
+                let enhancedType = type;
+
+                // Network-specific error handling
+                if (type === 'error' && message) {
+                    if (message.includes('load log details') || message.includes('network') || message.includes('fetch')) {
+                        enhancedMessage = 'Network error: Could not load log details';
+                        enhancedType = 'network-error';
+
+                        // Add recovery action
+                        if (!mergedOptions.action) {
+                            mergedOptions.action = () => {
+                                if (this.selectedLog) {
+                                    this.selectLog(this.selectedLog);
+                                } else {
+                                    this.fetchLogs();
+                                }
+                            };
+                            mergedOptions.actionLabel = 'Retry';
+                        }
+                    }
+
+                    if (message.includes('timeout') || message.includes('timed out')) {
+                        enhancedMessage = 'Request timed out. The server may be busy.';
+                        enhancedType = 'timeout-error';
+
+                        if (!mergedOptions.action) {
+                            mergedOptions.action = () => {
+                                if (this.selectedLog) {
+                                    this.selectLog(this.selectedLog);
+                                }
+                            };
+                            mergedOptions.actionLabel = 'Retry';
+                        }
+                    }
                 }
 
+                // Add network status awareness
+                if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                    enhancedMessage = '⚠️ You are offline. ' + enhancedMessage;
+                    enhancedType = 'offline-error';
+                }
+
+                // Use the toast system if available
                 if (typeof window !== 'undefined' && window.ODCMToasts && typeof window.ODCMToasts.addToast === 'function') {
-                    window.ODCMToasts.addToast(message, type);
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: Toast added via ODCMToasts system');
-                    }
+                    window.ODCMToasts.addToast(enhancedMessage, enhancedType, mergedOptions);
                 } else {
-                    // Enhanced fallback: try to create a simple toast notification
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: ODCMToasts not available, using fallback');
-                    }
-
-                    this.createFallbackToast(message, type);
-
-                    // Also log to console as backup
-                    if (type === 'error') {
-                        console.error('ODCM Toast (Error):', message);
-                    } else {
-                        console.log('ODCM Toast (' + type + '):', message);
-                    }
+                    // Enhanced fallback toast with actions
+                    this.createFallbackToast(enhancedMessage, enhancedType, mergedOptions);
                 }
+
+                // Log to console for debugging
+                if (type === 'error' || type === 'network-error' || type === 'timeout-error') {
+                    console.error('ODCM Toast (Error):', message);
+                    if (odcmIsDebug() && error) {
+                        console.error('Error details:', error);
+                    }
+                } else if (odcmIsDebug()) {
+                    console.log('ODCM Toast (' + type + '):', message);
+                }
+
             } catch (e) {
                 console.error('ODCM: Toast system error:', e);
+                // Ultimate fallback - just log to console
                 if (type === 'error') {
-                    console.error('ODCM Toast (Fallback Error):', message);
+                    console.error('ODCM (Fallback Error):', message);
                 } else if (odcmIsDebug()) {
-                    console.log('ODCM Toast (Fallback):', message);
+                    console.log('ODCM (Fallback):', message);
                 }
             }
         },
 
-        createFallbackToast(message, type = 'info') {
+        createFallbackToast(message, type = 'info', options = {}) {
             try {
-                // Create a simple toast notification as fallback
                 const toastContainer = document.getElementById('odcm-toast-container') || this.createToastContainer();
 
                 const toast = document.createElement('div');
                 toast.className = `odcm-fallback-toast odcm-toast-${type}`;
                 toast.style.cssText = `
-                    background: ${type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#28a745'};
+                    background: ${this.getToastBackground(type)};
                     color: white;
                     padding: 12px 16px;
                     margin: 8px 0;
@@ -1648,39 +1858,95 @@ function insightDashboard() {
                     cursor: pointer;
                     position: relative;
                     z-index: 10000;
+                    display: flex;
+                    align-items: center;
+                    max-width: 400px;
+                    min-width: 250px
                 `;
-                toast.textContent = message;
 
-                // Auto-remove after 4 seconds
-                const timeoutId = setTimeout(() => {
-                    if (toast.parentNode) {
-                        toast.style.animation = 'slideOutRight 0.3s ease';
-                        setTimeout(() => {
-                            if (toast.parentNode) {
-                                toast.parentNode.removeChild(toast);
-                            }
-                        }, 300);
-                    }
-                }, 4000);
+                // Toast content container
+                const contentContainer = document.createElement('div');
+                contentContainer.style.flex = '1';
+                contentContainer.style.minWidth = '0'; // Prevent flex item overflow
 
-                // Allow manual dismissal
-                toast.addEventListener('click', () => {
-                    clearTimeout(timeoutId);
-                    if (toast.parentNode) {
-                        toast.style.animation = 'slideOutRight 0.3s ease';
-                        setTimeout(() => {
-                            if (toast.parentNode) {
-                                toast.parentNode.removeChild(toast);
-                            }
-                        }, 300);
-                    }
+                // Message element
+                const messageElement = document.createElement('span');
+                messageElement.textContent = message;
+                messageElement.style.display = 'block';
+                messageElement.style.marginRight = '12px';
+                messageElement.style.whiteSpace = 'normal';
+                messageElement.style.wordBreak = 'break-word';
+
+                contentContainer.appendChild(messageElement);
+
+                // Action button if provided
+                if (options.action && options.actionLabel) {
+                    const actionButton = document.createElement('button');
+                    actionButton.textContent = options.actionLabel;
+                    actionButton.style.cssText = `
+                        background: rgba(255,255,255,0.2);
+                        color: white;
+                        border: 1px solid rgba(255,255,255,0.3);
+                        borderRadius: 3px;
+                        padding: 4px 8px;
+                        marginLeft: 8px;
+                        cursor: pointer;
+                        fontSize: 12px;
+                        whiteSpace: nowrap;
+                    `;
+
+                    actionButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        options.action();
+                        this.removeFallbackToast(toast);
+                    });
+
+                    contentContainer.appendChild(actionButton);
+                }
+
+                // Close button
+                const closeButton = document.createElement('button');
+                closeButton.innerHTML = '×';
+                closeButton.style.cssText = `
+                    background: none;
+                    border: none;
+                    color: white;
+                    cursor: pointer;
+                    fontSize: 16px;
+                    lineHeight: 1;
+                    marginLeft: 8px;
+                    opacity: 0.7;
+                    padding: 0;
+                    width: 20px;
+                    height: 20px;
+                `;
+
+                closeButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.removeFallbackToast(toast);
                 });
 
-                toastContainer.appendChild(toast);
+                toast.appendChild(contentContainer);
+                toast.appendChild(closeButton);
 
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Fallback toast created');
+                // Auto-remove unless persistent
+                if (!options.persistent) {
+                    const timeoutId = setTimeout(() => {
+                        this.removeFallbackToast(toast);
+                    }, options.timeout);
+
+                    // Store timeout ID for cleanup
+                    toast._odcmTimeoutId = timeoutId;
                 }
+
+                // Click to dismiss (unless it has an action)
+                if (!options.action) {
+                    toast.addEventListener('click', () => {
+                        this.removeFallbackToast(toast);
+                    });
+                }
+
+                toastContainer.appendChild(toast);
 
             } catch (e) {
                 console.error('ODCM: Fallback toast creation failed:', e);
@@ -1729,6 +1995,44 @@ function insightDashboard() {
         removeToast(id) {
             if (typeof window !== 'undefined' && window.ODCMToasts && typeof window.ODCMToasts.removeToast === 'function') {
                 window.ODCMToasts.removeToast(id);
+            }
+        },
+
+        // ADD helper method for toast background colors
+        getToastBackground(type) {
+            const backgrounds = {
+                'info': '#28a745',
+                'success': '#28a745',
+                'error': '#dc3545',
+                'warning': '#ffc107',
+                'network-error': '#6c757d',
+                'timeout-error': '#6c757d',
+                'offline-error': '#6c757d'
+            };
+            return backgrounds[type] || backgrounds.info;
+        },
+
+        // ADD method for fallback toast removal
+        removeFallbackToast(toastElement) {
+            try {
+                if (toastElement && toastElement.parentNode) {
+                    // Clear timeout if it exists
+                    if (toastElement._odcmTimeoutId) {
+                        clearTimeout(toastElement._odcmTimeoutId);
+                    }
+
+                    // Add exit animation
+                    toastElement.style.animation = 'slideOutRight 0.3s ease';
+
+                    // Remove after animation completes
+                    setTimeout(() => {
+                        if (toastElement.parentNode) {
+                            toastElement.parentNode.removeChild(toastElement);
+                        }
+                    }, 300);
+                }
+            } catch (e) {
+                console.error('ODCM: Error removing toast:', e);
             }
         },
 
@@ -2400,6 +2704,224 @@ function insightDashboard() {
 
             if (odcmIsDebug()) {
                 console.log(`ODCM: Collapsed ${target} tier`);
+            }
+        },
+
+        // =================================================================
+        // NETWORK STATUS MONITORING
+        // =================================================================
+
+        /**
+         * Set up network monitoring for connectivity awareness
+         */
+        setupNetworkMonitoring() {
+            try {
+                // Set initial network status
+                this.networkOnline = navigator.onLine;
+
+                // Listen for online/offline events
+                window.addEventListener('online', () => this.handleNetworkOnline());
+                window.addEventListener('offline', () => this.handleNetworkOffline());
+
+                // Periodic network health checks (every 30 seconds)
+                this.networkHealthInterval = setInterval(() => {
+                    this.checkNetworkHealth();
+                }, 30000);
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Network monitoring initialized, online:', this.networkOnline);
+                }
+
+            } catch (error) {
+                console.error('ODCM: Error setting up network monitoring:', error);
+            }
+        },
+
+        /**
+         * Handle network coming online
+         */
+        handleNetworkOnline() {
+            if (this.networkOnline) return; // Already online
+
+            this.networkOnline = true;
+            this.lastNetworkCheck = new Date().toISOString();
+
+            if (odcmIsDebug()) {
+                console.log('ODCM: Network connection restored');
+            }
+
+            this.showToast('Network connection restored. Refreshing data...', 'success', {
+                timeout: 3000
+            });
+
+            // Clear any network issues
+            this.networkIssues = [];
+
+            // Auto-refresh data when connection is restored
+            if (this.selectedLog) {
+                this.selectLog(this.selectedLog);
+            } else {
+                this.fetchLogs();
+            }
+        },
+
+        /**
+         * Handle network going offline
+         */
+        handleNetworkOffline() {
+            if (!this.networkOnline) return; // Already offline
+
+            this.networkOnline = false;
+            this.lastNetworkCheck = new Date().toISOString();
+
+            if (odcmIsDebug()) {
+                console.log('ODCM: Network connection lost');
+            }
+
+            this.showToast('Network connection lost. Some features may be limited.', 'warning', {
+                persistent: true,
+                action: () => window.location.reload(),
+                actionLabel: 'Retry'
+            });
+        },
+
+        /**
+         * Perform a network health check
+         */
+        checkNetworkHealth() {
+            try {
+                if (!this.networkOnline) return;
+
+                // Simple health check using a small API request
+                const healthCheckUrl = this.config.apiUrl + '?healthcheck=1';
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+                fetch(healthCheckUrl, {
+                    method: 'GET',
+                    headers: {
+                        'X-WP-Nonce': this.config.nonce
+                    },
+                    signal: controller.signal,
+                    cache: 'no-store'
+                })
+                .then(response => {
+                    clearTimeout(timeoutId);
+                    if (!response.ok && response.status >= 500) {
+                        this.recordNetworkIssue('healthcheck_failed', `Server returned ${response.status}`);
+                    }
+                })
+                .catch(error => {
+                    clearTimeout(timeoutId);
+                    if (error.name !== 'AbortError') {
+                        this.recordNetworkIssue('healthcheck_error', error.message);
+                    }
+                });
+
+            } catch (error) {
+                if (odcmIsDebug()) {
+                    console.warn('ODCM: Network health check error:', error);
+                }
+            }
+        },
+
+        /**
+         * Record a network issue for tracking
+         */
+        recordNetworkIssue(type, details) {
+            // Avoid duplicate issues
+            const existingIssue = this.networkIssues.find(issue => issue.type === type);
+            if (existingIssue) {
+                existingIssue.count = (existingIssue.count || 1) + 1;
+                existingIssue.lastOccurrence = new Date().toISOString();
+                return;
+            }
+
+            this.networkIssues.push({
+                type: type,
+                details: details,
+                firstOccurrence: new Date().toISOString(),
+                lastOccurrence: new Date().toISOString(),
+                count: 1
+            });
+
+            if (odcmIsDebug()) {
+                console.warn('ODCM: Network issue recorded:', type, details);
+            }
+        },
+
+        /**
+         * Format relative time for display
+         */
+        formatRelativeTime(isoString) {
+            try {
+                const date = new Date(isoString);
+                const now = new Date();
+                const diff = now - date;
+
+                if (diff < 60000) { // Less than 1 minute
+                    return 'just now';
+                } else if (diff < 3600000) { // Less than 1 hour
+                    const minutes = Math.floor(diff / 60000);
+                    return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+                } else if (diff < 86400000) { // Less than 1 day
+                    const hours = Math.floor(diff / 3600000);
+                    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+                } else {
+                    return date.toLocaleString();
+                }
+            } catch (error) {
+                if (odcmIsDebug()) {
+                    console.warn('ODCM: Error formatting relative time:', error);
+                }
+                return isoString;
+            }
+        },
+
+        // =================================================================
+        // CLEANUP
+        // =================================================================
+
+        /**
+         * Clean up resources when dashboard is destroyed
+         */
+        cleanup() {
+            try {
+                // Clean up active requests
+                if (window.odcmActiveRequests) {
+                    window.odcmActiveRequests.forEach(requestId => {
+                        if (odcmIsDebug()) {
+                            console.debug(`ODCM: Cleaning up request ${requestId}`);
+                        }
+                    });
+                    window.odcmActiveRequests.clear();
+                }
+
+                // Stop auto-refresh
+                this.stopAutoRefresh();
+
+                // Clean up network health monitoring
+                if (this.networkHealthInterval) {
+                    clearInterval(this.networkHealthInterval);
+                    this.networkHealthInterval = null;
+                }
+
+                // Remove network event listeners
+                window.removeEventListener('online', this.handleNetworkOnline);
+                window.removeEventListener('offline', this.handleNetworkOffline);
+
+                // Clean up any debounced fetch timers
+                if (this.debouncedFetchLogs && this.debouncedFetchLogs.timer) {
+                    clearTimeout(this.debouncedFetchLogs.timer);
+                }
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Cleanup completed');
+                }
+
+            } catch (error) {
+                console.error('ODCM: Error during cleanup:', error);
             }
         },
 

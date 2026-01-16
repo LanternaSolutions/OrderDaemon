@@ -76,6 +76,9 @@ class InsightDashboard
 
         // Register AJAX handlers for onboarding
         add_action('wp_ajax_odcm_check_welcome_scenario', [$this, 'handle_welcome_scenario_check']);
+
+        // Register AJAX handler for Alpine.js failure logging
+        add_action('wp_ajax_odcm_log_alpine_failure', [$this, 'handle_log_alpine_failure_ajax']);
     }
 
     /**
@@ -226,6 +229,13 @@ class InsightDashboard
             }
             return $tag;
         }, 10, 2);
+
+        // Alpine.js fallback system - enhanced detection and user-friendly error handling
+        wp_add_inline_script(
+            'alpine-js',
+            $this->get_alpine_fallback_script(),
+            'after'
+        );
 
         // Enqueue shared toast system
         wp_enqueue_script(
@@ -397,6 +407,155 @@ class InsightDashboard
     {
         $user_setting = get_user_meta(get_current_user_id(), 'odcm_logs_per_page', true);
         return $user_setting ? (int) $user_setting : 20;
+    }
+
+    /**
+     * Get the Alpine.js fallback script for graceful degradation
+     * 
+     * This script provides comprehensive detection and user-friendly error handling
+     * when Alpine.js fails to load due to network issues, CSP restrictions, or other problems.
+     * 
+     * @return string The JavaScript fallback code
+     */
+    private function get_alpine_fallback_script(): string
+    {
+        $ajax_url = esc_js(admin_url('admin-ajax.php'));
+        $nonce = wp_create_nonce('wp_rest');
+        
+        return <<<JS
+(function setupODCMAlpineFallback() {
+    // Only run once
+    if (window.__odcmAlpineFallbackInstalled) return;
+    window.__odcmAlpineFallbackInstalled = true;
+
+    // Check if Alpine.js is available
+    function checkAlpineAvailability() {
+        try {
+            if (typeof Alpine !== 'undefined' && typeof Alpine.data === 'function') {
+                return true;
+            }
+            var alpineScript = document.querySelector('script[src*="alpine"]');
+            if (alpineScript && !alpineScript.hasAttribute('data-loaded')) {
+                return 'loading';
+            }
+            return false;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Enhanced Alpine.js detection with multiple checks
+    function checkAlpineJS() {
+        var alpineStatus = checkAlpineAvailability();
+        if (alpineStatus === true) {
+            if (typeof window.ODCM_DEBUG !== 'undefined' && window.ODCM_DEBUG) {
+                console.log('ODCM: Alpine.js loaded successfully');
+            }
+            return true;
+        }
+        if (alpineStatus === 'loading') {
+            setTimeout(checkAlpineJS, 500);
+            return false;
+        }
+        console.error('ODCM: Alpine.js failed to load. Dashboard interactivity will be limited.');
+        showAlpineFallbackUI();
+        logAlpineLoadFailure();
+        return false;
+    }
+
+    // Show user-friendly fallback UI
+    function showAlpineFallbackUI() {
+        try {
+            var dashboard = document.getElementById('odcm-insight-dashboard');
+            if (!dashboard) return;
+            if (dashboard.querySelector('.odcm-alpine-fallback')) return;
+
+            var fallbackNotice = document.createElement('div');
+            fallbackNotice.className = 'odcm-alpine-fallback';
+            fallbackNotice.setAttribute('role', 'alert');
+            fallbackNotice.setAttribute('aria-live', 'assertive');
+            fallbackNotice.style.cssText = 'background:#fff8e5;border:2px solid #f0c36d;border-radius:6px;padding:20px;margin:20px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.1);';
+            fallbackNotice.innerHTML = '<div style="display:flex;align-items:start;gap:15px;"><div style="flex-shrink:0;"><span class="dashicons dashicons-warning" style="color:#d63638;font-size:32px;"></span></div><div style="flex:1;"><h3 style="margin:0 0 10px 0;color:#d63638;">Dashboard Loading Issue</h3><p style="margin:0 0 15px 0;line-height:1.5;">The dashboard framework failed to load. This prevents interactive features from working properly.</p><div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:15px;margin-bottom:15px;"><strong>Common causes:</strong><ul style="margin:8px 0 0 20px;padding:0;"><li>Browser extensions blocking scripts</li><li>Content Security Policy (CSP) restrictions</li><li>Network connectivity issues</li><li>JavaScript errors from other plugins</li></ul></div><div style="display:flex;gap:10px;margin-top:15px;"><button onclick="window.location.reload()" style="padding:8px 16px;background:#2271b1;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:500;">🔄 Refresh Page</button><button onclick="this.parentNode.parentNode.parentNode.parentNode.style.display=\'none\'" style="padding:8px 16px;background:#6c757d;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:500;">Hide This Message</button></div></div></div>';
+            dashboard.insertBefore(fallbackNotice, dashboard.firstChild);
+            addFallbackCSS();
+        } catch (error) {
+            console.error('ODCM: Error showing Alpine.js fallback UI:', error);
+        }
+    }
+
+    // Add additional CSS for fallback UI
+    function addFallbackCSS() {
+        try {
+            var styleId = 'odcm-alpine-fallback-css';
+            if (document.getElementById(styleId)) return;
+            var style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = '.odcm-alpine-fallback{animation:odcm-fadeIn 0.5s ease;}@keyframes odcm-fadeIn{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}.odcm-alpine-fallback ~ .odcm-unified-header,.odcm-alpine-fallback ~ .odcm-content-grid{opacity:0.7;pointer-events:none;user-select:none;}';
+            document.head.appendChild(style);
+        } catch (error) {
+            console.error('ODCM: Error adding fallback CSS:', error);
+        }
+    }
+
+    // Log detailed information about Alpine.js load failure
+    function logAlpineLoadFailure() {
+        try {
+            var envInfo = {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                online: navigator.onLine,
+                timestamp: new Date().toISOString()
+            };
+            var issues = [];
+            var scripts = document.querySelectorAll('script');
+            var alpineScriptFound = false;
+            scripts.forEach(function(script) {
+                if (script.src && script.src.indexOf('alpine') !== -1) {
+                    alpineScriptFound = true;
+                }
+            });
+            if (!alpineScriptFound) {
+                issues.push('Alpine.js script tag not found');
+            }
+            try {
+                var metaCSP = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+                if (metaCSP) {
+                    issues.push('Content Security Policy (CSP) meta tag found - may be blocking Alpine.js');
+                }
+            } catch (e) {}
+            console.groupCollapsed('ODCM Alpine.js Load Failure Details');
+            console.log('Environment:', envInfo);
+            console.log('Potential Issues:', issues.length > 0 ? issues : ['None detected']);
+            console.groupEnd();
+            if (typeof odcmInsightConfig !== 'undefined' && odcmInsightConfig.debug) {
+                try {
+                    fetch('{$ajax_url}', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: new URLSearchParams({
+                            action: 'odcm_log_alpine_failure',
+                            _wpnonce: '{$nonce}',
+                            env: JSON.stringify(envInfo),
+                            issues: JSON.stringify(issues)
+                        })
+                    }).catch(function() {});
+                } catch (e) {}
+            }
+        } catch (error) {
+            console.error('ODCM: Error in Alpine.js failure logging:', error);
+        }
+    }
+
+    // Check Alpine.js availability after a delay to allow for loading
+    setTimeout(checkAlpineJS, 2000);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', checkAlpineJS);
+    } else {
+        checkAlpineJS();
+    }
+})();
+JS;
     }
 
     /**
@@ -1474,6 +1633,62 @@ class InsightDashboard
             </div>
         </div>
         <?php
+    }
+
+    /**
+     * Handle AJAX request to log Alpine.js failure
+     * 
+     * This endpoint logs client-side Alpine.js loading failures for debugging.
+     */
+    public function handle_log_alpine_failure_ajax(): void
+    {
+        // Verify nonce
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
+            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
+        }
+
+        // Get and validate input
+        $env_raw = isset($_POST['env']) ? wp_unslash($_POST['env']) : '{}';
+        $issues_raw = isset($_POST['issues']) ? wp_unslash($_POST['issues']) : '[]';
+        
+        // Sanitize JSON strings
+        $env = json_decode(stripslashes($env_raw), true);
+        $issues = json_decode(stripslashes($issues_raw), true);
+
+        // Log the failure for debugging
+        $log_data = [
+            'type' => 'alpine_js_failure',
+            'timestamp' => current_time('mysql'),
+            'user_id' => get_current_user_id(),
+            'environment' => is_array($env) ? $env : [],
+            'potential_issues' => is_array($issues) ? $issues : [],
+            'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : 'unknown',
+            'referer' => isset($_SERVER['HTTP_REFERER']) ? esc_url_raw(wp_unslash($_SERVER['HTTP_REFERER'])) : 'unknown'
+        ];
+
+        // Log using the plugin's logging system if available
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
+                'Alpine.js framework failed to load',
+                $log_data,
+                null,
+                'error',
+                'frontend_error'
+            );
+        }
+
+        // Also log to WordPress debug log
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            // Use WordPress-friendly logging
+            if (function_exists('odcm_log_message')) {
+                odcm_log_message('ODCM Alpine.js Load Failure: ' . wp_json_encode($log_data), 'error');
+            }
+        }
+
+        wp_send_json_success([
+            'message' => 'Alpine.js failure logged',
+            'logged' => true
+        ]);
     }
 
     /**
