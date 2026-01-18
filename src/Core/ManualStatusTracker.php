@@ -543,7 +543,7 @@ class ManualStatusTracker
 
     /**
      * Log a manual trigger event when a user manually initiates automation.
-     * 
+     *
      * This method should be called when a user manually triggers the automation
      * to re-run on a specific order, providing clear attribution for the action.
      *
@@ -561,12 +561,12 @@ class ManualStatusTracker
 
         // Log manual trigger using Universal Events system
         $sanitizer = new ComponentSanitizer();
-        
-        $trigger_message = sprintf('User %s triggered automation for order #%d (%s)', 
+
+        $trigger_message = sprintf('User %s triggered automation for order #%d (%s)',
             $user_context['user_display_name'], $order_id, $trigger_context);
-        
+
         $info_data = $sanitizer->sanitize('info', ['message' => $trigger_message]);
-        
+
         $payload_components = [
             [
                 'key' => 'manual-trigger-' . wp_generate_uuid4(),
@@ -577,9 +577,9 @@ class ManualStatusTracker
                 'data' => $info_data,
             ]
         ];
-        
+
         $summary = sprintf('Manual automation trigger for Order #%d', $order_id);
-        
+
         // Log using Universal Events system
         odcm_log_event(
             $summary,
@@ -599,6 +599,21 @@ class ManualStatusTracker
             'success',
             'admin_action'
         );
+
+        // DEBUG: Add debug logging to trace manual trigger execution
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("ODCM_MANUAL_TRIGGER_DEBUG: Manual trigger logged for order #{$order_id}", 'debug');
+            odcm_log_message("ODCM_MANUAL_TRIGGER_DEBUG: About to schedule completion check for manual trigger", 'debug');
+        }
+
+        // Schedule the order for completion check to trigger rule evaluation
+        // This ensures that manual triggers actually execute the rules
+        $core = new \OrderDaemon\CompletionManager\Core\Core();
+        $core->schedule_completion_check($order_id);
+
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("ODCM_MANUAL_TRIGGER_DEBUG: Scheduled completion check for order #{$order_id} after manual trigger", 'debug');
+        }
     }
 
 }

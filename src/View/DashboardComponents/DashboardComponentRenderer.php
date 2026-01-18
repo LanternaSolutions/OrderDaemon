@@ -74,8 +74,26 @@ abstract class DashboardComponentRenderer
             $rendered_html = $this->renderErrorComponent($e, $data);
         }
 
-        // phpcs:ignore WordPress.Security.EscapeOutput.UnsafePrintingFunction, WordPress.Security.EscapeOutput.OutputNotEscaped -- $rendered_html is already escaped by the render functions in the subclasses
-        echo $rendered_html; // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText
+        /**
+         * Output HTML rendered by concrete component renderers.
+         *
+         * Escaping rationale (WordPress.org security compliance):
+         * 1. All concrete renderers escape their output using esc_html(), esc_attr(),
+         *    wp_kses(), etc. at construction time (see DashboardComponentUIToolkit).
+         * 2. This is an admin-only context protected by capability checks (manage_woocommerce).
+         * 3. Using wp_kses_post() would strip form elements (<input>, <select>, <option>)
+         *    required for the dashboard filtering and settings UI.
+         * 4. Using wp_kses() with allowed_html would create significant maintenance burden
+         *    keeping a custom list of allowed tags/attributes synchronized with UI changes.
+         *
+         * This approach follows WordPress Core patterns for admin page rendering where
+         * HTML is pre-escaped during construction rather than at final output.
+         *
+         * @see DashboardComponentUIToolkit - All HTML construction uses proper escaping
+         * @see FiltersTabRenderer, SettingsTabRenderer, LogStreamRenderer - Delegate to escaped templates
+         */
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- HTML is escaped by concrete renderers at construction; wp_kses_post() strips required form elements
+        echo $rendered_html;
     }
 
     /**

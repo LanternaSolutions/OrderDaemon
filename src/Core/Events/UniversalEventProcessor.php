@@ -1449,12 +1449,12 @@ class UniversalEventProcessor
     private function processUniversalEventRules(EvaluationContext $context, string $process_id): bool
     {
         $order_id = $context->getOrderId();
-        
+
         // Log entry to universal event rule processing
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Processing rules for Order #{$order_id}", 'debug');
         }
-        
+
         // Check if post type exists
         if (!post_type_exists('odcm_order_rule')) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -1482,7 +1482,7 @@ class UniversalEventProcessor
             }
             return false;
         }
-        
+
         // ENHANCED VALIDATION: Strict checks for Order #0 prevention
         // Validate order ID with detailed logging to avoid "Order #0" issues
         if (!$order_id || $order_id <= 0) {
@@ -1494,14 +1494,14 @@ class UniversalEventProcessor
                 'primary_object_id' => $context->event->primaryObjectID,
                 'primary_object_type' => $context->event->primaryObjectType
             ]);
-            
+
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - CRITICAL: Invalid Order ID debugging trace: " . $event_info, 'error');
-                
+
                 // Log error context without debug_backtrace for production safety
                 odcm_log_message("ODCM_DEBUG_TRACE: Invalid Order ID - skipping rule evaluation", 'error');
             }
-            
+
             // Return false to completely skip rule evaluation for invalid order IDs
             return false;
         }
@@ -1543,7 +1543,7 @@ class UniversalEventProcessor
                 $original_count = count($rules_query->posts);
                 $rules_query->posts = $filtered_rules;
                 $rules_query->post_count = count($filtered_rules);
-                
+
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                     odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Filtered from {$original_count} to " . count($filtered_rules) . " rules that match current status '{$current_order_status}'", 'debug');
                 }

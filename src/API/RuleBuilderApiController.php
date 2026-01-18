@@ -160,7 +160,7 @@ class RuleBuilderApiController extends WP_REST_Controller
      * @param WP_REST_Request $request Full details about the request.
      * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
      */
-    public function get_components(WP_REST_Request $request): WP_REST_Response
+    public function get_components(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         try {
             // Start performance monitoring
@@ -294,7 +294,7 @@ class RuleBuilderApiController extends WP_REST_Controller
      * @param WP_REST_Request $request Full details about the request.
      * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
      */
-    public function save_rule(WP_REST_Request $request): WP_REST_Response
+    public function save_rule(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         $rule_id = (int) $request['id'];
         $json_params = $request->get_json_params();
@@ -762,11 +762,20 @@ class RuleBuilderApiController extends WP_REST_Controller
      * @param WP_REST_Request $request Full details about the request.
      * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
      */
-    public function search_dynamic_content(WP_REST_Request $request): WP_REST_Response
+    public function search_dynamic_content(WP_REST_Request $request)
     {
         $source = $request->get_param('source');
-        $search = $request->get_param('search');
+        $search = $request->get_param('search') ?? '';
         $limit = (int) $request->get_param('limit');
+
+        // Validate that source parameter is provided
+        if (empty($source)) {
+            return new WP_Error(
+                'missing_source',
+                __('api.rule_builder.search.missing_source_parameter', 'order-daemon'),
+                ['status' => 400]
+            );
+        }
 
         try {
             $start_time = microtime(true);

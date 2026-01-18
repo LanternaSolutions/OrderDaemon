@@ -146,7 +146,7 @@ class WebhookController extends WP_REST_Controller
     public function handle_webhook(WP_REST_Request $request)
     {
         $start_time = microtime(true);
-        $gateway = $request->get_param('gateway');
+        $gateway = $request->get_param('gateway') ?? 'unknown';
         $process_id = 'odcm_webhook_' . uniqid();
 
         try {

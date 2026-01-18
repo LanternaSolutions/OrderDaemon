@@ -297,12 +297,13 @@ class AuditLogEndpoint extends WP_REST_Controller
         ]);
 
         // Diagnostic endpoint for route verification (debug mode only)
+        // These endpoints require authentication even in debug mode for security
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             register_rest_route(self::NAMESPACE, '/' . self::BASE_ROUTE . '/diagnostic', [
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'diagnostic_check'],
-                    'permission_callback' => '__return_true', // Public for debugging
+                    'permission_callback' => [$this, 'check_permissions'],
                 ],
             ]);
 
@@ -311,7 +312,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_raw_timeline_data'],
-                    'permission_callback' => '__return_true', // Public for debugging
+                    'permission_callback' => [$this, 'check_permissions'],
                 ],
             ]);
         }
