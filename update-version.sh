@@ -52,6 +52,10 @@
 #   4. Creates a git commit with the version as the message
 #   5. Creates an annotated git tag (e.g., v1.2.3)
 #
+# AFTER RUNNING:
+#   To push the versioned code to the remote repository, run:
+#     git push && git push --tags
+#
 # REQUIREMENTS:
 #   - Git must be initialized in the project
 #   - ./order-daemon.php must exist with a Version header
