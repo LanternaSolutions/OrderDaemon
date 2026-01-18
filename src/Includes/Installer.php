@@ -329,11 +329,108 @@ class Installer
      */
     private static function update_db_version(): void
     {
-        update_option(self::DB_VERSION_OPTION_KEY, self::DB_VERSION);
+        // Get current database version
+        $current_version = get_option(self::DB_VERSION_OPTION_KEY, '0.0');
 
-        // Clear table existence cache after updating database version
-        self::$table_existence_cache = [];
-        wp_cache_delete('odcm_all_tables_exist_check');
+        // Only update if we're actually changing versions
+        if (version_compare($current_version, self::DB_VERSION, '<')) {
+            // Perform pre-update backup (store current version for rollback)
+            self::backup_current_state($current_version);
+
+            // Update the database version
+            $update_result = update_option(self::DB_VERSION_OPTION_KEY, self::DB_VERSION);
+
+            if ($update_result) {
+                // Clear caches after successful update
+                self::$table_existence_cache = [];
+                wp_cache_delete('odcm_all_tables_exist_check');
+                wp_cache_delete('odcm_db_version_backup');
+
+                // Log successful update
+                odcm_log_message('Database updated from version ' . $current_version . ' to ' . self::DB_VERSION, 'info');
+            } else {
+                // Handle update failure
+                odcm_log_message('Failed to update database version from ' . $current_version . ' to ' . self::DB_VERSION, 'error');
+                throw new \Exception('Database version update failed');
+            }
+        }
+        // If versions are the same, just ensure caches are cleared
+        else {
+            self::$table_existence_cache = [];
+            wp_cache_delete('odcm_all_tables_exist_check');
+        }
+    }
+
+    /**
+     * Backup current database state before updates
+     *
+     * @param string $current_version The current database version
+     */
+    private static function backup_current_state(string $current_version): void
+    {
+        // Store backup of current version for potential rollback
+        update_option('odcm_db_version_backup', $current_version);
+
+        // Store backup timestamp
+        update_option('odcm_update_backup_timestamp', current_time('mysql'));
+
+        // Log backup creation
+        odcm_log_message('Created database backup before update from version ' . $current_version, 'info');
+    }
+
+    /**
+     * Check if database update is safe to perform
+     *
+     * @return bool True if update is safe, false otherwise
+     */
+    private static function is_update_safe(): bool
+    {
+        // Check if we're in maintenance mode
+        if (defined('WP_MAINTENANCE_MODE') && WP_MAINTENANCE_MODE) {
+            return false;
+        }
+
+        // Check if database is available
+        global $wpdb;
+        try {
+            $wpdb->get_var("SELECT 1 FROM {$wpdb->prefix}odcm_audit_log LIMIT 1");
+        } catch (\Exception $e) {
+            odcm_log_message('Database safety check failed: ' . $e->getMessage(), 'error');
+            return false;
+        }
+
+        // Check if we have sufficient memory
+        $memory_limit = ini_get('memory_limit');
+        if (!empty($memory_limit) && strpos($memory_limit, 'M') !== false) {
+            $memory_limit_bytes = (int)$memory_limit * 1024 * 1024;
+            $memory_usage = memory_get_usage(true);
+
+            // Require at least 32MB free memory for updates
+            if ($memory_usage > ($memory_limit_bytes - 32 * 1024 * 1024)) {
+                odcm_log_message('Insufficient memory for database update', 'error');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Get current database version with fallback
+     *
+     * @return string Current database version
+     */
+    public static function get_current_db_version(): string
+    {
+        $version = get_option(self::DB_VERSION_OPTION_KEY, '0.0');
+
+        // Validate version format
+        if (!preg_match('/^\d+\.\d+$/', $version)) {
+            $version = '0.0';
+            update_option(self::DB_VERSION_OPTION_KEY, $version);
+        }
+
+        return $version;
     }
     
     /**

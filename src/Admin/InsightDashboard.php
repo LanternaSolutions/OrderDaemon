@@ -422,8 +422,7 @@ class InsightDashboard
         $ajax_url = esc_js(admin_url('admin-ajax.php'));
         $nonce = wp_create_nonce('wp_rest');
         
-        return <<<JS
-(function setupODCMAlpineFallback() {
+        return "(function setupODCMAlpineFallback() {
     // Only run once
     if (window.__odcmAlpineFallbackInstalled) return;
     window.__odcmAlpineFallbackInstalled = true;
@@ -434,7 +433,7 @@ class InsightDashboard
             if (typeof Alpine !== 'undefined' && typeof Alpine.data === 'function') {
                 return true;
             }
-            var alpineScript = document.querySelector('script[src*="alpine"]');
+            var alpineScript = document.querySelector('script[src*=\"alpine\"]');
             if (alpineScript && !alpineScript.hasAttribute('data-loaded')) {
                 return 'loading';
             }
@@ -475,7 +474,7 @@ class InsightDashboard
             fallbackNotice.setAttribute('role', 'alert');
             fallbackNotice.setAttribute('aria-live', 'assertive');
             fallbackNotice.style.cssText = 'background:#fff8e5;border:2px solid #f0c36d;border-radius:6px;padding:20px;margin:20px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.1);';
-            fallbackNotice.innerHTML = '<div style="display:flex;align-items:start;gap:15px;"><div style="flex-shrink:0;"><span class="dashicons dashicons-warning" style="color:#d63638;font-size:32px;"></span></div><div style="flex:1;"><h3 style="margin:0 0 10px 0;color:#d63638;">Dashboard Loading Issue</h3><p style="margin:0 0 15px 0;line-height:1.5;">The dashboard framework failed to load. This prevents interactive features from working properly.</p><div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:15px;margin-bottom:15px;"><strong>Common causes:</strong><ul style="margin:8px 0 0 20px;padding:0;"><li>Browser extensions blocking scripts</li><li>Content Security Policy (CSP) restrictions</li><li>Network connectivity issues</li><li>JavaScript errors from other plugins</li></ul></div><div style="display:flex;gap:10px;margin-top:15px;"><button onclick="window.location.reload()" style="padding:8px 16px;background:#2271b1;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:500;">🔄 Refresh Page</button><button onclick="this.parentNode.parentNode.parentNode.parentNode.style.display=\'none\'" style="padding:8px 16px;background:#6c757d;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:500;">Hide This Message</button></div></div></div>';
+            fallbackNotice.innerHTML = '<div style=\"display:flex;align-items:start;gap:15px;\"><div style=\"flex-shrink:0;\"><span class=\"dashicons dashicons-warning\" style=\"color:#d63638;font-size:32px;\"></span></div><div style=\"flex:1;\"><h3 style=\"margin:0 0 10px 0;color:#d63638;\">Dashboard Loading Issue</h3><p style=\"margin:0 0 15px 0;line-height:1.5;\">The dashboard framework failed to load. This prevents interactive features from working properly.</p><div style=\"background:#fff;border:1px solid #ddd;border-radius:4px;padding:15px;margin-bottom:15px;\"><strong>Common causes:</strong><ul style=\"margin:8px 0 0 20px;padding:0;\"><li>Browser extensions blocking scripts</li><li>Content Security Policy (CSP) restrictions</li><li>Network connectivity issues</li><li>JavaScript errors from other plugins</li></ul></div><div style=\"display:flex;gap:10px;margin-top:15px;\"><button onclick=\"window.location.reload()\" style=\"padding:8px 16px;background:#2271b1;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:500;\">🔄 Refresh Page</button><button onclick=\"this.parentNode.parentNode.parentNode.parentNode.style.display=\\'none\\'\" style=\"padding:8px 16px;background:#6c757d;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:500;\">Hide This Message</button></div></div></div>';
             dashboard.insertBefore(fallbackNotice, dashboard.firstChild);
             addFallbackCSS();
         } catch (error) {
@@ -519,7 +518,7 @@ class InsightDashboard
                 issues.push('Alpine.js script tag not found');
             }
             try {
-                var metaCSP = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+                var metaCSP = document.querySelector('meta[http-equiv=\"Content-Security-Policy\"]');
                 if (metaCSP) {
                     issues.push('Content Security Policy (CSP) meta tag found - may be blocking Alpine.js');
                 }
@@ -530,12 +529,12 @@ class InsightDashboard
             console.groupEnd();
             if (typeof odcmInsightConfig !== 'undefined' && odcmInsightConfig.debug) {
                 try {
-                    fetch('{$ajax_url}', {
+                    fetch('" . $ajax_url . "', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                         body: new URLSearchParams({
                             action: 'odcm_log_alpine_failure',
-                            _wpnonce: '{$nonce}',
+                            _wpnonce: '" . $nonce . "',
                             env: JSON.stringify(envInfo),
                             issues: JSON.stringify(issues)
                         })
@@ -554,8 +553,7 @@ class InsightDashboard
     } else {
         checkAlpineJS();
     }
-})();
-JS;
+})();";
     }
 
     /**

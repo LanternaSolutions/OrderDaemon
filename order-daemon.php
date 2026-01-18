@@ -102,6 +102,40 @@ require_once __DIR__ . '/src/Includes/Installer.php';
 // Register the activation hook to create the audit log table.
 register_activation_hook(__FILE__, ['OrderDaemon\CompletionManager\Includes\Installer', 'activate']);
 
+// Register the deactivation hook to clean up temporary data
+register_deactivation_hook(__FILE__, 'odcm_deactivation_cleanup');
+
+/**
+ * Clean up temporary data when plugin is deactivated
+ *
+ * This function removes transient data, cache, and scheduled actions
+ * but preserves user data, database tables, and settings.
+ */
+function odcm_deactivation_cleanup() {
+    // Clean up scheduled actions
+    if (function_exists('as_unschedule_all_actions')) {
+        as_unschedule_all_actions('odcm_cleanup_old_logs');
+        as_unschedule_all_actions('odcm_cleanup_audit_log_queue');
+        as_unschedule_all_actions('odcm_cleanup_rule_execution_transients');
+    }
+
+    // Remove WordPress cron events
+    wp_clear_scheduled_hook('odcm_cleanup_old_logs');
+    wp_clear_scheduled_hook('odcm_cleanup_audit_log_queue');
+
+    // Clean up transients and cache
+    global $wpdb;
+    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_odcm_%'");
+    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_timeout_odcm_%'");
+    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_site_transient_odcm_%'");
+    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_site_transient_timeout_odcm_%'");
+
+    // Clear specific cache keys
+    wp_cache_delete('odcm_all_tables_exist_check');
+    wp_cache_delete('odcm_cleanup_rule_execution_transients');
+    wp_cache_delete('odcm_pending_updates_count');
+}
+
 // Initialize the plugin on the plugins_loaded hook
 add_action('plugins_loaded', function() {
     // Bootstrap the plugin components

@@ -85,6 +85,15 @@ Unlike other automation plugins that try to do everything, Order Daemon focuses 
 5. Click "Activate Plugin"
 6. Go to Order Daemon in your admin menu to set up your first rule
 
+== Uninstallation ==
+
+For complete information about uninstallation, data preservation, and removal
+options, please see the UNINSTALLATION.md file included with the plugin.
+
+**Default Behavior**: All your data (rules, audit logs, settings) is preserved when you uninstall the plugin to prevent accidental data loss.
+
+**Complete Removal**: If you want to completely remove all data, add `define('ODCM_REMOVE_ALL_DATA', true);` to your wp-config.php file before uninstalling.
+
 **Requirements**
 
 * WordPress 5.6 or higher
