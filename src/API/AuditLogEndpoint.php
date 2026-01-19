@@ -2854,7 +2854,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     // Direct query is needed for performance-critical batch operations
                     $delete_payloads_query = $wpdb->prepare(
                         "DELETE FROM `{$payloadTableName}`
-                        WHERE id IN ({$orphaned_placeholder_string})",
+                        WHERE payload_id IN ({$orphaned_placeholder_string})",
                         ...$orphaned_payloads
                     );
                     // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $delete_payloads_query is prepared above via $wpdb->prepare()
