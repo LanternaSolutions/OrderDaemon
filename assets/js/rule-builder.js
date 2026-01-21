@@ -201,63 +201,43 @@ function ruleBuilder() {
         },
 
         /**
-         * Generate complete component summary client-side (no API calls).
+         * Generate client-side summary for a component.
+         * This builds a human-readable summary from component settings.
          *
          * @param {object} component - Component object with id and settings
-         * @param {string} componentType - Component type (trigger, condition, action, primaryAction)
+         * @param {string} type - Component type (trigger, condition, action, primaryAction)
          * @param {number|null} index - Index for array components
-         * @return {string} HTML summary
+         * @return {string} HTML summary string
          */
-        generateClientSideSummary(component, componentType, index) {
+        generateClientSideSummary(component, type, index = null) {
             if (!component || !component.id) {
-                return this.getFallbackSummary(componentType);
+                return this.getFallbackSummary(type);
             }
 
-            const componentDef = this.getComponentDefinition(componentType, component.id);
+            // Get component definition
+            const componentDef = this.getComponentDefinition(type, component.id);
+            if (!componentDef) {
+                return this.getComponentFallbackSummary(component, type);
+            }
+
             const settings = component.settings || {};
-            
-            // Get base label
-            const label = componentDef?.label || component.id;
-            
-            // For triggers and actions, just show the label
-            if (componentType === 'trigger') {
-                return `<span class="odcm-summary-title">${this.escapeHtml(label)}</span>`;
-            }
-            
-            if (componentType === 'action' || componentType === 'primaryAction') {
-                return `<span class="odcm-summary-title">${this.escapeHtml(label)}</span>`;
-            }
-            
-            // For conditions, build complete summary with all information
-            return this.buildConditionSummary(label, settings, componentDef, component.id);
-        },
 
-        /**
-         * Build comprehensive condition summary with all essential information.
-         *
-         * @param {string} label - Component label
-         * @param {object} settings - Component settings
-         * @param {object} componentDef - Component definition from registry
-         * @param {string} componentId - Component ID for specific logic
-         * @return {string} HTML summary
-         */
-        buildConditionSummary(label, settings, componentDef, componentId) {
-            // Use component-specific logic when available
-            const specificSummary = this.getComponentSpecificSummary(componentId, settings, componentDef);
+            // Try component-specific summary first
+            const specificSummary = this.getComponentSpecificSummary(component.id, settings, componentDef);
             if (specificSummary) {
                 return specificSummary;
             }
 
-            // Generic condition summary builder
+            // Fall back to generic summary builder
             const parts = {
-                label: label,
+                title: componentDef.label || component.id,
                 values: this.extractValues(settings, componentDef),
                 operator: this.extractOperator(settings),
                 matchMode: this.extractMatchMode(settings)
             };
-            
-            // Format: "Label: Values Operator (Match Mode)"
-            let summary = `<span class="odcm-summary-title">${this.escapeHtml(parts.label)}</span>`;
+
+            // Build summary HTML
+            let summary = `<span class="odcm-summary-title">${this.escapeHtml(parts.title)}</span>`;
             
             if (parts.values) {
                 summary += `: <span class="odcm-summary-values">${this.escapeHtml(parts.values)}</span>`;
@@ -1200,12 +1180,186 @@ function ruleBuilder() {
                 return `<p class="odcm-no-settings">${odcmRuleBuilderConfig.i18n.noSettings}</p>`;
             }
 
-            let html = '<div class="odcm-settings-form">';
-            for (const [key, property] of Object.entries(schema.properties)) {
-                html += this.renderFormField(key, property, currentSettings[key], componentType, index);
+            // Check if this component uses conditional groups
+            const hasConditionalGroups = schema.properties.comparison_type?.['ui:conditional_groups'];
+
+            // Debug logging to trace execution path
+            console.log('🔍 RENDERING SETTINGS FORM for component:', componentType, index);
+            console.log('🔍 Schema properties:', Object.keys(schema.properties));
+            console.log('🔍 Has comparison_type:', !!schema.properties.comparison_type);
+            console.log('🔍 Has conditional groups:', hasConditionalGroups);
+
+            // Get the current comparison type for Alpine.js reactive binding
+            const comparisonType = hasConditionalGroups 
+                ? (currentSettings?.comparison_type || schema.properties.comparison_type.default || 'relative')
+                : null;
+
+            let html = '<div class="odcm-settings-form"';
+            html += ` data-component-type="${componentType}"`;
+            html += ` data-index="${index !== null ? index : ''}"`;
+            
+            // If using conditional groups, wrap the entire form in x-data for Alpine.js reactivity
+            if (hasConditionalGroups) {
+                html += ` x-data="{ activeGroup: '${comparisonType}' }"`;
             }
+            html += '>';
+
+            if (hasConditionalGroups) {
+                console.log('🔍 USING CONDITIONAL RENDERING PATH with activeGroup:', comparisonType);
+                // Render non-conditional fields (includes radio buttons that control visibility)
+                html += '<div class="odcm-non-conditional-fields">';
+                const nonConditionalFields = this.getNonConditionalFieldsForSchema(schema);
+                for (const [key, property] of Object.entries(nonConditionalFields)) {
+                    html += this.renderFormField(key, property, currentSettings[key], componentType, index);
+                }
+                html += '</div>';
+
+                // Render conditional field groups (these will use x-show to toggle visibility)
+                html += this.renderConditionalFieldGroups(schema, currentSettings, componentType, index);
+            } else {
+                console.log('🔍 USING LEGACY RENDERING PATH');
+                // Original behavior for backward compatibility
+                for (const [key, property] of Object.entries(schema.properties)) {
+                    html += this.renderFormField(key, property, currentSettings[key], componentType, index);
+                }
+            }
+
             html += '</div>';
             return html;
+        },
+
+        /**
+         * Render conditional field groups
+         * Note: This method relies on the parent container (renderSettingsForm) having
+         * x-data="{ activeGroup: '...' }" for Alpine.js reactivity.
+         */
+        renderConditionalFieldGroups(schema, currentSettings, componentType, index) {
+            const comparisonType = currentSettings?.comparison_type || schema.properties.comparison_type.default;
+            const conditionalGroups = schema.properties.comparison_type['ui:conditional_groups'];
+            let html = '';
+
+            // Debug log to verify this method is being called
+            console.log('🔧 RENDERING CONDITIONAL FIELD GROUPS for comparison type:', comparisonType);
+
+            // Container for conditional field groups (no x-data here - parent form already has it)
+            html += `<div class="odcm-conditional-field-groups">`;
+
+            // Create a container for each possible group
+            for (const [groupKey, fieldKeys] of Object.entries(conditionalGroups)) {
+                html += `<div class="odcm-field-group odcm-field-group-${groupKey}"`;
+                html += ` x-show="activeGroup === '${groupKey}'"`;
+                html += `>`;
+
+                // Add group header
+                const groupLabel = schema.properties.comparison_type.enum[groupKey] || groupKey;
+                html += `<div class="odcm-field-group-header">${groupLabel}</div>`;
+
+                // Render fields in this group with horizontal layout where appropriate
+                html += `<div class="odcm-horizontal-field-group">`;
+                for (const fieldKey of fieldKeys) {
+                    if (schema.properties[fieldKey]) {
+                        // Special handling for related fields that should be horizontal
+                        if (['time_period', 'time_unit'].includes(fieldKey) ||
+                            ['range_start_date', 'range_end_date'].includes(fieldKey) ||
+                            ['time_range_start', 'time_range_end'].includes(fieldKey)) {
+                            html += this.renderFormField(
+                                fieldKey,
+                                schema.properties[fieldKey],
+                                currentSettings[fieldKey],
+                                componentType,
+                                index
+                            );
+                        } else {
+                            // Non-related fields get individual containers
+                            html += `<div class="odcm-form-group">`;
+                            html += this.renderFormField(
+                                fieldKey,
+                                schema.properties[fieldKey],
+                                currentSettings[fieldKey],
+                                componentType,
+                                index
+                            );
+                            html += `</div>`;
+                        }
+                    }
+                }
+                html += `</div>`;
+
+                html += '</div>';
+            }
+
+            html += '</div>';
+            return html;
+        },
+
+        /**
+         * Get non-conditional fields from schema
+         */
+        getNonConditionalFieldsForSchema(schema) {
+            if (!schema.properties.comparison_type?.['ui:conditional_groups']) {
+                return schema.properties;
+            }
+
+            const conditionalFields = new Set(
+                Object.values(schema.properties.comparison_type['ui:conditional_groups']).flat()
+            );
+
+            return Object.fromEntries(
+                Object.entries(schema.properties).filter(
+                    ([key]) => !conditionalFields.has(key)
+                )
+            );
+        },
+
+        /**
+         * Check if a component uses conditional field groups
+         * @param {string} componentType - Type of component (trigger, condition, action)
+         * @param {string} componentId - ID of the component
+         * @return {boolean} True if component uses conditional groups
+         */
+        hasConditionalGroups(componentType, componentId) {
+            const component = this.getComponentDefinition(componentType, componentId);
+            return component?.schema?.properties?.comparison_type?.['ui:conditional_groups'];
+        },
+
+        /**
+         * Get conditional field groups for the current selection
+         * @param {string} componentType - Type of component
+         * @param {number} index - Component index
+         * @return {Array|null} Array of field keys for current group, or null if no conditional groups
+         */
+        getConditionalFieldGroups(componentType, index) {
+            const component = this.getComponentDefinition(componentType, this.rule[componentType + 's'][index]?.id);
+            if (!component || !component.schema?.properties?.comparison_type?.['ui:conditional_groups']) {
+                return null;
+            }
+
+            const comparisonType = this.rule[componentType + 's'][index]?.settings?.comparison_type;
+            const conditionalGroups = component.schema.properties.comparison_type['ui:conditional_groups'];
+
+            return conditionalGroups[comparisonType] || [];
+        },
+
+        /**
+         * Get fields that should always be visible (not part of conditional groups)
+         * @param {string} componentType - Type of component
+         * @param {number} index - Component index
+         * @return {Object} Fields that are not in any conditional group
+         */
+        getNonConditionalFields(componentType, index) {
+            const component = this.getComponentDefinition(componentType, this.rule[componentType + 's'][index]?.id);
+            if (!component || !component.schema?.properties?.comparison_type?.['ui:conditional_groups']) {
+                return this.fields; // No conditional groups, show all fields
+            }
+
+            const conditionalGroups = component.schema.properties.comparison_type['ui:conditional_groups'];
+            const allConditionalFields = new Set(Object.values(conditionalGroups).flat());
+
+            return Object.fromEntries(
+                Object.entries(this.fields).filter(
+                    ([key, field]) => !allConditionalFields.has(key)
+                )
+            );
         },
 
         renderFormField(key, property, value, componentType, index) {
@@ -1265,6 +1419,15 @@ function ruleBuilder() {
                 const radioId = `${fieldId}_${optionValue}`;
                 const siblingKey = radioInputs[optionValue];
 
+                // Check if this radio group controls conditional field groups
+                const isConditionalController = key === 'comparison_type' && componentType === 'condition' && index !== null;
+
+                // Build the @change handler - combine both handlers into one attribute
+                let changeHandler = `updateRadioSetting('${key}', $event.target.value, '${componentType}', ${index})`;
+                if (isConditionalController) {
+                    changeHandler += `; activeGroup = $event.target.value`;
+                }
+
                 html += `
                     <label class="odcm-radio-label" for="${radioId}" role="radio" aria-checked="${String(isChecked)}" tabindex="0"
                            @keydown.enter.prevent="$event.currentTarget.querySelector('input')?.click()"
@@ -1274,7 +1437,7 @@ function ruleBuilder() {
                                name="${fieldId}" 
                                value="${optionValue}" 
                                ${isChecked ? 'checked' : ''}
-                               @change="updateRadioSetting('${key}', $event.target.value, '${componentType}', ${index})">
+                               @change="${changeHandler}">
                         <span class="odcm-radio-text">${optionLabel}</span>`;
 
                 if (siblingKey) {
@@ -1547,6 +1710,22 @@ function ruleBuilder() {
 
         updateRadioSetting(key, value, componentType, index) {
             console.log(`🔧 UPDATE RADIO: ${key} = ${value} for ${componentType}[${index}]`);
+
+            // Special handling for comparison_type changes to trigger re-render
+            if (key === 'comparison_type' && componentType === 'condition' && index !== null) {
+                console.log(`🔧 TRIGGERING RE-RENDER FOR COMPARISON TYPE CHANGE: ${value}`);
+
+                // Force a re-render by toggling the editing state
+                const currentEditingIndex = this.editingConditionIndex;
+                if (currentEditingIndex === index) {
+                    // Briefly close and re-open the settings panel to force re-render
+                    this.editingConditionIndex = null;
+                    setTimeout(() => {
+                        this.editingConditionIndex = index;
+                    }, 50);
+                }
+            }
+
             this.updateSetting(key, value, componentType, index);
         },
 
@@ -1608,89 +1787,152 @@ function settingsPanel(componentType, index) {
         fields: {},
         initSettings(schema, currentSettings) {
             try {
-                
-                // For triggers, we need to look up the component ID to get the right prepared fields
-                let key = null;
-                if (componentType === 'trigger') {
-                    const triggerId = window.ruleBuilderInstance?.rule?.trigger?.id;
-                    if (triggerId) {
-                        key = `trigger_0_${triggerId}`;
-                    }
-                } else if (componentType === 'primaryAction') {
-                    const actionId = window.ruleBuilderInstance?.rule?.primaryAction?.id;
-                    if (actionId) {
-                        key = `primaryAction_${actionId}`;
-                    }
-                } else if (componentType === 'condition') {
-                    key = `condition_${index}`;
-                } else if (componentType === 'action') {
-                    key = `action_${index}`;
-                }
-                
-                const prepared = (window.ruleBuilderInstance && window.ruleBuilderInstance.preparedFields)
-                    ? window.ruleBuilderInstance.preparedFields
-                    : ((window.odcmRuleBuilderConfig && window.odcmRuleBuilderConfig.preparedFields)
-                        ? window.odcmRuleBuilderConfig.preparedFields
-                        : null);
-                
-                
-                if (key && prepared && prepared[key] && Object.keys(prepared[key]).length > 0) {
-                    this.fields = prepared[key];
+                // Check if this component uses the new conditional groups system
+                this.usesConditionalGroups = schema?.properties?.comparison_type?.['ui:conditional_groups'];
+
+                if (this.usesConditionalGroups) {
+                    // New conditional rendering logic
+                    this.initConditionalFields(schema, currentSettings);
                 } else {
-                    // Fallback: derive fields from schema using registry as single source of truth
-                    this.fields = {};
-                    
-                    // Get schema from registry directly if not provided
-                    let actualSchema = schema;
-                    if (!actualSchema && componentType === 'trigger') {
-                        const triggerId = window.ruleBuilderInstance?.rule?.trigger?.id;
-                        if (triggerId) {
-                            const triggerComponent = window.ruleBuilderInstance?.getTriggerComponent(triggerId);
-                            actualSchema = triggerComponent?.schema;
-                        }
-                    }
-                    
-                    if (actualSchema && actualSchema.properties) {
-                        
-                        Object.entries(actualSchema.properties).forEach(([propKey, prop]) => {
-                            const enumOptions = prop.items?.enum || prop.enum || {};
-                            
-                            this.fields[propKey] = {
-                                id: `${componentType}_${index !== null ? index + '_' : ''}${propKey}`,
-                                key: propKey,
-                                title: prop.title || '',
-                                description: prop.description || '',
-                                widget: (function(p){
-                                    if (typeof p['ui:widget'] === 'string') {
-                                        return p['ui:widget'] === 'select' ? 'radio_group' : p['ui:widget'];
-                                    }
-                                    if (p.type === 'boolean') return 'checkbox';
-                                    if (p.type === 'array' && p.items && p.items.enum) return p['ui:searchable'] ? 'searchable_checkboxes' : 'checkboxes';
-                                    if (p.type === 'string' && p.enum) return 'radio_group';
-                                    if (p.type === 'number' || p.type === 'integer') return 'number';
-                                    return 'text';
-                                })(prop),
-                                value: (currentSettings && currentSettings[propKey] !== undefined) ? currentSettings[propKey] : (prop.default ?? ''),
-                                enumOptions: enumOptions,
-                                selectedValues: Array.isArray(currentSettings?.[propKey]) ? currentSettings[propKey] : Array.isArray(prop.default) ? prop.default : [],
-                                placeholder: prop['ui:placeholder'] || 'Search options...',
-                                minimum: prop.minimum ?? null,
-                                maximum: prop.maximum ?? null,
-                                step: prop.step ?? (prop.type === 'integer' ? 1 : null),
-                                default: prop.default ?? (prop.type === 'integer' || prop.type === 'number' ? 0 : (prop.type === 'array' ? [] : '')),
-                                radioInputs: prop['ui:radio_inputs'] || {}
-                            };
-                            
-                        });
-                    } else {
-                    }
+                    // Original behavior for backward compatibility
+                    this.initLegacyFields(schema, currentSettings);
                 }
-                
             } catch (e) {
                 console.error('ODCM settingsPanel.initSettings error:', e);
                 this.fields = {};
             }
         },
+
+        initConditionalFields(schema, currentSettings) {
+            // Initialize fields with conditional rendering support
+            this.fields = {};
+            const nonConditionalFields = window.ruleBuilderInstance.getNonConditionalFieldsForSchema(schema);
+
+            // Process non-conditional fields
+            Object.entries(nonConditionalFields).forEach(([propKey, prop]) => {
+                this.fields[propKey] = this.createFieldDefinition(propKey, prop, currentSettings);
+            });
+
+            // Process conditional fields (they'll be handled by conditional groups)
+            const conditionalFields = this.getConditionalFieldsFromSchema(schema);
+            Object.entries(conditionalFields).forEach(([propKey, prop]) => {
+                this.fields[propKey] = this.createFieldDefinition(propKey, prop, currentSettings);
+            });
+        },
+
+        initLegacyFields(schema, currentSettings) {
+            // Original field initialization logic
+            if (schema && schema.properties) {
+                Object.entries(schema.properties).forEach(([propKey, prop]) => {
+                    this.fields[propKey] = this.createFieldDefinition(propKey, prop, currentSettings);
+                });
+            }
+        },
+
+        createFieldDefinition(propKey, prop, currentSettings) {
+            const enumOptions = prop.items?.enum || prop.enum || {};
+            return {
+                id: `${componentType}_${index !== null ? index + '_' : ''}${propKey}`,
+                key: propKey,
+                title: prop.title || '',
+                description: prop.description || '',
+                widget: (function(p){
+                    if (typeof p['ui:widget'] === 'string') {
+                        return p['ui:widget'] === 'select' ? 'radio_group' : p['ui:widget'];
+                    }
+                    if (p.type === 'boolean') return 'checkbox';
+                    if (p.type === 'array' && p.items && p.items.enum) return p['ui:searchable'] ? 'searchable_checkboxes' : 'checkboxes';
+                    if (p.type === 'string' && p.enum) return 'radio_group';
+                    if (p.type === 'number' || p.type === 'integer') return 'number';
+                    return 'text';
+                })(prop),
+                value: (currentSettings && currentSettings[propKey] !== undefined) ? currentSettings[propKey] : (prop.default ?? ''),
+                enumOptions: enumOptions,
+                selectedValues: Array.isArray(currentSettings?.[propKey]) ? currentSettings[propKey] : Array.isArray(prop.default) ? prop.default : [],
+                placeholder: prop['ui:placeholder'] || 'Search options...',
+                minimum: prop.minimum ?? null,
+                maximum: prop.maximum ?? null,
+                step: prop.step ?? (prop.type === 'integer' ? 1 : null),
+                default: prop.default ?? (prop.type === 'integer' || prop.type === 'number' ? 0 : (prop.type === 'array' ? [] : '')),
+                radioInputs: prop['ui:radio_inputs'] || {}
+            };
+        },
+
+        getConditionalFieldsFromSchema(schema) {
+            if (!schema.properties.comparison_type?.['ui:conditional_groups']) {
+                return {};
+            }
+
+            const conditionalGroups = schema.properties.comparison_type['ui:conditional_groups'];
+            const conditionalFields = {};
+
+            // Collect all fields that are in conditional groups
+            Object.values(conditionalGroups).forEach(fieldKeys => {
+                fieldKeys.forEach(fieldKey => {
+                    if (schema.properties[fieldKey]) {
+                        conditionalFields[fieldKey] = schema.properties[fieldKey];
+                    }
+                });
+            });
+
+            return conditionalFields;
+        },
+
+        // Add conditional rendering support
+        getConditionalFieldGroups() {
+            try {
+                // Only apply conditional rendering for conditions with proper index
+                if (componentType !== 'condition' || index === null || index === undefined) {
+                    return null;
+                }
+
+                const condition = window.ruleBuilderInstance?.rule?.conditions?.[index];
+                if (!condition?.id) {
+                    return null;
+                }
+
+                const component = window.getConditionComponent(condition.id);
+                if (!component?.schema?.properties?.comparison_type?.['ui:conditional_groups']) {
+                    return null;
+                }
+
+                const comparisonType = condition.settings?.comparison_type;
+                const conditionalGroups = component.schema.properties.comparison_type['ui:conditional_groups'];
+
+                return conditionalGroups[comparisonType] || [];
+            } catch (e) {
+                console.error('ODCM getConditionalFieldGroups error:', e);
+                return null;
+            }
+        },
+
+        // Check if a field should be visible based on current selection
+        shouldShowField(fieldKey) {
+            try {
+                const conditionalGroups = this.getConditionalFieldGroups();
+                if (!conditionalGroups) return true;
+
+                return conditionalGroups.includes(fieldKey);
+            } catch (e) {
+                console.error('ODCM shouldShowField error:', e);
+                return true; // Fail safe: show the field if there's an error
+            }
+        },
+
+        // Get the current comparison type
+        getCurrentComparisonType() {
+            try {
+                if (componentType !== 'condition' || index === null || index === undefined) {
+                    return null;
+                }
+
+                return window.ruleBuilderInstance?.rule?.conditions?.[index]?.settings?.comparison_type;
+            } catch (e) {
+                console.error('ODCM getCurrentComparisonType error:', e);
+                return null;
+            }
+        },
+
         // Bridge update helpers into main component instance
         updateSetting(key, value, type, idx) { window.ruleBuilderInstance?.updateSetting(key, value, type, idx); },
         updateArraySetting(key, value, checked, type, idx) { window.ruleBuilderInstance?.updateArraySetting(key, value, checked, type, idx); },
@@ -1698,6 +1940,9 @@ function settingsPanel(componentType, index) {
         updateSiblingField(parentKey, siblingKey, value, type, idx) { window.ruleBuilderInstance?.updateSiblingField(parentKey, siblingKey, value, type, idx); }
     };
 }
+
+// Expose ruleBuilder to global scope for Alpine.js
+window.ruleBuilder = ruleBuilder;
 
 // Searchable checkbox widget helper
 // Global proxies to access component definitions from templates (Alpine evaluates globals)

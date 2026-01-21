@@ -140,7 +140,7 @@ function odcm_deactivation_cleanup() {
 add_action('plugins_loaded', function() {
     // Bootstrap the plugin components
     Plugin::instance()->bootstrap();
-    
+
     // Initialize manual status tracking for chain of custody logging
     ManualStatusTracker::init();
 });

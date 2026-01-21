@@ -700,7 +700,9 @@ final class RuleBuilder
                 'step' => isset($property['step']) ? $property['step'] : (($property['type'] ?? '') === 'integer' ? 1 : null),
                 'default' => $default_value,
                 // Radio-with-inline-number patterns mapping
-                'radioInputs' => $property['ui:radio_inputs'] ?? []
+                'radioInputs' => $property['ui:radio_inputs'] ?? [],
+                // Inline grouping for horizontal layout
+                'inlineGroup' => $property['ui:inline_group'] ?? null
             ];
         }
         
@@ -1110,9 +1112,38 @@ final class RuleBuilder
                             <div x-show="editingConditionIndex === index" 
                                  class="odcm-settings-panel"
                                  :class="{ 'odcm-expanded': editingConditionIndex === index }">
-                                <div x-data="settingsPanel('condition', index)" x-init="initSettings(getConditionComponent(condition.id)?.schema, condition.settings || {})">
+                                <div x-data="{ 
+                                        ...settingsPanel('condition', index),
+                                        activeGroup: (rule.conditions[index]?.settings?.comparison_type || getConditionComponent(condition.id)?.schema?.properties?.comparison_type?.default || 'absolute_date'),
+                                        hasConditionalGroups() {
+                                            return !!getConditionComponent(condition.id)?.schema?.properties?.comparison_type?.['ui:conditional_groups'];
+                                        },
+                                        getConditionalGroupFields() {
+                                            const schema = getConditionComponent(condition.id)?.schema;
+                                            if (!schema?.properties?.comparison_type?.['ui:conditional_groups']) return null;
+                                            return schema.properties.comparison_type['ui:conditional_groups'][this.activeGroup] || [];
+                                        },
+                                        isFieldInActiveGroup(fieldKey) {
+                                            if (!this.hasConditionalGroups()) return true;
+                                            const schema = getConditionComponent(condition.id)?.schema;
+                                            const conditionalGroups = schema?.properties?.comparison_type?.['ui:conditional_groups'];
+                                            if (!conditionalGroups) return true;
+                                            // comparison_type is always visible (it's the controller)
+                                            if (fieldKey === 'comparison_type') return true;
+                                            // Check if field is in any conditional group
+                                            const allConditionalFields = Object.values(conditionalGroups).flat();
+                                            if (!allConditionalFields.includes(fieldKey)) return true;
+                                            // Check if field is in the active group
+                                            const activeFields = conditionalGroups[this.activeGroup] || [];
+                                            return activeFields.includes(fieldKey);
+                                        }
+                                     }" 
+                                     x-init="initSettings(getConditionComponent(condition.id)?.schema, condition.settings || {}); 
+                                             $watch('rule.conditions[' + index + '].settings.comparison_type', (val) => { if (val) activeGroup = val; })">
                                     <template x-for="(field, fieldKey) in fields" :key="fieldKey">
-                                        <div class="odcm-form-group">
+                                        <div class="odcm-form-group" 
+                                             x-show="isFieldInActiveGroup(fieldKey)"
+                                             :class="field.inlineGroup ? 'odcm-inline-group odcm-inline-group--' + field.inlineGroup : ''">
                                             <!-- Field Label -->
                                             <label x-show="field.title" :for="field.id" class="odcm-form-label" x-text="field.title"></label>
                                             
@@ -1216,7 +1247,7 @@ final class RuleBuilder
                                                                    :name="field.id"
                                                                    :value="val"
                                                                    :checked="(rule.conditions[index]?.settings[field.key] ?? field.value) === val"
-                                                                   @change="updateSetting(field.key, $event.target.value, 'condition', index)">
+                                                                   @change="updateSetting(field.key, $event.target.value, 'condition', index); if (fieldKey === 'comparison_type') activeGroup = $event.target.value">
                                                             <span class="odcm-radio-text" x-text="label"></span>
                                                             <!-- Inline numeric input when radioInputs mapping exists -->
                                                             <template x-if="field.radioInputs && field.radioInputs[val]">
@@ -1259,6 +1290,36 @@ final class RuleBuilder
                                                           @input="updateSetting(field.key, $event.target.value, 'condition', index)"></textarea>
                                             </template>
 
+                                            <!-- Date picker widget -->
+                                            <template x-if="field.widget === 'date_picker'">
+                                                <input type="date" 
+                                                       :id="field.id"
+                                                       class="odcm-form-input odcm-date-picker"
+                                                       :value="field.value"
+                                                       @input="updateSetting(field.key, $event.target.value, 'condition', index)">
+                                            </template>
+                                            
+                                            <!-- Time picker widget -->
+                                            <template x-if="field.widget === 'time_picker'">
+                                                <input type="time" 
+                                                       :id="field.id"
+                                                       class="odcm-form-input odcm-time-picker"
+                                                       :value="field.value"
+                                                       @input="updateSetting(field.key, $event.target.value, 'condition', index)">
+                                            </template>
+                                            
+                                            <!-- Number input widget -->
+                                            <template x-if="field.widget === 'number'">
+                                                <input type="number" 
+                                                       :id="field.id"
+                                                       class="odcm-form-input odcm-number-input"
+                                                       :value="field.value"
+                                                       :min="field.minimum"
+                                                       :max="field.maximum"
+                                                       :step="field.step"
+                                                       @input="updateSetting(field.key, $event.target.value, 'condition', index)">
+                                            </template>
+                                            
                                             <!-- Other field types -->
                                             <template x-if="field.widget === 'text'">
                                                 <input type="text" 

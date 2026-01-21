@@ -384,13 +384,13 @@ class DiagnosticRunner
         
         // Header with timestamp and version
         $report .= sprintf(
-            /* translators: %s: Current date and time */
+            /* translators: %s: Date and time when the report was generated */
             __('Generated: %s', 'order-daemon'),
             current_time('Y-m-d H:i T')
         ) . "\n";
         
         $report .= sprintf(
-            /* translators: %s: Plugin version number */
+            /* translators: %s: The Order Daemon plugin version number */
             __('Plugin Version: %s', 'order-daemon'),
             defined('ODCM_VERSION') ? ODCM_VERSION : 'unknown'
         ) . "\n\n";
@@ -456,7 +456,7 @@ class DiagnosticRunner
         }
         
         $report .= sprintf(
-            /* translators: %s: PHP version */
+            /* translators: %s: The PHP version number */
             __('PHP Version: %s', 'order-daemon'),
             $system_info['php_version']
         ) . "\n";
@@ -476,10 +476,10 @@ class DiagnosticRunner
         ) . "\n";
         
         $report .= sprintf(
-            /* translators: %s: Debug mode status */
+            /* translators: %s: Whether debug mode is enabled (Enabled/Disabled) */
             __('Debug Mode: %s', 'order-daemon'),
-            $system_info['debug_mode'] ? 
-                __('enabled', 'order-daemon') : 
+            $system_info['debug_mode'] ?
+                __('enabled', 'order-daemon') :
                 __('disabled', 'order-daemon')
         ) . "\n\n";
 
