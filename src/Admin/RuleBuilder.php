@@ -1012,18 +1012,18 @@ final class RuleBuilder
                                                 <textarea :id="field.id"
                                                           class="odcm-form-textarea"
                                                           rows="6"
-                                                          :placeholder="field.description || ''"
+                                                          :placeholder="field.placeholder || ''"
                                                           :value="field.value"
                                                           @input="updateSetting(field.key, $event.target.value, 'trigger', 0)"></textarea>
                                             </template>
                                             
                                             <!-- Other field types -->
                                             <template x-if="field.widget === 'text'">
-                                                <input type="text" 
+                                                <input type="text"
                                                        :id="field.id"
                                                        class="odcm-form-input"
                                                        :value="field.value"
-                                                       :placeholder="field.description || ''"
+                                                       :placeholder="field.placeholder || ''"
                                                        @input="updateSetting(field.key, $event.target.value, 'trigger', 0)">
                                             </template>
                                             
@@ -1140,8 +1140,9 @@ final class RuleBuilder
                                      }" 
                                      x-init="initSettings(getConditionComponent(condition.id)?.schema, condition.settings || {}); 
                                              $watch('rule.conditions[' + index + '].settings.comparison_type', (val) => { if (val) activeGroup = val; })">
-                                    <template x-for="(field, fieldKey) in fields" :key="fieldKey">
-                                        <div class="odcm-form-group" 
+                                    <div class="odcm-settings-form">
+                                        <template x-for="(field, fieldKey) in fields" :key="fieldKey">
+                                            <div class="odcm-form-group" 
                                              x-show="isFieldInActiveGroup(fieldKey)"
                                              :class="field.inlineGroup ? 'odcm-inline-group odcm-inline-group--' + field.inlineGroup : ''">
                                             <!-- Field Label -->
@@ -1285,32 +1286,32 @@ final class RuleBuilder
                                                 <textarea :id="field.id"
                                                           class="odcm-form-textarea"
                                                           rows="6"
-                                                          :placeholder="field.description || ''"
+                                                          :placeholder="field.placeholder || ''"
                                                           :value="field.value"
                                                           @input="updateSetting(field.key, $event.target.value, 'condition', index)"></textarea>
                                             </template>
 
                                             <!-- Date picker widget -->
                                             <template x-if="field.widget === 'date_picker'">
-                                                <input type="date" 
+                                                <input type="date"
                                                        :id="field.id"
                                                        class="odcm-form-input odcm-date-picker"
                                                        :value="field.value"
                                                        @input="updateSetting(field.key, $event.target.value, 'condition', index)">
                                             </template>
-                                            
+
                                             <!-- Time picker widget -->
                                             <template x-if="field.widget === 'time_picker'">
-                                                <input type="time" 
+                                                <input type="time"
                                                        :id="field.id"
                                                        class="odcm-form-input odcm-time-picker"
                                                        :value="field.value"
                                                        @input="updateSetting(field.key, $event.target.value, 'condition', index)">
                                             </template>
-                                            
+
                                             <!-- Number input widget -->
                                             <template x-if="field.widget === 'number'">
-                                                <input type="number" 
+                                                <input type="number"
                                                        :id="field.id"
                                                        class="odcm-form-input odcm-number-input"
                                                        :value="field.value"
@@ -1319,14 +1320,14 @@ final class RuleBuilder
                                                        :step="field.step"
                                                        @input="updateSetting(field.key, $event.target.value, 'condition', index)">
                                             </template>
-                                            
+
                                             <!-- Other field types -->
                                             <template x-if="field.widget === 'text'">
-                                                <input type="text" 
+                                                <input type="text"
                                                        :id="field.id"
                                                        class="odcm-form-input"
                                                        :value="field.value"
-                                                       :placeholder="field.description || ''"
+                                                       :placeholder="field.placeholder || ''"
                                                        @input="updateSetting(field.key, $event.target.value, 'condition', index)">
                                             </template>
                                             
@@ -1341,6 +1342,7 @@ final class RuleBuilder
                                             </template>
                                         </div>
                                     </template>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1495,15 +1497,15 @@ final class RuleBuilder
                                             </template>
                                         </template>
                                         
-                                        <!-- Other field types -->
-                                        <template x-if="field.widget === 'text'">
-                                            <input type="text" 
-                                                   :id="field.id"
-                                                   class="odcm-form-input"
-                                                   :value="field.value"
-                                                   :placeholder="field.description || ''"
-                                                   @input="updateSetting(field.key, $event.target.value, 'primaryAction', null)">
-                                        </template>
+                                            <!-- Other field types -->
+                                            <template x-if="field.widget === 'text'">
+                                                <input type="text"
+                                                       :id="field.id"
+                                                       class="odcm-form-input"
+                                                       :value="field.value"
+                                                       :placeholder="field.placeholder || ''"
+                                                       @input="updateSetting(field.key, $event.target.value, 'primaryAction', null)">
+                                            </template>
                                         
                                         <template x-if="field.widget === 'checkbox'">
                                             <label class="odcm-checkbox-label">
@@ -1695,7 +1697,7 @@ final class RuleBuilder
                                                            :id="field.id"
                                                            class="odcm-form-input"
                                                            :value="field.value"
-                                                           :placeholder="field.description || ''"
+                                                           :placeholder="field.placeholder || ''"
                                                            @input="updateSetting(field.key, $event.target.value, 'action', index)">
                                                 </template>
 
@@ -1703,7 +1705,7 @@ final class RuleBuilder
                                                     <textarea :id="field.id"
                                                            class="odcm-form-textarea"
                                                            rows="4"
-                                                           :placeholder="field.description || ''"
+                                                           :placeholder="field.placeholder || ''"
                                                            :value="field.value"
                                                            @input="updateSetting(field.key, $event.target.value, 'action', index)"></textarea>
                                                 </template>

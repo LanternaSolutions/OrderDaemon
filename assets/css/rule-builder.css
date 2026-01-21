@@ -681,7 +681,7 @@
 
 /* Button-style Radio Groups */
 .odcm-button-radio-group {
-    display: flex;
+    display: block;
     border: 1px solid var(--odcm-component-border-color);
     border-radius: var(--odcm-component-border-radius);
     overflow: hidden;
@@ -1652,6 +1652,7 @@
     flex-wrap: wrap;
     gap: var(--odcm-theme-spacing-sm);
     align-items: flex-end;
+    width: 100%;
 }
 
 .odcm-horizontal-field-group .odcm-form-group {
@@ -1660,10 +1661,82 @@
     margin-bottom: 0;
 }
 
+/* Ensure inline group containers display horizontally */
+.odcm-horizontal-field-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--odcm-theme-spacing-md);
+    align-items: center;
+    width: 100%;
+}
+
+/* Make sure fields within horizontal groups don't wrap */
+.odcm-horizontal-field-group > * {
+    flex: 1;
+    min-width: 120px;
+    margin-bottom: 0;
+}
+
+/* Specific styling for date and time pickers in horizontal groups */
+.odcm-horizontal-field-group .odcm-date-picker,
+.odcm-horizontal-field-group .odcm-time-picker {
+    min-width: 160px;
+    max-width: 200px;
+}
+
+/* Specific styling for number inputs in horizontal groups */
+.odcm-horizontal-field-group .odcm-number-input {
+    min-width: 80px;
+    max-width: 120px;
+    text-align: center;
+}
+
 /* Flexible width for number inputs in horizontal groups */
 .odcm-horizontal-field-group .odcm-form-input[type="number"] {
     width: auto;
     min-width: 100px;
+}
+
+/* Specific styling for inline groups to ensure proper horizontal layout */
+.odcm-inline-group {
+    display: inline-flex;
+    flex-direction: column;
+    min-width: 120px;
+    max-width: 250px;
+    margin-right: var(--odcm-theme-spacing-md);
+    margin-bottom: var(--odcm-theme-spacing-sm);
+    vertical-align: top;
+}
+
+/* Ensure inline groups within horizontal containers work correctly */
+.odcm-horizontal-field-group .odcm-inline-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 100px;
+    margin-right: 0;
+    margin-bottom: 0;
+}
+
+/* Debug styling to make inline groups more visible during development */
+.odcm-inline-group--absolute_date {
+    border: 1px dashed #ccc;
+    padding: 5px;
+}
+
+.odcm-inline-group--relative_inputs {
+    border: 1px dashed #ccc;
+    padding: 5px;
+}
+
+.odcm-inline-group--date_range {
+    border: 1px dashed #ccc;
+    padding: 5px;
+}
+
+.odcm-inline-group--time_of_day {
+    border: 1px dashed #ccc;
+    padding: 5px;
 }
 
 /* Time range specific styling */

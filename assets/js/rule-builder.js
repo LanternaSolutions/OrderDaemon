@@ -1240,12 +1240,16 @@ function ruleBuilder() {
 
             // Debug log to verify this method is being called
             console.log('🔧 RENDERING CONDITIONAL FIELD GROUPS for comparison type:', comparisonType);
+            console.log('🔧 Conditional groups found:', Object.keys(conditionalGroups));
+            console.log('🔧 Current settings:', currentSettings);
 
             // Container for conditional field groups (no x-data here - parent form already has it)
             html += `<div class="odcm-conditional-field-groups">`;
 
             // Create a container for each possible group
             for (const [groupKey, fieldKeys] of Object.entries(conditionalGroups)) {
+                console.log(`🔧 Processing group: ${groupKey} with fields:`, fieldKeys);
+
                 html += `<div class="odcm-field-group odcm-field-group-${groupKey}"`;
                 html += ` x-show="activeGroup === '${groupKey}'"`;
                 html += `>`;
@@ -1254,36 +1258,69 @@ function ruleBuilder() {
                 const groupLabel = schema.properties.comparison_type.enum[groupKey] || groupKey;
                 html += `<div class="odcm-field-group-header">${groupLabel}</div>`;
 
-                // Render fields in this group with horizontal layout where appropriate
-                html += `<div class="odcm-horizontal-field-group">`;
+                // Group fields by their ui:inline_group values for proper horizontal layout
+                const inlineGroups = {};
+
+                // First, organize fields by their inline group
                 for (const fieldKey of fieldKeys) {
                     if (schema.properties[fieldKey]) {
-                        // Special handling for related fields that should be horizontal
-                        if (['time_period', 'time_unit'].includes(fieldKey) ||
-                            ['range_start_date', 'range_end_date'].includes(fieldKey) ||
-                            ['time_range_start', 'time_range_end'].includes(fieldKey)) {
-                            html += this.renderFormField(
-                                fieldKey,
-                                schema.properties[fieldKey],
-                                currentSettings[fieldKey],
-                                componentType,
-                                index
-                            );
-                        } else {
-                            // Non-related fields get individual containers
+                        const field = schema.properties[fieldKey];
+                        const inlineGroup = field['ui:inline_group'] || 'default';
+
+                        if (!inlineGroups[inlineGroup]) {
+                            inlineGroups[inlineGroup] = [];
+                        }
+                        inlineGroups[inlineGroup].push({
+                            key: fieldKey,
+                            field: field,
+                            value: currentSettings[fieldKey]
+                        });
+
+                        console.log(`🔧 Field ${fieldKey} assigned to inline group: ${inlineGroup}`);
+                    }
+                }
+
+                console.log(`🔧 Inline groups organized:`, Object.keys(inlineGroups));
+
+                // Render each inline group
+                for (const [inlineGroupName, fields] of Object.entries(inlineGroups)) {
+                    console.log(`🔧 Rendering inline group: ${inlineGroupName} with ${fields.length} fields`);
+
+                    if (inlineGroupName === 'default') {
+                        // Render default fields individually
+                        for (const fieldData of fields) {
                             html += `<div class="odcm-form-group">`;
                             html += this.renderFormField(
-                                fieldKey,
-                                schema.properties[fieldKey],
-                                currentSettings[fieldKey],
+                                fieldData.key,
+                                fieldData.field,
+                                fieldData.value,
                                 componentType,
                                 index
                             );
                             html += `</div>`;
                         }
+                    } else {
+                        // Render inline group fields together in a horizontal container
+                        console.log(`🔧 Creating horizontal container for inline group: ${inlineGroupName}`);
+                        html += `<div class="odcm-form-group odcm-inline-group odcm-inline-group--${inlineGroupName}">`;
+                        html += `<div class="odcm-horizontal-field-group">`;
+
+                        for (const fieldData of fields) {
+                            console.log(`🔧 Rendering field ${fieldData.key} with skipWrapper=true`);
+                            html += this.renderFormField(
+                                fieldData.key,
+                                fieldData.field,
+                                fieldData.value,
+                                componentType,
+                                index,
+                                true  // Skip wrapper for inline group fields
+                            );
+                        }
+
+                        html += `</div>`;
+                        html += `</div>`;
                     }
                 }
-                html += `</div>`;
 
                 html += '</div>';
             }
@@ -1362,16 +1399,16 @@ function ruleBuilder() {
             );
         },
 
-        renderFormField(key, property, value, componentType, index) {
+        renderFormField(key, property, value, componentType, index, skipWrapper = false) {
             const fieldId = `${componentType}_${index !== null ? index + '_' : ''}${key}`;
+
+            let html = skipWrapper ? '' : '<div class="odcm-form-group">';
             
-            let html = '<div class="odcm-form-group">';
-            
-            if (property.title) {
+            if (property.title && !skipWrapper) {
                 html += `<label for="${fieldId}" class="odcm-form-label">${property.title}</label>`;
             }
             
-            if (property.description) {
+            if (property.description && !skipWrapper) {
                 html += `<div class="odcm-form-description">${property.description}</div>`;
             }
 
@@ -1393,7 +1430,7 @@ function ruleBuilder() {
                 html += this.renderTextInput(key, property, value, fieldId, componentType, index);
             }
 
-            html += '</div>';
+            html += skipWrapper ? '' : '</div>';
             return html;
         },
 
@@ -1463,10 +1500,11 @@ function ruleBuilder() {
 
         renderTextarea(key, property, value, fieldId, componentType, index) {
             const textValue = value || property.default || '';
+            const placeholder = property['ui:placeholder'] || '';
             return `<textarea id="${fieldId}" 
                               class="odcm-form-textarea"
                               rows="4"
-                              placeholder="${property.description || ''}"
+                              placeholder="${placeholder}"
                               @input="updateSetting('${key}', $event.target.value, '${componentType}', ${index})">${textValue}</textarea>`;
         },
 
@@ -1474,6 +1512,7 @@ function ruleBuilder() {
             const inputValue = value || property.default || '';
             const inputType = property.type === 'number' || property.type === 'integer' ? 'number' :
                 property.format === 'email' ? 'email' : 'text';
+            const placeholder = property['ui:placeholder'] || '';
 
             let attributes = '';
             if (property.type === 'number' || property.type === 'integer') {
@@ -1487,7 +1526,7 @@ function ruleBuilder() {
                            id="${fieldId}" 
                            class="odcm-form-input"
                            value="${this.escapeHtml(String(inputValue))}"
-                           placeholder="${property.description || ''}"
+                           placeholder="${placeholder}"
                            ${attributes}
                            @input="updateSetting('${key}', $event.target.value, '${componentType}', ${index})">`;
         },
