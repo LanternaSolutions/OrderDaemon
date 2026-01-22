@@ -229,8 +229,31 @@
     padding: var(--odcm-theme-spacing-sm) var(--odcm-theme-spacing-md);
     font-size: var(--odcm-theme-font-size-sm);
     border-radius: var(--odcm-component-border-radius);
+    background-color: var(--odcm-theme-grey-200);
+    color: var(--odcm-theme-blue-700);
+    border: solid 2px var(--odcm-theme-blue-700);
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 8px 10px;
+}
+
+.odcm-button:hover {
     background-color: var(--odcm-theme-blue-700);
     color: var(--odcm-theme-white);
+    cursor: pointer;
+}
+
+/* Button text spacing */
+.odcm-button-text {
+    margin-left: 4px;
+}
+
+.odcm-button .dashicons,
+.odcm-button .odcm-icon {
+  font-size: 16px;
+  line-height: 1em;
 }
 
 .odcm-button-small {

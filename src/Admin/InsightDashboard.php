@@ -859,7 +859,7 @@ class InsightDashboard
                 <div class="odcm-stream-controls">
                     <div class="odcm-refresh-controls">
                         <button type="button" 
-                                class="odcm-refresh-button button"
+                                class="odcm-refresh-button odcm-button"
                                 @click="manualRefresh()"
                                 :disabled="loading">
                             <span class="dashicons dashicons-update" :class="{ 'is-spinning': isRefreshing }"></span>
@@ -1094,7 +1094,7 @@ class InsightDashboard
                         <div class="odcm-setting-control">
                             <span class="odcm-setting-hint">Batch operation to reprocess orders with processing/on-hold statuses. (Useful after payment system failures and rule changes.)</span>
                             <button type="button"
-                                    class="odcm-refresh-button button"
+                                    class="odcm-refresh-button odcm-button"
                                     @click="reprocessPendingOrders()"
                                     :disabled="isReprocessing">
                                 <span class="dashicons dashicons-update" :class="{ 'is-spinning': isReprocessing }"></span>
