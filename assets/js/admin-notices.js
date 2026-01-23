@@ -53,9 +53,9 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => noticeDiv.remove(), 500);
 
             // Use the properly localized AJAX URL, with fallback to global ajaxurl
-            const ajaxUrl = (typeof odcm_ajax !== 'undefined' && odcm_ajax.ajaxurl) 
-                ? odcm_ajax.ajaxurl 
-                : (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php');
+            const ajaxUrl = (typeof odcm_ajax !== 'undefined' && odcm_ajax.ajaxurl)
+                ? odcm_ajax.ajaxurl
+                : (typeof ajaxurl !== 'undefined' ? ajaxurl : admin_url('admin-ajax.php'));
             
             if (odcmIsDebug()) { console.log('ODCM Admin Notices: Using AJAX URL:', ajaxUrl); }
 

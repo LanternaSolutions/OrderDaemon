@@ -138,8 +138,11 @@ Yes! Order Daemon includes numerous hooks and filters for developers to extend f
 == Screenshots ==
 
 1. **Rule Builder Interface** - Create automation rules with an intuitive drag-and-drop interface
+https://www.orderdaemon.com/wp-content/uploads/2026/01/rule-builder-2.png
 2. **Insights Dashboard** - Monitor audit log automation activity and performance in real-time
+https://www.orderdaemon.com/wp-content/uploads/2026/01/insight-dashboard.png
 3. **Rule Management** - Organize and manage multiple automation rules from a central location
+https://www.orderdaemon.com/wp-content/uploads/2026/01/all-order-rules.png
 
 == Third-Party Libraries ==
 

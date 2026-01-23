@@ -1,0 +1,1660 @@
+Server Side PHP and Enqueuing
+In this article
+
+    Enqueue Script
+        Enqueue
+        Nonce
+        Localize 
+    AJAX Action
+        Data
+        Die
+        AJAX Handler Summary
+
+↑ Back to top
+
+There are two parts to the server side PHP script that are needed to implement AJAX communication. First we need to enqueue the jQuery script on the web page and localize any PHP values that the jQuery script needs. Second is the actual handling of the AJAX request.
+Enqueue Script
+
+This section covers the two major quirks of AJAX in WordPress that trip up experienced coders new to WordPress. One is the need to enqueue scripts in order to get meta links to appear correctly in the page’s head section. The other is that all AJAX requests need to be sent through wp-admin/admin-ajax.php. Never send requests directly to your plugin pages.
+Enqueue
+
+Use the function wp_enqueue_script() to get WordPress to insert a meta link to your script in the page’s section. Never hardcode such links in the header template. As a plugin developer, you do not have ready access to the header template, but this rule bears mentioning anyway.
+
+The enqueue function accepts five parameters as follows:
+
+    $handle is the name for the script.
+    $src defines where the script is located. For portability, use plugins_url() to build the proper URL. If you are enqueuing the script for something besides a plugin, use some related function to create a proper URL – never hardcode it
+    $deps is an array that can handle any script that your new script depends on, such as jQuery. Since we are using jQuery to send an AJAX request, you will at least need to list 'jquery' in the array.
+    $ver lets you list a version number.
+    $args an array of arguments that define footer printing (via an in_footer key) and script loading strategies (via a strategy key) such as defer or async. This replaces/overloads the $in_footer parameter as of WordPress version 6.3.
+
+Copy
+
+wp_enqueue_script(
+	'ajax-script',
+	plugins_url( '/js/myjquery.js', __FILE__ ),
+	array( 'jquery' ),
+	'1.0.,0',
+	array(
+	   'in_footer' => true,
+	)
+);
+
+You cannot enqueue scripts directly from your plugin code page when it is loaded. Scripts must be enqueued from one of a few action hooks – which one depends on what sort of page the script needs to be linked to. For administration pages, use admin_enqueue_scripts. For front-end pages use wp_enqueue_scripts, except for the login page, in which case use login_enqueue_scripts.
+
+The admin_enqueue_scripts hook passes the current page filename to your callback. Use this information to only enqueue your script on pages where it is needed. The front-end version does not pass anything. In that case, use template tags such as is_home(), is_single(), etc. to ensure that you only enqueue your script where it is needed. This is the complete enqueue code for our example:
+Expand code
+Copy
+
+add_action( 'admin_enqueue_scripts', 'my_enqueue' );
+function my_enqueue( $hook ) {
+	if ( 'myplugin_settings.php' !== $hook ) {
+		return;
+	}
+	wp_enqueue_script(
+		'ajax-script',
+		plugins_url( '/js/myjquery.js', __FILE__ ),
+		array( 'jquery' ),
+		'1.0.0',
+		array(
+		   'in_footer' => true,
+		)
+	);
+}
+
+Why do we use a named function here but use anonymous functions with jQuery? Because closures are only recently supported by PHP. jQuery has supported them for quite some time. Since some people may still be running older versions of PHP, we always use named functions for maximum compatibility. If you have a recent PHP version and are developing only for your own installation, go ahead and use closures if you like.
+Register vs. Enqueue
+
+You will see examples in other tutorials that religiously use wp_register_script(). This is fine, but its use is optional. What is not optional is wp_enqueue_script(). This function must be called in order for your script file to be properly linked on the web page. So why register scripts? It creates a useful tag or handle with which you can easily reference the script in various parts of your code as needed. If you just need your script loaded and are not referencing it elsewhere in your code, there is no need to register it.
+Delayed Script Loading
+
+WordPress provides support for specifying a script loading strategy via the wp_register_script() and wp_enqueue_script() functions, by way of the strategy key within the new $args array parameter introduced in WordPress 6.3.
+
+Supported strategies are as follows:
+
+    defer
+        Added by specifying an array key value pair of 'strategy' => 'defer' to the $args parameter.
+        Scripts marked for deferred execution — via the defer script attribute — are only executed once the DOM tree has fully loaded (but before the DOMContentLoaded and window load events). Deferred scripts are executed in the same order they were printed/added in the DOM, unlike asynchronous scripts.
+    async
+        Added by specifying an array key value pair of 'strategy' => 'async' to the $args parameter.
+        Scripts marked for asynchronous execution — via the async script attribute — are executed as soon as they are loaded by the browser. Asynchronous scripts do not have a guaranteed execution order, as script B (although added to the DOM after script A) may execute first given that it may complete loading prior to script A. Such scripts may execute either before the DOM has been fully constructed or after the DOMContentLoaded event.
+
+Following is an example of specifying a loading strategy for an additional script enqueue within our plugin:
+Copy
+
+wp_register_script(
+    'ajax-script-two',
+    plugins_url( '/js/myscript.js', __FILE__ ),
+    array( ajax-script ),
+    '1.0.,0',
+    array(
+          'strategy' => 'defer',
+     )
+);
+
+The same approach applies when using wp_enqueue_script(). In the example above, we indicate that we intend to load the 'ajax-script-two' script in a deferred manner.
+
+When specifying a delayed script loading strategy, consideration of the script’s dependency tree (its dependencies and/or dependents) is taken into account when deciding on an “eligible strategy” so as not to result in application of a strategy that is valid for one script but detrimental to others in the tree by causing an unintended out of order of execution. As a result of such logic, the intended loading strategy that you pass via the $args parameter may not be the final (chosen) strategy, but it will never be detrimental to (or stricter than) the intended strategy.
+Nonce
+
+You need to create a nonce so that the jQuery AJAX request can be validated as a legitimate request instead of a potentially nefarious request from some unknown bad actor. Only your PHP script and your jQuery script will know this value. When the request is received, you can verify it is the same value created here. This is how to create a nonce for our example:
+Copy
+
+$title_nonce = wp_create_nonce( 'title_example' );
+
+The parameter title_example can be any arbitrary string. It’s suggested the string be related to what the nonce is used for, but it can really be anything that suits you.
+Localize
+
+If you recall from the jQuery Section, data created by PHP for use by jQuery was passed in a global object named my_ajax_obj. In our example, this data was a nonce and the complete URL to admin-ajax.php. The process of assigning object properties and creating the global jQuery object is called localizing. This is the localizing code used in our example which uses wp_localize_script().
+Copy
+
+wp_localize_script(
+	'ajax-script',
+	'my_ajax_obj',
+	array(
+		'ajax_url' => admin_url( 'admin-ajax.php' ),
+		'nonce'    => $title_nonce,
+	)
+);
+
+Note how our script handle ajax-script is used so that the global object is assigned to the right script. The object is global to our script, not to all scripts. Localization can also be called from the same hook that is used to enqueue scripts. The same goes for creating a nonce, though that particular function can be called virtually anywhere. All of that combined together in a single hook callback looks like this:
+Expand code
+Copy
+
+add_action( 'admin_enqueue_scripts', 'my_enqueue' );
+
+/**
+ * Enqueue my scripts and assets.
+ *
+ * @param $hook
+ */
+function my_enqueue( $hook ) {
+	if ( 'myplugin_settings.php' !== $hook ) {
+		return;
+	}
+	wp_enqueue_script(
+		'ajax-script',
+		plugins_url( '/js/myjquery.js', __FILE__ ),
+		array( 'jquery' ),
+		'1.0.0',
+		true
+	);
+
+	wp_localize_script(
+		'ajax-script',
+		'my_ajax_obj',
+		array(
+			'ajax_url' => admin_url( 'admin-ajax.php' ),
+			'nonce'    => wp_create_nonce( 'title_example' ),
+		)
+	);
+}
+
+Remember to only add this nonce localization to the needed pages, do not display a nonce to someone who should not use it. And remember to use current_user_can() with a capability or role to complete the security.
+AJAX Action
+
+The other major part of the server side PHP code is the actual AJAX handler that receives the POSTed data, does something with it, then sends an appropriate response back to the browser. This takes on the form of a WordPress action hook. Which hook tag you use depends on whether the user is logged in or not and what value your jQuery script passed as the action: value.
+$_GET , $_POST and $_COOKIE vs $_REQUEST
+
+You’ve probably used one or more of the PHP super globals such as $_GET or $_POST to retrieve values from forms or cookies (using $_COOKIE). Maybe you prefer $_REQUEST instead, or at least have seen it used. It’s kind of cool – regardless of the request method, POST or GET, it will have the form values. Works great for pages that use both methods. On top of that, it has cookie values as well. One stop shopping! Therein lies its tragic flaw. In the case of a name conflict, the cookie value will override any form values. Thus it is ridiculously easy for a bad actor to craft a counterfeit cookie on their browser, which will overwrite any form value you might be expecting from the request. $_REQUEST is an easy route for hackers to inject arbitrary data into your form values. To be extra safe, stick to the specific variables and avoid the one size fits all.
+
+Since our AJAX exchange is for the plugin’s settings page, the user must be logged in. If you recall from the jQuery section, the action: value is "my_tag_count". This means our action hook tag will be wp_ajax_my_tag_count. If our AJAX exchange were to be utilized by users who were not currently logged in, the action hook tag would be wp_ajax_nopriv_my_tag_count The basic code used to hook the action looks like this:
+Copy
+
+add_action( 'wp_ajax_my_tag_count', 'my_ajax_handler' );
+
+/**
+ * Handles my AJAX request.
+ */
+function my_ajax_handler() {
+	// Handle the ajax request here
+
+	wp_die(); // All ajax handlers die when finished
+}
+
+The first thing your AJAX handler should do is verify the nonce sent by jQuery with check_ajax_referer(), which should be the same value that was localized when the script was enqueued.
+Copy
+
+check_ajax_referer( 'title_example' );
+
+The provided parameter must be identical to the parameter provided earlier to wp_create_nonce(). The function simply dies if the nonce does not check out. If this were a true nonce, now that it was used, the value is no longer any good. You would then generate a new one and send it to the callback script so that it can be used for the next request. But since WordPress nonces are good for twenty-four hours, you needn’t do anything but check it.
+Data
+
+With the nonce out of the way, our handler can deal with the data sent by the jQuery script contained in $_POST['title']. First we assign the value to a new variable, after running it through wp_unslash() to remove any unexpected quotes.
+Copy
+
+$title = wp_unslash( $_POST['title'] );
+
+We can save the user’s selection in user meta by using update_user_meta().
+Copy
+
+update_user_meta( get_current_user_id(), 'title_preference', sanitize_post_title( $title ) );
+
+Then we build a query in order to get the post count for the selected title tag.
+Copy
+
+$args      = array(
+	'tag' => $title,
+);
+$the_query = new WP_Query( $args );
+
+Finally we can send the response back to the jQuery script. There’s several ways to transmit data. Let’s look at some of the options before we deal with the specifics of our example.
+XML
+
+PHP support for XML leaves something to be desired. Fortunately, WordPress provides the WP_Ajax_Response class to make the task easier. The WP_Ajax_Response class will generate an XML-formatted response, set the correct content type for the header, output the response xml, then die — ensuring a proper XML response.
+JSON
+
+This format is lightweight and easy to use, and WordPress provides the wp_send_json function to json-encode your response, print it, and die — effectively replacing WP_Ajax_Response. WordPress also provides the wp_send_json_success and wp_send_json_error functions, which allow the appropriate done() or fail() callbacks to fire in JS.
+Other
+
+You can transfer data any way you like, as long as the sender and receiver are coordinated. Text formats like comma delimited or tab delimited are one of many possibilities. For small amounts of data, sending the raw stream may be adequate. That is what we will do with our example – we will send the actual replacement HTML, nothing else.
+Copy
+
+echo esc_html( $title ) . ' (' . $the_query->post_count . ') ';
+
+In a real world application, you must account for the possibility that the action could fail for some reason–for instance, maybe the database server is down. The response should allow for this contingency, and the jQuery script receiving the response should act accordingly, perhaps telling the user to try again later.
+Die
+
+When the handler has finished all of its tasks, it needs to die. If you are using the WP_Ajax_Response or wp_send_json* functions, this is automatically handled for you. If not, simply use the WordPress wp_die() function.
+AJAX Handler Summary
+
+The complete AJAX handler for our example looks like this:
+Expand code
+Copy
+
+/**
+ * AJAX handler using JSON
+ */
+function my_ajax_handler__json() {
+	check_ajax_referer( 'title_example' );
+	$title = wp_unslash( $_POST['title'] );
+
+	update_user_meta( get_current_user_id(), 'title_preference', sanitize_post_title( $title ) );
+
+	$args      = array(
+		'tag' => $title,
+	);
+	$the_query = new WP_Query( $args );
+	wp_send_json( esc_html( $title ) . ' (' . $the_query->post_count . ') ' );
+}
+
+Expand code
+Copy
+
+/**
+ * AJAX handler not using JSON.
+ */
+function my_ajax_handler() {
+	check_ajax_referer( 'title_example' );
+	$title = wp_unslash( $_POST['title'] );
+
+	update_user_meta( get_current_user_id(), 'title_preference', sanitize_post_title( $title ) );
+
+	$args      = array(
+		'tag' => $title,
+	);
+	$the_query = new WP_Query( $args );
+	echo esc_html( $title ) . ' (' . $the_query->post_count . ') ';
+	wp_die(); // All ajax handlers should die when finished
+}
+
+
+
+
+wp_enqueue_script( string $handle, string $src = '', string[] $deps = array(), string|bool|null $ver = false, array|bool $args = array() )
+In this article
+
+    Description
+        See also 
+    Parameters
+    More Information
+        Usage
+        Notes
+        Default Scripts and JS Libraries Included and Registered by WordPress 
+    Source
+    Related
+    Changelog
+    User Contributed Notes
+
+Enqueues a script.
+Description
+
+Registers the script if $src provided (does NOT overwrite), and enqueues it.
+See also
+
+    WP_Dependencies::add()
+    WP_Dependencies::add_data()
+    WP_Dependencies::enqueue()
+
+Parameters
+
+$handle
+stringrequired
+    Name of the script. Should be unique.
+$src
+stringoptional
+    Full URL of the script, or path of the script relative to the WordPress root directory.
+
+    Default:''
+$deps
+string[]optional
+    An array of registered script handles this script depends on.
+
+    Default:array()
+$ver
+string|bool|nulloptional
+    String specifying script version number, if it has one, which is added to the URL as a query string for cache busting purposes. If version is set to false, a version number is automatically added equal to current installed WordPress version.
+    If set to null, no version is added.
+
+    Default:false
+$args
+array|booloptional
+    An array of additional script loading strategies.
+    Otherwise, it may be a boolean in which case it determines whether the script is printed in the footer. Default false.
+
+        strategy string
+        Optional. If provided, may be either 'defer' or 'async'.
+        in_footer bool
+        Optional. Whether to print the script in the footer. Default 'false'.
+
+    Default:array()
+
+More Information
+Usage
+wp-includes/functions.wp-scripts.php
+Copy
+
+wp_enqueue_script( $handle, $src, $deps, $ver, $args );
+
+Links a script file to the generated page at the right time according to the script dependencies, if the script has not been already included and if all the dependencies have been registered. You could either link a script with a handle previously registered using the wp_register_script() function, or provide this function with all the parameters necessary to link a script.
+
+This is the recommended method of linking JavaScript to a WordPress generated page.
+
+As of WordPress 6.3, the new $args parameter – that replaces/overloads the prior $in_footer parameter – can be used to specify a script loading strategy. See the sections to follow for more information.
+
+Supported strategies are as follows:
+
+    defer
+        Added by specifying an array key value pair of 'strategy' => 'defer' to the $args parameter.
+        Scripts marked for deferred execution — via the defer script attribute — are only executed once the DOM tree has fully loaded (but before the DOMContentLoaded and window load events). Deferred scripts are executed in the same order they were printed/added in the DOM, unlike asynchronous scripts.
+    async
+        Added by specifying an array key value pair of 'strategy' => 'async' to the $args parameter.
+        Scripts marked for asynchronous execution — via the async script attribute — are executed as soon as they are loaded by the browser. Asynchronous scripts do not have a guaranteed execution order, as script B (although added to the DOM after script A) may execute first given that it may complete loading prior to script A. Such scripts may execute either before the DOM has been fully constructed or after the DOMContentLoaded event.
+
+Following is an example of specifying a loading strategy during script enqueuing:
+wp-includes/functions.wp-scripts.php
+Copy
+
+wp_enqueue_script(
+'foo',
+'/path/to/foo.js',
+array(),
+'1.0.0',
+array(
+'strategy'  => 'defer',
+)
+);
+
+The same approach applies when using
+wp_register_script()
+
+.
+
+When applying a loading strategy via either the wp_register_script() and wp_enqueue_script() functions, the scripts dependency tree is taken into consideration and the most eligible loading strategy is applied.
+
+While the intended (delayed) strategy passed by the code author may not be the final one, it will never be a stricter one, thus maintaining the integrity of the dependency tree.
+Notes
+
+    The function should be called using the wp_enqueue_scripts action hook if you want to call it on the front-end of the site, like in the examples above. To call it on the administration screens, use the admin_enqueue_scripts action hook. For the login screen, use the login_enqueue_scripts action hook. Calling it outside of an action hook can lead to problems, see the ticket #11526 for details.
+    If you try to register or enqueue an already registered handle with different parameters, the new parameters will be ignored. Instead, use wp_deregister_script() and register the script again with the new parameters.
+    jQuery UI Effects is not included with the jquery-ui-core handle.
+    This function relies on the use of wp_head() and wp_footer() by the active theme. This means that it may not work with a few very old themes that do not call these functions. This is useful to keep in mind when debugging ancient themes.
+    Uses: WP_Scripts::add(), WP_Scripts::add_data() and WP_Scripts::enqueue().
+    Uses global: (unknown type) $wp_scripts.
+
+Default Scripts and JS Libraries Included and Registered by WordPress
+
+By default, WordPress installation includes many popular javascript libraries and scripts commonly used by web developers besides the scripts used by WordPress itself. Some of them are listed in the table below.
+
+For a detailed list of names that can be used in place of the $handle parameter, see wp_register_script().
+Script Name
+	Handle
+	Needed Dependency *
+	Script version
+	License
+Image Cropper	Image cropper (not used in core, see jcrop)			
+Jcrop	jcrop		0.9.12	MIT
+SWFObject	swfobject		2.2-20120417	MIT
+SWFUpload	swfupload		2201-20110113	MIT
+SWFUpload Degrade	swfupload-degrade		2201	MIT
+SWFUpload Queue	swfupload-queue		2201	MIT
+SWFUpload Handlers	swfupload-handlers		2201-20110524	MIT
+jQuery	jquery	json2 (for AJAX calls)	3.6.0	MIT + (MIT OR BSD)
+jQuery Form	jquery-form	jquery	4.3.0	MIT OR LGPLv3
+jQuery Color	jquery-color	jquery	2.2.0	MIT+CC0 + (MIT OR GPLv2)
+jQuery Masonry	jquery-masonry	jquery	3.1.2b	MIT
+Masonry (native Javascript)	masonry	imagesloaded	4.2.2	MIT
+jQuery UI Core	jquery-ui-core	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Widget	Now part of `jquery-ui-core`	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Accordion	jquery-ui-accordion	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Autocomplete	jquery-ui-autocomplete	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Button	jquery-ui-button	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Datepicker	jquery-ui-datepicker	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Dialog	jquery-ui-dialog	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Draggable	jquery-ui-draggable	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Droppable	jquery-ui-droppable	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Menu	jquery-ui-menu	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Mouse	jquery-ui-mouse	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Position	Now part of `jquery-ui-core`	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Progressbar	jquery-ui-progressbar	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Selectable	jquery-ui-selectable	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Resizable	jquery-ui-resizable	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Selectmenu	jquery-ui-selectmenu	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Sortable	jquery-ui-sortable	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Slider	jquery-ui-slider	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Spinner	jquery-ui-spinner	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Tooltips	jquery-ui-tooltip	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Tabs	jquery-ui-tabs	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects	jquery-effects-core	jquery	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Blind	jquery-effects-blind	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Bounce	jquery-effects-bounce	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Clip	jquery-effects-clip	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Drop	jquery-effects-drop	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Explode	jquery-effects-explode	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Fade	jquery-effects-fade	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Fold	jquery-effects-fold	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Highlight	jquery-effects-highlight	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Pulsate	jquery-effects-pulsate	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Scale	jquery-effects-scale	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Shake	jquery-effects-shake	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Slide	jquery-effects-slide	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+jQuery UI Effects – Transfer	jquery-effects-transfer	jquery-effects-core	1.13.1	MIT + CC0 + (MIT OR GPLv2)
+MediaElement.js (WP 3.6+)	wp-mediaelement	jquery	4.2.16	MIT
+jQuery Schedule	schedule	jquery	20m/1.0.1	MIT
+jQuery Suggest	suggest	jquery	1.1-20110113	Public domain
+ThickBox	thickbox		3.1-20121105	MIT OR GPLv3
+jQuery HoverIntent	hoverIntent	jquery	1.10.1	MIT
+jQuery Hotkeys	jquery-hotkeys	jquery	0.2.0	MIT OR GPLv2
+Simple AJAX Code-Kit	sack		1.6.1	X11 License
+QuickTags	quicktags		1.3	LGPL2.1
+Iris (Colour picker)	iris	jquery	1.1.1	GPLv2
+Farbtastic (deprecated)	farbtastic	jquery	1.2	GPLv3
+ColorPicker (deprecated)	colorpicker	jquery	v2	Author’s own copyright
+Tiny MCE	wp-tinymce		4.9.4	LGPL2.1
+Autosave	autosave			
+WordPress AJAX Response	wp-ajax-response			
+List Manipulation	wp-lists			
+WP Common	common			
+WP Editor	editorremov			
+WP Editor Functions	editor-functions			
+AJAX Cat	ajaxcat			
+Admin Categories	admin-categories			
+Admin Tags	admin-tags			
+Admin custom fields	admin-custom-fields			
+Password Strength Meter	password-strength-meter			
+Admin Comments	admin-comments			
+Admin Users	admin-users			
+Admin Forms	admin-forms			
+XFN	xfn			
+Upload	upload			
+PostBox	postbox			
+Slug	slug			
+Post	post			
+Page	page			
+Link	link			
+Comment	comment			
+Threaded Comments	comment-reply			
+Admin Gallery	admin-gallery			
+Media Upload	media-upload			
+Admin widgets	admin-widgets			
+Word Count	word-count			
+Theme Preview	theme-preview			
+JSON for JS	json2		2015-05-03	Public domain
+Plupload Core	plupload		2.1.9	GPLv2
+Plupload All Runtimes	plupload-all		2.1.1	GPLv2
+Plupload HTML4	plupload-html4		2.1.1	GPLv2
+Plupload HTML5	plupload-html5		2.1.1	GPLv2
+Plupload Flash	plupload-flash		2.1.1	GPLv2
+Plupload Silverlight	plupload-silverlight		2.1.1	GPLv2
+Underscore js	underscore		1.13.1	MIT
+Backbone js	backbone	jquery, underscore	1.4.0	MIT
+imagesLoaded	imagesloaded		4.1.4	MIT
+CodeMirror	wp-codemirror		5.29.1-alpha-ee20357	MIT
+imgAreaSelect	imgareaselect	jquery	0.9.8	MIT AND GPL
+Removed from Core
+Script Name	Handle	Removed Version	Replaced With
+Scriptaculous Root	scriptaculous-root	WP 3.5	Google Version
+Scriptaculous Builder	scriptaculous-builder	WP 3.5	Google Version
+Scriptaculous Drag & Drop	scriptaculous-dragdrop	WP 3.5	Google Version
+Scriptaculous Effects	scriptaculous-effects	WP 3.5	Google Version
+Scriptaculous Slider	scriptaculous-slider	WP 3.5	Google Version
+Scriptaculous Sound	scriptaculous-sound	WP 3.5	Google Version
+Scriptaculous Controls	scriptaculous-controls	WP 3.5	Google Version
+Scriptaculous	scriptaculous	WP 3.5	Google Version
+Prototype Framework	prototype	WP 3.5	Google Version
+
+The list is far from complete. For a complete list of registered files inspect $GLOBALS['wp_scripts'] in the admin UI. Registered scripts might change per requested page.
+
+* The listed dependencies are not complete.
+Source
+wp-includes/functions.wp-scripts.php
+Expand code
+Copy
+
+function wp_enqueue_script( $handle, $src = '', $deps = array(), $ver = false, $args = array() ) {
+	_wp_scripts_maybe_doing_it_wrong( __FUNCTION__, $handle );
+
+	$wp_scripts = wp_scripts();
+
+	if ( $src || ! empty( $args ) ) {
+		$_handle = explode( '?', $handle );
+		if ( ! is_array( $args ) ) {
+			$args = array(
+				'in_footer' => (bool) $args,
+			);
+		}
+
+		if ( $src ) {
+			$wp_scripts->add( $_handle[0], $src, $deps, $ver );
+		}
+		if ( ! empty( $args['in_footer'] ) ) {
+			$wp_scripts->add_data( $_handle[0], 'group', 1 );
+		}
+		if ( ! empty( $args['strategy'] ) ) {
+			$wp_scripts->add_data( $_handle[0], 'strategy', $args['strategy'] );
+		}
+	}
+
+	$wp_scripts->enqueue( $handle );
+}
+
+View all references View on Trac View on GitHub
+Related
+Uses	Description
+WP_Scripts::add_data()
+wp-includes/class-wp-scripts.php
+	
+
+This overrides the add_data method from WP_Dependencies, to support normalizing of $args.
+wp_scripts()
+wp-includes/functions.wp-scripts.php
+	
+
+Initializes $wp_scripts if it has not been set.
+Used by	Description
+wp_enqueue_block_template_skip_link()
+wp-includes/theme-templates.php
+	
+
+Enqueues the skip-link script & styles.
+_wp_get_iframed_editor_assets()
+wp-includes/block-editor.php
+	
+
+Collect the block editor assets that need to be loaded into the editor’s iframe.
+wp_maybe_enqueue_oembed_host_js()
+wp-includes/embed.php
+	
+
+Enqueue the wp-embed script if the provided oEmbed HTML contains a post embed.
+wp_enqueue_editor_format_library_assets()
+wp-includes/script-loader.php
+	
+
+Enqueues the assets required for the format library within the block editor.
+WP_Block::render()
+wp-includes/class-wp-block.php
+	
+
+Generates the render output for the block.
+Show 39 more
+Changelog
+Version	Description
+6.3.0
+	The $in_footer parameter of type boolean was overloaded to be an $args parameter of type array.
+2.1.0
+	Introduced.
+User Contributed Notes
+
+    Skip to note 30 content
+    Andrija Naglic
+    10 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 70
+    Vote down if this note was not helpful
+
+    Never worry about cache again!
+
+    This is a little trick I’ve picked up along the way.
+    The version of the .js and .css files is made from the time of it’s last update.
+    Expand code
+    Copy
+
+    /**
+     * Never worry about cache again!
+     */
+    function my_load_scripts($hook) {
+
+    	// create my own version codes
+    	$my_js_ver  = date("ymd-Gis", filemtime( plugin_dir_path( __FILE__ ) . 'js/custom.js' ));
+    	$my_css_ver = date("ymd-Gis", filemtime( plugin_dir_path( __FILE__ ) . 'style.css' ));
+    	
+    	// 
+    	wp_enqueue_script( 'custom_js', plugins_url( 'js/custom.js', __FILE__ ), array(), $my_js_ver );
+    	wp_register_style( 'my_css', 	plugins_url( 'style.css', 	 __FILE__ ), false,   $my_css_ver );
+    	wp_enqueue_style ( 'my_css' );
+
+    }
+    add_action('wp_enqueue_scripts', 'my_load_scripts');
+
+    That way, you will always use the cached versions, except in case the files were changed in the meanwhile, which is the most optimum scenario.
+    Add feedback
+    Skip to note 31 content
+    bcworkz
+    10 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 41
+    Vote down if this note was not helpful
+
+    When you enqueue script that is dependent on jQuery, note that the jQuery in WordPress runs in noConflict mode, which means you cannot use the common $ alias. You must use the full jQuery instead. Alternately, place your code using the $ shortcut inside a noConflict wrapper.
+    Copy
+
+    jQuery( document ).ready( function( $ ) {
+        // $() will work as an alias for jQuery() inside of this function
+        [ your code goes here ]
+    } );
+
+    Add feedback
+    Skip to note 32 content
+    Barbara Ford
+    11 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 30
+    Vote down if this note was not helpful
+
+    Using a Hook
+
+    Enqueue both scripts and styles from a single action hook.
+    Copy
+
+    /**
+     * Proper way to enqueue scripts and styles.
+     */
+    function wpdocs_theme_name_scripts() {
+    	wp_enqueue_style( 'style-name', get_stylesheet_uri() );
+    	wp_enqueue_script( 'script-name', get_template_directory_uri() . '/js/example.js', array(), '1.0.0', true );
+    }
+    add_action( 'wp_enqueue_scripts', 'wpdocs_theme_name_scripts' );
+
+    Add feedback
+    Skip to note 33 content
+    Barbara Ford
+    11 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 21
+    Vote down if this note was not helpful
+
+    Link a Theme Script Which Depends on jQuery
+
+    JavaScript files included in themes often require another JavaScript file to be loaded in advance to use its functions or variables. Using the $deps parameter, the wp_enqueue_script() and wp_register_script() functions allows you to mark dependencies when registering a new script. This will cause WordPress to automatically link these dependencies to the HTML page before the new script is linked. If the handles of these dependencies are not registered, WordPress will not link the new script. This example requires the jQuery library for the custom_script.js theme script:
+    Copy
+
+    /**
+     * Enqueue a script with jQuery as a dependency.
+     */
+    function wpdocs_scripts_method() {
+    	wp_enqueue_script( 'custom-script', get_stylesheet_directory_uri() . '/js/custom_script.js', array( 'jquery' ) );
+    }
+    add_action( 'wp_enqueue_scripts', 'wpdocs_scripts_method' );
+
+    Add feedback
+    Skip to note 34 content
+    Andrei Surdu
+    9 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 16
+    Vote down if this note was not helpful
+
+    I want to add a note to bcworkz comment. When using jquery, in general, this is how the code in a file should be formatted:
+    Copy
+
+    (function( $ ) {
+
+    	"use strict";
+    	
+    	// javascript code here. i.e.: $(document).ready( function(){} ); 
+
+    })(jQuery);
+
+    It’s a common practice that ensures jQuery runs in no conflict mode and in strict mode.
+
+    Strict mode helps out in a couple ways:
+        It catches some common coding bloopers, throwing exceptions.
+        It prevents, or throws errors, when relatively “unsafe” actions are taken (such as gaining access to the global object).
+        It disables features that are confusing or poorly thought out.
+    Add feedback
+    Skip to note 35 content
+    Barbara Ford
+    11 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 8
+    Vote down if this note was not helpful
+
+    Link the script.aculo.us Library
+
+    The following is an example of basic usage which links the script.aculo.us library already included and registered by WordPress with the scriptaculous handle.
+    Copy
+
+    /**
+     * Enqueue script.aculo.us.
+     *
+     * Tha callback is hooked to 'wp_enqueue_script' to ensure the script is only enqueued on the front-end.
+     */
+    function my_scripts_method() {
+        wp_enqueue_script( 'scriptaculous' );
+    }
+    add_action( 'wp_enqueue_scripts', 'my_scripts_method' );
+
+    The above example links the script.aculo.us library only on the front-end. If the library was needed within the administration screens, you could use the admin_enqueue_scripts action hook instead, however, this would enqueue it on all the administration screens, which often leads to plugin/core conflicts, ultimately breaking the WordPress administration screens experience. Instead, you should only link it on the individual screens you need it, see the Link Scripts Only on a Plugin Administration Screen section for an example of that.
+    Add feedback
+    Skip to note 36 content
+    Pratik Shrestha
+    9 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 5
+    Vote down if this note was not helpful
+
+    When registering and enqueueing scripts, you don’t need to call wp_register_script() and wp_enqueue_script(). Just call wp_enqueue_script().
+    This:
+    Copy
+
+    wp_register_script ( 'custom-script', get_template_directory_uri() . '/js/custom-script.js' );
+    wp_enqueue_script ( 'custom-script' );
+
+    Should simply be:
+    Copy
+
+    wp_enqueue_script ( 'custom-script', get_template_directory_uri() . '/js/custom-script.js' );
+
+    Only register if you don’t know if you’re going to load it immediately.
+    Add feedback
+    Skip to note 37 content
+    cgastrell
+    7 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 5
+    Vote down if this note was not helpful
+
+    Unmet dependencies will *NOT* be warned
+
+    If dependencies (3rd argument) are not met, the script tag is just not printed and no warnings nor errors are shown.
+
+    This doesn’t seem like a bug, just expected behavior. A mention about this on the docs would suffice to prevent misunderstandings.
+
+    This example will never load /js/example.js
+    Copy
+
+    /**
+     * ... enqueue plugin scripts.
+     */
+    function load_plugin_scripts() {
+        wp_enqueue_script(
+    		'script-name',
+    		plugin_dir_url( __FILE__ ) . '/js/example.js',
+    		array('not-existant'),
+    		'1.0.0',
+    		true
+    	);
+    }
+    add_action( 'wp_enqueue_scripts', 'load_plugin_scripts' );
+
+    Add feedback
+    Skip to note 38 content
+    Michael Nelson
+    10 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 4
+    Vote down if this note was not helpful
+
+    Because of the work on https://core.trac.wordpress.org/ticket/9346, it’s actually safe to call
+    Copy
+
+    wp_enqueue_script
+
+    after the hook “wp_enqueue_scripts” and before the footer, eg when rendering shortcodes or rendering a post’s body.
+    Enqueueing stylesheets (css) in this same method has some issues though.
+    Scribu gave an example of a shortcode enqueueing a script here: http://scribu.net/wordpress/conditional-script-loading-revisited.html
+    Add feedback
+    Skip to note 39 content
+    Bink
+    5 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 4
+    Vote down if this note was not helpful
+
+    An example of how to enqueue multiple styles and scripts which include the SRI (sub-resource integrity) tag. This is loosely based on this article, but I’ve tried to simplify the code somewhat, particularly given I may want to include and manage many scripts/styles.
+
+    The important thing to note, is the handle specified when enqueuing a style/script, needs to match the handle referenced in the my_add_sri function. Also note, aside from the obvious SRI tag difference, the str_replace method used on scripts in the my_add_sri function, is different to that used on styles.
+    Expand code
+    Copy
+
+    /**
+    * Load custom CSS and JavaScript.
+    */
+    add_action( 'wp_enqueue_scripts', 'wpdocs_my_enqueue_scripts' );
+    function wpdocs_my_enqueue_scripts() : void {
+        // Enqueue my styles.
+        wp_enqueue_style( 'wpdocs-bootstrap-style', 'https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css' );
+        wp_enqueue_style( 'wpdocs-datatables-bootstrap-style', 'https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/css/dataTables.bootstrap4.min.css' );
+        
+        // Enqueue my scripts.
+        wp_enqueue_script( 'wpdocs-bootstrap-bundle-script', 'https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/js/bootstrap.bundle.min.js', array(), null, true );
+        wp_enqueue_script( 'wpdocs-datatables-bootstrap-script', 'https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/dataTables.bootstrap4.min.js', array(), null, true );
+        wp_enqueue_script( 'wpdocs-jquery-datatables-script', 'https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.21/js/jquery.dataTables.min.js', array(), null, true );    
+        
+        // Add filters to catch and modify the styles and scripts as they're loaded.
+        add_filter( 'style_loader_tag', __NAMESPACE__ . '\wpdocs_my_add_sri', 10, 2 );
+        add_filter( 'script_loader_tag', __NAMESPACE__ . '\wpdocs_my_add_sri', 10, 2 );
+    }
+
+    /**
+    * Add SRI attributes based on defined script/style handles.
+    */
+    function wpdocs_my_add_sri( $html, $handle ) : string {
+        switch( $handle ) {
+            case 'wpdocs-bootstrap-style':
+                $html = str_replace( ' />', ' integrity="sha512-MoRNloxbStBcD8z3M/2BmnT+rg4IsMxPkXaGh2zD6LGNNFE80W3onsAhRcMAMrSoyWL9xD7Ert0men7vR8LUZg==" crossorigin="anonymous" />', $html );
+                break;
+            case 'wpdocs-datatables-bootstrap-style':
+                $html = str_replace( ' />', ' integrity="sha512-PT0RvABaDhDQugEbpNMwgYBCnGCiTZMh9yOzUsJHDgl/dMhD9yjHAwoumnUk3JydV3QTcIkNDuN40CJxik5+WQ==" crossorigin="anonymous" />', $html );
+                break;
+            case 'wpdocs-bootstrap-bundle-script':
+                $html = str_replace( '></script>', ' integrity="sha512-kBFfSXuTKZcABVouRYGnUo35KKa1FBrYgwG4PAx7Z2Heroknm0ca2Fm2TosdrrI356EDHMW383S3ISrwKcVPUw==" crossorigin="anonymous"></script>', $html );
+                break;
+            case 'wpdocs-datatables-bootstrap-script':
+                $html = str_replace( '></script>', ' integrity="sha512-OQlawZneA7zzfI6B1n1tjUuo3C5mtYuAWpQdg+iI9mkDoo7iFzTqnQHf+K5ThOWNJ9AbXL4+ZDwH7ykySPQc+A==" crossorigin="anonymous"></script>', $html );
+                break;
+            case 'wpdocs-jquery-datatables-script':
+                $html = str_replace( '></script>', ' integrity="sha512-BkpSL20WETFylMrcirBahHfSnY++H2O1W+UnEEO4yNIl+jI2+zowyoGJpbtk6bx97fBXf++WJHSSK2MV4ghPcg==" crossorigin="anonymous"></script>', $html );
+                break;
+        } 
+        return $html;
+    }
+
+    Show feedback (1)Add feedback
+    Skip to note 40 content
+    Xedin Unknown
+    9 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 3
+    Vote down if this note was not helpful
+
+    This is not documented, but calling this function with $in_footer being `false` actually registers the script in general as a dependency that should be resolved and output, not just for header. Then, when outputting scripts enqueued for the footer, only the scripts that have not been included yet will be output. This leads to behaviour where a script that is enqueued supposedly in the header will appear in the footer if enqueued after the header has already been process. Therefore, $in_footer should actually read and be understood as $in_footer_only.
+    Add feedback
+    Skip to note 41 content
+    Manny Fleurmond
+    9 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 3
+    Vote down if this note was not helpful
+
+    Because this and wp_enqueue_style uses WP_Scripts::enqueue(), which can take an array of handles as it’s first argument, you can also pass an array of handles into wp_enqueue_script/style:
+    Copy
+
+    /**
+     * Enqueue multiple handles
+     */
+    function enqueue_multiple() {
+        wp_enqueue_script( array( 'backbone', 'jquery', 'iris' ) );
+    }
+    add_action( 'wp_enqueue_scripts', 'enqueue_multiple' );
+
+    Add feedback
+    Skip to note 42 content
+    Yakovos Frountas
+    2 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 3
+    Vote down if this note was not helpful
+
+    This example is using the new technique of defer or async a script. Also one good practice for versioning of the file is to use the filemtime php native function in order to pass the last modified time of the file as a parameter to the cache.
+    Copy
+
+    $url  = get_template_directory_uri() . '/js/functions.js';
+    $time = filemtime( get_template_directory() . '/js/functions.js' );
+    $args = array( 
+        'in_footer' => true,
+        'strategy'  => 'defer',
+    );
+
+    wp_enqueue_script( 'wpdocs-functions', $url, array(), $time, $args );
+
+    Add feedback
+    Skip to note 43 content
+    Mário Valney
+    8 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 2
+    Vote down if this note was not helpful
+
+    For who have the same question of @damiankaelgreen:
+
+    In this case script is the file called in one HTML tag script which is used to define a client-side script (JavaScript).
+
+    For include PHP files, please use get_template_part().
+    Add feedback
+    Skip to note 44 content
+    Parth Dodiya
+    2 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 2
+    Vote down if this note was not helpful
+
+    Clearing confusion between all three functions. wp_enqueue_script() , wp_register_script() , and wp_localize_script()
+
+    wp_register_script()::
+    Registers a script with WordPress.
+    Does not load the script on the page.
+    Useful when you want to define a script for later use with specific conditions or dependencies.
+    Takes arguments like script handle (unique identifier), script path (URL or relative path to the file), and optional arguments like version number and dependencies on other scripts.
+
+    wp_enqueue_script()::
+    Enqueues a script that need to be loaded on the page.
+    Can also register the script if it hasn’t been registered before.
+    Useful for including scripts you need on a specific page or based on certain conditions (e.g., only on the front-end).
+    Takes arguments like script handle (same as used with wp_register_script) and optional arguments like version number, dependencies, and placement (in the header or footer).
+    Here’s a key difference:
+
+    wp_enqueue_script can handle both registering and loading a script in one call.
+    wp_register_script only registers the script for later use with wp_enqueue_script or another function that might need it.
+
+    wp_localize_script()::
+    Does not register or enqueue a script.
+    Used to localize a registered script, meaning it injects PHP variables into the script as JavaScript objects.
+    Useful for passing data from WordPress (PHP) to your JavaScript code.
+    Takes arguments like script handle (of an already registered script), a variable name to hold the data in JavaScript, and the actual PHP data (array or object) you want to pass.
+
+    In short,
+    Use wp_register_script to define scripts for later use.
+    Use wp_enqueue_script to load scripts on the page (can also register if needed).
+    Use wp_localize_script to pass data from PHP to your registered JavaScript code.
+    Add feedback
+    Skip to note 45 content
+    Anthony Hortin
+    9 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 1
+    Vote down if this note was not helpful
+
+    See Also:
+
+    wp_enqueue_style
+    Add feedback
+    Skip to note 46 content
+    damiankaelgreen
+    9 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 1
+    Vote down if this note was not helpful
+
+    This documentation should really do a better job defining what a “script” is… Because: is this function meant for enqueueing a .php or html script? No!
+
+    That may seem obvious to a lot of developers, but if you are looking at this documentation, you should be getting some clarity as to what this function should be used for, so I’m writing this to help.
+
+    Apparently, in this case, the term “script” is being used as a program that is not being evaluated by the server, but rather a program that needs to be passed to the client (and evaluated by the browser). Thus in this case, a PHP file that is expected to be evaluated by the server would not be considered a script (even though a lot of people might call it one) and thus it should not be included with wp_enqueue_script() , but included using require_once() or possibly include_once() instead.
+    Add feedback
+    Skip to note 47 content
+    Rabby
+    7 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 1
+    Vote down if this note was not helpful
+
+    This example link of custom stylesheet and script with file version version
+    Copy
+
+    function custom_enqueue(){
+        //wp_enqueue_style('string $handle', mixed $src, array $deps, mixed $ver, string $meida );
+        wp_enqueue_style('customstyle', get_template_directory_uri() . '/css/fatblog.css', array(), '1.0.0', 'all' );
+        //wp_enqueue_style('string $handle', mixed $src, array $deps, mixed $ver, bol $in_footer );
+        wp_enqueue_script('customjs', get_template_directory_uri() . '/js/fatblog.js', array(), '1.0.0', 'true' );
+    }
+    add_action('wp_enqueue_scripts', 'custom_enqueue');
+
+    Add feedback
+    Skip to note 48 content
+    turnipforest
+    5 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 1
+    Vote down if this note was not helpful
+
+    The required CSS for jquery-ui-dialog does not come automatically!
+
+    You must separately call wp_enqueue_style() with the registered handle “wp-jquery-ui-dialog”.
+    Add feedback
+    Skip to note 49 content
+    indithemes
+    2 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 1
+    Vote down if this note was not helpful
+
+    In some cases, you might want to add scripts as a module. In that case type="module" needs to be added to the tag. This can be done using the script_loader_tag filter hook.
+
+    Modules are a newer feature of JS introduced in ES6 and has many advantages over conventional JS files especially if you are working on a large project. You can read about modules in official documentation.
+    Copy
+
+    function wpdocs_load_module( $tag, $handle ) {
+    	if ( 'wpdocs-script-handle' === $handle ) {
+    		$tag = str_replace( '<script ', '<script type="module" ', $tag );
+    	}
+
+    	return $tag;
+    }
+    add_filter( 'script_loader_tag', 'wpdocs_load_module', 10, 2 );
+
+    Add feedback
+    Skip to note 50 content
+    Hache_raw
+    2 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 1
+    Vote down if this note was not helpful
+
+    Replace a parent theme JS (or CSS) entirely:
+    Copy
+
+    function wpdocs_child_enqueue_scripts() {
+    	if ( wp_script_is( 'parent-pagination-infinite', 'enqueued' ) ) {
+    		wp_dequeue_script( 'parent-pagination-infinite' );
+    		wp_enqueue_script( 'child-pagination-infinite', get_stylesheet_directory_uri() . '/pagination-infinite.js', array( 'child-theme-js' ), '1.0.0', true );
+    	}
+
+    }
+
+    add_action( 'wp_enqueue_scripts', 'wpdocs_child_enqueue_scripts', 15 );
+
+    Add feedback
+    Skip to note 51 content
+    Barbara Ford
+    11 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 0
+    Vote down if this note was not helpful
+
+    Link a Plugin Script That Depends on script.aculo.us
+
+    This example is intended to be used within a plugin file to register and link a new plugin script that depends on the script.aculo.us library. See the example above for information about dependencies.
+    Copy
+
+    /**
+     * Enqueue script with script.aculo.us as a dependency.
+     */
+    function my_scripts_method() {
+    	wp_enqueue_script( 'newscript', plugins_url( '/js/newscript.js' , __FILE__ ), array( 'scriptaculous' ) );
+    }
+    add_action( 'wp_enqueue_scripts', 'my_scripts_method' );
+
+    Add feedback
+    Skip to note 52 content
+    Barbara Ford
+    11 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 0
+    Vote down if this note was not helpful
+
+    Link Scripts Only on a Plugin Administration Screen
+
+    This example links a script only on a specific administration screen, as opposed to the scenario described in the paragraph below the code of the first example.
+    Expand code
+    Copy
+
+    <?php
+    /**
+     * Register the plugin script.
+     */
+    function wpdocs_plugin_admin_init() {
+        // Register our script.
+        wp_register_script( 'my-plugin-script', plugins_url( '/script.js', __FILE__ ) );
+    }
+    add_action( 'admin_init', 'wpdocs_plugin_admin_init' );
+
+    /**
+     * Add Administration screen for the plugin.
+     */
+    function wpdocs_plugin_admin_menu() {
+        /* Add our plugin submenu and administration screen */
+        $page_hook_suffix = add_submenu_page( 'edit.php',	// The parent page of this submenu.
+    		__( 'My Plugin', 'my-textdomain' ),				// The submenu title.
+    		__( 'My Plugin', 'my-textdomain' ),				// The screen title.
+    		'manage_options', 								// The capability required for access to this submenu.
+    		'my_plugin-options', 							// The slug to use in the URL of the screen.
+    		'wpdocs_plugin_manage_menu' 					// The function to call to display the screen.
+    	);
+
+        /*
+    	 * Use the retrieved $page_hook_suffix to hook the function that links our script.
+    	 * This hook invokes the function only on our plugin administration screen,
+    	 * see: https://developer.wordpress.org/reference/hooks/admin_print_scripts-hook_suffix/
+    	 */
+        add_action( "admin_print_scripts-{$page_hook_suffix}", 'wpdocs_plugin_admin_scripts');
+    }
+    add_action( 'admin_menu', 'wpdocs_plugin_admin_menu' );
+
+    /**
+     * Enqueue registered script in the admin.
+     */
+    function wpdocs_plugin_admin_scripts() {
+        // Link our already registered script to a page.
+        wp_enqueue_script( 'my-plugin-script' );
+    }
+
+    /**
+     * Display callback for the plugin Administration screen.
+     */
+    function wpdocs_plugin_manage_menu() {
+        // Display our administration screen.
+    }
+
+    Add feedback
+    Skip to note 53 content
+    Miguel Torres
+    7 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 0
+    Vote down if this note was not helpful
+
+    Not sure if this is the place to report it, but I believe that the Tiny MCE handle that appears on the “Default Scripts Included and Registered by WordPress” table is incorrect. It says tiny_mce, but according to the code that registers the Tiny MCE scripts (https://core.trac.wordpress.org/browser/trunk/src/wp-includes/script-loader.php?rev=45138#L56-L64) should be wp-tinymce.
+    Show feedback (1)Add feedback
+    Skip to note 54 content
+    Uriahs Victor
+    5 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 0
+    Vote down if this note was not helpful
+
+    When enqueuing a custom script file that you later want to add some inline JS to using wp_add_inline_script() . It’s always best that you have the custom script enqueuing in the footer by setting the last parameter in the function to true
+
+    wp_enqueue_script( $handle, $src, $deps, $ver, true );
+    Add feedback
+    Skip to note 55 content
+    vee
+    2 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 0
+    Vote down if this note was not helpful
+
+    The list of libraries seems to be incomplete. For example `lodash`, `react` exists in WordPress vendor scripts but not list in this page, and there are more.
+
+    To see full list, go to wp-includes/script-loader.php page.
+    Add feedback
+    Skip to note 56 content
+    Jan Prazak
+    8 months ago
+    Vote up if this note was helpful
+    Vote results for this note: 0
+    Vote down if this note was not helpful
+
+    The $deps parameter may also be null, you don’t have to pass an empty array. See the _WP_Dependency class constructor in wp-includes/class-wp-dependency.php
+    Add feedback
+    Skip to note 57 content
+    ilovecats7
+    6 years ago
+    Vote up if this note was helpful
+    Vote results for this note: -1
+    Vote down if this note was not helpful
+
+    The action hook used for loading scripts (wp_enqueue_scripts) is called in the head section of the document, so in order for the script to be loaded on the page, you MUST include the following on your page template:
+    Copy
+
+    get_header();
+
+    Show feedback (1)Add feedback
+
+
+wp_enqueue_style( string $handle, string $src = '', string[] $deps = array(), string|bool|null $ver = false, string $media = 'all' )
+In this article
+
+    Description
+        See also 
+    Parameters
+    More Information
+        Usage
+        Notes 
+    Source
+    Related
+    Changelog
+    User Contributed Notes
+
+↑ Back to top
+
+Enqueues a CSS stylesheet.
+Description
+
+Registers the style if source provided (does NOT overwrite) and enqueues.
+See also
+
+    WP_Dependencies::add()
+    WP_Dependencies::enqueue()
+
+Parameters
+
+$handle
+stringrequired
+    Name of the stylesheet. Should be unique.
+$src
+stringoptional
+    Full URL of the stylesheet, or path of the stylesheet relative to the WordPress root directory.
+
+    Default:''
+$deps
+string[]optional
+    An array of registered stylesheet handles this stylesheet depends on.
+
+    Default:array()
+$ver
+string|bool|nulloptional
+    String specifying stylesheet version number, if it has one, which is added to the URL as a query string for cache busting purposes. If version is set to false, a version number is automatically added equal to current installed WordPress version.
+    If set to null, no version is added.
+
+    Default:false
+$media
+stringoptional
+    The media for which this stylesheet has been defined.
+    Default 'all'. Accepts media types like 'all', 'print' and 'screen', or media queries like ‘(orientation: portrait)’ and ‘(max-width: 640px)’.
+
+    Default:'all'
+
+More Information
+Usage
+
+A safe way to add/enqueue a stylesheet file to the WordPress generated page.
+wp-includes/functions.wp-styles.php
+Copy
+
+wp_enqueue_style( $handle, $src, $deps, $ver, $media );
+
+Notes
+
+    If you are going to use some jQuery UI features you might have to provide your own CSS file: WordPress core does not have a full jQuery UI theme!
+    Default styles that are loaded via WordPress Core can be discerned via the source code on the default styles page.
+
+Source
+wp-includes/functions.wp-styles.php
+Copy
+
+function wp_enqueue_style( $handle, $src = '', $deps = array(), $ver = false, $media = 'all' ) {
+	_wp_scripts_maybe_doing_it_wrong( __FUNCTION__, $handle );
+
+	$wp_styles = wp_styles();
+
+	if ( $src ) {
+		$_handle = explode( '?', $handle );
+		$wp_styles->add( $_handle[0], $src, $deps, $ver, $media );
+	}
+
+	$wp_styles->enqueue( $handle );
+}
+
+View all references View on Trac View on GitHub
+Related
+Uses	Description
+wp_styles()
+wp-includes/functions.wp-styles.php
+	
+
+Initializes $wp_styles if it has not been set.
+Used by	Description
+wp_render_empty_block_template_warning()
+wp-includes/block-template.php
+	
+
+Renders a warning screen for empty block templates.
+wp_enqueue_emoji_styles()
+wp-includes/formatting.php
+	
+
+Enqueues the important emoji-related styles.
+wp_enqueue_embed_styles()
+wp-includes/embed.php
+	
+
+Enqueues the CSS in the embed iframe header.
+wp_enqueue_block_template_skip_link()
+wp-includes/theme-templates.php
+	
+
+Enqueues the skip-link script & styles.
+WP_Duotone::output_footer_assets()
+wp-includes/class-wp-duotone.php
+	
+
+Outputs all necessary SVG for duotone filters, CSS for classic themes.
+Show 36 more
+Changelog
+Version	Description
+2.6.0
+	Introduced.
+User Contributed Notes
+
+    Skip to note 18 content
+    Rob W
+    9 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 21
+    Vote down if this note was not helpful
+
+    For proper versioning based on the file’s last modified time, you can use something similar to:
+
+    wp_enqueue_style('main-styles', get_template_directory_uri() . '/css/style.css', array(), filemtime(get_template_directory() . '/css/style.css'), false);
+
+    When the style.css file is updated on the server, WP will append the appropriate timestamp.
+
+    Note: You shouldn’t ever use time() as the 4th parameter or append it to the file, as this will break caching in almost all cases.
+    Show feedback (2)Add feedback
+    Skip to note 19 content
+    Codex
+    11 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 17
+    Vote down if this note was not helpful
+
+    Using a Hook
+
+    Scripts and styles from a single action hook
+    Copy
+
+    /**
+     * Proper way to enqueue scripts and styles
+     */
+    function wpdocs_theme_name_scripts() {
+    	wp_enqueue_style( 'style-name', get_stylesheet_uri() );
+    	wp_enqueue_script( 'script-name', get_template_directory_uri() . '/js/example.js', array(), '1.0.0', true );
+    }
+    add_action( 'wp_enqueue_scripts', 'wpdocs_theme_name_scripts' );
+
+    Add feedback
+    Skip to note 20 content
+    Codex
+    11 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 11
+    Vote down if this note was not helpful
+
+    Load stylesheet only on a plugin’s options page:
+    Expand code
+    Copy
+
+    /**
+     * This example will work at least on WordPress 2.6.3, 
+     * but maybe on older versions too.
+     */
+    add_action( 'admin_init', 'wpdocs_plugin_admin_init' );
+    add_action( 'admin_menu', 'wpdocs_plugin_admin_menu' );
+       
+    /**
+     * Register our stylesheet.
+     */
+    function wpdocs_plugin_admin_init() {
+    	wp_register_style( 'wpdocsPluginStylesheet', plugins_url( 'stylesheet.css', __FILE__ ) );
+    }
+
+    /**
+     * Register our plugin page and hook stylesheet loading.
+     */
+    function wpdocs_plugin_admin_menu() {
+    	$page = add_submenu_page( 'edit.php', 
+    		__( 'Wpdocs Plugin', 'textdomain' ), 
+    		__( 'Wpdocs Plugin', 'textdomain' ),
+    		'administrator',
+    		__FILE__, 
+    		'wpdocs_plugin_manage_menu' );
+      
+    	add_action( "admin_print_styles-{$page}", 'wpdocs_plugin_admin_styles' );
+    }
+
+    /**
+     * Enqueue our stylesheet.
+     */
+    function wpdocs_plugin_admin_styles() {
+    	wp_enqueue_style( 'wpdocsPluginStylesheet' );
+    }
+
+    /**
+     * Output our admin page.
+     */
+    function wpdocs_plugin_manage_menu() {
+    	 // ...
+    }
+
+    Add feedback
+    Skip to note 21 content
+    gerardas
+    9 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 7
+    Vote down if this note was not helpful
+
+    Override all stylesheets in queue
+    Copy
+
+    /* adds stylesheet file to the end of the queue */
+    function wpdocs_override_stylesheets()
+    {
+        $dir = plugin_dir_url(__FILE__);
+        wp_enqueue_style('theme-override', $dir . '/theme-overrides.css', array(), '0.1.0', 'all');
+    }
+    add_action('wp_enqueue_scripts', 'wpdocs_override_stylesheets', PHP_INT_MAX);
+
+    Show feedback (1)Add feedback
+    Skip to note 22 content
+    pawanwp
+    8 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 6
+    Vote down if this note was not helpful
+
+    Using this method you can enqueue a child theme’s style.css.
+    Copy
+
+    function my_theme_enqueue_styles() {
+
+        $parent_style = 'jobcareertheme';
+
+        wp_enqueue_style( $parent_style, get_template_directory_uri() . '/style.css' );
+        wp_enqueue_style( 'child-style',
+            get_stylesheet_directory_uri() . '/style.css',
+            array( $parent_style ),
+            wp_get_theme()->get('1.0.0')
+        );
+    }
+    add_action( 'wp_enqueue_scripts', 'my_theme_enqueue_styles' );
+
+    Add feedback
+    Skip to note 23 content
+    alucard001
+    10 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 5
+    Vote down if this note was not helpful
+
+    How to remove ver in URL?
+
+    If you want to remove the ver parameter in URL (for example, to intentionally cache the file), you pass in null instead of false to remove that. For example:
+    Copy
+
+    wp_enqueue_script('oxfam_js_cookie', 'https://cdnjs.cloudflare.com/ajax/libs/js-cookie/2.1.0/js.cookie.min.js', array(), null, true);
+
+    By doing that, you will get:
+    Copy
+
+    <script type='text/javascript' src='https://cdnjs.cloudflare.com/ajax/libs/js-cookie/2.1.0/js.cookie.min.js'></script>
+
+    Add feedback
+    Skip to note 24 content
+    Juhi Saxena
+    10 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 5
+    Vote down if this note was not helpful
+
+    Enqueues should not be protocol specific, remove https. I have update code as below
+    Copy
+
+    wp_enqueue_script('oxfam_js_cookie', '//cdnjs.cloudflare.com/ajax/libs/js-cookie/2.1.0/js.cookie.min.js', array(), null, true);
+
+    Add feedback
+    Skip to note 25 content
+    crstauf
+    4 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 5
+    Vote down if this note was not helpful
+
+    Note that Google Fonts has changed their URLs, so when embedding multiple font families only one will be loaded. The change is “fundamentally incompatible with how the rest of the world uses query variables and thus PHP itself”.
+
+    The fix is to set null on the $version parameter, which prevents the URL from being parsed and the additional font families lost.
+
+    Trac ticket: https://core.trac.wordpress.org/ticket/49742
+    Show feedback (1)Add feedback
+    Skip to note 26 content
+    alordiel
+    10 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 2
+    Vote down if this note was not helpful
+
+    This is a conditional loading of css file by page template (css will be loaded on on the pages with tamplate-name.php).
+    You can change the condition by another one.
+    The code should be used in your theme’s function.php.
+    Notice: The code works for child themes. If you want to use it in a parent theme replace get_stylesheet_directory_uri() with get_stylesheet_uri().
+    Copy
+
+    $handle = 'wpdocs';
+    wp_register_style( $handle, get_stylesheet_directory_uri().'/relative/path/to/stylesheet.css', array(), '', true );
+    if ( is_page_template( 'template-name.php' ) ) {
+    	wp_enqueue_style( $handle );
+    }
+
+    Add feedback
+    Skip to note 27 content
+    Anthony Hortin
+    9 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 2
+    Vote down if this note was not helpful
+
+    See Also:
+
+    wp_enqueue_script
+    Add feedback
+    Skip to note 28 content
+    hongpong
+    7 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 2
+    Vote down if this note was not helpful
+
+    There are functions that can remove the version numbers after they are added appropriately. look for
+    remove_query_arg
+    which can remove them and
+    script_loader_src
+    The hook that is often used to run this. A common symptom will be version numbers missing on all attached scripts and stylesheets.
+
+    For more info see https://stackoverflow.com/questions/36805009/wordpress-css-and-js-version-numbers-not-working
+    Add feedback
+    Skip to note 29 content
+    montrealist
+    10 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 1
+    Vote down if this note was not helpful
+
+    Load an IE-specific stylesheet:
+    Expand code
+    Copy
+
+    add_action( 'wp_enqueue_scripts', 'enqueue_my_styles' );
+    function enqueue_my_styles() {
+        
+        global $wp_styles;
+        
+        // Load the main stylesheet
+        wp_enqueue_style( 'my-theme', get_stylesheet_uri() );
+        
+        /**
+         * Load our IE-only stylesheet for all versions of IE:
+         * <!--[if IE]> ... <![endif]-->
+         * 
+         * NOTE: It is also possible to just check and see if the $is_IE global in WordPress is set to true before 
+         * calling the wp_enqueue_style() function.  If you are trying to load a stylesheet for all browsers 
+         * EXCEPT for IE, then you would HAVE to check the $is_IE global since WordPress doesn't have a way to 
+         * properly handle non-IE conditional comments.
+         */
+        wp_enqueue_style( 'my-theme-ie', get_stylesheet_directory_uri() . "/css/ie.css", array( 'my-theme' )  );
+        $wp_styles->add_data( 'my-theme-ie', 'conditional', 'IE' );
+    }
+
+    Found here (more code samples for version-specific IE stylesheets): https://gist.github.com/wpscholar/4947518#file-functions-php
+    Add feedback
+    Skip to note 30 content
+    Khoi Pro
+    4 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 1
+    Vote down if this note was not helpful
+
+    If you wish to load small screen css only, using last parameter:
+    Copy
+
+    wp_enqueue_style( 'example-small-css', get_template_directory_uri() . '/assets/css/small.min.css', array(), '1.0.0', '(max-width: 480px)' );
+
+    Add feedback
+    Skip to note 31 content
+    Peter Hardy-vanDoorn
+    4 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 1
+    Vote down if this note was not helpful
+
+    When enqueueing your theme stylesheet, use wp_get_theme()->get( 'Version' ) to get the latest version number from your style.css file. Great for cache busting when you make changes to your styles.
+
+    eg:
+    Copy
+
+    wp_enqueue_style( 'my=theme', get_template_directory_uri() . '/style.css', array(), wp_get_theme()->get( 'Version' ), 'all' );
+
+    Add feedback
+    Skip to note 32 content
+    Md Yousuf
+    3 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 0
+    Vote down if this note was not helpful
+
+    If you use this code it automatic clear your cache, it will change the automatic version in the steel sheet
+    Copy
+
+    //if you want to see on your screen
+    print_r( filemtime( get_template_directory() . '/style.css' ) );
+    wp_die();
+
+    Copy
+
+    function wpdocs_scripts() {
+        wp_enqueue_style( 'stylesheet', get_stylesheet_uri(), array(), filemtime( get_template_directory() . '/style.css' ) );
+    }
+
+    add_action( 'wp_enqueue_scripts', 'wpdocs_scripts' );
+
+    Add feedback
+    Skip to note 33 content
+    KJ Roelke
+    2 years ago
+    Vote up if this note was helpful
+    Vote results for this note: 0
+    Vote down if this note was not helpful
+
+    To make use of file.asset.php generated by `@wordpress/scripts` build command, you can use the following:
+    Expand code
+    Copy
+
+    // assuming you're using a modified 3rd-party CSS framework like bootstrap, call bootstrap's built dependencies file
+    $bootstrap = require_once get_template_directory_uri() . '/build/bootstrap.asset.php';
+
+    // Call your global CSS file (perhaps you're also writing CSS per page that you'll enqueue later)
+    $global_dependencies = require_once get_template_directory_uri() . '/build/global.asset.php';
+
+    // Load "bootstrap" css with
+    wp_enqueue_style(
+    	'bootstrap',
+    	get_template_directory_uri() . '/build/bootstrap.css',
+    	array(),
+    	$bootstrap['version']
+    );
+
+    // Load your global css after 'bootstrap' css with the dependencies array (since that doesn't get popualted by build script)
+    wp_enqueue_style(
+    	'global',
+    	get_template_directory_uri() . '/build/global.css',
+    	array( 'bootstrap' ),
+    	$global['version']
+    );
+
+    Add feedback
+    Skip to note 34 content
+    Joynal Abedin
+    2 years ago
+    Vote up if this note was helpful
+    Vote results for this note: -1
+    Vote down if this note was not helpful
+
+    TO avoid caching issue in version parameter put it time() function.
+    Copy
+
+    wp_enqueue_style( 'handle-name', get_template_directory_uri() . 'path/css.css', array(), time(), 'all' );
+
+    Add feedback
+
+

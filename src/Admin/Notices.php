@@ -25,6 +25,9 @@ final class Notices {
 
         // Add notice about data preservation when plugin is about to be deactivated
         add_action('admin_notices', [$this, 'display_data_preservation_notice'], 15);
+
+        // Register scripts for data preservation notice dismissal
+        add_action('admin_enqueue_scripts', [$this, 'register_data_preservation_scripts'], 20);
     }
 
     /**
@@ -176,19 +179,58 @@ final class Notices {
             <code style="background: #f5f5f5; padding: 2px 6px; border: 1px solid #ddd; border-radius: 3px;">define('ODCM_REMOVE_ALL_DATA', true);</code>
             <p><strong><?php esc_html_e('Warning:', 'order-daemon'); ?></strong> <?php esc_html_e('This will permanently delete all Order Daemon data including your rules and audit logs.', 'order-daemon'); ?></p>
         </div>
+        <?php
+    }
 
-        <script>
-        jQuery(document).ready(function($) {
-            // Handle dismissal of the data preservation notice
-            $(document).on('click', '.odcm-data-preservation-notice .notice-dismiss', function() {
-                $.post(ajaxurl, {
-                    action: 'odcm_dismiss_data_preservation_notice',
-                    nonce: '<?php echo esc_js(wp_create_nonce('odcm_dismiss_data_preservation_notice')); ?>'
+    /**
+     * Register scripts for data preservation notice dismissal
+     * This should be called from admin_enqueue_scripts hook
+     */
+    public function register_data_preservation_scripts(): void {
+        // Only register scripts on pages where the notice might appear
+        $screen = get_current_screen();
+        if (!$screen) {
+            return;
+        }
+
+        $show_on_screens = [
+            'plugins',
+            'woocommerce_page_odcm-settings',
+            'toplevel_page_odcm-settings',
+            'admin_page_odcm-settings'
+        ];
+
+        if (!in_array($screen->id, $show_on_screens)) {
+            return;
+        }
+
+        // Check if notice has been dismissed
+        $dismissed = get_user_meta(get_current_user_id(), 'odcm_data_preservation_notice_dismissed', true);
+        if ($dismissed) {
+            return;
+        }
+
+        // Register the admin notices script first
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::register_script('odcm-admin-notices', 'js/admin-notices.js', ['jquery'], true);
+
+        // Add inline script for notice dismissal
+        $script_data = [
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('odcm_dismiss_data_preservation_notice')
+        ];
+
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::add_inline_script('odcm-admin-notices', '
+            jQuery(document).ready(function($) {
+                // Handle dismissal of the data preservation notice
+                $(document).on("click", ".odcm-data-preservation-notice .notice-dismiss", function() {
+                    $.post(odcmDataPreservation.ajaxurl, {
+                        action: "odcm_dismiss_data_preservation_notice",
+                        nonce: odcmDataPreservation.nonce
+                    });
                 });
             });
-        });
-        </script>
-        <?php
+        ');
+        wp_localize_script('odcm-admin-notices', 'odcmDataPreservation', $script_data);
     }
 
     /**

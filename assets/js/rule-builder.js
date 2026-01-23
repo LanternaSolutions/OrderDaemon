@@ -1888,7 +1888,7 @@ function settingsPanel(componentType, index) {
                 value: (currentSettings && currentSettings[propKey] !== undefined) ? currentSettings[propKey] : (prop.default ?? ''),
                 enumOptions: enumOptions,
                 selectedValues: Array.isArray(currentSettings?.[propKey]) ? currentSettings[propKey] : Array.isArray(prop.default) ? prop.default : [],
-                placeholder: prop['ui:placeholder'] || 'Search options...',
+                placeholder: prop['ui:placeholder'] || '',
                 minimum: prop.minimum ?? null,
                 maximum: prop.maximum ?? null,
                 step: prop.step ?? (prop.type === 'integer' ? 1 : null),

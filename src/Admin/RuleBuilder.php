@@ -278,12 +278,12 @@ final class RuleBuilder
 
         // Configure wp.apiFetch with proper nonce and root URL (still needed for saving)
         $rest_nonce = wp_create_nonce('wp_rest');
-        wp_add_inline_script('wp-api-fetch', sprintf(
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::add_inline_script('wp-api-fetch', sprintf(
             'wp.apiFetch.use( wp.apiFetch.createNonceMiddleware( %s ) );',
             wp_json_encode($rest_nonce)
         ), 'after');
 
-        wp_add_inline_script('wp-api-fetch', sprintf(
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::add_inline_script('wp-api-fetch', sprintf(
             'wp.apiFetch.use( wp.apiFetch.createRootURLMiddleware( %s ) );',
             wp_json_encode(esc_url_raw(rest_url()))
         ), 'after');
@@ -341,7 +341,7 @@ final class RuleBuilder
         wp_localize_script('odcm-rule-builder', 'odcmRuleBuilderConfig', $config);
 
         // Add inline CSS for Alpine.js x-cloak functionality using WordPress standards
-        wp_add_inline_style('odcm-rule-builder', '[x-cloak] { display: none !important; }');
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::add_inline_style('odcm-rule-builder', '[x-cloak] { display: none !important; }');
     }
 
     /**
@@ -693,7 +693,7 @@ final class RuleBuilder
                 'value' => $current_value !== null ? $current_value : $default_value,
                 'enumOptions' => $enum_options,
                 'selectedValues' => $selected_values,
-                'placeholder' => $property['ui:placeholder'] ?? 'Search options...',
+                'placeholder' => $property['ui:placeholder'] ?? '',
                 // Numeric attributes for number/integer inputs
                 'minimum' => isset($property['minimum']) ? $property['minimum'] : null,
                 'maximum' => isset($property['maximum']) ? $property['maximum'] : null,

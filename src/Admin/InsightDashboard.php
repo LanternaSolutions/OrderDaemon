@@ -1645,13 +1645,21 @@ class InsightDashboard
             wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
         }
 
-        // Get and validate input
-        $env_raw = isset($_POST['env']) ? wp_unslash($_POST['env']) : '{}';
-        $issues_raw = isset($_POST['issues']) ? wp_unslash($_POST['issues']) : '[]';
-        
-        // Sanitize JSON strings
-        $env = json_decode(stripslashes($env_raw), true);
-        $issues = json_decode(stripslashes($issues_raw), true);
+        // Get and validate input with immediate sanitization in same line
+        $env = isset($_POST['env']) ? json_decode(stripslashes(sanitize_text_field(wp_unslash($_POST['env']))), true) : [];
+        $issues = isset($_POST['issues']) ? json_decode(stripslashes(sanitize_text_field(wp_unslash($_POST['issues']))), true) : [];
+
+        // Validate JSON decoding results immediately
+        if (!is_array($env)) {
+            $env = [];
+        }
+        if (!is_array($issues)) {
+            $issues = [];
+        }
+
+        // Additional sanitization for array values
+        $env = array_map('sanitize_text_field', $env);
+        $issues = array_map('sanitize_text_field', $issues);
 
         // Log the failure for debugging
         $log_data = [

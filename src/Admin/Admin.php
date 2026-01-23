@@ -223,8 +223,7 @@ class Admin
 
         // ALWAYS enqueue admin notices script on ALL admin pages
         // This ensures notices can be dismissed regardless of where they appear
-        $notices_script_path = ODCM_PLUGIN_URL.'assets/js/admin-notices.js';
-        wp_enqueue_script('odcm-admin-notices', $notices_script_path, [], $script_version, true);
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::register_script('odcm-admin-notices', 'js/admin-notices.js', ['jquery'], true);
         
         // Localize the ajaxurl for the notices script
         wp_localize_script('odcm-admin-notices', 'odcm_ajax', [

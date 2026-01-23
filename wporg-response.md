@@ -1,155 +1,72 @@
 The following issues were found in Order Daemon (the free core plugin):
 
-Have you read the guidelines and this plugin complies with them?
+Continuing with the plugin review for "orderdaemon". Let’s dive in!
 
-Upon submitting your plugin, you agreed and confirmed that it complies with the WordPress.org Plugin Directory Guidelines, which apply to all plugins in the directory.
+Your plugin is not yet ready to be approved, you are receiving this email because the volunteers have manually checked it and have found some issues in the code / functionality of your plugin.
 
-Our automated tools have detected patterns that may require a closer look regarding compliance with certain guidelines. We will verify this during our manual review, but it’s best to address any potential issues beforehand. In particular, please pay attention to the following:
+Please check this email thoroughly, address any issues listed, test your changes, and upload a corrected version of your code if all is well.
 
-    Any included code must be GPL-compatible. This means, among others, that the users have to receive the four essential freedoms: (0) to run the program, (1) to study and change the program in source code form, (2) to redistribute exact copies, and (3) to distribute modified versions. (Guidelines 1 & 4)
-    Plugins must not restrict or lock functionality. (Guidelines 1, 5, & 9 — see clarification on SaaS in Guideline 6)
-    Plugins are permitted to require the use of third party/external services. The service itself must provide functionality of substance and be clearly documented (what the service is and what is used for + what data is sent and when + links to privacy and service terms) in the readme file submitted with the plugin. (Guideline 6)
-    Plugins must not track users without explicit consent. (Guidelines 7 & 9)
-    Plugins should not hijack the admin dashboard. Upgrade prompts, notices, alerts, and the like must be limited in scope and used with moderation. (Guideline 11)
+List of issues found
 
 
-Please check it, and if you think everything is fine, do not worry. Our tools are very thorough and may highlight different things as potential issues.
+## The link to the ajax endpoint may not work in some configurations.
 
-Have you checked for common technical issues?
+When you link to the Ajax endpoint, you cannot assume that it's always located at wp-admin/admin-ajax.php . There are different configurations in which that won't work.
 
-Please ensure that your plugin adheres to best practices, including the following:
+This means you can't link it statically, you have to use a function to determine its location, for example: admin_url( 'admin-ajax.php' );
 
-🔴 Use wp_enqueue commands
+Obviously you would need to execute that call on PHP and then pass the information to your JS file, you can do that using the wp_localize_script() function which is also useful for other uses like passing the nonce. Let me share an example:
 
-ℹ️ Why it matters: Because of performance and compatibility, please make use of the built in functions for including static and dynamic JS and/or CSS.
+function ordedafo_scripts() {
+wp_enqueue_script( 'ordedafo-script', ORDEDAFO_PLUGIN_URL . 'js/script.js', array(), ORDEDAFO_VERSION );
 
-🔍 Identify JS and CSS outputs: Look for any <script> or <style> HTML tags in your plugin. In the majority of cases you could enqueue them.
-
-🛠 Fix it: Make use of the specific function for enqueue them:
-Type of code
-Functions
-Static JS
-wp_register_script() , wp_enqueue_script() , admin_enqueue_scripts()
-Inline JS
-wp_add_inline_script()
-Static CSS
-wp_register_style() , wp_enqueue_style()
-Inline CSS
-wp_add_inline_style()
-
-👉 In the public pages you can enqueue them using the hook wp_enqueue_scripts() .
-👉 In the admin pages you can enqueue them using the hook admin_enqueue_scripts() . You can also use admin_print_scripts() and admin_print_styles() .
-👉 As of WordPress 6.3, you can easily pass attributes like defer or async, as of WordPress 5.7, you can pass other attributes by using functions and filters.
-
-Example:
-
-function ordedafo_enqueue_script() {
-wp_enqueue_script( 'ordedafo_js', plugins_url( 'inc/main.js', __FILE__ ), array(), ORDEDAFO_VERSION, true );
+wp_localize_script( 'ordedafo-script', 'ordedafo-ajax', array(
+  'ajax_url' => admin_url('admin-ajax.php'),
+  'nonce'  => wp_create_nonce( 'ordedafo-ajax-nonce' ),
+));
 }
-add_action( 'wp_enqueue_scripts', 'ordedafo_enqueue_script' );
-
-Your JS/CSS is now enqueued!
-
-Possible cases from your plugin include:
-
-src/Admin/Admin.php:123 <script>
-src/Admin/RuleBuilder.php:1741 <style>
-src/Admin/Admin.php:178 echo '<script>jQuery(document).ready(function($) {
+add_action( 'wp_enqueue_scripts', 'ordedafo_scripts' );
 
 
-
-🔴 Trialware and Locked Features
-Please review your plugin to ensure that it does not include any locked or restricted built-in functionality. This is not permitted under the WordPress.org Plugin Directory Guidelines you agreed to when submitting the plugin.
-
-❌ Guideline 5 – Trialware
-Plugins must be fully functional. You may not:
-
-    Lock, disable or limit built-in features behind a license key, trial period, usage limit, time, quota or any other kind of intended restriction.
-
-
-Even if the locked feature is present in the code "just in case the user upgrades," it’s still not allowed. Your plugin may point out which features are available through a separated plugin, but that's it. All plugin code hosted on WordPress.org must be free and fully functional.
-
-🌐 Guideline 6 – Serviceware
-Plugins may connect to a legitimate external service to perform certain functionality, provided:
-
-    The service performs actual processing on external servers.
-    The functionality provided cannot be done locally by the plugin.
-    The service is clearly documented in your readme, including Terms of Use and Privacy Policy links.
-
-
-For example: a "Spam checker" plugin that connects to a external service to check for spam (and thus uses it to provide that functionality) is generally acceptable. A plugin that simply checks a license key to unlock local features is not.
-
-✅ Ask yourself:
-
-    Does any function only work after a license check or payment?
-    Is any functionality in the plugin code disabled or limited until it’s unlocked?
-    Are there any limitations on the plugin after a certain amount of time or usage?
-
-
-After excluding functionalities provided by legitimate external services, if the answer is yes to any of the above, the plugin does not comply.
-
-🔧 How to fix it:
-
-    Remove all license checks or other mechanisms that control access to features built in in the plugin code.
-    Remove or fully enable any built in features that are currently locked or limited.
-    Make sure external services are compliant and clearly documented.
-
-
-ℹ️ Important clarification:
-WordPress.org is not a marketplace. It's a repository for free, fully functional, GPL-compliant plugins.
-
-If you are not offering a service and want to offer additional features through a paid version, that code must be:
-
-    Hosted elsewhere (e.g., your own website).
-    Not included in the plugin hosted on WordPress.org.
-    GPL compliant: Do not include any mechanisms that would prevent a plug-in from being used after a license has been checked.
-
-
-
-
-Other details
-
-We've detected some other details that you may want to check.
-
-## Internationalization: Don't use variables or defines as text, context or text domain parameters.
-
-In order to make a string translatable in your plugin you are using a set of special functions. These functions collectively are known as "gettext".
-
-There is a dedicated team in the WordPress community to translate and help other translating strings of WordPress core, plugins and themes to other languages.
-
-To make them be able to translate this plugin, please do not use variables or function calls for the text, context or text domain parameters of any gettext function, all of them NEED to be strings. Note that the translation parser reads the code without executing it, so it won't be able to read anything that is not a string within these functions.
-
-For example, if your gettext function looks like this...
-esc_html__( $greetings , 'order-daemon' );
-...the translator won't be able to see anything to be translated as $greetings is not a string, it is not something that can be translated.
-You need to give them the string to be translated, so they can see it in the translation system and can translate it, the correct would be as follows...
-esc_html__( 'Hello, how are you?' , 'order-daemon' );
-
-This also applies to the translation domain, this is a bad call:
-esc_html__( 'Hello, how are you?' , $plugin_slug );
-The fix here would be like this
-esc_html__( 'Hello, how are you?' , 'order-daemon' );
-Also note that the translation domain needs to be the same as your plugin slug.
-
-What if we want to include a dynamic value inside the translation? Easy, you need to add a placeholder which will be part of the string and change it after the gettext function does its magic, you can use printf to do so, like this:
-
-printf(
-
-      /* translators: %s: First name of the user */
-      esc_html__( 'Hello %s, how are you?', 'order-daemon' ),
-      esc_html( $user_firstname )
-);
-
-
-You can read https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#text-domains for more information.
+Once you have this, you can later refer to your Ajax endpoint in the JS file by using the ordedafo-ajax.ajax_url variable. Please refer to the Ajax documentation: https://developer.wordpress.org/plugins/javascript/ajax/
 
 Example(s) from your plugin:
 
-src/Includes/class-odcm-strings.php:141 __($text, 'order-daemon');
-src/Includes/class-odcm-strings.php:153 esc_html__($text, 'order-daemon');
-src/Includes/class-odcm-strings.php:191 __($text, 'order-daemon');
-src/Includes/class-odcm-strings.php:179 _n($singular, $plural, $number, 'order-daemon');
-src/Includes/class-odcm-strings.php:165 esc_attr__($text, 'order-daemon');
+assets/js/admin-notices.js:58 : (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php');
+
+
+
+
+## Use wp_enqueue commands
+
+Your plugin is not correctly including JS and/or CSS. You should be using the built in functions for this:
+
+When including JavaScript code you can use:
+
+    wp_register_script() and wp_enqueue_script() to add JavaScript code from a file.
+    wp_add_inline_script() to add inline JavaScript code to previous declared scripts.
+
+
+When including CSS you can use:
+
+    wp_register_style() and wp_enqueue_style() to add CSS from a file.
+    wp_add_inline_style() to add inline CSS to previously declared CSS.
+
+
+Note that as of WordPress 6.3, you can easily pass attributes like defer or async: https://make.wordpress.org/core/2023/07/14/registering-scripts-with-async-and-defer-attributes-in-wordpress-6-3/
+
+Also, as of WordPress 5.7, you can pass other attributes by using this functions and filters: https://make.wordpress.org/core/2021/02/23/introducing-script-attributes-related-functions-in-wordpress-5-7/
+
+If you're trying to enqueue on the admin pages you'll want to use the admin enqueues.
+
+    https://developer.wordpress.org/reference/hooks/admin_enqueue_scripts/
+    https://developer.wordpress.org/reference/hooks/admin_print_scripts/
+    https://developer.wordpress.org/reference/hooks/admin_print_styles/
+
+
+Example(s) from your plugin:
+
+src/Admin/Notices.php:180 <script>
 
 
 
@@ -183,50 +100,209 @@ This service is provided by "PRT Weather INC": terms of use, privacy policy.
 
 Example(s) from your plugin:
 
+# Domain(s) not mentioned in the readme file.
+src/Diagnostics/Frontend/ConfigDiagnostic.php:273 'www.google.com/recaptcha/api.js' => 'reCAPTCHA v2/v3 APIs are commonly loaded together',
 src/Diagnostics/Frontend/ConfigDiagnostic.php:274 'googletagmanager.com' => 'Multiple GTM implementations are sometimes intentional',
-src/View/PayloadAnalyzer.php:190 *     'api_request' => ['url' => 'https://api.example.com'],
-src/Core/Events/Adapters/PayPalAdapter.php:33 private const WEBHOOK_VERIFY_URL = 'https://api.paypal.com/v1/notifications/verify-webhook-signature';
-src/Includes/functions.php:1071 *         'api_endpoint' => 'https://api.example.com/sync',
+src/Includes/functions.php:724 *         'api_endpoint' => 'https://api.example.com/sync',
 
 
 
 
-## Review: Missing permission_callback in REST API Route
+## Determine files and directories locations correctly
 
-When using register_rest_route() or wp_register_ability() to define custom REST API endpoints, it is crucial to include a proper permission_callback .
+WordPress provides several functions for easily determining where a given file or directory lives.
 
-🔒 This callback function ensures that only authorized users can access or modify data through your endpoint.
+We detected that the way your plugin references some files, directories and/or URLs may not work with all WordPress setups. This happens because there are hardcoded references or you are using the WordPress internal constants.
 
-Code example, checking that the user can change options:
+Let's improve it, please check out the following documentation:
 
-register_rest_route( 'order-daemon/v1', '/my-endpoint', array(
-'methods' => 'GET',
-'callback' => 'order-daemon_callback_function',
-'permission_callback' => function() {
-return current_user_can( 'manage_options' );
+https://developer.wordpress.org/plugins/plugin-basics/determining-plugin-and-content-directories/
+
+It contains all the functions available to determine locations correctly.
+
+Most common cases in plugins can be solved using the following functions:
+
+    For where your plugin is located: plugin_dir_path() , plugin_dir_url() , plugins_url()
+    For the uploads directory: wp_upload_dir() (Note: If you need to write files, please do so in a folder in the uploads directory, not in your plugin directories).
+
+
+Example(s) from your plugin:
+
+src/Core/AttributionTracker.php:238 $content_dir = defined('WP_CONTENT_DIR') ? wp_normalize_path((string) constant('WP_CONTENT_DIR')) : (defined('ABSPATH') ? wp_normalize_path((string) (rtrim(ABSPATH, '/\\') . '/wp-content')) : 'wp-content');
+ -----> ABSPATH
+
+
+
+
+## Data Must be Sanitized, Escaped, and Validated
+
+When you include POST/GET/REQUEST/FILE calls in your plugin, it's important to sanitize, validate, and escape them. The goal here is to prevent a user from accidentally sending trash data through the system, as well as protecting them from potential security issues.
+
+SANITIZE: Data that is input (either by a user or automatically) must be sanitized as soon as possible. This lessens the possibility of XSS vulnerabilities and MITM attacks where posted data is subverted.
+
+VALIDATE: All data should be validated, no matter what. Even when you sanitize, remember that you don’t want someone putting in ‘dog’ when the only valid values are numbers.
+
+ESCAPE: Data that is output must be escaped properly when it is echo'd, so it can't hijack admin screens. There are many esc_*() functions you can use to make sure you don't show people the wrong data.
+
+To help you with this, WordPress comes with a number of sanitization and escaping functions. You can read about those here:
+
+    https://developer.wordpress.org/apis/security/sanitizing/
+    https://developer.wordpress.org/apis/security/escaping/
+
+
+Remember: You must use the most appropriate functions for the context. If you’re sanitizing email, use sanitize_email() , if you’re outputting HTML, use wp_kses_post() , and so on.
+
+An easy mantra here is this:
+
+Sanitize early
+Escape Late
+Always Validate
+
+Clean everything, check everything, escape everything, and never trust the users to always have input sane data. After all, users come from all walks of life.
+
+Example(s) from your plugin:
+
+src/Admin/InsightDashboard.php:1650 $issues_raw = isset($_POST['issues']) ? wp_unslash($_POST['issues']) : '[]';
+# ↳ Line 1662: 'potential_issues' => is_array($issues) ? $issues : [],
+src/Admin/InsightDashboard.php:1649 $env_raw = isset($_POST['env']) ? wp_unslash($_POST['env']) : '{}';
+# ↳ Line 1661: 'environment' => is_array($env) ? $env : [],
+
+
+
+
+Note: When using functions like filter_var , filter_var_array , filter_input and/or filter_input_array you will need to set the FILTER parameter to any kind of filter that sanitizes the input.
+
+Leaving the filter parameter empty, PHP by default will apply the filter "FILTER_DEFAULT" which is not sanitizing at all.
+
+Example:
+
+$post_id = filter_input(INPUT_GET, 'post_id', FILTER_SANITIZE_NUMBER_INT);
+
+
+Example(s) from your plugin:
+
+src/Core/ManualStatusTracker.php:411 $action_raw = filter_input(INPUT_GET, 'action', FILTER_UNSAFE_RAW);
+
+
+
+
+Note: While the json_decode() function in PHP is useful for decoding JSON strings, it does not sanitize the input. Sanitization refers to the process of cleaning or filtering the input data to ensure that it is safe and secure to use.
+
+The json_decode() function simply transforms a JSON string into a PHP array or object. Any potentially malicious data or scripts may persist after json_decode().
+Example(s) from your plugin:
+
+src/Admin/InsightDashboard.php:1653 $env = json_decode(stripslashes($env_raw), true);
+src/Admin/InsightDashboard.php:1654 $issues = json_decode(stripslashes($issues_raw), true);
+
+
+
+✔️ You can check this using Plugin Check.
+
+
+## Processing the whole input
+
+We strongly recommend you never attempt to process the whole $_POST/$_REQUEST/$_GET stack. This makes your plugin slower as you're needlessly cycling through data you don't need. Instead, you should only be attempting to process the items within that are required for your plugin to function.
+
+Example(s) from your plugin:
+
+src/Core/AttributionTracker.php:538 foreach ($_SERVER as $key => $value) {
+if (strpos($key, 'HTTP_') === 0) {
+$name = strtolower(str_replace('_', '-', substr((string) $key, 5)));
+$headers[$name] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
+} elseif ($key === 'CONTENT_TYPE') {
+$headers['content-type'] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
+} elseif ($key === 'CONTENT_LENGTH') {
+$headers['content-length'] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
 }
-) );
+}
+src/Core/Core.php:269 foreach ($_GET as $key => $value) {
+if (is_array($value)) {
+$safe_get[$key] = array_map('sanitize_text_field', array_map('wp_unslash', $value));
+} else {
+$safe_get[$key] = sanitize_text_field(wp_unslash($value));
+}
+}
+src/Core/Core.php:260 foreach ($_POST as $key => $value) {
+if (is_array($value)) {
+$safe_post[$key] = array_map('sanitize_text_field', array_map('wp_unslash', $value));
+} else {
+$safe_post[$key] = sanitize_text_field(wp_unslash($value));
+}
+}
+src/Core/AttributionTracker.php:622 foreach ($_COOKIE as $name => $v) {
+if (is_string($name) && strpos($name, 'wp_woocommerce_session_') === 0) {
+return true;
+}
+}
 
 
-Please check the register_rest_route() documentation and the current_user_can() documentation.
-
-✅ When a permission_callback is NOT Required:
-
-There are valid use cases for public endpoints, such as publicly available data (e.g., posts, public metadata) or endpoints designed for unauthenticated access (e.g., fetching public stats or information).
-
-In these cases, you should use __return_true as the permission_callback to indicate that the endpoint is intentionally public.
-
-🔒 When a permission_callback IS Required:
-
-For endpoints that involve sensitive data or actions (e.g., getting not public data, creating, updating, or deleting content).
-
-In these cases, you should always implement proper permission checks.
-
-Possible cases found on this plugin's code:
-
-src/API/AuditLogEndpoint.php:309 register_rest_route(self::NAMESPACE, '/' . self::BASE_ROUTE . '/raw-data/(?P<log_id>\\d+)', [['methods' => WP_REST_Server::READABLE, 'callback' => [$this, 'get_raw_timeline_data'], 'permission_callback' => '__return_true']]);
-src/API/AuditLogEndpoint.php:300 register_rest_route(self::NAMESPACE, '/' . self::BASE_ROUTE . '/diagnostic', [['methods' => WP_REST_Server::READABLE, 'callback' => [$this, 'diagnostic_check'], 'permission_callback' => '__return_true']]);
-src/API/WebhookController.php:76 register_rest_route(self::NAMESPACE, '/' . self::BASE_ROUTE . '/health', [['methods' => WP_REST_Server::READABLE, 'callback' => [$this, 'health_check'], 'permission_callback' => '__return_true']]);
 
 
+## Variables and options must be escaped when echo'd
 
+Much related to sanitizing everything, all variables that are echoed need to be escaped when they're echoed, so it can't hijack users or (worse) admin screens. There are many esc_*() functions you can use to make sure you don't show people the wrong data, as well as some that will allow you to echo HTML safely.
+
+At this time, we ask you escape all $-variables, options, and any sort of generated data when it is being echoed. That means you should not be escaping when you build a variable, but when you output it at the end. We call this 'escaping late.'
+
+Besides protecting yourself from a possible XSS vulnerability, escaping late makes sure that you're keeping the future you safe. While today your code may be only outputted hardcoded content, that may not be true in the future. By taking the time to properly escape when you echo, you prevent a mistake in the future from becoming a critical security issue.
+
+This remains true of options you've saved to the database. Even if you've properly sanitized when you saved, the tools for sanitizing and escaping aren't interchangeable. Sanitizing makes sure it's safe for processing and storing in the database. Escaping makes it safe to output.
+
+Also keep in mind that sometimes a function is echoing when it should really be returning content instead. This is a common mistake when it comes to returning JSON encoded content. Very rarely is that actually something you should be echoing at all. Echoing is because it needs to be on the screen, read by a human. Returning (which is what you would do with an API) can be json encoded, though remember to sanitize when you save to that json object!
+
+There are a number of options to secure all types of content (html, email, etc). Yes, even HTML needs to be properly escaped.
+
+https://developer.wordpress.org/apis/security/escaping/
+
+Remember: You must use the most appropriate functions for the context. There is pretty much an option for everything you could echo. Even echoing HTML safely.
+
+Example(s) from your plugin:
+
+src/View/DashboardComponents/DashboardComponentRenderer.php:96 echo $rendered_html;
+
+
+
+
+Note: When escaping, there are cases where your plugin will need to output HTML. This can be done using the functions wp_kses_post or wp_kses . The function wp_kses_post will allow any common HTML that can go inside a post content, wp_kses will allow any HTML that you set up using its second and third parameters, please refer to its documentation.
+
+A common mistake is to use esc_html to escape HTML. This function is not intended for that, it's intended to escape the output that will go inside an HTML tag, therefore it will strip any HTML tags.
+
+Examples:
+
+echo wp_kses_post($html_content);
+
+echo wp_kses($html_content, array( 'a', 'div', 'span' ));
+
+
+We have heuristically detected these cases of your plugin that might need HTML escaping (might be false positives, please check them out):
+
+src/View/DashboardComponents/DashboardComponentRenderer.php:96 echo $rendered_html;
+
+
+
+✔️ You can check this using Plugin Check.
+
+
+👉 Continue with the review process.
+
+Read this email thoroughly.
+
+Please, take the time to fully understand the issues we've raised. Review the examples provided, read the relevant documentation, and research as needed. Our goal is for you to gain a clear understanding of the problems so you can address them effectively and avoid similar issues when maintaining your plugin in the future.
+Note that there may be false positives - we are humans and make mistakes, we apologize if there is anything we have gotten wrong. If you have doubts you can ask us for clarification, when asking us please be clear, concise, direct and include an example.
+
+📋 Complete your checklist.
+
+✔️ I fixed all the issues in my plugin based on the feedback I received and my own review, as I know that the Plugins Team may not share all cases of the same issue. I am familiar with tools such as Plugin Check, PHPCS + WPCS, and similar utilities to help me identify problems in my code.
+✔️ I tested my updated plugin on a clean WordPress installation with WP_DEBUG set to true.
+
+    ⚠️ Do not skip this step. Testing is essential to make sure your fixes actually work and that you haven’t introduced new issues.
+
+
+✔️ I acknowledge that this review will be rejected if I overlook the issues or fail to test my code.
+✔️ I went to "Add your plugin" and uploaded the updated version. I can continue updating the code there throughout the review process — the team will always check the latest version.
+✔️ I replied to this email. I was concise and shared any clarifications or important context that the team needed to know.
+I didn't list all the changes, as the team will review the entire plugin again and that is not necessary at all.
+
+ℹ️ To make this process as quick as possible and to avoid burden on the volunteers devoting their time to review this plugin's code, we ask you to thoroughly check all shared issues and fix them before sending the code back to us. I know we already asked you to do so, and it is because we are really trying to make it very clear.
+
+While we try to make our reviews as exhaustive as possible we, like you, are humans and may have missed things. We appreciate your patience and understanding.
