@@ -256,22 +256,26 @@ class Core
         odcm_log_message("REQUEST_URI: " . (isset($_SERVER["REQUEST_URI"]) ? esc_url_raw(wp_unslash($_SERVER["REQUEST_URI"])) : "unknown"), 'info');
         
         // Sanitize and verify nonce for $_POST and $_GET data
-        $safe_post = array();
-        foreach ($_POST as $key => $value) {
-            if (is_array($value)) {
-                $safe_post[$key] = array_map('sanitize_text_field', array_map('wp_unslash', $value));
-            } else {
-                $safe_post[$key] = sanitize_text_field(wp_unslash($value));
-            }
-        }
-        
-        $safe_get = array();
-        foreach ($_GET as $key => $value) {
-            if (is_array($value)) {
-                $safe_get[$key] = array_map('sanitize_text_field', array_map('wp_unslash', $value));
-            } else {
-                $safe_get[$key] = sanitize_text_field(wp_unslash($value));
-            }
+        $allowed_get_params = ['page', 'tab', 'action', '_wpnonce'];
+        $allowed_post_params = ['odcm_reprocess_orders', 'odcm_reprocess_nonce', 'action'];
+
+        $validation_rules = [
+            'page' => ['type' => 'string', 'required' => false],
+            'tab' => ['type' => 'string', 'required' => false],
+            'action' => ['type' => 'string', 'required' => false],
+            '_wpnonce' => ['type' => 'string', 'required' => true],
+            'odcm_reprocess_orders' => ['type' => 'string', 'required' => false],
+            'odcm_reprocess_nonce' => ['type' => 'string', 'required' => true]
+        ];
+
+        try {
+            $safe_get = odcm_validate_and_sanitize_params($_GET, $validation_rules);
+            $safe_post = odcm_validate_and_sanitize_params($_POST, $validation_rules);
+        } catch (InvalidArgumentException $e) {
+            // Log error and provide fallback
+            odcm_log_message("Parameter validation error: " . $e->getMessage(), 'error');
+            $safe_get = [];
+            $safe_post = [];
         }
         
         odcm_log_message("POST data: " . wp_json_encode($safe_post), 'info');

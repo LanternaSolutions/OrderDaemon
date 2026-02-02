@@ -1645,15 +1645,14 @@ class InsightDashboard
             wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
         }
 
-        // Get and validate input with immediate sanitization in same line
-        $env = isset($_POST['env']) ? json_decode(stripslashes(sanitize_text_field(wp_unslash($_POST['env']))), true) : [];
-        $issues = isset($_POST['issues']) ? json_decode(stripslashes(sanitize_text_field(wp_unslash($_POST['issues']))), true) : [];
-
-        // Validate JSON decoding results immediately
-        if (!is_array($env)) {
+        // Validate and sanitize the JSON
+        try {
+            $env = odcm_validate_and_sanitize_json($env_raw, true);
+            $issues = odcm_validate_and_sanitize_json($issues_raw, true);
+        } catch (InvalidArgumentException $e) {
+            // Log error and provide fallback
+            odcm_log_message("JSON validation error: " . $e->getMessage(), 'error');
             $env = [];
-        }
-        if (!is_array($issues)) {
             $issues = [];
         }
 

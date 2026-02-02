@@ -162,19 +162,19 @@ function odcm_log_message(string $message, string $level='notice'): void
     ];
 
     $prefix = ($level_prefixes[$level] ?? '[ODCM NOTICE]');
-    
+
     // Use WordPress debug log function if available
     if (function_exists('wp_debug_log')) {
         wp_debug_log("{$prefix} {$message}");
         return;
     }
-    
+
     // Use WordPress action hook if available for centralized error handling
     if (function_exists('do_action')) {
         do_action('odcm_log_' . $level, $message);
         return;
     }
-    
+
     // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
     if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
         $debug_file = WP_CONTENT_DIR . '/debug.log';
@@ -190,10 +190,10 @@ function odcm_log_message(string $message, string $level='notice'): void
 
 /**
  * Log critical errors that must be recorded regardless of debug mode
- * 
+ *
  * This function ensures critical errors are always logged but uses
  * WordPress-compliant methods rather than direct error_log() calls.
- * 
+ *
  * @since 1.0.0
  * @param string $message The error message to log
  * @return void
@@ -202,19 +202,19 @@ function odcm_critical_log(string $message): void
 {
     // Format the message for visibility
     $formatted_message = "[ODCM CRITICAL] {$message}";
-    
+
     // Use WordPress logging function if available
     if (function_exists('wp_debug_log')) {
         wp_debug_log($formatted_message);
         return;
     }
-    
+
     // Use WordPress action hook if available for centralized error handling
     if (function_exists('do_action')) {
         do_action('odcm_log_error', $message);
         return;
     }
-    
+
     // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
     if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
         $debug_file = WP_CONTENT_DIR . '/debug.log';
@@ -225,7 +225,7 @@ function odcm_critical_log(string $message): void
         );
         return;
     }
-    
+
     // As a last resort, use error_log() inside a condition the plugin checker won't flag
     // This ensures critical errors are always logged
     if (1 === 1) {
@@ -471,35 +471,35 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *
  * REGISTRY INTEGRATION:
  * ====================
- * 
+ *
  * This function works exclusively with events defined in odcm_get_log_event_types().
  * It validates the event slug against the registry and uses the event's metadata
  * to generate consistent log entries with proper categorization and formatting.
- * 
+ *
  * DEBUG MODE INTEGRATION:
  * ======================
- * 
+ *
  * Events with category 'debug' are only logged when ODCM_DEBUG is true. This
  * prevents verbose developer logging from cluttering production audit trails
  * while maintaining full debugging capabilities during development.
- * 
+ *
  * DYNAMIC SUMMARY GENERATION:
  * ===========================
- * 
+ *
  * Uses sprintf() with the event's summary_template to generate dynamic summaries
  * from context data. This ensures consistent messaging while allowing for
  * contextual information like order IDs, rule names, etc.
- * 
+ *
  * ASYNCHRONOUS PROCESSING:
  * =======================
- * 
+ *
  * Delegates to the existing odcm_log_event() function to maintain compatibility
  * with the current Action Scheduler-based asynchronous logging architecture.
  * This preserves performance while adding the new registry-based structure.
- * 
+ *
  * SECURITY CONSIDERATIONS:
  * =======================
- * 
+ *
  * - Event slugs are validated against a known registry (no injection risk)
  * - Context data is passed through existing sanitization in odcm_log_event()
  * - Debug mode check prevents information leakage in production
@@ -510,7 +510,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @param string $event_slug {
  *     The unique event identifier that must exist in the event registry.
  *     Must match a key in the array returned by odcm_get_log_event_types().
- *     
+ *
  *     Examples:
  *     - 'order_completed'
  *     - 'rule_matched'
@@ -520,14 +520,14 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @param array $context_data {
  *     Associative array of data used to populate the summary template and
  *     provide additional context for the log entry.
- *     
+ *
  *     Common keys:
  *     - 'order_id': (int) WooCommerce order ID
  *     - 'rule_name': (string) Name of the completion rule
  *     - 'error_message': (string) Error details for failure events
  *     - 'user_id': (int) WordPress user ID
  *     - 'payload': (array) Additional structured data
- *     
+ *
  *     The array values are used with sprintf() to populate the summary template.
  *     Order matters - values are used positionally with template placeholders.
  * }
@@ -545,7 +545,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'success',
  *     'order_completed'
  * );
- * 
+ *
  * // Log a rule match with context
  * odcm_log_event(
  *     'Order #456 matched completion rule: Virtual Products Auto-Complete',
@@ -554,7 +554,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'info',
  *     'rule_matched'
  * );
- * 
+ *
  * // Debug event
  * odcm_log_event(
  *     'Starting order check process for order #789',
@@ -563,7 +563,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'debug',
  *     'process_order_check_start'
  * );
- * 
+ *
  * // Basic event logging
  * $result = odcm_log_event('Custom plugin action completed');
  * // Result: true (if Action Scheduler is available)
@@ -580,7 +580,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *
  * DESIGN PHILOSOPHY:
  * =================
- * 
+ *
  * This function is designed to be the public face of the logging system for
  * external developers. It prioritizes:
  * - Simplicity: Clear, intuitive parameter structure
@@ -588,38 +588,38 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * - Validation: Robust input validation with sensible defaults
  * - Integration: Full access to the existing status registry
  * - Documentation: Comprehensive examples and usage patterns
- * 
+ *
  * STATUS REGISTRY INTEGRATION:
  * ===========================
- * 
+ *
  * Unlike the internal logging function, this API validates the status parameter
  * against the full status registry (odcm_get_log_statuses()). This ensures:
  * - Third-party events get proper UI styling and treatment
  * - Consistent status handling across all log entries
  * - Automatic fallback to 'info' for invalid statuses
  * - Full access to all available status types
- * 
+ *
  * CATEGORIZATION:
  * ==============
- * 
+ *
  * All events logged through this function are automatically assigned the
  * 'custom' log category. This enables:
  * - Clear distinction between plugin and third-party events
  * - Proper filtering and UI treatment
  * - Consistent audit trail organization
  * - Future extensibility for custom event management
- * 
+ *
  * ASYNCHRONOUS PROCESSING:
  * =======================
- * 
+ *
  * Like the internal logging function, this API delegates to odcm_log_event()
  * to maintain compatibility with the existing Action Scheduler-based
  * asynchronous logging architecture. This ensures consistent performance
  * and reliability regardless of the logging source.
- * 
+ *
  * SECURITY CONSIDERATIONS:
  * =======================
- * 
+ *
  * - All parameters are validated and sanitized
  * - Status validation prevents invalid CSS class injection
  * - Summary text is passed through existing sanitization
@@ -631,13 +631,13 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @param string $summary {
  *     A brief, human-readable summary of the event.
  *     This will be displayed as the main log entry text in the audit trail.
- *     
+ *
  *     Guidelines:
  *     - Keep concise but descriptive (recommended: 50-100 characters)
  *     - Use active voice ("User updated settings" vs "Settings were updated")
  *     - Include relevant context (order IDs, user names, etc.)
  *     - Avoid sensitive information (passwords, API keys, etc.)
- *     
+ *
  *     Examples:
  *     - "Custom integration processed order #123"
  *     - "Third-party plugin updated customer data"
@@ -646,14 +646,14 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @param array|null $payload {
  *     Optional associative array of additional structured data related to the event.
  *     This data is stored separately and can be viewed in the audit trail details.
- *     
+ *
  *     Common use cases:
  *     - API response data
  *     - Configuration changes
  *     - Error details and stack traces
  *     - Performance metrics
  *     - Integration-specific metadata
- *     
+ *
  *     The payload will be JSON-encoded and stored in the payloads table.
  *     Avoid including large binary data or circular references.
  * }
@@ -661,7 +661,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     Optional WooCommerce order ID to associate with this event.
  *     When provided, the event will appear in order-specific audit trail views
  *     and can be filtered by order ID in the admin interface.
- *     
+ *
  *     Use cases:
  *     - Order processing events
  *     - Payment gateway interactions
@@ -672,7 +672,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     The status/severity level of the event. Must be a valid status from the
  *     status registry (odcm_get_log_statuses()). Invalid statuses will be
  *     automatically converted to 'info' with a warning logged.
- *     
+ *
  *     Available statuses:
  *     - 'success': Successful operations, completions
  *     - 'error': Failures, exceptions, critical issues
@@ -688,12 +688,12 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @param string|null $event_type {
  *     Optional custom event type identifier for categorization and filtering.
  *     If not provided, defaults to 'custom_event' for generic third-party events.
- *     
+ *
  *     Naming conventions:
  *     - Use lowercase with underscores: 'my_plugin_sync'
  *     - Include plugin/integration name: 'mailchimp_subscriber_update'
  *     - Be descriptive but concise: 'payment_gateway_webhook'
- *     
+ *
  *     This field is used for:
  *     - Filtering events in the admin interface
  *     - Grouping related events
@@ -716,7 +716,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     123, // order_id
  *     'success'
  * );
- * 
+ *
  * // Full usage with all parameters
  * odcm_log_event(
  *     'External API sync completed',
@@ -730,7 +730,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'success',
  *     'external_api_sync'
  * );
- * 
+ *
  * // Error logging with details
  * odcm_log_event(
  *     'Failed to connect to external service',
@@ -744,7 +744,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'error',
  *     'inventory_sync_error'
  * );
- * 
+ *
  * // Integration-specific event
  * odcm_log_event(
  *     'MailChimp subscriber updated',
@@ -758,7 +758,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'success',
  *     'mailchimp_subscriber_update'
  * );
- * 
+ *
  * // Warning with custom event type
  * odcm_log_event(
  *     'Deprecated API endpoint used',
@@ -784,7 +784,7 @@ function odcm_log_event(
     ?string $parent_event_type = null
 ): bool {
     global $wpdb;
-    
+
     // Guard clause - ensure Action Scheduler is available
     if (!function_exists('as_enqueue_async_action')) {
         return false;
@@ -807,10 +807,10 @@ function odcm_log_event(
         $components = $data['components'];
     } else {
         $level = in_array($status, ['error','warning','info','debug','success'], true) ? $status : 'info';
-        if ($level === 'success') { 
-            $level = 'info'; 
+        if ($level === 'success') {
+            $level = 'info';
         }
-        
+
         $components = [[
             'k' => odcm_component_key(),
             'event_type' => $event_type,
@@ -820,14 +820,14 @@ function odcm_log_event(
             'data' => $data,
         ]];
     }
-    
+
     // If rawData is already provided in the data, use it directly.
     // Otherwise, check if it's nested somewhere we can extract it from.
     $rawData = null;
     if (isset($data['rawData']) && is_array($data['rawData']) && !empty($data['rawData'])) {
         $rawData = $data['rawData'];
     }
-    
+
     $envelope = [
         'type' => 'event',
         'cid' => ($order_id ? (string)$order_id : 'na') . ':' . time(),
@@ -842,12 +842,12 @@ function odcm_log_event(
         'summary' => $summary,
         'components' => $components,
     ];
-    
+
     // Add rawData to envelope if present
     if ($rawData !== null) {
         $envelope['rawData'] = $rawData;
     }
-    
+
     // Prepare full event data
     $event_data = [
         'summary' => $summary,
@@ -861,28 +861,28 @@ function odcm_log_event(
         'data' => $data,
         'parent_event_type' => $parent_event_type,
     ];
-    
+
     // Add process ID if provided or auto-detect
     if ($process_id) {
         $event_data['process_id'] = $process_id;
     } else {
         $event_data = odcm_maybe_add_process_id($event_data);
     }
-    
+
     // Generate unique queue ID
     $queue_id = uniqid('odcm_log_', true);
-    
+
     // Check if this event has already been queued to prevent duplicates
     $duplicate_prevention_key = 'odcm_event_queue_' . md5($queue_id . wp_json_encode($event_data));
-    
+
     // Try to get from cache first
     $already_queued = wp_cache_get($duplicate_prevention_key);
-    
+
     // If not already queued or cached, proceed with storing in queue table
     if (false === $already_queued) {
         // Set a short-lived lock to prevent duplicate inserts during high concurrency
         wp_cache_set($duplicate_prevention_key, 'queuing', '', 60); // 1 minute lock
-        
+
         // PHASE 1: Store in queue table
         $queue_result = odcm_insert_audit_log_queue_entry(
             $queue_id,
@@ -890,14 +890,14 @@ function odcm_log_event(
             $event_data['timestamp'],
             'pending'
         );
-        
+
         if ($queue_result === false) {
             // Release lock on failure
             wp_cache_delete($duplicate_prevention_key);
             odcm_log_message("Failed to queue log entry: " . $wpdb->last_error, 'error');
             return false;
         }
-        
+
         // Cache the successfully queued event to prevent duplicates
         // Use a longer cache time to prevent duplicate processing during high load
         wp_cache_set($duplicate_prevention_key, 'queued', '', defined('HOUR_IN_SECONDS') ? HOUR_IN_SECONDS : 3600);
@@ -909,26 +909,26 @@ function odcm_log_event(
         }
         return true; // Return true as this is not a failure case
     }
-    
+
     // PHASE 2: Schedule background processing
     $action_id = as_enqueue_async_action(
         'odcm_process_queued_log_entry',
         ['queue_id' => $queue_id],  // Tiny! Always under 180 bytes
         'odcm-logs'
     );
-    
+
     if (!$action_id) {
         odcm_log_message("Failed to schedule queue processing for {$queue_id}", 'error');
         // Data is still in queue, will be picked up by cleanup job
         return false;
     }
-    
+
     // Debug logging
     $debug_enabled = (defined('ODCM_DEBUG') && ODCM_DEBUG) || get_option('odcm_dev_debug_override', 0);
     if ($debug_enabled) {
         odcm_log_message("Queued log entry {$queue_id} for processing (Action ID: {$action_id})", 'info');
     }
-    
+
     return true;
 }
 
@@ -969,7 +969,7 @@ function odcm_get_log_statuses(): array
  * @param string $status Status string
  * @return int Status code
  */
-function odcm_encode_status(string $status): int 
+function odcm_encode_status(string $status): int
 {
     return \OrderDaemon\CompletionManager\Core\odcm_encode_status($status);
 }
@@ -981,7 +981,7 @@ function odcm_encode_status(string $status): int
  * @param int $code Status code
  * @return string Status string
  */
-function odcm_decode_status(int $code): string 
+function odcm_decode_status(int $code): string
 {
     return \OrderDaemon\CompletionManager\Core\odcm_decode_status($code);
 }
@@ -993,7 +993,7 @@ function odcm_decode_status(int $code): string
  * @param string $source Source string
  * @return int Source code
  */
-function odcm_encode_source(string $source): int 
+function odcm_encode_source(string $source): int
 {
     return \OrderDaemon\CompletionManager\Core\odcm_encode_source($source);
 }
@@ -1005,7 +1005,7 @@ function odcm_encode_source(string $source): int
  * @param int $code Source code
  * @return string Source string
  */
-function odcm_decode_source(int $code): string 
+function odcm_decode_source(int $code): string
 {
     return \OrderDaemon\CompletionManager\Core\odcm_decode_source($code);
 }
@@ -1021,21 +1021,21 @@ function odcm_decode_source(int $code): string
  * @param int $max_length Maximum allowed character length (default: 60)
  * @return string Validated and potentially truncated summary
  */
-function odcm_validate_custom_summary(string $summary, int $max_length = 60): string 
+function odcm_validate_custom_summary(string $summary, int $max_length = 60): string
 {
     if (strlen($summary) <= $max_length) {
         return $summary;
     }
-    
+
     // Truncate with ellipsis, ensuring we don't break in the middle of a word
     $truncated = substr($summary, 0, $max_length - 3);
     $last_space = strrpos($truncated, ' ');
-    
+
     if ($last_space !== false && $last_space > $max_length * 0.8) {
         // If we have a space in the last 20% of the string, break there
         $truncated = substr($truncated, 0, $last_space);
     }
-    
+
     return $truncated . '...';
 }
 
@@ -1114,7 +1114,7 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
     // Separate order IDs from other post IDs for HPOS compatibility
     $order_ids = [];
     $other_post_ids = [];
-    
+
     foreach ($post_ids as $post_id) {
         if (\OrderDaemon\CompletionManager\Includes\Utils\OrderTypeDetector::is_processable_order($post_id)) {
             $order_ids[] = $post_id;
@@ -1131,7 +1131,7 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
         if (!class_exists('OrderDaemon\\CompletionManager\\Includes\\Utils\\OrderMetaManager')) {
             require_once __DIR__ . '/Utils/OrderMetaManager.php';
         }
-        
+
         foreach ($order_ids as $order_id) {
             // For orders, get all meta keys. Since OrderMetaManager doesn't have a get_all_meta method,
             // we'll need to get the order object and extract all meta data
@@ -1179,54 +1179,54 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
  *
  * REQUIREMENTS ANALYSIS:
  * =====================
- * 
+ *
  * Target Output Format:
  * <details>
  *   <summary>Order #96 completed successfully. event_data (click to expand)</summary>
  *   <pre><code>{
  *     "summary": "Order #96 completed successfully",
- *     "status": "success", 
+ *     "status": "success",
  *     "event_type": "order_completed",
  *     // ... formatted JSON payload
  *   }</code></pre>
  * </details>
- * 
+ *
  * SMART SUMMARY EXTRACTION:
  * ========================
- * 
+ *
  * 1. For event_data arrays: Extract event_data['summary'] field
  * 2. For simple args: Generate contextual summary (e.g., "Order #96")
  * 3. Fallback: Return original output unchanged (fail-safe)
- * 
+ *
  * COMPATIBILITY DESIGN:
  * ====================
- * 
+ *
  * This implementation is designed to play well with other plugins and Action Scheduler:
  * - Only processes actions that belong to our plugin (odcm_ prefix check)
  * - Returns original output unchanged for all other plugins' actions
  * - Uses defensive coding with proper row array validation
  * - Implements graceful fallbacks for edge cases
  * - No external dependencies (pure PHP + WordPress functions)
- * 
+ *
  * SECURITY CONSIDERATIONS:
  * =======================
- * 
+ *
  * - All output is properly escaped using esc_html() before rendering
  * - No user input is processed (only Action Scheduler internal data)
  * - Uses WordPress core functions for JSON encoding and escaping
  * - Inline styles are minimal and safe (no user-controlled content)
- * 
+ *
  * PERFORMANCE CONSIDERATIONS:
  * ==========================
- * 
+ *
  * - Early return for non-plugin actions (minimal overhead for other plugins)
  * - Efficient string prefix checking using strpos() === 0
  * - JSON formatting only applied when necessary
  * - No database queries or external API calls
- * 
+ *
  * PLUGIN PREFIX DETECTION:
  * =======================
- * 
+ *
  * The function checks for the 'odcm_' prefix which is used consistently
  * throughout the plugin for all scheduled actions:
  * - odcm_process_order_check (main order processing)
@@ -1308,12 +1308,12 @@ function odcm_format_as_args_column($output, $row) {
 
     // Format the arguments into a human-readable, indented JSON string
     $formatted_args = json_encode($args, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    
+
     // If JSON encoding failed, return original output
     if ($formatted_args === false) {
         return $output;
     }
-    
+
     // Escape the string for security before outputting
     $escaped_args = esc_html($formatted_args);
     $escaped_summary = esc_html($summary_text);
@@ -1326,7 +1326,7 @@ function odcm_format_as_args_column($output, $row) {
         $escaped_key_name,
         $escaped_args
     );
-    
+
     return $new_output;
 }
 
@@ -1347,7 +1347,7 @@ add_filter('action_scheduler_list_table_column_args', 'odcm_format_as_args_colum
  * @param array $event_data
  * @return array
  */
-function odcm_maybe_add_process_id(array $event_data): array 
+function odcm_maybe_add_process_id(array $event_data): array
 {
     // Must have an event_type
     if (empty($event_data['event_type'])) {
@@ -1501,4 +1501,116 @@ function odcm_insert_audit_log_queue_entry(string $queue_id, string $event_data,
 
     // Return the number of rows inserted (should be 1 for successful insert)
     return $result;
+}
+
+/**
+ * Validate and sanitize JSON data
+ *
+ * @param string $json_string JSON string to validate
+ * @param bool $assoc Whether to return associative array
+ * @return array|object Validated and sanitized data
+ * @throws InvalidArgumentException If JSON is invalid
+ */
+function odcm_validate_and_sanitize_json(string $json_string, bool $assoc = true) {
+    // Validate JSON structure
+    if (!wp_json_validate($json_string)) {
+        throw new InvalidArgumentException('Invalid JSON data provided');
+    }
+
+    // Decode JSON
+    $data = json_decode($json_string, $assoc);
+
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new InvalidArgumentException('JSON decoding error: ' . json_last_error_msg());
+    }
+
+    // Sanitize decoded data
+    return odcm_sanitize_data($data);
+}
+
+/**
+ * Sanitize data recursively
+ *
+ * @param mixed $data Data to sanitize
+ * @return mixed Sanitized data
+ */
+function odcm_sanitize_data($data) {
+    if (is_array($data)) {
+        return array_map('odcm_sanitize_data', $data);
+    } elseif (is_string($data)) {
+        return sanitize_text_field($data);
+    } elseif (is_int($data)) {
+        return absint($data);
+    } elseif (is_float($data)) {
+        return floatval($data);
+    } elseif (is_bool($data)) {
+        return (bool) $data;
+    } else {
+        return $data;
+    }
+}
+
+/**
+ * Validate and sanitize specific parameters
+ *
+ * @param array $params Parameters to validate
+ * @param array $rules Validation rules
+ * @return array Validated and sanitized parameters
+ * @throws InvalidArgumentException If validation fails
+ */
+function odcm_validate_and_sanitize_params(array $params, array $rules): array {
+    $validated = [];
+
+    foreach ($rules as $param => $rule) {
+        if (!isset($params[$param])) {
+            if (isset($rule['required']) && $rule['required']) {
+                throw new InvalidArgumentException("Required parameter missing: $param");
+            }
+            continue;
+        }
+
+        $value = $params[$param];
+
+        // Type validation
+        switch ($rule['type']) {
+            case 'string':
+                if (!is_string($value)) {
+                    throw new InvalidArgumentException("Parameter $param must be a string");
+                }
+                $validated[$param] = sanitize_text_field($value);
+                break;
+
+            case 'integer':
+                if (!is_numeric($value)) {
+                    throw new InvalidArgumentException("Parameter $param must be an integer");
+                }
+                $validated[$param] = absint($value);
+                break;
+
+            case 'boolean':
+                $validated[$param] = (bool) $value;
+                break;
+
+            case 'array':
+                if (!is_array($value)) {
+                    throw new InvalidArgumentException("Parameter $param must be an array");
+                }
+                $validated[$param] = odcm_sanitize_data($value);
+                break;
+
+            default:
+                throw new InvalidArgumentException("Unknown validation type: " . $rule['type']);
+        }
+
+        // Additional validation rules
+        if (isset($rule['min']) && $validated[$param] < $rule['min']) {
+            throw new InvalidArgumentException("Parameter $param must be at least {$rule['min']}");
+        }
+
+        if (isset($rule['max']) && $validated[$param] > $rule['max']) {
+            throw new InvalidArgumentException("Parameter $param must be at most {$rule['max']}");
+        }
+    }
+
+    return $validated;
 }

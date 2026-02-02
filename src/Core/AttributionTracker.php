@@ -523,6 +523,50 @@ final class AttributionTracker
      */
     private function get_normalized_headers(): array
     {
+        $allowed_headers = [
+            // Standard web headers
+            'user-agent' => ['type' => 'string'],
+            'referer' => ['type' => 'string'],
+            'content-type' => ['type' => 'string'],
+            'content-length' => ['type' => 'integer'],
+            'host' => ['type' => 'string'],
+            'origin' => ['type' => 'string'],
+            
+            // Security headers
+            'x-wp-nonce' => ['type' => 'string'],
+            
+            // Webhook headers (specific gateways)
+            'stripe-signature' => ['type' => 'string'],
+            'paypal-transmission-sig' => ['type' => 'string'],
+            'paypal-auth-algo' => ['type' => 'string'],
+            'x-mollie-signature' => ['type' => 'string'],
+            'x-square-signature' => ['type' => 'string'],
+            
+            // CORS headers
+            'access-control-allow-origin' => ['type' => 'string'],
+            'access-control-allow-methods' => ['type' => 'string'],
+            'access-control-allow-headers' => ['type' => 'string'],
+            'access-control-allow-credentials' => ['type' => 'string'],
+            
+            // API headers
+            'authorization' => ['type' => 'string'],
+            'accept' => ['type' => 'string'],
+            
+            // Email headers
+            'from' => ['type' => 'string'],
+            'reply-to' => ['type' => 'string'],
+            'cc' => ['type' => 'string'],
+            'bcc' => ['type' => 'string'],
+            
+            // IP detection headers
+            'client-ip' => ['type' => 'string'],
+            'x-forwarded-for' => ['type' => 'string'],
+            'x-forwarded' => ['type' => 'string'],
+            'x-cluster-client-ip' => ['type' => 'string'],
+            'forwarded-for' => ['type' => 'string'],
+            'forwarded' => ['type' => 'string'],
+        ];
+
         $headers = [];
         // Prefer getallheaders if available
         if (function_exists('getallheaders')) {
@@ -530,7 +574,16 @@ final class AttributionTracker
             if (is_array($raw)) {
                 foreach ($raw as $key => $value) {
                     $lk = strtolower(str_replace('_', '-', (string) $key));
-                    $headers[$lk] = is_string($value) ? sanitize_text_field($value) : '';
+                    if (isset($allowed_headers[$lk])) {
+                        switch ($allowed_headers[$lk]['type']) {
+                            case 'string':
+                                $headers[$lk] = is_string($value) ? sanitize_text_field($value) : '';
+                                break;
+                            case 'integer':
+                                $headers[$lk] = is_numeric($value) ? absint($value) : 0;
+                                break;
+                        }
+                    }
                 }
             }
         }
@@ -538,11 +591,20 @@ final class AttributionTracker
         foreach ($_SERVER as $key => $value) {
             if (strpos($key, 'HTTP_') === 0) {
                 $name = strtolower(str_replace('_', '-', substr((string) $key, 5)));
-                $headers[$name] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
+                if (isset($allowed_headers[$name])) {
+                    switch ($allowed_headers[$name]['type']) {
+                        case 'string':
+                            $headers[$name] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
+                            break;
+                        case 'integer':
+                            $headers[$name] = is_numeric($value) ? absint(wp_unslash($value)) : 0;
+                            break;
+                    }
+                }
             } elseif ($key === 'CONTENT_TYPE') {
                 $headers['content-type'] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
             } elseif ($key === 'CONTENT_LENGTH') {
-                $headers['content-length'] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
+                $headers['content-length'] = is_numeric($value) ? absint(wp_unslash($value)) : 0;
             }
         }
         return $headers;
