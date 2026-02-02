@@ -675,7 +675,7 @@ final class AttributionTracker
     }
 
     /**
-     * Check presence of WooCommerce session cookie without exposing values.
+     * Check presence of WooCommerce session cookie with enhanced validation.
      *
      * @return bool
      */
@@ -683,7 +683,10 @@ final class AttributionTracker
     {
         foreach ($_COOKIE as $name => $v) {
             if (is_string($name) && strpos($name, 'wp_woocommerce_session_') === 0) {
-                return true;
+                // Validate cookie name format without accessing the value
+                if (preg_match('/^wp_woocommerce_session_[a-zA-Z0-9]+$/', $name)) {
+                    return true;
+                }
             }
         }
         return false;
