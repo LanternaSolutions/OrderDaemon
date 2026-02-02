@@ -175,7 +175,7 @@ This plugin connects to PayPal's API services to verify PayPal payment notificat
 - **Privacy Policy**: https://www.paypal.com/privacy
 
 **Important Notes About Google Services**
-The plugin's diagnostic system mentions Google Tag Manager, Google Analytics, and reCAPTCHA as examples of common third-party services that might be detected as duplicates. However, Order Daemon does NOT actively connect to or use these Google services. These are only diagnostic reference patterns used to identify potential script conflicts caused by other plugins or themes.
+The plugin's diagnostic system mentions Google Tag Manager (https://googletagmanager.com), Google Analytics (https://google-analytics.com), and reCAPTCHA (https://www.google.com/recaptcha/api.js) as examples of common third-party services that might be detected as duplicates. However, Order Daemon does NOT actively connect to or use these Google services. These are only diagnostic reference patterns used to identify potential script conflicts caused by other plugins or themes.
 
 == Debug API Endpoints ==
 

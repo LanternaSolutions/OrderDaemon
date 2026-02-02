@@ -235,8 +235,8 @@ final class AttributionTracker
             return $result;
         }
 
-        $content_dir = defined('WP_CONTENT_DIR') ? wp_normalize_path((string) constant('WP_CONTENT_DIR')) : wp_normalize_path((string) (rtrim(WP_CONTENT_DIR, '/\\') . '/wp-content'));
-        $plugins_dir = defined('WP_PLUGIN_DIR') ? wp_normalize_path((string) constant('WP_PLUGIN_DIR')) : ($content_dir . '/plugins');
+        $content_dir = odcm_get_uploads_dir();
+        $plugins_dir = odcm_get_plugin_dir();
         $mu_dir      = defined('WPMU_PLUGIN_DIR') ? wp_normalize_path((string) constant('WPMU_PLUGIN_DIR')) : ($content_dir . '/mu-plugins');
         $themes_dir  = function_exists('get_theme_root') ? get_theme_root() : ($content_dir . '/themes');
         $themes_dir  = is_string($themes_dir) ? wp_normalize_path($themes_dir) : ($content_dir . '/themes');

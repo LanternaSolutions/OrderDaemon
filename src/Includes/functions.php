@@ -1040,6 +1040,47 @@ function odcm_validate_custom_summary(string $summary, int $max_length = 60): st
 }
 
 /**
+ * Get the plugin's uploads directory with fallback
+ *
+ * @return string The uploads directory path
+ */
+function odcm_get_uploads_dir(): string {
+    static $cached_dir = null;
+    if ($cached_dir !== null) {
+        return $cached_dir;
+    }
+
+    $uploads = wp_upload_dir();
+    if (!empty($uploads['basedir'])) {
+        $cached_dir = $uploads['basedir'];
+    } else {
+        // Fallback to WordPress standard uploads directory
+        $content_dir = wp_normalize_path((string) (rtrim(WP_CONTENT_DIR, '/\\') . '/wp-content'));
+        $cached_dir = trailingslashit($content_dir) . 'uploads';
+    }
+
+    return $cached_dir;
+}
+
+/**
+ * Get the plugin's base directory
+ *
+ * @return string The plugin base directory path
+ */
+function odcm_get_plugin_dir(): string {
+    return plugin_dir_path(__FILE__);
+}
+
+/**
+ * Get the plugin's base URL
+ *
+ * @return string The plugin base URL
+ */
+function odcm_get_plugin_url(): string {
+    return plugin_dir_url(__FILE__);
+}
+
+/**
  * Efficiently retrieves metadata for multiple posts using a single database query and caches the result.
  *
  * This function is designed to be highly performant. It first checks for cached data in a transient
@@ -1128,7 +1169,6 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
 
     return $all_meta;
 }
-
 /**
  * Action Scheduler Args Column Readability Enhancement
  *
