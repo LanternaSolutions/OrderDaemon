@@ -6,6 +6,7 @@ namespace OrderDaemon\CompletionManager\Admin;
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
+use OrderDaemon\CompletionManager\View\DashboardComponents\DashboardComponentUIToolkit;
 use OrderDaemon\CompletionManager\View\DashboardComponents\UnifiedHeaderRenderer;
 use OrderDaemon\CompletionManager\View\DashboardComponents\FilterPaneRenderer;
 use OrderDaemon\CompletionManager\View\DashboardComponents\LogStreamRenderer;
@@ -594,9 +595,9 @@ class InsightDashboard
     /**
      * Static cache for welcome scenario data
      *
-     * @var array|null
+     * @var bool|null
      */
-    private static $welcome_scenario_cache = null;
+    private static ?bool $welcome_scenario_cache = null;
 
     /**
      * Determine if this is a welcome scenario (no logs available)
@@ -606,12 +607,12 @@ class InsightDashboard
     private function determine_welcome_scenario(): bool
     {
         global $wpdb;
-        
+
         // Use static variable for in-memory caching during this request
         if (self::$welcome_scenario_cache !== null) {
             return self::$welcome_scenario_cache;
         }
-        
+
         // Check persistent cache first
         $cache_key = 'odcm_welcome_scenario';
         $cached_result = wp_cache_get($cache_key);
@@ -796,6 +797,10 @@ class InsightDashboard
      */
     private function render_unified_header(): void
     {
+        $refresh_text  = esc_js(__('Refresh', 'order-daemon'));
+        $every_text    = esc_js(__('every', 'order-daemon'));
+        $seconds_text  = esc_js(__('seconds', 'order-daemon'));
+
         ?>
         <div class="odcm-unified-header-content">
             <!-- Filter Header with Icon Buttons -->
@@ -806,35 +811,35 @@ class InsightDashboard
                         <!-- Left arrow: close current pane (visible only when pane is open) -->
                         <button type="button"
                                 class="odcm-pane-icon-button"
-                                x-show="filterPaneVisible"
-                                @click="closeFilterPane()"
+                                <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('filterPaneVisible'); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'closeFilterPane()'); ?>
                                 title="<?php echo esc_attr__('admin.insight_dashboard.pane.close', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-arrow-left-alt"></span>
                         </button>
-                        
+
                         <!-- Right arrow: open last opened pane (visible only when pane is closed) -->
                         <button type="button"
                                 class="odcm-pane-icon-button"
-                                x-show="!filterPaneVisible"
-                                @click="openLastOpenedPane()"
+                                <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!filterPaneVisible'); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'openLastOpenedPane()'); ?>
                                 title="<?php echo esc_attr__('admin.insight_dashboard.pane.open_last', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-arrow-right-alt"></span>
                         </button>
-                        
+
                         <!-- Filters tab button -->
                         <button type="button"
                                 class="odcm-pane-icon-button"
-                                @click="showFiltersPane()"
-                                :aria-pressed="activeFilterTab === 'filters' && filterPaneVisible"
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'showFiltersPane()'); ?>
+                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-pane-icon-button', 'odcm-active' => 'activeFilterTab === "filters" && filterPaneVisible']); ?>
                                 title="<?php echo esc_attr__('admin.insight_dashboard.filters', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-search"></span>
                         </button>
-                        
+
                         <!-- Settings tab button -->
                         <button type="button"
                                 class="odcm-pane-icon-button"
-                                @click="showSettingsPane()"
-                                :aria-pressed="activeFilterTab === 'settings' && filterPaneVisible"
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'showSettingsPane()'); ?>
+                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-pane-icon-button', 'odcm-active' => 'activeFilterTab === "settings" && filterPaneVisible']); ?>
                                 title="<?php echo esc_attr__('admin.insight_dashboard.settings.title', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-admin-generic"></span>
                         </button>
@@ -858,29 +863,32 @@ class InsightDashboard
                 </div>
                 <div class="odcm-stream-controls">
                     <div class="odcm-refresh-controls">
-                        <button type="button" 
+                        <button type="button"
                                 class="odcm-refresh-button odcm-button"
-                                @click="manualRefresh()"
-                                :disabled="loading">
-                            <span class="dashicons dashicons-update" :class="{ 'is-spinning': isRefreshing }"></span>
-                            <span class="odcm-button-text" x-text="autoRefreshEnabled ? '<?php echo esc_js(__('Refresh', 'order-daemon')); ?>' : '<?php echo esc_js(__('Refresh', 'order-daemon')); ?>'"></span>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'manualRefresh()'); ?>
+                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-refresh-button', 'odcm-button', 'is-disabled' => 'loading']); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('loading'); ?>>
+                            <span class="dashicons dashicons-update" <?php echo DashboardComponentUIToolkit::createClassAttribute(['is-spinning' => 'loading']); ?>></span>
+                            <span class="odcm-button-text" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding("'" . $refresh_text . "'"); ?>></span>
                         </button>
-                        <span x-text="autoRefreshEnabled ? '<?php echo esc_html__('every', 'order-daemon'); ?>' : ''"></span>
+
+                        <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('autoRefreshEnabled ? "' . $every_text . '" : ""'); ?>></span>
 
                         <template x-if="autoRefreshEnabled">
-                            <input type="number" 
-                                    x-model="refreshInterval" 
-                                    min="1" 
-                                    max="60" 
-                                    class="odcm-interval-input"
-                                    @click.stop>
+                            <input type="number"
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('refreshInterval'); ?>
+                                min="1"
+                                max="60"
+                                class="odcm-interval-input"
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', '$event.stopPropagation()'); ?>>
                         </template>
+
                         <template x-if="autoRefreshEnabled">
-                            <span><?php echo esc_html__('seconds', 'order-daemon'); ?></span>
+                            <span><?php echo esc_html($seconds_text); ?></span>
                         </template>
 
                         <label class="odcm-toggle-switch">
-                            <input type="checkbox" x-model="autoRefreshEnabled">
+                            <input type="checkbox" <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('autoRefreshEnabled'); ?>>
                             <span class="odcm-toggle-slider"></span>
                             <span class="odcm-toggle-label"><?php echo esc_html__('admin.insight_dashboard.actions.auto_refresh', 'order-daemon'); ?></span>
                         </label>
@@ -889,19 +897,26 @@ class InsightDashboard
             </div>
 
             <!-- Detail Header -->
-            <div class="odcm-unified-header-section odcm-unified-header-details" x-show="selectedLog">
+            <div class="odcm-unified-header-section odcm-unified-header-details" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('selectedLog'); ?>>
                 <h3><?php echo esc_html__('admin.insight_dashboard.detail_pane.events_timeline', 'order-daemon'); ?></h3>
                 <div class="odcm-detail-pane-header-actions">
-                    <button type="button" 
+                    <button type="button"
                             class="odcm-detail-pane-expand-toggle"
-                            @click="toggleDetailPaneExpansion()"
-                            :title="detailPaneExpanded ? '<?php echo esc_attr__('admin.insight_dashboard.detail_pane.contract_details_pane', 'order-daemon'); ?>' : '<?php echo esc_attr__('admin.insight_dashboard.detail_pane.expand_details_pane', 'order-daemon'); ?>'">
+                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleDetailPaneExpansion()'); ?>
+                            <?php
+                            echo DashboardComponentUIToolkit::createAlpineTitleBinding(
+                                'detailPaneExpanded ? ' .
+                                wp_json_encode(esc_attr__('admin.insight_dashboard.detail_pane.contract_details_pane', 'order-daemon')) .
+                                ' : ' .
+                                wp_json_encode(esc_attr__('admin.insight_dashboard.detail_pane.expand_details_pane', 'order-daemon'))
+                            );
+                            ?>>
                         <span class="dashicons dashicons-arrow-left-alt icon-expand"></span>
                         <span class="dashicons dashicons-arrow-right-alt icon-collapse"></span>
                     </button>
-                    <button type="button" 
+                    <button type="button"
                             class="odcm-close-pane"
-                            @click="closeDetails()">
+                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'closeDetails()'); ?>>
                         <span class="dashicons dashicons-no-alt"></span>
                     </button>
                 </div>
@@ -918,12 +933,12 @@ class InsightDashboard
         ?>
         <div class="odcm-filter-pane-content">
             <!-- Filters Tab Content -->
-            <div x-show="activeFilterTab === 'filters'" class="odcm-tab-content">
+            <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('activeFilterTab === "filters"'); ?> class="odcm-tab-content">
                 <?php $this->render_filters_tab_content(); ?>
             </div>
             
             <!-- Settings Tab Content -->
-            <div x-show="activeFilterTab === 'settings'" class="odcm-settings-pane-content">
+            <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('activeFilterTab === "settings"'); ?> class="odcm-settings-pane-content">
                 <?php $this->render_settings_tab_content(); ?>
             </div>
         </div>
@@ -936,15 +951,15 @@ class InsightDashboard
     private function render_filters_tab_content(): void
     {
         ?>
-        <form class="odcm-filter-form" @submit.prevent="applyFilters()">
+        <form class="odcm-filter-form" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('submit', 'applyFilters()'); ?>>
                 <!-- Omni Search (Free) -->
                 <div class="odcm-filter-section">
                     <div class="odcm-search-filter-group">
                         <label for="filter-search" class="odcm-filter-section-title"><?php echo esc_html__('admin.insight_dashboard.filters.search.label', 'order-daemon'); ?></label>
                         <input type="text"
                             id="filter-search"
-                            x-model="filters.search"
-                            @input="debouncedFetchLogs"
+                            <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.search'); ?>
+                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('input', 'debouncedFetchLogs()'); ?>
                             placeholder="<?php echo esc_attr__('admin.insight_dashboard.filters.search.placeholder', 'order-daemon'); ?>"
                             class="odcm-search-input">
                     </div>
@@ -957,8 +972,7 @@ class InsightDashboard
                     <div class="odcm-filter-group">
                         <label for="filter-status"><?php echo esc_html__('admin.insight_dashboard.filters.status.label', 'order-daemon'); ?></label>
                         <select id="filter-status" 
-                                x-model="filters.status"
-                                >
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.status'); ?>>
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.status.all', 'order-daemon'); ?></option>
                             <option value="success"><?php echo esc_html__('status.success', 'order-daemon'); ?></option>
                             <option value="error"><?php echo esc_html__('status.error', 'order-daemon'); ?></option>
@@ -971,7 +985,7 @@ class InsightDashboard
                     <div class="odcm-filter-group">
                         <label for="filter-event-type"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.label', 'order-daemon'); ?></label>
                         <select id="filter-event-type" 
-                                x-model="filters.event_type">
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.event_type'); ?>>
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.event_type.all', 'order-daemon'); ?></option>
                             <option value="rule_check"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.rule_check', 'order-daemon'); ?></option>
                             <option value="order_completion"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.order_completion', 'order-daemon'); ?></option>
@@ -986,7 +1000,7 @@ class InsightDashboard
                     <div class="odcm-filter-group">
                         <label for="filter-source"><?php echo esc_html__('admin.insight_dashboard.filters.source.label', 'order-daemon'); ?></label>
                         <select id="filter-source" 
-                                x-model="filters.source">
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.source'); ?>>
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.source.all', 'order-daemon'); ?></option>
                             <option value="manual"><?php echo esc_html__('admin.insight_dashboard.filters.source.manual', 'order-daemon'); ?></option>
                             <option value="scheduled"><?php echo esc_html__('admin.insight_dashboard.filters.source.scheduled', 'order-daemon'); ?></option>
@@ -1001,11 +1015,11 @@ class InsightDashboard
                         <label><?php echo esc_html__('admin.insight_dashboard.filters.date_range.label', 'order-daemon'); ?></label>
                         <div class="odcm-date-range">
                             <input type="date" 
-                                   x-model="filters.date_start"
+                                   <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.date_start'); ?>
                                    class="regular-text">
                             <span>–</span>
                             <input type="date" 
-                                   x-model="filters.date_end"
+                                   <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.date_end'); ?>
                                    class="regular-text">
                         </div>
                     </div>
@@ -1017,13 +1031,13 @@ class InsightDashboard
                         <div class="odcm-checkbox-item">
                             <input type="checkbox" 
                                    id="filter-include-tests"
-                                   x-model="filters.include_tests">
+                                   <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.include_tests'); ?>>
                             <label for="filter-include-tests"><?php echo esc_html__('admin.insight_dashboard.filters.include_test_logs', 'order-daemon'); ?></label>
                         </div>
                         <div class="odcm-checkbox-item">
                             <input type="checkbox" 
                                    id="filter-include-debug"
-                                   x-model="filters.include_debug">
+                                   <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.include_debug'); ?>>
                             <label for="filter-include-debug"><?php echo esc_html__('Include Debug Logs', 'order-daemon'); ?></label>
                         </div>
                     </div>
@@ -1034,7 +1048,7 @@ class InsightDashboard
                     <button type="submit" class="button button-primary">
                         <?php echo esc_html__('admin.insight_dashboard.filters.apply_filters', 'order-daemon'); ?>
                     </button>
-                    <button type="button" class="button" @click="clearFilters()">
+                    <button type="button" class="button" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'clearFilters()'); ?>>
                         <?php echo esc_html__('admin.insight_dashboard.filters.clear_all', 'order-daemon'); ?>
                     </button>
                 </div>
@@ -1051,7 +1065,10 @@ class InsightDashboard
         // Get current setting values
         $detailed_notes = get_option('odcm_detailed_notes', false);
         $global_debug = self::is_global_debug_active(); // Use the override-aware method
-        
+
+        $processing_text = esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon'));
+        $reprocess_text  = esc_js(__('admin.insight_dashboard.settings.reprocess_orders.label', 'order-daemon'));
+
         ?>
         <div class="odcm-tab-content">
             <!-- Display Settings Section -->
@@ -1061,12 +1078,15 @@ class InsightDashboard
                     <div class="odcm-setting-row">
                         <label class="odcm-setting-label">Timestamp Display Format</label>
                         <div class="odcm-setting-control">
-                            <button type="button" 
+                            <button type="button"
                                     class="odcm-timestamp-toggle button"
-                                    @click="toggleTimestampMode()"
-                                    :title="'Current: ' + (timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime)">
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleTimestampMode()'); ?>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineTitleBinding("'Current: ' + (timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime)"); ?>>
                                 <span class="dashicons dashicons-clock"></span>
-                                <span class="odcm-button-text" x-text="timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime"></span>
+                                <span class="odcm-button-text"
+                                      <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('timestampDisplayMode === "timeOnly" ? i18n.timeOnly : timestampDisplayMode === "relative" ? i18n.relativeTime : i18n.dateAndTime'); ?>>
+                                    <?php echo esc_html__('Date & Time', 'order-daemon'); ?>
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -1075,8 +1095,8 @@ class InsightDashboard
                         <div class="odcm-setting-control">
                             <input type="number" 
                                 id="odcm_logs_per_page"
-                                x-model="perPage"
-                                @change="updatePerPageSetting()"
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('perPage'); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'updatePerPageSetting()'); ?>
                                 min="10" 
                                 max="200" 
                                 class="small-text">
@@ -1095,10 +1115,10 @@ class InsightDashboard
                             <span class="odcm-setting-hint">Batch operation to reprocess orders with processing/on-hold statuses. (Useful after payment system failures and rule changes.)</span>
                             <button type="button"
                                     class="odcm-refresh-button odcm-button"
-                                    @click="reprocessPendingOrders()"
-                                    :disabled="isReprocessing">
-                                <span class="dashicons dashicons-update" :class="{ 'is-spinning': isReprocessing }"></span>
-                                <span class="odcm-button-text" x-text="isReprocessing ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.settings.reprocess_orders.label', 'order-daemon')); ?>'"></span>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'reprocessPendingOrders()'); ?>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('isReprocessing'); ?>>
+                                <span class="dashicons dashicons-update" <?php echo DashboardComponentUIToolkit::createClassAttribute(['is-spinning' => 'isReprocessing']); ?>></span>
+                                <span class="odcm-button-text" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('isReprocessing ? "' . $processing_text . '" : "' . $reprocess_text . '"'); ?>></span>
                             </button>
                         </div>
                     </div>
@@ -1115,7 +1135,7 @@ class InsightDashboard
                                    name="odcm_global_debug"
                                    id="odcm_global_debug"
                                    <?php checked($global_debug); ?>
-                                   @change="saveDebugSetting('odcm_global_debug', $event.target.checked)">
+                                   <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'saveDebugSetting(\'odcm_global_debug\', $event.target.checked)'); ?>>
                             Toggle Global ODCM Debug Mode
                         </label>
                         <span class="odcm-setting-hint">Enable server-wide debug logging (use with caution)</span>
@@ -1126,7 +1146,7 @@ class InsightDashboard
                                    name="odcm_detailed_notes"
                                    id="odcm_detailed_notes"
                                    <?php checked($detailed_notes); ?>
-                                   @change="saveDebugSetting('odcm_detailed_notes', $event.target.checked)">
+                                   <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'saveDebugSetting(\'odcm_detailed_notes\', $event.target.checked)'); ?>>
                             Add Detailed Order Notes
                         </label>
                         <span class="odcm-setting-hint">Add debug info to order notes when rules don't match</span>
@@ -1332,8 +1352,6 @@ class InsightDashboard
         }
     }
 
-
-
     /**
      * Handle AJAX request to reprocess pending orders
      * 
@@ -1387,7 +1405,6 @@ class InsightDashboard
         }
     }
 
-
     /**
      * Log the reprocess action to the audit trail (AJAX version)
      * 
@@ -1407,8 +1424,6 @@ class InsightDashboard
         $pl->finish('success', sprintf('Admin requested reprocessing of %d orders', $count));
     }
 
-
-
     /**
      * Render the log stream content
      */
@@ -1418,36 +1433,36 @@ class InsightDashboard
         <div class="odcm-log-stream-content">
 
             <!-- Loading State -->
-            <div class="odcm-loading-state" x-show="loading && logs.length === 0">
+            <div class="odcm-loading-state" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('loading && logs.length === 0'); ?>>
                 <span class="spinner is-active"></span>
-                <span x-text="i18n.loading"></span>
+                <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('i18n.loading'); ?>></span>
             </div>
 
             <!-- Error State - Only render when there's actually an error -->
-            <template x-if="error && logs.length === 0">
+            <template <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('error && logs.length === 0'); ?>>
                 <div class="odcm-error-state">
                     <span class="dashicons dashicons-warning"></span>
-                    <span x-text="error"></span>
-                    <button type="button" class="button" @click="fetchLogs()">
+                    <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('error'); ?>></span>
+                    <button type="button" class="button" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'fetchLogs()'); ?>>
                         <?php echo esc_html__('admin.insight_dashboard.actions.retry', 'order-daemon'); ?>
                     </button>
                 </div>
             </template>
 
             <!-- Empty State with Context Awareness - Only render when appropriate -->
-            <template x-if="!loading && !error && logs.length === 0 && !initialLoad">
+            <template <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!loading && !error && logs.length === 0 && !initialLoad'); ?>>
                 <div class="odcm-empty-state">
                     <!-- Filtered Empty State (No results match current filters/search) -->
-                    <template x-if="hasActiveFilters">
+                    <template <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('hasActiveFilters'); ?>>
                         <div class="odcm-filtered-empty-state">
                             <span class="dashicons dashicons-filter"></span>
                             <h4><?php echo esc_html__('No results match your current filters', 'order-daemon'); ?></h4>
                             <p><?php echo esc_html__('Try adjusting your filters or clear them to see all activity.', 'order-daemon'); ?></p>
                             <div class="odcm-empty-actions">
-                                <button type="button" class="button" @click="clearFilters()">
+                                <button type="button" class="button" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'clearFilters()'); ?>>
                                     <?php echo esc_html__('Clear filters', 'order-daemon'); ?>
                                 </button>
-                                <button type="button" class="button button-secondary" @click="fetchLogs()">
+                                <button type="button" class="button button-secondary" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'fetchLogs()'); ?>>
                                     <?php echo esc_html__('Refresh', 'order-daemon'); ?>
                                 </button>
                             </div>
@@ -1455,7 +1470,7 @@ class InsightDashboard
                     </template>
 
                     <!-- Welcome State (Fresh Installation) -->
-                    <template x-if="!hasActiveFilters && isWelcomeScenario">
+                    <template <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!hasActiveFilters && isWelcomeScenario'); ?>>
                         <div class="odcm-welcome-state">
                             <div class="odcm-welcome-icon">
                                 <span class="dashicons dashicons-chart-line"></span>
@@ -1490,13 +1505,13 @@ class InsightDashboard
                     </template>
 
                     <!-- Regular Empty State (Rules exist, no recent activity) -->
-                    <template x-if="!hasActiveFilters && !isWelcomeScenario">
+                    <template <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!hasActiveFilters && !isWelcomeScenario'); ?>>
                         <div class="odcm-regular-empty-state">
                             <span class="dashicons dashicons-admin-post"></span>
                             <h4><?php echo esc_html__('admin.insight_dashboard.empty.no_activity.title', 'order-daemon'); ?></h4>
                             <p><?php echo esc_html__('admin.insight_dashboard.empty.no_activity.description', 'order-daemon'); ?></p>
                             <div class="odcm-empty-actions">
-                                <button type="button" class="button" @click="fetchLogs()">
+                                <button type="button" class="button" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'fetchLogs()'); ?>>
                                     <?php echo esc_html__('Refresh', 'order-daemon'); ?>
                                 </button>
                                 <a href="<?php echo esc_url(admin_url('edit.php?post_type=odcm_order_rule')); ?>" class="button button-secondary">
@@ -1510,49 +1525,53 @@ class InsightDashboard
 
 
             <!-- Log Entries -->
-            <div class="odcm-log-entries" x-show="logs.length > 0">
+            <div class="odcm-log-entries" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('logs.length > 0'); ?>>
                 <!-- Log Entries Controls Wrapper -->
                 <div class="odcm-log-entries-controls">
                     <!-- Batch Selection Controls -->
                     <div class="odcm-batch-controls">
                         <div class="odcm-select-all-container">
-                            <input type="checkbox" 
+                            <input type="checkbox"
                                    id="select-all-logs"
-                                   x-model="selectAll"
-                                   @change="toggleSelectAll()"
+                                    <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('selectAll'); ?>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'toggleSelectAll($event.target.checked)'); ?>
                                    class="odcm-select-all-checkbox">
                             <label for="select-all-logs" class="odcm-select-all-label">
                                 <?php echo esc_html__('admin.insight_dashboard.log_stream.select_all', 'order-daemon'); ?>
                             </label>
                         </div>
-                        <div class="odcm-batch-actions" x-show="hasSelection">
-                            <span class="odcm-selection-count" x-text="selectedCount + ' <?php echo esc_js(__('selected', 'order-daemon')); ?>'"></span>
+                        <div class="odcm-batch-actions" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('hasSelection'); ?>>
+                            <span class="odcm-selection-count" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('selectedCount + " ' . esc_js(__('selected', 'order-daemon')) . '"'); ?>></span>
                             <button type="button" 
                                     class="odcm-delete-selected button button-secondary"
-                                    @click="deleteSelectedLogs()"
-                                    :disabled="isDeleting">
-                                <span class="dashicons dashicons-trash" :class="{ 'is-spinning': isDeleting }"></span>
-                                <span x-text="isDeleting ? '<?php echo esc_js(__('admin.insight_dashboard.log_stream.deleting', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.log_stream.delete_selected', 'order-daemon')); ?>'"></span>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'deleteSelectedLogs()'); ?>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('isDeleting'); ?>>
+                                <span class="dashicons dashicons-trash" <?php echo DashboardComponentUIToolkit::createClassAttribute(['is-spinning' => 'isDeleting']); ?>"></span>
+                                <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('isDeleting ? "' . esc_js(__('admin.insight_dashboard.log_stream.deleting', 'order-daemon')) . '" : "' . esc_js(__('admin.insight_dashboard.log_stream.delete_selected', 'order-daemon')) . '"'); ?>></span>
                             </button>
                         </div>
                         <div class="odcm-controls-divider" aria-hidden="true"></div>
                         <div class="odcm-stream-view-toggle odcm-segmented" role="radiogroup" aria-label="Toggle view mode">
                             <div class="odcm-segmented-track">
-                                <div class="odcm-segmented-thumb" :class="viewMode === 'flat' ? 'is-right' : 'is-left'"></div>
+                                <div class="odcm-segmented-thumb"
+                                        <?php echo DashboardComponentUIToolkit::createAlpineBind('class', "{ 'is-right': viewMode === 'flat', 'is-left': viewMode !== 'flat' }"); ?>>
+                                </div>
+
                                 <button type="button"
                                         class="odcm-segmented-option"
                                         role="radio"
-                                        :aria-checked="viewMode === 'consolidated'"
-                                        :class="{ 'is-active': viewMode === 'consolidated' }"
-                                        @click="setViewMode('consolidated')">
+                                        <?php echo DashboardComponentUIToolkit::createAlpineBind('aria-checked', 'viewMode === "consolidated"'); ?>
+                                        <?php echo DashboardComponentUIToolkit::createAlpineBind('class', "{ 'is-active': viewMode === 'consolidated' }"); ?>
+                                        <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'setViewMode(\'consolidated\')'); ?>>
                                     <?php echo esc_html__('Grouped', 'order-daemon'); ?>
                                 </button>
+
                                 <button type="button"
                                         class="odcm-segmented-option"
                                         role="radio"
-                                        :aria-checked="viewMode === 'flat'"
-                                        :class="{ 'is-active': viewMode === 'flat' }"
-                                        @click="setViewMode('flat')"
+                                        <?php echo DashboardComponentUIToolkit::createAlpineBind('aria-checked', 'viewMode === "flat"'); ?>
+                                        <?php echo DashboardComponentUIToolkit::createAlpineBind('class', "{ 'is-active': viewMode === 'flat' }"); ?>
+                                        <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'setViewMode(\'flat\')'); ?>
                                         title="<?php echo esc_attr__('Shows all events ungrouped, in strict chronological order', 'order-daemon'); ?>">
                                     <?php echo esc_html__('Individual', 'order-daemon'); ?>
                                 </button>
@@ -1562,33 +1581,37 @@ class InsightDashboard
                 </div>
 
                 <template x-for="(log, index) in logs" :key="log?.id || ('invalid-' + index)">
-                    <div x-show="log && log.id"
-                         :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'">
-                        
-                        <div class="odcm-log-entry-checkbox" x-show="log && log.id">
-                            <input type="checkbox" 
-                                   :id="'log-checkbox-' + (log?.id || 'invalid')"
-                                   :checked="log?.id && isLogSelected(log.id)"
-                                   @change="log?.id && toggleLogSelection(log.id)"
-                                   @click.stop
-                                   class="odcm-log-checkbox">
-                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label">
+                    <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('log && log.id'); ?>
+                            <?php echo DashboardComponentUIToolkit::createAlpineBind('class', "log ? getLogEntryClasses(log) : 'odcm-log-entry'"); ?>>
+
+                        <div class="odcm-log-entry-checkbox" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('log && log.id'); ?>>
+                            <input type="checkbox"
+                                <?php echo DashboardComponentUIToolkit::createAlpineBind('id', "'log-checkbox-' + (log?.id || 'invalid')"); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineAttrBinding('checked', 'isLogSelected(log.id)'); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleLogSelection(log.id)'); ?>
+                                class="odcm-log-checkbox">
+                            <label <?php echo DashboardComponentUIToolkit::createAlpineBind('for', "'log-checkbox-' + (log?.id || 'invalid')"); ?>
+                                    class="odcm-log-checkbox-label">
                                 <span class="screen-reader-text"><?php echo esc_html__('admin.insight_dashboard.log_stream.select_log_entry', 'order-daemon'); ?></span>
                             </label>
                         </div>
-                        
-                        <div class="odcm-log-entry-content" @click="log && selectLog(log)">
+
+                        <div class="odcm-log-entry-content" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'log && selectLog(log)'); ?>>
                             <div class="odcm-log-entry-header">
-                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)"></div>
-                                <div x-show="log?.order_id">
-                                    Order #<span x-text="log.order_id"></span>
+                                <div class="odcm-log-timestamp js-format-timestamp" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('formatTimestamp(log?.timestamp, $el)'); ?>></div>
+
+                                <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('log?.order_id'); ?>>
+                                    Order #<span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('log.order_id'); ?>></span>
                                 </div>
+
                                 <div class="odcm-log-summary">
-                                    <span x-text="log?.summary || '<?php echo esc_js(__('admin.insight_dashboard.log_stream.no_summary', 'order-daemon')); ?>'"></span>
+                                    <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('log?.summary || "' . esc_js(__('admin.insight_dashboard.log_stream.no_summary', 'order-daemon')) . '"'); ?>></span>
                                 </div>
-                                <span class="odcm-status-pill" 
-                                      :class="'odcm-status-pill--' + ((log?.status && typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')"
-                                      x-text="log?.status || '<?php echo esc_js(__('admin.insight_dashboard.log_stream.unknown_status', 'order-daemon')); ?>'"></span>
+
+                                <span class="odcm-status-pill"
+                                          <?php echo DashboardComponentUIToolkit::createAlpineBind('class', "'odcm-status-pill odcm-status-pill--' + ((log?.status && typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')"); ?>
+                                        <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('log?.status || "' . esc_js(__('admin.insight_dashboard.log_stream.unknown_status', 'order-daemon')) . '"'); ?>>
+                                    </span>
                             </div>
                         </div>
                     </div>
@@ -1596,36 +1619,36 @@ class InsightDashboard
             </div>
 
             <!-- Pagination -->
-            <div class="odcm-pagination" x-show="totalPages > 1">
+            <div class="odcm-pagination" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('totalPages > 1'); ?>>
                 <div class="tablenav-pages">
-                    <span class="displaying-num" x-text="paginationText"></span>
+                    <span class="displaying-num" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('paginationText'); ?>></span>
                     <span class="pagination-links">
                         <button type="button" 
                                 class="button first-page"
-                                :disabled="currentPage === 1"
-                                @click="goToPage(1)">‹‹</button>
+                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('currentPage === 1'); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'goToPage(1)'); ?>>‹‹</button>
                         <button type="button" 
                                 class="button prev-page"
-                                :disabled="currentPage === 1"
-                                @click="goToPage(currentPage - 1)">‹</button>
+                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('currentPage === 1'); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'goToPage(currentPage - 1)'); ?>>‹</button>
                         <span class="paging-input">
                             <input type="number" 
-                                   x-model="currentPage"
-                                   @change="goToPage(currentPage)"
-                                   :min="1"
-                                   :max="totalPages"
+                                   <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('currentPage'); ?>
+                                   <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'goToPage(currentPage)'); ?>
+                                   <?php echo DashboardComponentUIToolkit::createAlpineAttrBinding('min', '1'); ?>
+                                   <?php echo DashboardComponentUIToolkit::createAlpineAttrBinding('max', 'totalPages'); ?>
                                    class="current-page">
                             <?php echo esc_html__('admin.insight_dashboard.pagination.of', 'order-daemon'); ?>
-                            <span class="total-pages" x-text="totalPages"></span>
+                            <span class="total-pages" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('totalPages'); ?>></span>
                         </span>
                         <button type="button" 
                                 class="button next-page"
-                                :disabled="currentPage === totalPages"
-                                @click="goToPage(currentPage + 1)">›</button>
+                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('currentPage === totalPages'); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'goToPage(currentPage + 1)'); ?>>›</button>
                         <button type="button" 
                                 class="button last-page"
-                                :disabled="currentPage === totalPages"
-                                @click="goToPage(totalPages)">››</button>
+                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('currentPage === totalPages'); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'goToPage(totalPages)'); ?>>››</button>
                     </span>
                 </div>
             </div>
@@ -1704,21 +1727,21 @@ class InsightDashboard
         ?>
         <div class="odcm-detail-pane-content">
             <!-- Loading State -->
-            <div class="odcm-detail-loading" x-show="detailLoading">
+            <div class="odcm-detail-loading" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('detailLoading'); ?>>
                 <span class="spinner is-active"></span>
-                <span x-text="i18n.loading"></span>
+                <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('i18n.loading'); ?>></span>
             </div>
 
             <!-- Detail Content -->
             <div class="odcm-detail-content" 
-                 x-show="!detailLoading && selectedLog"
-                 x-html="detailHtml">
+                 <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!detailLoading && selectedLog'); ?>
+                 <?php echo DashboardComponentUIToolkit::createAlpineHtmlBinding('detailHtml'); ?>>
             </div>
 
             <!-- Empty State -->
-            <div class="odcm-detail-empty" x-show="!detailLoading && !selectedLog">
+            <div class="odcm-detail-empty" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!detailLoading && !selectedLog'); ?>>
                 <span class="dashicons dashicons-info"></span>
-                <span x-text="i18n.selectLog"></span>
+                <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('i18n.selectLog'); ?>></span>
             </div>
         </div>
         <?php

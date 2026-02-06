@@ -16,7 +16,8 @@ function odcm_escape_alpine_html(string $content, array $allowed_alpine_attribut
     // Default allowed Alpine.js attributes
     $default_alpine = [
         'x-data', 'x-init', 'x-show', 'x-bind', 'x-model', 'x-on', 'x-text', 'x-html',
-        'x-ref', 'x-cloak', 'x-transition', 'x-effect', 'x-ignore', 'x-modelable', 'x-teleport'
+        'x-ref', 'x-cloak', 'x-transition', 'x-effect', 'x-ignore', 'x-modelable', 'x-teleport',
+        'x-if', 'x-for', '@click'
     ];
     
     $allowed = array_merge($default_alpine, $allowed_alpine_attributes);
@@ -55,7 +56,8 @@ function odcm_escape_alpine_html(string $content, array $allowed_alpine_attribut
         'code' => array_fill_keys($allowed, []),
         'pre' => array_fill_keys($allowed, []),
         'br' => array_fill_keys($allowed, []),
-        'hr' => array_fill_keys($allowed, [])
+        'hr' => array_fill_keys($allowed, []),
+        'template' => array_fill_keys($allowed, [])
     ];
     
     return wp_kses($content, $allowed_html);
@@ -160,7 +162,10 @@ add_filter('wp_kses_allowed_html', function($tags, $context) {
         'x-effect' => true,
         'x-ignore' => true,
         'x-modelable' => true,
-        'x-teleport' => true
+        'x-teleport' => true,
+        'x-if'    => true,
+        'x-for'   => true,
+        '@click'  => true
     ];
 
     foreach ($alpinized_tags as $tag) {
@@ -305,3 +310,56 @@ This approach:
 3. **Manual Testing**: Test dashboard components on different browsers
 4. **Security Testing**: Verify no XSS vulnerabilities are introduced
 5. **Alpine.js Testing**: Ensure all Alpine.js functionality works as expected
+
+## Alpine.js Attributes and Tags Used in Codebase
+
+Based on the grep analysis, the following Alpine.js attributes and tags are used in the codebase:
+
+### Alpine.js Attributes:
+- **x-data**
+- **x-init**
+- **x-show**
+- **x-bind**
+- **x-model**
+- **x-on**
+- **x-text**
+- **x-html**
+- **x-ref**
+- **x-cloak**
+- **x-transition**
+- **x-effect**
+- **x-ignore**
+- **x-modelable**
+- **x-teleport**
+- **x-if**
+- **x-for**
+- **@click**
+
+### HTML Tags with Alpine.js Attributes:
+- **div**
+- **span**
+- **p**
+- **a**
+- **button**
+- **input**
+- **form**
+- **label**
+- **img**
+- **ul**
+- **ol**
+- **li**
+- **h1**
+- **h2**
+- **h3**
+- **h4**
+- **h5**
+- **h6**
+- **strong**
+- **em**
+- **code**
+- **pre**
+- **br**
+- **hr**
+- **template**
+
+This comprehensive list ensures that the escaping functions and wp_kses configuration support all the Alpine.js functionality actually used in the codebase.

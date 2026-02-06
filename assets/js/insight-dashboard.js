@@ -248,6 +248,34 @@ function insightDashboard() {
                 this.setupSettingsWatchers();
                 this.setupPrismWatchers();
 
+                // Keep selection state consistent with the current logs list
+                this.$watch('logs', () => {
+                    try {
+                        const validIds = new Set((this.logs || []).map(l => l && l.id).filter(Boolean));
+
+                        // Drop selections that no longer exist in the current list
+                        this.selectedLogIds = (this.selectedLogIds || []).filter(id => validIds.has(id));
+
+                        // Recompute derived select-all state
+                        this.selectAll =
+                            this.selectedLogIds.length > 0 &&
+                            this.selectedLogIds.length === (this.logs || []).length;
+                    } catch (e) {
+                        if (odcmIsDebug()) { console.warn('ODCM: selection reconcile failed:', e); }
+                    }
+                });
+
+                // Keep selectAll in sync when individual checkboxes update selectedLogIds
+                this.$watch('selectedLogIds', () => {
+                    try {
+                        this.selectAll =
+                            (this.selectedLogIds || []).length > 0 &&
+                            (this.selectedLogIds || []).length === (this.logs || []).length;
+                    } catch (e) {
+                        if (odcmIsDebug()) { console.warn('ODCM: selectAll sync failed:', e); }
+                    }
+                });
+
                 if (odcmIsDebug()) { console.log('ODCM Insight Dashboard: Initialized successfully'); }
             } catch (e) {
                 console.error('ODCM: init() failed:', e);
@@ -2040,12 +2068,14 @@ function insightDashboard() {
         // =================================================================
         // SELECTION MANAGEMENT
         // =================================================================
-        toggleSelectAll() {
-            if (this.selectAll) {
-                this.selectedLogIds = this.logs.map(l => l.id);
+        toggleSelectAll(checked) {
+            const shouldSelect = (typeof checked === 'boolean') ? checked : !!this.selectAll;
+            if (shouldSelect) {
+                this.selectedLogIds = this.getValidIds((this.logs || []).map(l => l && l.id));
             } else {
                 this.selectedLogIds = [];
             }
+            this.selectAll = shouldSelect;
         },
         toggleLogSelection(id) {
             const i = this.selectedLogIds.indexOf(id);
@@ -2060,6 +2090,11 @@ function insightDashboard() {
         },
         get selectedCount() {
             return this.selectedLogIds.length;
+        },
+
+        // Helper method for ID validation
+        getValidIds(ids) {
+            return (ids || []).filter(id => id !== null && id !== undefined && id !== '');
         },
         async deleteSelectedLogs() {
             if (!this.selectedLogIds.length) return;

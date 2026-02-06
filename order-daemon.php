@@ -45,6 +45,7 @@ require_once __DIR__ . '/src/Includes/class-odcm-config.php';
 use OrderDaemon\CompletionManager\Core\ManualStatusTracker;
 use OrderDaemon\CompletionManager\Plugin;
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
+use OrderDaemon\CompletionManager\Core\Security\AlpineJsSecurity;
 
 // Define plugin constants
 // Define plugin version constant, used for database versioning and asset cache-busting.
@@ -143,4 +144,7 @@ add_action('plugins_loaded', function() {
 
     // Initialize manual status tracking for chain of custody logging
     ManualStatusTracker::init();
+
+    // Initialize Alpine.js security features
+    AlpineJsSecurity::init();
 });

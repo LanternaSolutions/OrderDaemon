@@ -74,39 +74,29 @@ abstract class DashboardComponentRenderer
             $rendered_html = $this->renderErrorComponent($e, $data);
         }
 
-        /**
-         * Output HTML rendered by concrete component renderers.
-         *
-         * Security implementation and WordPress.org compliance rationale:
-         * 1. SECURITY MODEL: All concrete renderers escape their output using esc_html(), esc_attr(),
-         *    wp_kses(), etc. at construction time (see DashboardComponentUIToolkit).
-         * 2. CONTEXT: This is an admin-only context protected by capability checks (manage_woocommerce),
-         *    with additional nonce verification on all AJAX endpoints.
-         * 3. TECHNICAL CONSTRAINT: Using wp_kses_post() would strip Alpine.js attributes (x-data, x-show, @click, etc.)
-         *    and form elements required for the dashboard's interactive UI.
-         * 4. MAINTENANCE: Custom wp_kses() with Alpine.js attributes would create significant maintenance burden
-         *    and potential for security regressions during UI updates.
-         * 5. ALTERNATIVE: Attempted wp_kses() with post context but it broke Alpine.js functionality.
-         *
-         * WordPress Core Compliance:
-         * - This follows WordPress Core patterns for complex admin UIs (e.g., Gutenberg, Site Editor)
-         * - Security is handled at construction time rather than output time
-         * - All text content uses esc_html(), esc_attr(), or esc_js() as appropriate
-         * - All dynamic data is properly sanitized before use
-         * - Capability checks and nonce verification protect all entry points
-         *
-         * Security Validation:
-         * - All renderer methods in DashboardComponentUIToolkit use proper escaping
-         * - FiltersTabRenderer, SettingsTabRenderer, LogStreamRenderer delegate to escaped templates
-         * - Error components use esc_html() for all dynamic content
-         * - Input validation happens at the AJAX endpoint level
-         *
-         * @see DashboardComponentUIToolkit - All HTML construction uses proper escaping
-         * @see FiltersTabRenderer, SettingsTabRenderer, LogStreamRenderer - Delegate to escaped templates
-         * @see WordPress Core admin patterns - Complex UIs handle escaping at construction
-         */
-        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- See detailed security rationale above. HTML is escaped by concrete renderers at construction time using WordPress core functions. wp_kses_post() strips required Alpine.js attributes and form elements.
-        echo $rendered_html;
+    /**
+     * Output HTML rendered by concrete component renderers.
+     *
+     * Security implementation and WordPress.org compliance rationale:
+     * 1. SECURITY MODEL: All concrete renderers escape their output using proper escaping functions
+    *    that preserve Alpine.js functionality while ensuring security.
+    * 2. CONTEXT: This is an admin-only context protected by capability checks (manage_woocommerce),
+    *    with additional nonce verification on all AJAX endpoints.
+    * 3. TECHNICAL CONSTRAINT: Alpine.js attributes are preserved while all other content is properly escaped.
+    * 4. MAINTENANCE: Uses WordPress core functions with minimal custom configuration.
+    *
+    * WordPress Core Compliance:
+    * - This follows WordPress Core patterns for complex admin UIs
+    * - Security is handled at output time rather than construction time
+    * - All text content uses esc_html(), esc_attr(), or esc_js() as appropriate
+    * - All dynamic data is properly sanitized before use
+    * - Capability checks and nonce verification protect all entry points
+    *
+    * @see DashboardComponentUIToolkit - All HTML construction uses proper escaping
+    * @see FiltersTabRenderer, SettingsTabRenderer, LogStreamRenderer - Delegate to escaped templates
+    * @see WordPress Core admin patterns - Complex UIs handle escaping at construction
+    */
+    echo DashboardComponentUIToolkit::escapeAlpineHtml($rendered_html);
     }
 
     /**
