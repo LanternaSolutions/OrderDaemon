@@ -137,6 +137,7 @@ function odcm_handle_log_processing($args) {
         odcm_log_message("Reusing existing payload ID: {$payload_id}", 'debug');
     } else {
         // Insert new payload with caching to avoid duplicates
+        // phpcs:ignore - WordPress.DB.DirectDatabaseQuery.DirectQuery
         $payload_insert = $wpdb->insert(
             $wpdb->prefix . 'odcm_audit_log_payloads',
             ['payload' => json_encode($sanitized_payload)],
@@ -227,6 +228,7 @@ function odcm_handle_log_processing($args) {
     }
 
     // Insert audit log entry with proper formatting and caching
+    // phpcs:ignore - WordPress.DB.DirectDatabaseQuery.DirectQuery
     $insert_result = $wpdb->insert($audit_log_table, $log_data, $formats);
 
     // @codingStandardsIgnoreLine - Direct database access is required for custom tables

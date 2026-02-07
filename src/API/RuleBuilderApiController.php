@@ -10,6 +10,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use OrderDaemon\CompletionManager\Core\RuleComponents\RuleComponentRegistry;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 
 /**
  * REST API controller for the new Rule Builder.
@@ -56,25 +57,25 @@ class RuleBuilderApiController extends WP_REST_Controller
         if (!defined('ODCM_DEBUG') || !ODCM_DEBUG) {
             return;
         }
-        
+
         // Use WordPress logging function if available
         if (function_exists('odcm_log_message')) {
             odcm_log_message($message, $level);
             return;
         }
-        
+
         // Use WordPress debug log function if available
         if (function_exists('wp_debug_log')) {
             wp_debug_log($message);
             return;
         }
-        
+
         // Use WordPress action hook if available for centralized error handling
         if (function_exists('do_action')) {
             do_action('odcm_log_' . $level, $message);
             return;
         }
-        
+
         // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
         if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
             $debug_file = WP_CONTENT_DIR . '/debug.log';
@@ -752,10 +753,10 @@ class RuleBuilderApiController extends WP_REST_Controller
                 ['status' => 401]
             );
         }
-        
+
         return true;
     }
-    
+
     /**
      * Search dynamic content for use in component settings.
      *
@@ -1336,11 +1337,11 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         // Cache miss - perform database query with static SQL templates
         $results = [];
-        
+
         try {
             if (empty($search)) {
                 // Query without search - return all products
-                $results = $wpdb->get_results(
+                $results = DatabaseHelper::get_results(
                     $wpdb->prepare(
                         "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
                          FROM {$wpdb->posts} p
@@ -1359,7 +1360,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 // Use wpdb->esc_like() for LIKE queries to prevent wildcard injection
                 $like_search = '%' . $wpdb->esc_like($search) . '%';
 
-                $results = $wpdb->get_results(
+                $results = DatabaseHelper::get_results(
                     $wpdb->prepare(
                         "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
                          FROM {$wpdb->posts} p
@@ -1382,7 +1383,7 @@ class RuleBuilderApiController extends WP_REST_Controller
                 // Use wpdb->esc_like() for LIKE queries to prevent wildcard injection
                 $like_search = '%' . $wpdb->esc_like($search) . '%';
 
-                $results = $wpdb->get_results(
+                $results = DatabaseHelper::get_results(
                     $wpdb->prepare(
                         "SELECT DISTINCT p.ID, p.post_title, pm.meta_value as sku
                          FROM {$wpdb->posts} p
@@ -1399,13 +1400,13 @@ class RuleBuilderApiController extends WP_REST_Controller
                     )
                 );
             }
-            
+
             // Handle database errors
             if ($wpdb->last_error) {
                 $this->logDebugMessage('ODCM Product Search Database Error: ' . $wpdb->last_error, 'error');
                 return [];
             }
-            
+
         } catch (\Exception $e) {
             $this->logDebugMessage('ODCM Product Search Exception: ' . $e->getMessage(), 'error');
             return [];
@@ -1417,14 +1418,14 @@ class RuleBuilderApiController extends WP_REST_Controller
             foreach ($results as $product) {
                 $title = $product->post_title;
                 $sku = $product->sku;
-                
+
                 // Build label with SKU if available
                 $label = $title;
                 if (!empty($sku)) {
                     $label .= " (SKU: {$sku})";
                 }
                 $label .= " (ID: {$product->ID})";
-                
+
                 $formatted_results[] = [
                     'value' => (string) $product->ID,
                     'label' => $label,
@@ -1439,7 +1440,7 @@ class RuleBuilderApiController extends WP_REST_Controller
 
         // Cache the results for 5 minutes
         wp_cache_set($cache_key, $formatted_results, '', 300);
-        
+
         // Store in static cache for this request
         self::$product_search_cache[$cache_key] = $formatted_results;
 

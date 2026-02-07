@@ -2316,9 +2316,9 @@ class Core
             // Validate and construct a safe table name - cannot use placeholders for table names
             $table_name_clean = esc_sql($table_name);
 
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for reliable Action Scheduler job detection with proper caching
             // Prepare the full query with table name sanitization and proper value escaping
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $existing_count = (int) $wpdb->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM `%s` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s",
                 $table_name_clean,
@@ -2349,9 +2349,9 @@ class Core
             $table_name = $wpdb->prefix . 'actionscheduler_actions';
             $table_name_clean = esc_sql($table_name);
 
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for reliable Action Scheduler job detection with proper caching
             // Create a safe query with proper preparation
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $job_details = $wpdb->get_results($wpdb->prepare(
                 "SELECT action_id, hook_arguments, status FROM `%s` WHERE hook = %s AND hook_arguments LIKE %s LIMIT 5",
                 $table_name_clean,
@@ -2454,6 +2454,7 @@ class Core
             wp_cache_set($transaction_key, true, '', 30); // 30 seconds
             
             // Insert into queue table with proper checks
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $result = $wpdb->insert(
                 $wpdb->prefix . 'odcm_audit_log_queue',
                 [
@@ -2567,6 +2568,7 @@ class Core
             $existing_queue = wp_cache_get($existing_queue_key);
             
             if (false === $existing_queue) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                 $result = $wpdb->insert(
                     $wpdb->prefix . 'odcm_audit_log_queue',
                     [

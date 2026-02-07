@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core\Security;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 /**
  * Alpine.js Security Integration
  *

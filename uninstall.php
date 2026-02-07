@@ -37,6 +37,10 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
     die;
 }
 
+// Initialize DatabaseHelper
+require_once __DIR__ . '/src/Includes/Utils/DatabaseHelper.php';
+DatabaseHelper::initialize($GLOBALS['wpdb']);
+
 /**
  * Check if complete data removal is requested
  *
@@ -117,16 +121,10 @@ function odcm_remove_database_tables() {
 
     foreach ($tables as $table) {
         try {
-            // Check if table exists before trying to drop it
-            $table_name = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
-
-            if ($table_name === $table) {
-                // Use prepared statement for safety
-                $result = $wpdb->query($wpdb->prepare("DROP TABLE IF EXISTS %s", $table));
-
-                if ($result === false) {
-                    throw new Exception("Failed to drop table: $table");
-                }
+            // Use DatabaseHelper for table operations
+            if (!DatabaseHelper::drop_table($table)) {
+                odcm_log_uninstall_error("Failed to drop table: $table");
+            } else {
                 odcm_log_uninstall_action("Successfully dropped table: $table");
             }
         } catch (Exception $e) {
@@ -149,7 +147,7 @@ function odcm_remove_database_tables() {
 function odcm_remove_plugin_options() {
     global $wpdb;
 
-    // Remove specific options
+    // Use DatabaseHelper to remove specific options
     $options = [
         'odcm_db_version',
         'odcm_indexes_built',
@@ -169,38 +167,27 @@ function odcm_remove_plugin_options() {
     ];
 
     foreach ($options as $option) {
-        $deleted = delete_option($option);
-        if ($deleted) {
+        if (DatabaseHelper::delete_option($option)) {
             odcm_log_uninstall_action("Deleted option: $option");
         }
     }
 
-    // Remove wildcard options (cleanup related)
-    $result = $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE 'odcm_cleanup_%'");
-    if ($result !== false) {
-        odcm_log_uninstall_action("Deleted wildcard options: odcm_cleanup_%");
-    }
+    // Use DatabaseHelper for wildcard options
+    $deleted_count = DatabaseHelper::delete_options_by_pattern('odcm_cleanup_%');
+    odcm_log_uninstall_action("Deleted $deleted_count wildcard options: odcm_cleanup_%");
 
-    $result = $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE 'odcm_table_exists_%'");
-    if ($result !== false) {
-        odcm_log_uninstall_action("Deleted wildcard options: odcm_table_exists_%");
-    }
+    $deleted_count = DatabaseHelper::delete_options_by_pattern('odcm_table_exists_%');
+    odcm_log_uninstall_action("Deleted $deleted_count wildcard options: odcm_table_exists_%");
 
-    $result = $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE 'odcm_manual_cleanup_%'");
-    if ($result !== false) {
-        odcm_log_uninstall_action("Deleted wildcard options: odcm_manual_cleanup_%");
-    }
+    $deleted_count = DatabaseHelper::delete_options_by_pattern('odcm_manual_cleanup_%');
+    odcm_log_uninstall_action("Deleted $deleted_count wildcard options: odcm_manual_cleanup_%");
 
-    $result = $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE 'odcm_transaction_%'");
-    if ($result !== false) {
-        odcm_log_uninstall_action("Deleted wildcard options: odcm_transaction_%");
-    }
+    $deleted_count = DatabaseHelper::delete_options_by_pattern('odcm_transaction_%');
+    odcm_log_uninstall_action("Deleted $deleted_count wildcard options: odcm_transaction_%");
 
     // Remove all other odcm_ options with broader pattern
-    $result = $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE 'odcm_%'");
-    if ($result !== false) {
-        odcm_log_uninstall_action("Deleted all remaining odcm_ options");
-    }
+    $deleted_count = DatabaseHelper::delete_options_by_pattern('odcm_%');
+    odcm_log_uninstall_action("Deleted $deleted_count remaining odcm_ options");
 }
 
 /**
@@ -227,13 +214,8 @@ function odcm_remove_custom_post_type_data() {
 function odcm_remove_plugin_transients() {
     global $wpdb;
 
-    // Delete all transients starting with odcm_
-    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_odcm_%'");
-    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_timeout_odcm_%'");
-
-    // Delete all site transients starting with odcm_
-    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_site_transient_odcm_%'");
-    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_site_transient_timeout_odcm_%'");
+    // Delete all transients starting with odcm_ using DatabaseHelper
+    DatabaseHelper::delete_transients_by_pattern('odcm_%');
 }
 
 /**
@@ -344,9 +326,9 @@ function odcm_perform_pre_uninstall_check() {
         return false;
     }
 
-    // Check database connectivity
+    // Check database connectivity using DatabaseHelper
     try {
-        $wpdb->get_var("SELECT 1");
+        DatabaseHelper::get_var("SELECT 1");
     } catch (\Exception $e) {
         odcm_log_uninstall_error("Database connectivity check failed: " . $e->getMessage());
         return false;
@@ -404,7 +386,7 @@ function odcm_uninstall_dry_run() {
     ];
 
     foreach ($tables as $table) {
-        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+        $table_exists = DatabaseHelper::table_exists($table);
         if ($table_exists === $table) {
             $simulated_actions[] = "Would remove table: $table";
         }
@@ -474,17 +456,24 @@ function odcm_verify_uninstallation_completion() {
     ];
 
     foreach ($tables as $table) {
-        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
-        if ($table_exists === $table) {
+        $table_exists = DatabaseHelper::table_exists($table);
+        if ($table_exists) {
             $verification_results['tables_removed'] = false;
             $verification_results['errors'][] = "Table still exists: $table";
         }
     }
 
     // Check for remaining options
-    $remaining_options = $wpdb->get_results(
-        "SELECT option_name FROM $wpdb->options WHERE option_name LIKE 'odcm_%' LIMIT 1"
-    );
+    // Use WordPress caching for verification
+    $remaining_options = wp_cache_get('odcm_remaining_options_verification', 'odcm_uninstall');
+
+    if ($remaining_options === false) {
+        $remaining_options = DatabaseHelper::get_results(
+            "SELECT option_name FROM $wpdb->options WHERE option_name LIKE %s LIMIT 1",
+            ['odcm_%']
+        );
+        wp_cache_set('odcm_remaining_options_verification', $remaining_options, 'odcm_uninstall', HOUR_IN_SECONDS);
+    }
 
     if (!empty($remaining_options)) {
         $verification_results['options_removed'] = false;
@@ -492,12 +481,16 @@ function odcm_verify_uninstallation_completion() {
     }
 
     // Check for remaining custom post types
-    $remaining_rules = get_posts([
-        'post_type' => 'odcm_order_rule',
-        'post_status' => 'any',
-        'numberposts' => 1,
-        'fields' => 'ids'
-    ]);
+    // Use WordPress caching for verification
+    $remaining_rules = wp_cache_get('odcm_remaining_rules_verification', 'odcm_uninstall');
+
+    if ($remaining_rules === false) {
+        $remaining_rules = DatabaseHelper::get_results(
+            "SELECT ID FROM $wpdb->posts WHERE post_type = %s AND post_status = %s LIMIT 1",
+            ['odcm_order_rule', 'any']
+        );
+        wp_cache_set('odcm_remaining_rules_verification', $remaining_rules, 'odcm_uninstall', HOUR_IN_SECONDS);
+    }
 
     if (!empty($remaining_rules)) {
         $verification_results['post_types_removed'] = false;

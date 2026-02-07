@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Includes;
 
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
+
 /**
  * Handles plugin installation and updates, including database table creation.
  */
@@ -19,6 +21,13 @@ class Installer
     const DB_VERSION_OPTION_KEY = 'odcm_db_version';
     
     /**
+     * Database helper instance
+     *
+     * @var DatabaseHelper
+     */
+    private static DatabaseHelper $db_helper;
+    
+    /**
      * Cache of table existence checks to prevent redundant queries
      *
      * @var array<string, bool>
@@ -31,6 +40,10 @@ class Installer
      */
     public static function activate(): void
     {
+        // Initialize database helper
+        self::$db_helper = new DatabaseHelper();
+        self::$db_helper->initialize($GLOBALS['wpdb']);
+        
         self::install();
     }
 
@@ -218,13 +231,11 @@ class Installer
         $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
 
         // Check if parent_id column already exists
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection required during installation
-        $parent_id_exists = $wpdb->get_var($wpdb->prepare(
+        $parent_id_exists = self::$db_helper->get_var(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'parent_id'",
-            DB_NAME,
-            $audit_log_table
-        )) > 0;
+            [DB_NAME, $audit_log_table]
+        ) > 0;
 
         if (!$parent_id_exists) {
             // Add parent_id column
@@ -247,13 +258,11 @@ class Installer
         }
 
         // Check if display_data column already exists
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection required during installation
-        $display_data_exists = $wpdb->get_var($wpdb->prepare(
+        $display_data_exists = self::$db_helper->get_var(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'display_data'",
-            DB_NAME,
-            $audit_log_table
-        )) > 0;
+            [DB_NAME, $audit_log_table]
+        ) > 0;
 
         if (!$display_data_exists) {
             // Add display_data column
@@ -264,13 +273,11 @@ class Installer
         }
 
         // Add dedupe_key column for deterministic deduplication
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection required during installation
-        $dedupe_key_exists = $wpdb->get_var($wpdb->prepare(
+        $dedupe_key_exists = self::$db_helper->get_var(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'dedupe_key'",
-            DB_NAME,
-            $audit_log_table
-        )) > 0;
+            [DB_NAME, $audit_log_table]
+        ) > 0;
 
         if (!$dedupe_key_exists) {
             // Add dedupe_key column
@@ -290,13 +297,11 @@ class Installer
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
         // Check if processed_display_data column already exists
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection required during installation
-        $processed_display_data_exists = $wpdb->get_var($wpdb->prepare(
+        $processed_display_data_exists = self::$db_helper->get_var(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'processed_display_data'",
-            DB_NAME,
-            $payload_table
-        )) > 0;
+            [DB_NAME, $payload_table]
+        ) > 0;
 
         if (!$processed_display_data_exists) {
             // Add processed_display_data column
@@ -307,13 +312,11 @@ class Installer
         }
 
         // Check if last_processed column already exists
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema inspection required during installation
-        $last_processed_exists = $wpdb->get_var($wpdb->prepare(
+        $last_processed_exists = self::$db_helper->get_var(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'last_processed'",
-            DB_NAME,
-            $payload_table
-        )) > 0;
+            [DB_NAME, $payload_table]
+        ) > 0;
 
         if (!$last_processed_exists) {
             // Add last_processed column
@@ -330,7 +333,7 @@ class Installer
     private static function update_db_version(): void
     {
         // Get current database version
-        $current_version = get_option(self::DB_VERSION_OPTION_KEY, '0.0');
+        $current_version = self::$db_helper->get_option(self::DB_VERSION_OPTION_KEY, '0.0');
 
         // Only update if we're actually changing versions
         if (version_compare($current_version, self::DB_VERSION, '<')) {
@@ -391,9 +394,8 @@ class Installer
         }
 
         // Check if database is available
-        global $wpdb;
         try {
-            $wpdb->get_var("SELECT 1 FROM {$wpdb->prefix}odcm_audit_log LIMIT 1");
+            self::$db_helper->get_var("SELECT 1 FROM {$GLOBALS['wpdb']->prefix}odcm_audit_log LIMIT 1");
         } catch (\Exception $e) {
             odcm_log_message('Database safety check failed: ' . $e->getMessage(), 'error');
             return false;
@@ -422,7 +424,7 @@ class Installer
      */
     public static function get_current_db_version(): string
     {
-        $version = get_option(self::DB_VERSION_OPTION_KEY, '0.0');
+        $version = self::$db_helper->get_option(self::DB_VERSION_OPTION_KEY, '0.0');
 
         // Validate version format
         if (!preg_match('/^\d+\.\d+$/', $version)) {
@@ -463,10 +465,14 @@ class Installer
             return (bool)$table_exists;
         }
         
+        // Initialize DatabaseHelper if not already initialized
+        if (!isset(self::$db_helper)) {
+            self::$db_helper = new DatabaseHelper();
+            self::$db_helper->initialize($wpdb);
+        }
+        
         // Cache miss - perform the table existence check
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Table existence check required during installation
-        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_name));
-        $table_exists = ($exists === $table_name);
+        $table_exists = self::$db_helper->table_exists($table_name);
         
         // Cache the result - short duration since this is for installation
         wp_cache_set($cache_key, (int)$table_exists, '', 5 * MINUTE_IN_SECONDS);

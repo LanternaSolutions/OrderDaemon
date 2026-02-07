@@ -24,6 +24,10 @@ class LogCleanup
      */
     public function init(): void
     {
+        // Initialize DatabaseHelper with WordPress database object
+        self::$wpdb = $GLOBALS['wpdb'];
+        DatabaseHelper::initialize(self::$wpdb);
+
         // Hook into the Action Scheduler cleanup action
         add_action('odcm_cleanup_old_logs', [$this, 'cleanup_old_logs'], 10);
 
@@ -60,7 +64,7 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $total_to_delete) {
-            $total_to_delete = $wpdb->get_var(
+            $total_to_delete = DatabaseHelper::get_var(
                 $wpdb->prepare(
                     "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s",
                     $cutoff_date
@@ -92,7 +96,7 @@ class LogCleanup
 
             // Cache miss - perform batch query
             if (false === $logs_to_delete) {
-                $logs_to_delete = $wpdb->get_results(
+                $logs_to_delete = DatabaseHelper::get_results(
                     $wpdb->prepare(
                         "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d",
                         $cutoff_date,
@@ -135,7 +139,7 @@ class LogCleanup
 
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
-                    $deleted_rows = $wpdb->query(
+                    $deleted_rows = DatabaseHelper::query(
                         $wpdb->prepare(
                             "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)",
                             ...$log_ids
@@ -175,7 +179,7 @@ class LogCleanup
 
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
-                    $wpdb->query(
+                    DatabaseHelper::query(
                         $wpdb->prepare(
                             "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)",
                             ...$payload_ids
@@ -269,7 +273,7 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $count_to_delete) {
-            $count_to_delete = $wpdb->get_var(
+            $count_to_delete = DatabaseHelper::get_var(
                 $wpdb->prepare(
                     "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s",
                     $cutoff_date
@@ -297,7 +301,7 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $payload_count_to_delete) {
-            $payload_count_to_delete = $wpdb->get_var(
+            $payload_count_to_delete = DatabaseHelper::get_var(
                 $wpdb->prepare(
                     "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL",
                     $cutoff_date

@@ -75,10 +75,10 @@ abstract class DashboardComponentRenderer
         }
 
     /**
-     * Output HTML rendered by concrete component renderers.
-     *
-     * Security implementation and WordPress.org compliance rationale:
-     * 1. SECURITY MODEL: All concrete renderers escape their output using proper escaping functions
+    * Output HTML rendered by concrete component renderers.
+    *
+    * Security implementation and WordPress.org compliance rationale:
+    * 1. SECURITY MODEL: All concrete renderers escape their output using proper escaping functions
     *    that preserve Alpine.js functionality while ensuring security.
     * 2. CONTEXT: This is an admin-only context protected by capability checks (manage_woocommerce),
     *    with additional nonce verification on all AJAX endpoints.
@@ -94,8 +94,9 @@ abstract class DashboardComponentRenderer
     *
     * @see DashboardComponentUIToolkit - All HTML construction uses proper escaping
     * @see FiltersTabRenderer, SettingsTabRenderer, LogStreamRenderer - Delegate to escaped templates
-    * @see WordPress Core admin patterns - Complex UIs handle escaping at construction
     */
+
+    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
     echo DashboardComponentUIToolkit::escapeAlpineHtml($rendered_html);
     }
 

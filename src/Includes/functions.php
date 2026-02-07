@@ -1484,6 +1484,8 @@ function odcm_insert_audit_log_queue_entry(string $queue_id, string $event_data,
     ];
 
     // Use WordPress's insert method with proper format specification
+    // It provides proper sanitization, format specification, and error handling
+    // phpcs:ignore - WordPress.DB.DirectDatabaseQuery.DirectQuery
     $result = $wpdb->insert(
         $table_name,
         $data,
@@ -1521,7 +1523,7 @@ function odcm_validate_and_sanitize_json(string $json_string, bool $assoc = true
     $data = json_decode($json_string, $assoc);
 
     if (json_last_error() !== JSON_ERROR_NONE) {
-        throw new InvalidArgumentException('JSON decoding error: ' . json_last_error_msg());
+        throw new InvalidArgumentException('JSON decoding error: ' . esc_html(json_last_error_msg()));
     }
 
     // Sanitize decoded data
@@ -1564,7 +1566,7 @@ function odcm_validate_and_sanitize_params(array $params, array $rules): array {
     foreach ($rules as $param => $rule) {
         if (!isset($params[$param])) {
             if (isset($rule['required']) && $rule['required']) {
-                throw new InvalidArgumentException("Required parameter missing: $param");
+                throw new InvalidArgumentException(esc_html__('Required parameter missing: $param', 'order-daemon'));
             }
             continue;
         }
@@ -1575,14 +1577,14 @@ function odcm_validate_and_sanitize_params(array $params, array $rules): array {
         switch ($rule['type']) {
             case 'string':
                 if (!is_string($value)) {
-                    throw new InvalidArgumentException("Parameter $param must be a string");
+                    throw new InvalidArgumentException(esc_html__('Parameter $param must be a string', 'order-daemon'));
                 }
                 $validated[$param] = sanitize_text_field($value);
                 break;
 
             case 'integer':
                 if (!is_numeric($value)) {
-                    throw new InvalidArgumentException("Parameter $param must be an integer");
+                    throw new InvalidArgumentException(esc_html__('Parameter $param must be an integer', 'order-daemon'));
                 }
                 $validated[$param] = absint($value);
                 break;
@@ -1593,22 +1595,22 @@ function odcm_validate_and_sanitize_params(array $params, array $rules): array {
 
             case 'array':
                 if (!is_array($value)) {
-                    throw new InvalidArgumentException("Parameter $param must be an array");
+                    throw new InvalidArgumentException(esc_html__('Parameter $param must be an array', 'order-daemon'));
                 }
                 $validated[$param] = odcm_sanitize_data($value);
                 break;
 
             default:
-                throw new InvalidArgumentException("Unknown validation type: " . $rule['type']);
+                throw new InvalidArgumentException("Unknown validation type: " . esc_html($rule['type']));
         }
 
         // Additional validation rules
         if (isset($rule['min']) && $validated[$param] < $rule['min']) {
-            throw new InvalidArgumentException("Parameter $param must be at least {$rule['min']}");
+            throw new InvalidArgumentException(esc_html(sprintf(__('Parameter $param must be at least %s', 'order-daemon'), $rule['min'])));
         }
 
         if (isset($rule['max']) && $validated[$param] > $rule['max']) {
-            throw new InvalidArgumentException("Parameter $param must be at most {$rule['max']}");
+            throw new InvalidArgumentException(esc_html(sprintf(__('Parameter $param must be at most %s', 'order-daemon'), $rule['max'])));
         }
     }
 

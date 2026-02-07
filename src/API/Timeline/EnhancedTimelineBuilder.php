@@ -386,6 +386,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $result = $wpdb->get_row(
             $wpdb->prepare(
                 "SELECT l.log_id,
@@ -744,6 +745,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
 
         global $wpdb;
 
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $results = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT l.log_id,
