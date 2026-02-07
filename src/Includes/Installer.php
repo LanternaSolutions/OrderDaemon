@@ -144,6 +144,7 @@ class Installer
             KEY idx_secondary_entity (secondary_object_type, secondary_object_id),
             KEY idx_idempotency (idempotency_key),
             KEY idx_cross_entity_process (primary_object_id, secondary_object_id, process_id),
+            KEY idx_event_type_status (event_type, status),
             UNIQUE KEY unique_duplicate_hash (duplicate_hash),
             UNIQUE KEY idx_idempotency_unique (idempotency_key)
         ) $charset_collate;";
@@ -241,20 +242,17 @@ class Installer
             // Add parent_id column
             $safe_table = esc_sql($audit_log_table);
             $sql = "ALTER TABLE $safe_table ADD COLUMN parent_id INT UNSIGNED NULL DEFAULT NULL AFTER log_id";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
-            $wpdb->query($sql);
+            self::$db_helper->query($sql);
 
             // Add index for parent_id
             $safe_table = esc_sql($audit_log_table);
             $sql = "ALTER TABLE $safe_table ADD INDEX idx_parent (parent_id)";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
-            $wpdb->query($sql);
+            self::$db_helper->query($sql);
 
             // Add composite index for process_id and parent_id
             $safe_table = esc_sql($audit_log_table);
             $sql = "ALTER TABLE $safe_table ADD INDEX idx_process_parent (process_id, parent_id)";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
-            $wpdb->query($sql);
+            self::$db_helper->query($sql);
         }
 
         // Check if display_data column already exists
@@ -268,8 +266,7 @@ class Installer
             // Add display_data column
             $safe_table = esc_sql($audit_log_table);
             $sql = "ALTER TABLE $safe_table ADD COLUMN display_data TEXT NULL DEFAULT NULL AFTER details";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
-            $wpdb->query($sql);
+            self::$db_helper->query($sql);
         }
 
         // Add dedupe_key column for deterministic deduplication
@@ -284,13 +281,27 @@ class Installer
             $safe_table = esc_sql($audit_log_table);
             $sql = "ALTER TABLE $safe_table ADD COLUMN dedupe_key VARCHAR(255) NULL DEFAULT NULL AFTER details";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
-            $wpdb->query($sql);
+            self::$db_helper->query($sql);
 
             // Add unique index for dedupe_key
             $safe_table = esc_sql($audit_log_table);
             $sql = "ALTER TABLE $safe_table ADD UNIQUE INDEX idx_dedupe_key (dedupe_key)";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
-            $wpdb->query($sql);
+            self::$db_helper->query($sql);
+        }
+
+        // Add idx_event_type_status index if it doesn't exist
+        $event_type_status_index_exists = self::$db_helper->get_var(
+            "SELECT COUNT(*) FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND INDEX_NAME = 'idx_event_type_status'",
+            [DB_NAME, $audit_log_table]
+        ) > 0;
+
+        if (!$event_type_status_index_exists) {
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD INDEX idx_event_type_status (event_type, status)";
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
+            self::$db_helper->query($sql);
         }
 
         // Update payload table with display data caching columns
@@ -308,7 +319,7 @@ class Installer
             $safe_table = esc_sql($payload_table);
             $sql = "ALTER TABLE $safe_table ADD COLUMN processed_display_data TEXT NULL DEFAULT NULL COMMENT 'Cached display sections in JSON format'";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
-            $wpdb->query($sql);
+            self::$db_helper->query($sql);
         }
 
         // Check if last_processed column already exists
@@ -323,7 +334,7 @@ class Installer
             $safe_table = esc_sql($payload_table);
             $sql = "ALTER TABLE $safe_table ADD COLUMN last_processed TIMESTAMP NULL DEFAULT NULL";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
-            $wpdb->query($sql);
+            self::$db_helper->squery($sql);
         }
     }
 

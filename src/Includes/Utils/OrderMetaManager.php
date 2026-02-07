@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Includes\Utils;
 
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
+
 /**
  * Order Meta Manager - HPOS Compatible Order Metadata Operations
  *
@@ -390,21 +392,33 @@ class OrderMetaManager
             return null;
         }
         
-        // Use cache to avoid repeated searches
-        static $meta_search_cache = [];
-        $cache_key = md5($meta_key . '|' . $meta_value . '|' . serialize($additional_args));
-        
-        if (isset($meta_search_cache[$cache_key])) {
-            return $meta_search_cache[$cache_key];
+        // Use DatabaseHelper for optimized caching
+        $cache_key = DatabaseHelper::get_var(
+            "SELECT cache_key FROM {$wpdb->prefix}options 
+             WHERE option_name = %s AND option_value = %s 
+             LIMIT 1",
+            ['odcm_meta_cache_key', $meta_key . '|' . $meta_value]
+        );
+
+        if ($cache_key) {
+            $cached_result = wp_cache_get($cache_key, 'odcm_meta_cache');
+            if ($cached_result !== false) {
+                return $cached_result;
+            }
         }
-        
-        // Check persistent cache for expensive searches
+
+        // Check persistent cache for expensive searches using DatabaseHelper
         $should_persist = !isset($additional_args['no_cache']) && strlen($meta_value) > 5;
-        $persist_key = 'odcm_meta_search_' . $cache_key;
-        
-        if ($should_persist) {
-            $cached_result = wp_cache_get($persist_key);
-            if (false !== $cached_result) {
+        $persist_key = 'odcm_meta_search_' . DatabaseHelper::get_var(
+            "SELECT cache_key FROM {$wpdb->prefix}options 
+             WHERE option_name = %s AND option_value = %s 
+             LIMIT 1",
+            ['odcm_meta_cache_key', $meta_key . '|' . $meta_value]
+        );
+
+        if ($should_persist && $persist_key) {
+            $cached_result = wp_cache_get($persist_key, 'odcm_meta_cache');
+            if ($cached_result !== false) {
                 // Store in static cache and return
                 $meta_search_cache[$cache_key] = (null === $cached_result) ? null : (int)$cached_result;
                 return $meta_search_cache[$cache_key];
@@ -424,21 +438,18 @@ class OrderMetaManager
                 }
             }
             
-            // Use optimized meta_key/meta_value parameters instead of meta_query
-            $search_args = array_merge([
-                'limit'      => 1,
-                'status'     => 'any',
-                'return'     => 'ids',
-                'meta_key'   => $meta_key,
-                'meta_value' => $meta_value,
-                'meta_compare' => '='
-            ], $additional_args);
-            
-            // Remove any conflicting meta_query parameters to avoid slow query warnings
-            unset($search_args['meta_query']);
+            // Use DatabaseHelper for optimized direct database queries
+            $wpdb = DatabaseHelper::get_wpdb();
+            $table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_orders' : $wpdb->prefix . 'posts';
+            $meta_table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_ordermeta' : $wpdb->prefix . 'postmeta';
 
-            $orders = wc_get_orders($search_args);
-            $result = (!empty($orders) && is_array($orders)) ? (int)$orders[0] : null;
+            $query = "SELECT pm.post_id FROM {$meta_table} pm
+                      JOIN {$table} p ON pm.post_id = p.ID
+                      WHERE pm.meta_key = %s AND pm.meta_value = %s
+                      AND p.post_type = 'shop_order'
+                      LIMIT 1";
+
+            $result = DatabaseHelper::get_var($query, [$meta_key, $meta_value]);
             
             // Cache the result
             $meta_search_cache[$cache_key] = $result;
@@ -484,22 +495,33 @@ class OrderMetaManager
             return [];
         }
         
-        // Use cache to avoid repeated searches
-        static $multi_meta_search_cache = [];
-        $limit = max(1, $limit); // Ensure limit is at least 1
-        $cache_key = md5($meta_key . '|' . $meta_value . '|' . $limit . '|' . serialize($additional_args));
-        
-        if (isset($multi_meta_search_cache[$cache_key])) {
-            return $multi_meta_search_cache[$cache_key];
+        // Use DatabaseHelper for optimized caching
+        $cache_key = DatabaseHelper::get_var(
+            "SELECT cache_key FROM {$wpdb->prefix}options 
+             WHERE option_name = %s AND option_value = %s 
+             LIMIT 1",
+            ['odcm_meta_cache_key', $meta_key . '|' . $meta_value . '|' . $limit]
+        );
+
+        if ($cache_key) {
+            $cached_result = wp_cache_get($cache_key, 'odcm_meta_cache');
+            if ($cached_result !== false) {
+                return $cached_result;
+            }
         }
-        
+
         // Check persistent cache for expensive searches
         $should_persist = !isset($additional_args['no_cache']) && strlen($meta_value) > 5 && $limit > 1;
-        $persist_key = 'odcm_multi_meta_search_' . $cache_key;
-        
-        if ($should_persist) {
-            $cached_result = wp_cache_get($persist_key);
-            if (false !== $cached_result) {
+        $persist_key = 'odcm_multi_meta_search_' . DatabaseHelper::get_var(
+            "SELECT cache_key FROM {$wpdb->prefix}options 
+             WHERE option_name = %s AND option_value = %s 
+             LIMIT 1",
+            ['odcm_meta_cache_key', $meta_key . '|' . $meta_value . '|' . $limit]
+        );
+
+        if ($should_persist && $persist_key) {
+            $cached_result = wp_cache_get($persist_key, 'odcm_meta_cache');
+            if ($cached_result !== false) {
                 // Store in static cache and return
                 $multi_meta_search_cache[$cache_key] = $cached_result;
                 return $cached_result;
@@ -507,30 +529,27 @@ class OrderMetaManager
         }
 
         try {
-            // Use optimized meta_key/meta_value parameters instead of meta_query for better performance
-            $search_args = array_merge([
-                'limit'      => $limit,
-                'status'     => 'any',
-                'return'     => 'ids',
-                'meta_key'   => $meta_key,
-                'meta_value' => $meta_value,
-                'meta_compare' => '='
-            ], $additional_args);
-            
-            // Remove any conflicting meta_query parameters to avoid slow query warnings
-            unset($search_args['meta_query']);
+            // Use DatabaseHelper for optimized direct database queries
+            $wpdb = DatabaseHelper::get_wpdb();
+            $table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_orders' : $wpdb->prefix . 'posts';
+            $meta_table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_ordermeta' : $wpdb->prefix . 'postmeta';
 
-            $orders = wc_get_orders($search_args);
-            $result = (!empty($orders) && is_array($orders)) ? array_map('intval', $orders) : [];
-            
+            $query = "SELECT pm.post_id FROM {$meta_table} pm
+                      JOIN {$table} p ON pm.post_id = p.ID
+                      WHERE pm.meta_key = %s AND pm.meta_value = %s
+                      AND p.post_type = 'shop_order'
+                      LIMIT %d";
+
+            $result = DatabaseHelper::get_col($query, [$meta_key, $meta_value, $limit]);
+
             // Cache the result
             $multi_meta_search_cache[$cache_key] = $result;
-            
+
             // Persist expensive searches
             if ($should_persist) {
                 wp_cache_set($persist_key, $result, '', 15 * MINUTE_IN_SECONDS);
             }
-            
+
             return $result;
         } catch (\Throwable $e) {
             self::logDebugMessage("OrderMetaManager::find_orders_by_meta failed for key '{$meta_key}': " . $e->getMessage(), 'error');
@@ -542,7 +561,7 @@ class OrderMetaManager
         if ($should_persist) {
             wp_cache_set($persist_key, $empty_result, '', 5 * MINUTE_IN_SECONDS); // Shorter cache for misses
         }
-        
+
         return [];
     }
 
@@ -621,21 +640,36 @@ class OrderMetaManager
             return null;
         }
         
-        // Use static cache for high-performance in-request caching
-        static $subscription_cache = [];
-        $cache_key = 'sub_gateway_' . md5($gateway_subscription_id);
-        
-        if (isset($subscription_cache[$cache_key])) {
-            return $subscription_cache[$cache_key];
+        // Use DatabaseHelper for optimized caching
+        $cache_key = DatabaseHelper::get_var(
+            "SELECT cache_key FROM {$wpdb->prefix}options 
+             WHERE option_name = %s AND option_value = %s 
+             LIMIT 1",
+            ['odcm_subscription_cache_key', $gateway_subscription_id]
+        );
+
+        if ($cache_key) {
+            $cached_result = wp_cache_get($cache_key, 'odcm_subscription_cache');
+            if ($cached_result !== false) {
+                return $cached_result;
+            }
         }
-        
+
         // Check persistent cache
-        $persist_key = 'odcm_subscription_' . $cache_key;
-        $cached_result = wp_cache_get($persist_key);
-        if (false !== $cached_result) {
-            // Store in static cache and return
-            $subscription_cache[$cache_key] = (null === $cached_result) ? null : (int)$cached_result;
-            return $subscription_cache[$cache_key];
+        $persist_key = 'odcm_subscription_' . DatabaseHelper::get_var(
+            "SELECT cache_key FROM {$wpdb->prefix}options 
+             WHERE option_name = %s AND option_value = %s 
+             LIMIT 1",
+            ['odcm_subscription_cache_key', $gateway_subscription_id]
+        );
+
+        if ($persist_key) {
+            $cached_result = wp_cache_get($persist_key, 'odcm_subscription_cache');
+            if ($cached_result !== false) {
+                // Store in static cache and return
+                $subscription_cache[$cache_key] = (null === $cached_result) ? null : (int)$cached_result;
+                return $subscription_cache[$cache_key];
+            }
         }
 
         // Common gateway subscription ID meta keys
@@ -647,34 +681,32 @@ class OrderMetaManager
 
         foreach ($subscription_meta_keys as $meta_key) {
             try {
-                // Use optimized meta_key/meta_value parameters instead of meta_query for better performance
-                $subscriptions = wcs_get_subscriptions([
-                    'meta_key'            => $meta_key,
-                    'meta_value'          => $gateway_subscription_id,
-                    'meta_compare'        => '=',
-                    'posts_per_page'      => 1,
-                    'subscription_status' => 'any'
-                ]);
+                // Use DatabaseHelper for optimized direct database queries
+                $wpdb = DatabaseHelper::get_wpdb();
+                $table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_orders' : $wpdb->prefix . 'posts';
+                $meta_table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_ordermeta' : $wpdb->prefix . 'postmeta';
 
-                if (!empty($subscriptions)) {
-                    foreach ($subscriptions as $subscription) {
-                        if ($subscription && method_exists($subscription, 'get_id')) {
-                            $result = (int) $subscription->get_id();
-                            
-                            // Cache the successful result
-                            $subscription_cache[$cache_key] = $result;
-                            wp_cache_set($persist_key, $result, '', HOUR_IN_SECONDS); // Longer cache for subscriptions which change less frequently
-                            
-                            return $result;
-                        }
-                    }
+                $query = "SELECT pm.post_id FROM {$meta_table} pm
+                          JOIN {$table} p ON pm.post_id = p.ID
+                          WHERE pm.meta_key = %s AND pm.meta_value = %s
+                          AND p.post_type = 'shop_subscription'
+                          LIMIT 1";
+
+                $result = DatabaseHelper::get_var($query, [$meta_key, $gateway_subscription_id]);
+
+                if ($result) {
+                    // Cache the successful result
+                    $subscription_cache[$cache_key] = $result;
+                    wp_cache_set($persist_key, $result, '', HOUR_IN_SECONDS); // Longer cache for subscriptions which change less frequently
+
+                    return $result;
                 }
             } catch (\Throwable $e) {
                 self::logDebugMessage("OrderMetaManager::find_subscription_by_gateway_id failed for key '{$meta_key}': " . $e->getMessage(), 'error');
                 continue;
             }
         }
-        
+
         // Cache the negative result to prevent repeated searches
         $subscription_cache[$cache_key] = null;
         wp_cache_set($persist_key, null, '', 5 * MINUTE_IN_SECONDS); // Shorter cache for misses

@@ -230,7 +230,7 @@ class DatabaseHelper
         try {
             $deleted_count = 0;
             $wpdb = self::get_wpdb();
-            $options = $wpdb->get_results(
+            $options = self::get_results(
                 $wpdb->prepare(
                     "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
                     '%' . $wpdb->esc_like(sanitize_text_field($pattern)) . '%'
@@ -357,17 +357,101 @@ class DatabaseHelper
      * @param string $output Output type (OBJECT, ARRAY_A, ARRAY_N)
      * @return array Row results
      */
-    public static function get_results(string $query, array $args = [], string $output = 'OBJECT')
+    public static function get_results(string $query, array $args = [], string $output = 'OBJECT'): ?array
     {
         try {
             if (empty($args)) {
-                return self::get_wpdb()->get_results($query, $output);
+                $results = self::get_wpdb()->get_results($query, $output);
+            } else {
+                $results = self::get_wpdb()->get_results(self::get_wpdb()->prepare($query, ...$args), $output);
             }
 
-            return self::get_wpdb()->get_results(self::get_wpdb()->prepare($query, ...$args), $output);
+            // Return null if no results found or if results is false (error)
+            return $results === false || empty($results) ? null : $results;
         } catch (\Throwable $e) {
             self::log_error("DatabaseHelper::get_results failed: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get a single column from database with error handling
+     *
+     * @param string $query SQL query to execute
+     * @param array $args Query arguments
+     * @param int $column_offset Column offset (0 for first column)
+     * @return array Column results
+     */
+    public static function get_col(string $query, array $args = [], int $column_offset = 0): array
+    {
+        try {
+            if (empty($args)) {
+                return self::get_wpdb()->get_col($query, $column_offset);
+            }
+            return self::get_wpdb()->get_col(self::get_wpdb()->prepare($query, ...$args), $column_offset);
+        } catch (\Throwable $e) {
+            self::log_error("DatabaseHelper::get_col failed: " . $e->getMessage());
             return [];
+        }
+    }
+
+    /**
+     * Insert data into database with error handling
+     *
+     * @param string $table_name Table name to insert into
+     * @param array $data Data to insert (column => value pairs)
+     * @param array $format Optional format array for data types
+     * @return int|false The number of rows inserted, or false on error
+     */
+    public static function insert(string $table_name, array $data, array $format = null)
+    {
+        if (empty($table_name) || empty($data)) {
+            return false;
+        }
+
+        try {
+            $result = self::get_wpdb()->insert($table_name, $data, $format);
+
+            if ($result === false) {
+                self::log_error("DatabaseHelper::insert failed for table '{$table_name}': " . self::get_wpdb()->last_error);
+                return false;
+            }
+
+            return $result;
+        } catch (\Throwable $e) {
+            self::log_error("DatabaseHelper::insert failed for table '{$table_name}': " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Update data in database with error handling
+     *
+     * @param string $table_name Table name to update
+     * @param array $data Data to update (column => value pairs)
+     * @param array $where Where conditions (column => value pairs)
+     * @param array $format Optional format array for data types
+     * @param array $where_format Optional format array for where conditions
+     * @return int|false The number of rows updated, or false on error
+     */
+    public static function update(string $table_name, array $data, array $where, array $format = null, array $where_format = null)
+    {
+        if (empty($table_name) || empty($data) || empty($where)) {
+            return false;
+        }
+
+        try {
+            $result = self::get_wpdb()->update($table_name, $data, $where, $format, $where_format);
+
+            if ($result === false) {
+                self::log_error("DatabaseHelper::update failed for table '{$table_name}': " . self::get_wpdb()->last_error);
+                return false;
+            }
+
+            return $result;
+        } catch (\Throwable $e) {
+            self::log_error("DatabaseHelper::update failed for table '{$table_name}': " . $e->getMessage());
+            return false;
         }
     }
 

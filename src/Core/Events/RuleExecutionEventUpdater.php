@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core\Events;
 
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
@@ -142,7 +144,7 @@ class RuleExecutionEventUpdater
         $transient_keys = wp_cache_get($cache_key, 'odcm_rule_execution');
         
         if (false === $transient_keys) {
-            $transient_keys = $wpdb->get_col($wpdb->prepare(
+            $transient_keys = DatabaseHelper::get_col($wpdb->prepare(
                 "SELECT option_name FROM {$wpdb->options}
                  WHERE option_name LIKE %s
                  AND option_name NOT LIKE %s",
@@ -264,7 +266,7 @@ class RuleExecutionEventUpdater
             }
 
             // Update the log entry
-            $result = $wpdb->update(
+            $result = DatabaseHelper::update(
                 $wpdb->prefix . 'odcm_audit_log',
                 [
                     'payload' => $payload_json,
@@ -312,7 +314,7 @@ class RuleExecutionEventUpdater
         $pending_count = wp_cache_get($cache_key, 'odcm_rule_execution');
         
         if (false === $pending_count) {
-            $pending_count = $wpdb->get_var($wpdb->prepare(
+            $pending_count = DatabaseHelper::get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM {$wpdb->options}
                  WHERE option_name LIKE %s
                  AND option_name NOT LIKE %s",
@@ -344,7 +346,7 @@ class RuleExecutionEventUpdater
         $transient_keys = wp_cache_get($cache_key, 'odcm_rule_execution');
         
         if (false === $transient_keys) {
-            $transient_keys = $wpdb->get_col($wpdb->prepare(
+            $transient_keys = DatabaseHelper::get_col($wpdb->prepare(
                 "SELECT option_name FROM {$wpdb->options}
                  WHERE option_name LIKE %s
                  AND option_name NOT LIKE %s",

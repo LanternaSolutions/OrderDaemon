@@ -5,6 +5,9 @@ declare(strict_types=1);
 // Prevent direct access to this file
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+// Include DatabaseHelper for database operations
+require_once __DIR__ . '/Utils/DatabaseHelper.php';
+
 /**
  * Global Helper Functions - Core Utilities
  *
@@ -1468,13 +1471,6 @@ function odcm_component_key(string $suffix = null): string
 function odcm_insert_audit_log_queue_entry(string $queue_id, string $event_data, string $created_at, string $status = 'pending'): int|false
 {
     global $wpdb;
-
-    // Validate and sanitize input parameters
-    $status = sanitize_text_field($status);
-
-    // Ensure the table name is properly prefixed
-    $table_name = $wpdb->prefix . 'odcm_audit_log_queue';
-
     // Prepare data for insertion with proper sanitization
     $data = [
         'queue_id' => $queue_id,
@@ -1483,11 +1479,9 @@ function odcm_insert_audit_log_queue_entry(string $queue_id, string $event_data,
         'status' => $status
     ];
 
-    // Use WordPress's insert method with proper format specification
-    // It provides proper sanitization, format specification, and error handling
-    // phpcs:ignore - WordPress.DB.DirectDatabaseQuery.DirectQuery
-    $result = $wpdb->insert(
-        $table_name,
+    // Use DatabaseHelper for database operations with proper error handling
+    $result = \OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper::insert(
+        $wpdb->prefix . 'odcm_audit_log_queue',
         $data,
         ['%s', '%s', '%s', '%s'] // Format: string, string, string, string
     );
@@ -1606,10 +1600,12 @@ function odcm_validate_and_sanitize_params(array $params, array $rules): array {
 
         // Additional validation rules
         if (isset($rule['min']) && $validated[$param] < $rule['min']) {
+            /* translators: %s: parameter name, %s: minimum value */
             throw new InvalidArgumentException(esc_html(sprintf(__('Parameter $param must be at least %s', 'order-daemon'), $rule['min'])));
         }
 
         if (isset($rule['max']) && $validated[$param] > $rule['max']) {
+            /* translators: %s: parameter name, %s: maximum value */
             throw new InvalidArgumentException(esc_html(sprintf(__('Parameter $param must be at most %s', 'order-daemon'), $rule['max'])));
         }
     }

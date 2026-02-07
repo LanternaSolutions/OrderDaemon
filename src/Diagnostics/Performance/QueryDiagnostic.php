@@ -5,6 +5,7 @@ namespace OrderDaemon\CompletionManager\Diagnostics\Performance;
 
 use OrderDaemon\CompletionManager\Diagnostics\AbstractDiagnostic;
 use OrderDaemon\CompletionManager\Diagnostics\DiagnosticResult;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 
 /**
  * Query Performance Diagnostic - Test Database Query Performance
@@ -252,10 +253,7 @@ class QueryDiagnostic extends AbstractDiagnostic
             $size_mb = wp_cache_get($table_size_cache_key);
 
             if (false === $size_mb) {
-                // @codingStandardsIgnoreStart
-                // This is a false positive - we're using a validated table name with WordPress prefix
-                // and this is a performance diagnostic tool that needs to measure actual database performance
-                $size_mb = $wpdb->get_var(
+                $size_mb = DatabaseHelper::get_var(
                     $wpdb->prepare(
                         "SELECT ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb'
                         FROM information_schema.TABLES
@@ -264,7 +262,6 @@ class QueryDiagnostic extends AbstractDiagnostic
                         $full_table_name
                     )
                 ) ?? 0;
-                // @codingStandardsIgnoreEnd
 
                 // Cache the result for 1 hour - table sizes don't change frequently
                 wp_cache_set($table_size_cache_key, $size_mb, '', HOUR_IN_SECONDS);
@@ -457,7 +454,7 @@ class QueryDiagnostic extends AbstractDiagnostic
                 // @codingStandardsIgnoreStart
                 // This is a false positive - we're using validated table names with WordPress prefix
                 // and this is a performance diagnostic tool that needs to measure actual database performance
-                $results = $wpdb->get_results($prepared_query, 'ARRAY_A');
+                $results = DatabaseHelper::get_results($prepared_query, 'ARRAY_A');
                 $execution_time = (microtime(true) - $start_time) * 1000;
 
                 $result['tests'][$test_name] = [
@@ -517,17 +514,9 @@ class QueryDiagnostic extends AbstractDiagnostic
             $indexes = wp_cache_get($cache_key);
 
             if (false === $indexes) {
-                // We can't use $wpdb->prepare() for "SHOW INDEX" with a table name as there's no
-                // placeholder for identifiers, but we can safely use $wpdb->get_results with a properly
-                // validated table name. This is a legitimate use case for direct database calls
-                // as WordPress doesn't provide an alternative for SHOW INDEX queries.
-
                 $table_name_clean = trim(str_replace('`', '', $table_identifier));
 
-                // Use WordPress database abstraction with proper validation
-                // Since we can't use prepare() for identifiers, we use esc_sql() to escape the table name
-                // and use $wpdb->get_results() which is the WordPress-approved method for this type of query
-                $query = $wpdb->get_results($wpdb->prepare("SHOW INDEX FROM `%s`", $table_name_clean), 'ARRAY_A');
+                $query = DatabaseHelper::get_results($wpdb->prepare("SHOW INDEX FROM `%s`", $table_name_clean), 'ARRAY_A');
 
                 if ($query !== null) {
                     // Cache for 1 hour - indexes don't change frequently
@@ -605,7 +594,7 @@ class QueryDiagnostic extends AbstractDiagnostic
             $mysql_version = wp_cache_get($cache_key);
             
             if (false === $mysql_version) {
-                $mysql_version = $wpdb->get_var($wpdb->prepare("SELECT %s", 'VERSION()'));
+                $mysql_version = DatabaseHelper::get_var($wpdb->prepare("SELECT %s", 'VERSION()'));
                 // Cache for 24 hours - MySQL version rarely changes
                 if ($mysql_version) {
                     wp_cache_set($cache_key, $mysql_version, '', DAY_IN_SECONDS);
@@ -638,7 +627,7 @@ class QueryDiagnostic extends AbstractDiagnostic
                     if (false === $var_value) {
                         // Use separate prepared statement for show variables
                         // Since SHOW VARIABLES LIKE has specific syntax requirements
-                        $var_value = $wpdb->get_row($wpdb->prepare("SHOW VARIABLES LIKE %s", $var));
+                        $var_value = DatabaseHelper::get_row($wpdb->prepare("SHOW VARIABLES LIKE %s", $var));
                         $var_value = $var_value ? $var_value->Value : null;
                         if ($var_value !== null) {
                             // Cache individual variables for 24 hours

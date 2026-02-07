@@ -11,6 +11,7 @@ use OrderDaemon\CompletionManager\View\DashboardComponents\UnifiedHeaderRenderer
 use OrderDaemon\CompletionManager\View\DashboardComponents\FilterPaneRenderer;
 use OrderDaemon\CompletionManager\View\DashboardComponents\LogStreamRenderer;
 use OrderDaemon\CompletionManager\View\DashboardComponents\DetailPaneRenderer;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 
 /**
  * Insight Dashboard Admin Page
@@ -631,7 +632,7 @@ class InsightDashboard
         if ($table_exists === false) {
             // Use WordPress recommended method to check if table exists
             // Check if the table exists by querying it directly with a safe query
-            $table_exists = $wpdb->get_var(
+            $table_exists = DatabaseHelper::get_var(
                 $wpdb->prepare(
                     "SHOW TABLES LIKE %s",
                     $audit_log_table
@@ -657,7 +658,7 @@ class InsightDashboard
 
         if ($log_count === false) {
             $log_table_escaped = esc_sql($wpdb->prefix . 'odcm_audit_log');
-            $log_count = $wpdb->get_var("SELECT COUNT(*) FROM `{$log_table_escaped}`");
+            $log_count = DatabaseHelper::get_var("SELECT COUNT(*) FROM `{$log_table_escaped}`");
 
             // Cache the result for 5 minutes - log count may change more frequently
             wp_cache_set($log_count_cache_key, $log_count, '', 5 * MINUTE_IN_SECONDS);

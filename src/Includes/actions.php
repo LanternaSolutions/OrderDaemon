@@ -19,6 +19,7 @@ if (!defined('WPINC')) {
 // Import required classes
 use function OrderDaemon\CompletionManager\Utils\odcm_sanitize_payload_for_logging;
 use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 
 
 /**
@@ -138,7 +139,7 @@ function odcm_handle_log_processing($args) {
     } else {
         // Insert new payload with caching to avoid duplicates
         // phpcs:ignore - WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $payload_insert = $wpdb->insert(
+        $payload_insert = DatabaseHelper::insert(
             $wpdb->prefix . 'odcm_audit_log_payloads',
             ['payload' => json_encode($sanitized_payload)],
             ['%s'] // Explicit format for security
@@ -208,7 +209,6 @@ function odcm_handle_log_processing($args) {
 
     $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
 
-    // Use $wpdb->insert() with explicit formats to satisfy sniffs and ensure safety
     $format_map = [
         'summary' => '%s',
         'event_type' => '%s',
@@ -227,11 +227,7 @@ function odcm_handle_log_processing($args) {
         $formats[] = $format_map[$k] ?? '%s';
     }
 
-    // Insert audit log entry with proper formatting and caching
-    // phpcs:ignore - WordPress.DB.DirectDatabaseQuery.DirectQuery
-    $insert_result = $wpdb->insert($audit_log_table, $log_data, $formats);
-
-    // @codingStandardsIgnoreLine - Direct database access is required for custom tables
+    $insert_result = DatabaseHelper::insert($audit_log_table, $log_data, $formats);
     
     if ($insert_result !== false) {
         // Cache the hash to prevent duplicates (10 minutes)

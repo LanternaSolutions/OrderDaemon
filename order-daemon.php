@@ -46,6 +46,7 @@ use OrderDaemon\CompletionManager\Core\ManualStatusTracker;
 use OrderDaemon\CompletionManager\Plugin;
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
 use OrderDaemon\CompletionManager\Core\Security\AlpineJsSecurity;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 
 // Define plugin constants
 // Define plugin version constant, used for database versioning and asset cache-busting.
@@ -126,10 +127,10 @@ function odcm_deactivation_cleanup() {
 
     // Clean up transients and cache
     global $wpdb;
-    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_odcm_%'");
-    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_timeout_odcm_%'");
-    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_site_transient_odcm_%'");
-    $wpdb->query("DELETE FROM $wpdb->options WHERE option_name LIKE '_site_transient_timeout_odcm_%'");
+    DatabaseHelper::query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_odcm_%'");
+    DatabaseHelper::query("DELETE FROM $wpdb->options WHERE option_name LIKE '_transient_timeout_odcm_%'");
+    DatabaseHelper::query("DELETE FROM $wpdb->options WHERE option_name LIKE '_site_transient_odcm_%'");
+    DatabaseHelper::query("DELETE FROM $wpdb->options WHERE option_name LIKE '_site_transient_timeout_odcm_%'");
 
     // Clear specific cache keys
     wp_cache_delete('odcm_all_tables_exist_check');

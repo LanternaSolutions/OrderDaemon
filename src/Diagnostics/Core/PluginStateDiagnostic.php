@@ -5,6 +5,7 @@ namespace OrderDaemon\CompletionManager\Diagnostics\Core;
 
 use OrderDaemon\CompletionManager\Diagnostics\AbstractDiagnostic;
 use OrderDaemon\CompletionManager\Diagnostics\DiagnosticResult;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 
 /**
  * Plugin State Diagnostic - Checks Order Daemon Plugin Configuration
@@ -124,7 +125,7 @@ class PluginStateDiagnostic extends AbstractDiagnostic
 
         // Test 3: Check database connectivity
         global $wpdb;
-        $db_connection_test = $wpdb->get_var("SELECT 1");
+        $db_connection_test = DatabaseHelper::get_var("SELECT 1");
         $db_connected = $db_connection_test === '1';
         
         if (!$db_connected) {
