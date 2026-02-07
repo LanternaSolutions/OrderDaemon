@@ -43,6 +43,20 @@ class DatabaseHelper
     }
 
     /**
+     * Get the WordPress database object, initializing if necessary.
+     *
+     * @return \wpdb
+     */
+    private static function get_wpdb(): \wpdb
+    {
+        if (!isset(self::$wpdb)) {
+            global $wpdb;
+            self::$wpdb = $wpdb;
+        }
+        return self::$wpdb;
+    }
+
+    /**
      * Check if a database table exists with caching
      *
      * @param string $table_name Table name to check
@@ -63,9 +77,14 @@ class DatabaseHelper
         }
 
         try {
-            $result = self::$wpdb->get_var("SHOW TABLES LIKE '" . self::$wpdb->esc_like($table_name) . "'");
+            $result = self::get_wpdb()->get_var(
+                self::get_wpdb()->prepare(
+                    "SHOW TABLES LIKE %s",
+                    '%' . self::get_wpdb()->esc_like($table_name) . '%'
+                )
+            );
 
-            $table_exists = ($result === $table_name);
+            $table_exists = ! empty($result);
             wp_cache_set($cache_key, $table_exists, 'odcm_database', HOUR_IN_SECONDS);
 
             return $table_exists;
@@ -88,7 +107,7 @@ class DatabaseHelper
         }
 
         try {
-            $result = self::$wpdb->query("DROP TABLE IF EXISTS '" . self::$wpdb->esc_like($table_name) . "'");
+            $result = self::get_wpdb()->query("DROP TABLE IF EXISTS {$table_name}");
 
             if ($result === false) {
                 self::log_error("DatabaseHelper::drop_table failed for table '{$table_name}'");
@@ -210,8 +229,12 @@ class DatabaseHelper
 
         try {
             $deleted_count = 0;
-            $options = self::$wpdb->get_results(
-                "SELECT option_name FROM " . self::$wpdb->options . " WHERE option_name LIKE '%" . self::$wpdb->esc_like($pattern) . "%'"
+            $wpdb = self::get_wpdb();
+            $options = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
+                    '%' . $wpdb->esc_like(sanitize_text_field($pattern)) . '%'
+                )
             );
 
             foreach ($options as $option) {
@@ -274,7 +297,10 @@ class DatabaseHelper
     public static function query(string $query, array $args = [])
     {
         try {
-            return self::$wpdb->query(self::$wpdb->prepare($query, $args));
+            if (empty($args)) {
+                return self::get_wpdb()->query($query);
+            }
+            return self::get_wpdb()->query(self::get_wpdb()->prepare($query, ...$args));
         } catch (\Throwable $e) {
             self::log_error("DatabaseHelper::query failed: " . $e->getMessage());
             return false;
@@ -291,7 +317,10 @@ class DatabaseHelper
     public static function get_var(string $query, array $args = [])
     {
         try {
-            return self::$wpdb->get_var(self::$wpdb->prepare($query, $args));
+            if (empty($args)) {
+                return self::get_wpdb()->get_var($query);
+            }
+            return self::get_wpdb()->get_var(self::get_wpdb()->prepare($query, ...$args));
         } catch (\Throwable $e) {
             self::log_error("DatabaseHelper::get_var failed: " . $e->getMessage());
             return null;
@@ -310,10 +339,10 @@ class DatabaseHelper
     {
         try {
             if (empty($args)) {
-                return self::$wpdb->get_row($query, $output);
+                return self::get_wpdb()->get_row($query, $output);
             }
 
-            return self::$wpdb->get_row(self::$wpdb->prepare($query, $args), $output);
+            return self::get_wpdb()->get_row(self::get_wpdb()->prepare($query, ...$args), $output);
         } catch (\Throwable $e) {
             self::log_error("DatabaseHelper::get_row failed: " . $e->getMessage());
             return null;
@@ -332,10 +361,10 @@ class DatabaseHelper
     {
         try {
             if (empty($args)) {
-                return self::$wpdb->get_results($query, $output);
+                return self::get_wpdb()->get_results($query, $output);
             }
 
-            return self::$wpdb->get_results(self::$wpdb->prepare($query, $args), $output);
+            return self::get_wpdb()->get_results(self::get_wpdb()->prepare($query, ...$args), $output);
         } catch (\Throwable $e) {
             self::log_error("DatabaseHelper::get_results failed: " . $e->getMessage());
             return [];

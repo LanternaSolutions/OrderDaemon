@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\API;
 
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 use OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry;
 use OrderDaemon\CompletionManager\API\Timeline\TimelineBuilderInterface;
 use OrderDaemon\CompletionManager\API\Timeline\TimelineRendererInterface;
@@ -1494,131 +1495,27 @@ class AuditLogEndpoint extends WP_REST_Controller
             $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
             $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
-            // Extract and sanitize all filter parameters directly
-            $include_debug_param = $request->get_param('include_debug');
-            $include_test_param = $request->get_param('include_test');
-            $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
-            $include_test = ($include_test_param === null) ? true : (bool) $include_test_param;
-
-            $order_id = $request->get_param('order_id');
-            $status = $request->get_param('status');
-            $event_type = $request->get_param('event_type');
-            $source = $request->get_param('source');
-            $date_from = $request->get_param('date_from');
-            $date_to = $request->get_param('date_to');
-            $search = $request->get_param('search');
-
             // Build the base query
             $base_query = "SELECT l.*, p.payload FROM `{$log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
 
-            // Build conditions and params arrays
-            $conditions = [];
-            $params = [];
-
-            if (!$include_debug) {
-                $conditions[] = "l.event_type NOT LIKE %s";
-                $params[] = 'debug_%';
-                $conditions[] = "l.status != %s";
-                $params[] = 'debug';
-            }
-
-            if (!$include_test) {
-                $conditions[] = "l.is_test = %d";
-                $params[] = 0;
-            }
-
-            // SINGLE SOURCE OF TRUTH: Filter internal-only events from AdapterRegistry
-            // These events are system noise that should never reach the frontend
-            $internalOnlyEvents = AdapterRegistry::getInternalOnlyEvents();
-            foreach ($internalOnlyEvents as $eventType) {
-                $conditions[] = "l.event_type != %s";
-                $params[] = $eventType;
-            }
-
-            if (!empty($order_id) && is_numeric($order_id)) {
-                $conditions[] = "l.order_id = %d";
-                $params[] = absint($order_id);
-            }
-
-            if (!empty($status)) {
-                $conditions[] = "l.status = %s";
-                $params[] = sanitize_key($status);
-            }
-
-            if (!empty($event_type)) {
-                // Handle nested event types for universal_event_processing events
-                // ALL event types can be stored as universal_event_processing, not just payment events
-                // Use precision LIKE matching to avoid false positives
-                // Check both "eventType" and "event_type" field variations
-                $conditions[] = "(l.event_type = %s OR (l.event_type = 'universal_event_processing' AND (p.payload LIKE %s OR p.payload LIKE %s)))";
-                $params[] = $event_type;
-                $params[] = '%"eventType":"' . $wpdb->esc_like($event_type) . '"%';
-                $params[] = '%"event_type":"' . $wpdb->esc_like($event_type) . '"%';
-            }
-
-            // Source filter
-            if (!empty($source)) {
-                $conditions[] = "l.source = %s";
-                $params[] = sanitize_key($source);
-            }
-
-            if (!empty($date_from)) {
-                $conditions[] = "l.timestamp >= %s";
-                $params[] = sanitize_text_field($date_from);
-            }
-
-            if (!empty($date_to)) {
-                $conditions[] = "l.timestamp <= %s";
-                $params[] = sanitize_text_field($date_to);
-            }
-
-            if (!empty($search)) {
-                $conditions[] = "l.summary LIKE %s";
-                $params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
-            }
+            // Get conditions and params from helper
+            list($conditions, $params) = $this->build_query_conditions($request);
 
             // Build final query
             if (!empty($conditions)) {
-                $where_clause = '';
-                $condition_count = count($conditions);
-                for ($i = 0; $i < $condition_count; $i++) {
-                    $where_clause .= $conditions[$i];
-                    if ($i < $condition_count - 1) {
-                        $where_clause .= ' AND ';
-                    }
-                }
+                $where_clause = implode(' AND ', $conditions);
                 $full_query = $base_query . " WHERE " . $where_clause . " ORDER BY l.timestamp DESC";
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is dynamically built with proper escaping
-                $sql = $wpdb->prepare($full_query, ...$params);
             } else {
-                $sql = $base_query . " ORDER BY l.timestamp DESC";
+                $full_query = $base_query . " ORDER BY l.timestamp DESC";
             }
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM: Executing all_filtered_logs query: " . $sql, 'debug');
+                $this->logDebugMessage("ODCM: Executing all_filtered_logs query: " . $full_query, 'debug');
             }
 
             // Execute the query
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is built with proper escaping above
-            $logs = $wpdb->get_results($sql, ARRAY_A);
-
-            // Check for database errors
-            if ($wpdb->last_error) {
-                $error_msg = "Database query failed: " . $wpdb->last_error;
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: SQL Error in get_all_filtered_logs: " . $wpdb->last_error, 'error');
-                    $this->logDebugMessage("ODCM: Query was: " . $sql, 'debug');
-                }
-                return new WP_Error('audit_log_query_failed', $error_msg);
-            }
-
-            if ($logs === false) {
-                $error_msg = "Database query returned false";
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: Query returned false for get_all_filtered_logs", 'error');
-                }
-                return new WP_Error('audit_log_query_failed', $error_msg);
-            }
+            // Use DatabaseHelper to handle preparation and execution safely
+            $logs = DatabaseHelper::get_results($full_query, $params, ARRAY_A);
 
             $result = $logs ?: [];
 
@@ -1677,79 +1574,11 @@ class AuditLogEndpoint extends WP_REST_Controller
             $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
             $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
-            // Extract and sanitize all filter parameters directly
-            $include_debug_param = $request->get_param('include_debug');
-            $include_test_param = $request->get_param('include_test');
-            $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
-            $include_test = ($include_test_param === null) ? true : (bool) $include_test_param;
-
-            $order_id = $request->get_param('order_id');
-            $status = $request->get_param('status');
-            $event_type = $request->get_param('event_type');
-            $source = $request->get_param('source');
-            $date_from = $request->get_param('date_from');
-            $date_to = $request->get_param('date_to');
-            $search = $request->get_param('search');
-
             // Build base query
             $base_query = "SELECT l.*, p.payload FROM `{$log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
 
-            // Build conditions and params arrays
-            $conditions = [];
-            $params = [];
-
-            if (!$include_debug) {
-                $conditions[] = "l.event_type NOT LIKE %s";
-                $params[] = 'debug_%';
-                $conditions[] = "l.status != %s";
-                $params[] = 'debug';
-            }
-
-            if (!$include_test) {
-                $conditions[] = "l.is_test = %d";
-                $params[] = 0;
-            }
-
-            // Filter out rule_no_match events at database level
-            // rule_no_match is an internal system event that is just noise to users
-            $conditions[] = "l.event_type != %s";
-            $params[] = 'rule_no_match';
-
-            if (!empty($order_id) && is_numeric($order_id)) {
-                $conditions[] = "l.order_id = %d";
-                $params[] = absint($order_id);
-            }
-
-            if (!empty($status)) {
-                $conditions[] = "l.status = %s";
-                $params[] = sanitize_key($status);
-            }
-
-            if (!empty($event_type)) {
-                // Handle nested event types for universal_event_processing events
-                // ALL event types can be stored as universal_event_processing, not just payment events
-                // Use precision LIKE matching to avoid false positives
-                // Check both "eventType" and "event_type" field variations
-                $conditions[] = "(l.event_type = %s OR (l.event_type = 'universal_event_processing' AND (p.payload LIKE %s OR p.payload LIKE %s)))";
-                $params[] = $event_type;
-                $params[] = '%"eventType":"' . $wpdb->esc_like($event_type) . '"%';
-                $params[] = '%"event_type":"' . $wpdb->esc_like($event_type) . '"%';
-            }
-
-            if (!empty($date_from)) {
-                $conditions[] = "l.timestamp >= %s";
-                $params[] = sanitize_text_field($date_from);
-            }
-
-            if (!empty($date_to)) {
-                $conditions[] = "l.timestamp <= %s";
-                $params[] = sanitize_text_field($date_to);
-            }
-
-            if (!empty($search)) {
-                $conditions[] = "l.summary LIKE %s";
-                $params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
-            }
+            // Get conditions and params from helper
+            list($conditions, $params) = $this->build_query_conditions($request);
 
             // Add pagination params
             $params[] = absint($per_page);
@@ -1757,44 +1586,18 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Build final query
             if (!empty($conditions)) {
-                $where_clause = '';
-                $condition_count = count($conditions);
-                for ($i = 0; $i < $condition_count; $i++) {
-                    $where_clause .= $conditions[$i];
-                    if ($i < $condition_count - 1) {
-                        $where_clause .= ' AND ';
-                    }
-                }
+                $where_clause = implode(' AND ', $conditions);
                 $full_query = $base_query . " WHERE " . $where_clause . " ORDER BY l.timestamp DESC LIMIT %d OFFSET %d";
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is dynamically built with proper escaping
-                $sql = $wpdb->prepare($full_query, ...$params);
             } else {
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is dynamically built with proper escaping
-                $sql = $wpdb->prepare($base_query . " ORDER BY l.timestamp DESC LIMIT %d OFFSET %d", absint($per_page), absint($offset));
+                $full_query = $base_query . " ORDER BY l.timestamp DESC LIMIT %d OFFSET %d";
             }
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM: Executing filtered_logs query: " . $sql, 'debug');
+                $this->logDebugMessage("ODCM: Executing filtered_logs query: " . $full_query, 'debug');
             }
 
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is built with proper escaping above
-            $logs = $wpdb->get_results($sql, ARRAY_A);
-
-            // Check for database errors
-            if ($wpdb->last_error) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: SQL Error in get_filtered_logs: " . $wpdb->last_error, 'error');
-                    $this->logDebugMessage("ODCM: Query was: " . $sql, 'debug');
-                }
-                throw new \Exception($wpdb->last_error ?: 'Database query failed');
-            }
-
-            if ($logs === false) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: Query returned false for get_filtered_logs", 'error');
-                }
-                throw new \Exception('Database query returned false');
-            }
+            // Use DatabaseHelper to handle preparation and execution safely
+            $logs = DatabaseHelper::get_results($full_query, $params, ARRAY_A);
 
             $result = $logs ?: [];
 
@@ -1847,118 +1650,26 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Use proper table name escaping (cannot use placeholders for table names)
             $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
 
-            // Extract and sanitize all filter parameters directly
-            $include_debug_param = $request->get_param('include_debug');
-            $include_test_param = $request->get_param('include_test');
-            $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
-            $include_test = ($include_test_param === null) ? true : (bool) $include_test_param;
-
-            $order_id = $request->get_param('order_id');
-            $status = $request->get_param('status');
-            $event_type = $request->get_param('event_type');
-            $date_from = $request->get_param('date_from');
-            $date_to = $request->get_param('date_to');
-            $search = $request->get_param('search');
-
             // Build base query
             $base_query = "SELECT COUNT(*) FROM `{$log_table}` l";
 
-            // Build conditions and params arrays
-            $conditions = [];
-            $params = [];
-
-            if (!$include_debug) {
-                $conditions[] = "l.event_type NOT LIKE %s";
-                $params[] = 'debug_%';
-                $conditions[] = "l.status != %s";
-                $params[] = 'debug';
-            }
-
-            if (!$include_test) {
-                $conditions[] = "l.is_test = %d";
-                $params[] = 0;
-            }
-
-            // Filter out rule_no_match events at database level
-            // rule_no_match is an internal system event that is just noise to users
-            $conditions[] = "l.event_type != %s";
-            $params[] = 'rule_no_match';
-
-            if (!empty($order_id) && is_numeric($order_id)) {
-                $conditions[] = "l.order_id = %d";
-                $params[] = absint($order_id);
-            }
-
-            if (!empty($status)) {
-                $conditions[] = "l.status = %s";
-                $params[] = sanitize_key($status);
-            }
-
-            if (!empty($event_type)) {
-                // Handle nested event types for universal_event_processing events
-                // ALL event types can be stored as universal_event_processing, not just payment events
-                // Use precision LIKE matching to avoid false positives
-                // Check both "eventType" and "event_type" field variations
-                $conditions[] = "(l.event_type = %s OR (l.event_type = 'universal_event_processing' AND (p.payload LIKE %s OR p.payload LIKE %s)))";
-                $params[] = $event_type;
-                $params[] = '%"eventType":"' . $wpdb->esc_like($event_type) . '"%';
-                $params[] = '%"event_type":"' . $wpdb->esc_like($event_type) . '"%';
-            }
-
-            if (!empty($date_from)) {
-                $conditions[] = "l.timestamp >= %s";
-                $params[] = sanitize_text_field($date_from);
-            }
-
-            if (!empty($date_to)) {
-                $conditions[] = "l.timestamp <= %s";
-                $params[] = sanitize_text_field($date_to);
-            }
-
-            if (!empty($search)) {
-                $conditions[] = "l.summary LIKE %s";
-                $params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
-            }
+            // Get conditions and params from helper
+            list($conditions, $params) = $this->build_query_conditions($request);
 
             // Build final query
             if (!empty($conditions)) {
-                $where_clause = '';
-                $condition_count = count($conditions);
-                for ($i = 0; $i < $condition_count; $i++) {
-                    $where_clause .= $conditions[$i];
-                    if ($i < $condition_count - 1) {
-                        $where_clause .= ' AND ';
-                    }
-                }
+                $where_clause = implode(' AND ', $conditions);
                 $full_query = $base_query . " WHERE " . $where_clause;
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is dynamically built with proper escaping
-                $sql = $wpdb->prepare($full_query, ...$params);
             } else {
-                $sql = $base_query;
+                $full_query = $base_query;
             }
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM: Executing filtered_log_count query: " . $sql, 'debug');
+                $this->logDebugMessage("ODCM: Executing filtered_log_count query: " . $full_query, 'debug');
             }
 
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is built with proper escaping above
-            $count = $wpdb->get_var($sql);
-
-            // Check for database errors
-            if ($wpdb->last_error) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: SQL Error in get_filtered_log_count: " . $wpdb->last_error, 'error');
-                    $this->logDebugMessage("ODCM: Query was: " . $sql, 'debug');
-                }
-                throw new \Exception($wpdb->last_error ?: 'Database query failed');
-            }
-
-            if ($count === false) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: Query returned false for get_filtered_log_count", 'error');
-                }
-                throw new \Exception('Database query returned false');
-            }
+            // Use DatabaseHelper to handle preparation and execution safely
+            $count = DatabaseHelper::get_var($full_query, $params);
 
             $result = (int) $count;
 
@@ -1978,178 +1689,88 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
-     * Build WHERE clauses for filtering logs
+     * Build query conditions and parameters from request
      *
      * @param WP_REST_Request $request The REST request
-     * @return array Array of WHERE clauses with parameters for safe query building
+     * @return array Array containing [$conditions, $params]
      */
-    private function build_filter_where_clauses(WP_REST_Request $request): array
+    private function build_query_conditions(WP_REST_Request $request): array
     {
         global $wpdb;
-        $where_clauses = [];
-        $where_params = [];
+        $conditions = [];
+        $params = [];
 
-        // Resolve default flags for debug/test inclusion
-        // Default to true (include all) when not explicitly provided to avoid filtering out legitimate events
+        // Extract and sanitize all filter parameters directly
         $include_debug_param = $request->get_param('include_debug');
-        $include_test_param  = $request->get_param('include_test');
-
-        // Default to true (include all) when not explicitly provided
-        // This ensures we don't accidentally filter out legitimate events
+        $include_test_param = $request->get_param('include_test');
         $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
-        $include_test  = ($include_test_param === null)  ? true : (bool) $include_test_param;
+        $include_test = ($include_test_param === null) ? true : (bool) $include_test_param;
 
-        // Include debug events
-        if (!$include_debug) {
-            $where_clauses[] = "l.event_type NOT LIKE %s";
-            $where_params[] = 'debug_%';
-            $where_clauses[] = "l.status != %s";
-            $where_params[] = 'debug';
-        }
-
-        // Include test events
-        if (!$include_test) {
-            $where_clauses[] = "l.is_test = %d";
-            $where_params[] = 0;
-        }
-
-        // Filter out rule_no_match events at database level
-        // rule_no_match is an internal system event that is just noise to users
-        $where_clauses[] = "l.event_type != %s";
-        $where_params[] = 'rule_no_match';
-
-        // Order ID filter
         $order_id = $request->get_param('order_id');
-        if (!empty($order_id) && is_numeric($order_id)) {
-            $where_clauses[] = "l.order_id = %d";
-            $where_params[] = (int) $order_id;
-        }
-
-        // Status filter
         $status = $request->get_param('status');
-        if (!empty($status)) {
-            $where_clauses[] = "l.status = %s";
-            $where_params[] = sanitize_key($status);
-        }
-
-        // Event type filter
         $event_type = $request->get_param('event_type');
-        if (!empty($event_type)) {
-            $where_clauses[] = "l.event_type = %s";
-            $where_params[] = $event_type;
-        }
-
-        // Date range filters
+        $source = $request->get_param('source');
         $date_from = $request->get_param('date_from');
-        if (!empty($date_from)) {
-            $where_clauses[] = "l.timestamp >= %s";
-            $where_params[] = sanitize_text_field($date_from);
-        }
-
         $date_to = $request->get_param('date_to');
-        if (!empty($date_to)) {
-            $where_clauses[] = "l.timestamp <= %s";
-            $where_params[] = sanitize_text_field($date_to);
-        }
-
-        // Search filter
         $search = $request->get_param('search');
-        if (!empty($search)) {
-            $where_clauses[] = "l.summary LIKE %s";
-            $where_params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
-        }
 
-        // Debug logging of where clauses to help diagnose empty dashboards
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            try {
-                $this->logDebugMessage('ODCM: build_filter_where_clauses => ' . implode(' AND ', $where_clauses));
-                $this->logDebugMessage('ODCM: build_filter_where_clauses params => ' . implode(', ', $where_params));
-            } catch (\Throwable $e) {
-                // noop
-            }
-        }
-
-        return $where_clauses;
-    }
-
-    /**
-     * Build WHERE clauses with parameters for safe query building
-     *
-     * @param WP_REST_Request $request The REST request
-     * @return array Array with two elements: [WHERE clauses array, parameters array]
-     */
-    private function build_filter_where_clauses_with_params(WP_REST_Request $request): array
-    {
-        global $wpdb;
-        $where_clauses = [];
-        $where_params = [];
-
-        // Resolve default flags for debug/test inclusion
-        // Default to true (include all) when not explicitly provided to avoid filtering out legitimate events
-        $include_debug_param = $request->get_param('include_debug');
-        $include_test_param  = $request->get_param('include_test');
-
-        // Default to true (include all) when not explicitly provided
-        // This ensures we don't accidentally filter out legitimate events
-        $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
-        $include_test  = ($include_test_param === null)  ? true : (bool) $include_test_param;
-
-        // Include debug events
         if (!$include_debug) {
-            $where_clauses[] = "l.event_type NOT LIKE %s";
-            $where_params[] = 'debug_%';
-            $where_clauses[] = "l.status != %s";
-            $where_params[] = 'debug';
+            $conditions[] = "l.event_type NOT LIKE %s";
+            $params[] = 'debug_%';
+            $conditions[] = "l.status != %s";
+            $params[] = 'debug';
         }
 
-        // Include test events
         if (!$include_test) {
-            $where_clauses[] = "l.is_test = %d";
-            $where_params[] = 0;
+            $conditions[] = "l.is_test = %d";
+            $params[] = 0;
         }
 
-        // Order ID filter
-        $order_id = $request->get_param('order_id');
+        // SINGLE SOURCE OF TRUTH: Filter internal-only events from AdapterRegistry
+        $internalOnlyEvents = AdapterRegistry::getInternalOnlyEvents();
+        foreach ($internalOnlyEvents as $eventType) {
+            $conditions[] = "l.event_type != %s";
+            $params[] = $eventType;
+        }
+
         if (!empty($order_id) && is_numeric($order_id)) {
-            $where_clauses[] = "l.order_id = %d";
-            $where_params[] = (int) $order_id;
+            $conditions[] = "l.order_id = %d";
+            $params[] = absint($order_id);
         }
 
-        // Status filter
-        $status = $request->get_param('status');
         if (!empty($status)) {
-            $where_clauses[] = "l.status = %s";
-            $where_params[] = sanitize_key($status);
+            $conditions[] = "l.status = %s";
+            $params[] = sanitize_key($status);
         }
 
-        // Event type filter
-        $event_type = $request->get_param('event_type');
         if (!empty($event_type)) {
-            $where_clauses[] = "l.event_type = %s";
-            $where_params[] = $event_type;
+            $conditions[] = "(l.event_type = %s OR (l.event_type = 'universal_event_processing' AND (p.payload LIKE %s OR p.payload LIKE %s)))";
+            $params[] = $event_type;
+            $params[] = '%"eventType":"' . $wpdb->esc_like($event_type) . '"%';
+            $params[] = '%"event_type":"' . $wpdb->esc_like($event_type) . '"%';
         }
 
-        // Date range filters
-        $date_from = $request->get_param('date_from');
+        if (!empty($source)) {
+            $conditions[] = "l.source = %s";
+            $params[] = sanitize_key($source);
+        }
+
         if (!empty($date_from)) {
-            $where_clauses[] = "l.timestamp >= %s";
-            $where_params[] = sanitize_text_field($date_from);
+            $conditions[] = "l.timestamp >= %s";
+            $params[] = sanitize_text_field($date_from);
         }
 
-        $date_to = $request->get_param('date_to');
         if (!empty($date_to)) {
-            $where_clauses[] = "l.timestamp <= %s";
-            $where_params[] = sanitize_text_field($date_to);
+            $conditions[] = "l.timestamp <= %s";
+            $params[] = sanitize_text_field($date_to);
         }
 
-        // Search filter
-        $search = $request->get_param('search');
         if (!empty($search)) {
-            $where_clauses[] = "l.summary LIKE %s";
-            $where_params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
+            $conditions[] = "l.summary LIKE %s";
+            $params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
         }
 
-        return [$where_clauses, $where_params];
+        return [$conditions, $params];
     }
 
     /**
@@ -3178,10 +2799,10 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $diagnostics['sample_logs'] = $sample_logs ?: [];
 
                 // Check for filtering issues
-                $filter_test = $this->build_filter_where_clauses(new \WP_REST_Request());
+                list($conditions, $params) = $this->build_query_conditions(new \WP_REST_Request());
                 $diagnostics['filter_test'] = [
-                    'default_where_clauses' => $filter_test,
-                    'filters_count' => count($filter_test),
+                    'default_where_clauses' => $conditions,
+                    'filters_count' => count($conditions),
                 ];
             }
 
