@@ -19,7 +19,7 @@ class Installer
      * The option key for storing the database version.
      */
     const DB_VERSION_OPTION_KEY = 'odcm_db_version';
-    
+
     /**
      * Database helper instance
      *
@@ -38,12 +38,23 @@ class Installer
      * Initialize the database helper if not already initialized
      *
      * @return void
+     * @throws \Exception If database helper initialization fails
      */
     private static function initialize_db_helper(): void
     {
         if (!isset(self::$db_helper)) {
-            self::$db_helper = new DatabaseHelper();
-            self::$db_helper->initialize($GLOBALS['wpdb']);
+            try {
+                self::$db_helper = new DatabaseHelper($GLOBALS['wpdb']);
+
+                // Verify database connection
+                if (!$self::$db_helper->is_connected()) {
+                    throw new \Exception('Database connection failed during helper initialization');
+                }
+
+            } catch (\Exception $e) {
+                odcm_log_message('Database helper initialization failed: ' . $e->getMessage(), 'error');
+                throw new \Exception('Failed to initialize database helper', 1001, $e);
+            }
         }
     }
 
@@ -55,7 +66,7 @@ class Installer
     {
         // Initialize database helper
         self::initialize_db_helper();
-        
+
         self::install();
     }
 
@@ -76,6 +87,12 @@ class Installer
     private static function setup_database(): void
     {
         self::initialize_db_helper();
+
+        // Check if update is safe to perform
+        if (!self::is_update_safe()) {
+            throw new \Exception('Database update is not safe to perform');
+        }
+
         try {
             // Create both tables with their complete structure
             self::create_complete_audit_log_table();
@@ -88,10 +105,9 @@ class Installer
             // Update the database version
             self::update_db_version();
 
-        } catch (Exception $e) {
-            // Log installation error (debug-gated)
-            odcm_log_message('Database Setup Error: ' . $e->getMessage(), 'error');
-            throw $e;
+        } catch (\Exception $e) {
+            // Handle installation failure with rollback
+            self::handle_installation_failure($e);
         }
     }
 
@@ -127,6 +143,11 @@ class Installer
             secondary_object_type varchar(50) DEFAULT NULL,
             secondary_object_id bigint(20) unsigned DEFAULT NULL,
             idempotency_key varchar(255) DEFAULT NULL,
+            parent_id INT UNSIGNED NULL DEFAULT NULL,
+            display_data TEXT NULL DEFAULT NULL,
+            dedupe_key VARCHAR(255) NULL DEFAULT NULL,
+            processed_display_data TEXT NULL DEFAULT NULL COMMENT 'Cached display sections in JSON format',
+            last_processed TIMESTAMP NULL DEFAULT NULL,
             PRIMARY KEY (log_id),
             KEY order_id (order_id),
             KEY event_type (event_type),
@@ -159,13 +180,15 @@ class Installer
             KEY idx_idempotency (idempotency_key),
             KEY idx_cross_entity_process (primary_object_id, secondary_object_id, process_id),
             KEY idx_event_type_status (event_type, status),
+            KEY idx_parent (parent_id),
+            KEY idx_process_parent (process_id, parent_id),
             UNIQUE KEY unique_duplicate_hash (duplicate_hash),
             UNIQUE KEY idx_idempotency_unique (idempotency_key)
         ) $charset_collate;";
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
-        
+
         // Verify table creation with caching
         $table_exists = self::verify_table_exists($table_name);
         if (!$table_exists) {
@@ -187,13 +210,15 @@ class Installer
             payload_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
             payload longtext,
             format varchar(10) NOT NULL DEFAULT 'json',
+            processed_display_data TEXT NULL DEFAULT NULL COMMENT 'Cached display sections in JSON format',
+            last_processed TIMESTAMP NULL DEFAULT NULL,
             PRIMARY KEY (payload_id),
             FULLTEXT KEY idx_payload_search (payload)
         ) $charset_collate;";
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
-        
+
         // Verify table creation with caching
         $table_exists = self::verify_table_exists($table_name);
         if (!$table_exists) {
@@ -226,7 +251,7 @@ class Installer
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
-        
+
         // Verify table creation with caching
         $table_exists = self::verify_table_exists($table_name);
         if (!$table_exists) {
@@ -294,13 +319,11 @@ class Installer
             // Add dedupe_key column
             $safe_table = esc_sql($audit_log_table);
             $sql = "ALTER TABLE $safe_table ADD COLUMN dedupe_key VARCHAR(255) NULL DEFAULT NULL AFTER details";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
             self::$db_helper->query($sql);
 
             // Add unique index for dedupe_key
             $safe_table = esc_sql($audit_log_table);
             $sql = "ALTER TABLE $safe_table ADD UNIQUE INDEX idx_dedupe_key (dedupe_key)";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
             self::$db_helper->query($sql);
         }
 
@@ -314,7 +337,6 @@ class Installer
         if (!$event_type_status_index_exists) {
             $safe_table = esc_sql($audit_log_table);
             $sql = "ALTER TABLE $safe_table ADD INDEX idx_event_type_status (event_type, status)";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
             self::$db_helper->query($sql);
         }
 
@@ -332,7 +354,6 @@ class Installer
             // Add processed_display_data column
             $safe_table = esc_sql($payload_table);
             $sql = "ALTER TABLE $safe_table ADD COLUMN processed_display_data TEXT NULL DEFAULT NULL COMMENT 'Cached display sections in JSON format'";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
             self::$db_helper->query($sql);
         }
 
@@ -347,7 +368,181 @@ class Installer
             // Add last_processed column
             $safe_table = esc_sql($payload_table);
             $sql = "ALTER TABLE $safe_table ADD COLUMN last_processed TIMESTAMP NULL DEFAULT NULL";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
+            self::$db_helper->query($sql);
+        }
+    }
+
+    /**
+     * Get the upgrade path for the current version
+     *
+     * @param string $current_version The current database version
+     * @return array Array of upgrade steps to perform
+     */
+    private static function get_upgrade_path(string $current_version): array
+    {
+        $upgrade_steps = [];
+
+        // Define upgrade paths for each version
+        switch (true) {
+            case version_compare($current_version, '1.1.0', '<'):
+                $upgrade_steps[] = 'upgrade_to_1_1';
+                // fall through
+            case version_compare($current_version, '1.2.0', '<'):
+                $upgrade_steps[] = 'upgrade_to_1_2';
+                // fall through
+            case version_compare($current_version, '1.3.0', '<'):
+                $upgrade_steps[] = 'upgrade_to_1_3';
+                break;
+        }
+
+        return $upgrade_steps;
+    }
+
+    /**
+     * Perform version-specific upgrades
+     *
+     * @param string $current_version The current database version
+     * @return void
+     * @throws \Exception If any upgrade step fails
+     */
+    private static function perform_upgrades(string $current_version): void
+    {
+        $upgrade_steps = self::get_upgrade_path($current_version);
+
+        foreach ($upgrade_steps as $step) {
+            switch ($step) {
+                case 'upgrade_to_1_1':
+                    self::upgrade_to_1_1();
+                    break;
+                case 'upgrade_to_1_2':
+                    self::upgrade_to_1_2();
+                    break;
+                case 'upgrade_to_1_3':
+                    self::upgrade_to_1_3();
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Upgrade to version 1.1
+     * Adds parent_id and display_data columns
+     */
+    private static function upgrade_to_1_1(): void
+    {
+        global $wpdb;
+        $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
+
+        // Add parent_id column if it doesn't exist
+        $parent_id_exists = self::$db_helper->get_var(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'parent_id'",
+            [DB_NAME, $audit_log_table]
+        ) > 0;
+
+        if (!$parent_id_exists) {
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD COLUMN parent_id INT UNSIGNED NULL DEFAULT NULL AFTER log_id";
+            self::$db_helper->query($sql);
+
+            // Add index for parent_id
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD INDEX idx_parent (parent_id)";
+            self::$db_helper->query($sql);
+
+            // Add composite index for process_id and parent_id
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD INDEX idx_process_parent (process_id, parent_id)";
+            self::$db_helper->query($sql);
+        }
+
+        // Add display_data column if it doesn't exist
+        $display_data_exists = self::$db_helper->get_var(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'display_data'",
+            [DB_NAME, $audit_log_table]
+        ) > 0;
+
+        if (!$display_data_exists) {
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD COLUMN display_data TEXT NULL DEFAULT NULL AFTER details";
+            self::$db_helper->query($sql);
+        }
+    }
+
+    /**
+     * Upgrade to version 1.2
+     * Adds dedupe_key and enhanced indexing
+     */
+    private static function upgrade_to_1_2(): void
+    {
+        global $wpdb;
+        $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
+
+        // Add dedupe_key column if it doesn't exist
+        $dedupe_key_exists = self::$db_helper->get_var(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'dedupe_key'",
+            [DB_NAME, $audit_log_table]
+        ) > 0;
+
+        if (!$dedupe_key_exists) {
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD COLUMN dedupe_key VARCHAR(255) NULL DEFAULT NULL AFTER details";
+            self::$db_helper->query($sql);
+
+            // Add unique index for dedupe_key
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD UNIQUE INDEX idx_dedupe_key (dedupe_key)";
+            self::$db_helper->query($sql);
+        }
+
+        // Add idx_event_type_status index if it doesn't exist
+        $event_type_status_index_exists = self::$db_helper->get_var(
+            "SELECT COUNT(*) FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND INDEX_NAME = 'idx_event_type_status'",
+            [DB_NAME, $audit_log_table]
+        ) > 0;
+
+        if (!$event_type_status_index_exists) {
+            $safe_table = esc_sql($audit_log_table);
+            $sql = "ALTER TABLE $safe_table ADD INDEX idx_event_type_status (event_type, status)";
+            self::$db_helper->query($sql);
+        }
+    }
+
+    /**
+     * Upgrade to version 1.3
+     * Adds payload table enhancements
+     */
+    private static function upgrade_to_1_3(): void
+    {
+        global $wpdb;
+        $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
+
+        // Add processed_display_data column if it doesn't exist
+        $processed_display_data_exists = self::$db_helper->get_var(
+            "SELECT COUNT() FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'processed_display_data'",
+            [DB_NAME, $payload_table]
+        ) > 0;
+
+        if (!$processed_display_data_exists) {
+            $safe_table = esc_sql($payload_table);
+            $sql = "ALTER TABLE $safe_table ADD COLUMN processed_display_data TEXT NULL DEFAULT NULL COMMENT 'Cached display sections in JSON format'";
+            self::$db_helper->query($sql);
+        }
+
+        // Add last_processed column if it doesn't exist
+        $last_processed_exists = self::$db_helper->get_var(
+            "SELECT COUNT() FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'last_processed'",
+            [DB_NAME, $payload_table]
+        ) > 0;
+
+        if (!$last_processed_exists) {
+            $safe_table = esc_sql($payload_table);
+            $sql = "ALTER TABLE $safe_table ADD COLUMN last_processed TIMESTAMP NULL DEFAULT NULL";
             self::$db_helper->query($sql);
         }
     }
@@ -364,6 +559,9 @@ class Installer
         if (version_compare($current_version, self::DB_VERSION, '<')) {
             // Perform pre-update backup (store current version for rollback)
             self::backup_current_state($current_version);
+
+            // Perform version-specific upgrades
+            self::perform_upgrades($current_version);
 
             // Update the database version
             $update_result = update_option(self::DB_VERSION_OPTION_KEY, self::DB_VERSION);
@@ -393,6 +591,7 @@ class Installer
      * Backup current database state before updates
      *
      * @param string $current_version The current database version
+     * @return void
      */
     private static function backup_current_state(string $current_version): void
     {
@@ -402,8 +601,148 @@ class Installer
         // Store backup timestamp
         update_option('odcm_update_backup_timestamp', current_time('mysql'));
 
+        // Store current table structures for rollback
+        self::backup_table_structures();
+
         // Log backup creation
         odcm_log_message('Created database backup before update from version ' . $current_version, 'info');
+    }
+
+    /**
+     * Backup current table structures for rollback
+     *
+     * @return void
+     */
+    private static function backup_table_structures(): void
+    {
+        global $wpdb;
+
+        $tables = [
+            $wpdb->prefix . 'odcm_audit_log',
+            $wpdb->prefix . 'odcm_audit_log_payloads',
+            $wpdb->prefix . 'odcm_audit_log_queue'
+        ];
+
+        foreach ($tables as $table) {
+            if (self::$db_helper->table_exists($table)) {
+                // Get table structure
+                $structure = self::$db_helper->get_row(
+                    "SHOW CREATE TABLE {$table}",
+                    [],
+                    'ARRAY_A'
+                );
+
+                if ($structure && isset($structure['Create Table'])) {
+                    // Store table structure
+                    update_option('odcm_table_backup_' . md5($table), $structure['Create Table'], 'no');
+
+                    // Log table backup
+                    odcm_log_message("Backed up table structure for {$table}", 'info');
+                }
+            }
+        }
+    }
+
+    /**
+     * Rollback database to previous state
+     *
+     * @return bool True if rollback succeeded, false otherwise
+     */
+    private static function rollback_database(): bool
+    {
+        // Get backup information
+        $backup_version = self::$db_helper->get_option('odcm_db_version_backup', '');
+        $backup_timestamp = self::$db_helper->get_option('odcm_update_backup_timestamp', '');
+
+        if (empty($backup_version) || empty($backup_timestamp)) {
+            odcm_log_message('No valid database backup found for rollback', 'error');
+            return false;
+        }
+
+        try {
+            // Restore table structures
+            self::restore_table_structures();
+
+            // Restore database version
+            $result = update_option(self::DB_VERSION_OPTION_KEY, $backup_version);
+
+            if ($result) {
+                // Clear caches
+                self::$table_existence_cache = [];
+                wp_cache_delete('odcm_all_tables_exist_check');
+
+                // Log successful rollback
+                odcm_log_message('Successfully rolled back database to version ' . $backup_version, 'info');
+
+                return true;
+            } else {
+                odcm_log_message('Failed to restore database version during rollback', 'error');
+                return false;
+            }
+        } catch (\Exception $e) {
+            odcm_log_message('Database rollback failed: ' . $e->getMessage(), 'error');
+            return false;
+        }
+    }
+
+    /**
+     * Restore table structures from backup
+     *
+     * @return void
+     */
+    private static function restore_table_structures(): void
+    {
+        global $wpdb;
+
+        $tables = [
+            $wpdb->prefix . 'odcm_audit_log',
+            $wpdb->prefix . 'odcm_audit_log_payloads',
+            $wpdb->prefix . 'odcm_audit_log_queue'
+        ];
+
+        foreach ($tables as $table) {
+            $backup_key = 'odcm_table_backup_' . md5($table);
+            $table_structure = self::$db_helper->get_option($backup_key, '');
+
+            if (!empty($table_structure)) {
+                // Drop existing table
+                self::$db_helper->drop_table($table);
+
+                // Recreate table from backup
+                self::$db_helper->query($table_structure);
+
+                // Clear table cache
+                $cache_key = 'odcm_table_exists_' . md5($table);
+                wp_cache_delete($cache_key, 'odcm_database');
+
+                // Log table restoration
+                odcm_log_message("Restored table structure for {$table} from backup", 'info');
+            }
+        }
+    }
+
+    /**
+     * Handle installation failure with rollback
+     *
+     * @param \Exception $e The exception that caused the failure
+     * @return void
+     */
+    private static function handle_installation_failure(\Exception $e): void
+    {
+        // Log the failure
+        odcm_log_message('Installation failed: ' . $e->getMessage(), 'error');
+
+        // Attempt rollback
+        $rollback_success = self::rollback_database();
+
+        if ($rollback_success) {
+            odcm_log_message('Database rollback completed successfully', 'info');
+        } else {
+            odcm_log_message('Database rollback failed', 'error');
+        }
+
+        // Re-throw the exception to propagate the error
+        throw $e;
     }
 
     /**
@@ -459,14 +798,14 @@ class Installer
 
         return $version;
     }
-    
+
     /**
      * Verify if a table exists with caching to prevent redundant queries
-     * 
+     *
      * This method implements multi-level caching:
      * 1. Static class cache for the current request
      * 2. WordPress persistent cache for short-term caching during installation
-     * 
+     *
      * @param string $table_name The full table name to check
      * @return bool True if the table exists, false otherwise
      */
@@ -479,33 +818,75 @@ class Installer
         if (isset(self::$table_existence_cache[$table_name])) {
             return self::$table_existence_cache[$table_name];
         }
-        
+
         // Create a cache key for WordPress persistent cache
         $cache_key = 'odcm_table_exists_' . md5($table_name);
-        
+
         // Check persistent cache
-        $table_exists = wp_cache_get($cache_key);
+        $table_exists = wp_cache_get($cache_key, 'odcm_database');
         if (false !== $table_exists) {
             // Store in static cache for future use
             self::$table_existence_cache[$table_name] = (bool)$table_exists;
             return (bool)$table_exists;
         }
-        
+
         // Initialize DatabaseHelper if not already initialized
         if (!isset(self::$db_helper)) {
             self::$db_helper = new DatabaseHelper();
             self::$db_helper->initialize($wpdb);
         }
-        
+
         // Cache miss - perform the table existence check
         $table_exists = self::$db_helper->table_exists($table_name);
-        
+
         // Cache the result - short duration since this is for installation
         wp_cache_set($cache_key, (int)$table_exists, '', 5 * MINUTE_IN_SECONDS);
-        
+
         // Store in static cache for future use
         self::$table_existence_cache[$table_name] = $table_exists;
-        
+
         return $table_exists;
+    }
+
+    /**
+     * Check and fix index configuration
+     *
+     * This method checks if an index exists and verifies its column configuration.
+     * If the index exists but has different column configuration, it will be dropped and recreated.
+     * If the index doesn't exist, it will be created.
+     *
+     * @param string $table The table name to check
+     * @param string $index_name The index name to check
+     * @param string $columns The expected column configuration (comma-separated)
+     * @return void
+     * @throws \Exception If index operation fails
+     */
+    private static function check_and_fix_index(string $table, string $index_name, string $columns): void
+    {
+        // Check if index exists
+        $exists = self::$db_helper->get_var(
+            "SELECT COUNT(*) FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND INDEX_NAME = %s",
+            [DB_NAME, $table, $index_name]
+        ) > 0;
+
+        if ($exists) {
+            // Verify column order
+            $current_columns = self::$db_helper->get_var(
+                "SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX)
+                FROM information_schema.STATISTICS
+                WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND INDEX_NAME = %s",
+                [DB_NAME, $table, $index_name]
+            );
+
+            if ($current_columns !== $columns) {
+                // Drop and recreate with correct configuration
+                self::$db_helper->query("ALTER TABLE $table DROP INDEX $index_name");
+                self::$db_helper->query("ALTER TABLE $table ADD INDEX $index_name ($columns)");
+            }
+        } else {
+            // Create new index
+            self::$db_helper->query("ALTER TABLE $table ADD INDEX $index_name ($columns)");
+        }
     }
 }

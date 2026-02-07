@@ -29,31 +29,15 @@ class DatabaseHelper
      *
      * @var \wpdb
      */
-    private static \wpdb $wpdb;
+    private \wpdb $wpdb;
 
     /**
-     * Initialize the database helper with WordPress database object
-     *
-     * @param \wpdb $wpdb WordPress database object
-     * @return void
+     * Initialize the database helper and sets the wpdb object.
      */
-    public static function initialize(\wpdb $wpdb): void
+    public function __construct()
     {
-        self::$wpdb = $wpdb;
-    }
-
-    /**
-     * Get the WordPress database object, initializing if necessary.
-     *
-     * @return \wpdb
-     */
-    private static function get_wpdb(): \wpdb
-    {
-        if (!isset(self::$wpdb)) {
-            global $wpdb;
-            self::$wpdb = $wpdb;
-        }
-        return self::$wpdb;
+        global $wpdb;
+        $this->wpdb = $wpdb;
     }
 
     /**
@@ -62,7 +46,7 @@ class DatabaseHelper
      * @param string $table_name Table name to check
      * @return bool True if table exists, false otherwise
      */
-    public static function table_exists(string $table_name): bool
+    public function table_exists(string $table_name): bool
     {
         if (empty($table_name)) {
             return false;
@@ -77,10 +61,10 @@ class DatabaseHelper
         }
 
         try {
-            $result = self::get_wpdb()->get_var(
-                self::get_wpdb()->prepare(
+            $result = $this->wpdb->get_var(
+                $this->wpdb->prepare(
                     "SHOW TABLES LIKE %s",
-                    '%' . self::get_wpdb()->esc_like($table_name) . '%'
+                    '%' . $this->wpdb->esc_like($table_name) . '%'
                 )
             );
 
@@ -89,7 +73,7 @@ class DatabaseHelper
 
             return $table_exists;
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::table_exists failed for table '{$table_name}': " . $e->getMessage());
+            $this->log_error("DatabaseHelper::table_exists failed for table '{$table_name}': " . $e->getMessage());
             return false;
         }
     }
@@ -100,17 +84,17 @@ class DatabaseHelper
      * @param string $table_name Table name to drop
      * @return bool True on success, false on failure
      */
-    public static function drop_table(string $table_name): bool
+    public function drop_table(string $table_name): bool
     {
-        if (empty($table_name) || !self::table_exists($table_name) || !self::validate_table_name($table_name)) {
+        if (empty($table_name) || !$this->table_exists($table_name) || !self::validate_table_name($table_name)) {
             return true; // Table doesn't exist or invalid name, consider it successful
         }
 
         try {
-            $result = self::get_wpdb()->query("DROP TABLE IF EXISTS {$table_name}");
+            $result = $this->wpdb->query("DROP TABLE IF EXISTS {$table_name}");
 
             if ($result === false) {
-                self::log_error("DatabaseHelper::drop_table failed for table '{$table_name}'");
+                $this->log_error("DatabaseHelper::drop_table failed for table '{$table_name}'");
                 return false;
             }
 
@@ -120,7 +104,7 @@ class DatabaseHelper
 
             return true;
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::drop_table failed for table '{$table_name}': " . $e->getMessage());
+            $this->log_error("DatabaseHelper::drop_table failed for table '{$table_name}': " . $e->getMessage());
             return false;
         }
     }
@@ -132,7 +116,7 @@ class DatabaseHelper
      * @param mixed $default Default value if option doesn't exist
      * @return mixed Option value or default value
      */
-    public static function get_option(string $option_name, $default = false)
+    public function get_option(string $option_name, $default = false)
     {
         if (empty($option_name)) {
             return $default;
@@ -152,7 +136,7 @@ class DatabaseHelper
 
             return $value;
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::get_option failed for option '{$option_name}': " . $e->getMessage());
+            $this->log_error("DatabaseHelper::get_option failed for option '{$option_name}': " . $e->getMessage());
             return $default;
         }
     }
@@ -165,7 +149,7 @@ class DatabaseHelper
      * @param string $autoload Whether to autoload option (default: 'yes')
      * @return bool True on success, false on failure
      */
-    public static function update_option(string $option_name, $value, string $autoload = 'yes'): bool
+    public function update_option(string $option_name, $value, string $autoload = 'yes'): bool
     {
         if (empty($option_name)) {
             return false;
@@ -182,7 +166,7 @@ class DatabaseHelper
 
             return $result;
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::update_option failed for option '{$option_name}': " . $e->getMessage());
+            $this->log_error("DatabaseHelper::update_option failed for option '{$option_name}': " . $e->getMessage());
             return false;
         }
     }
@@ -193,7 +177,7 @@ class DatabaseHelper
      * @param string $option_name Option name to delete
      * @return bool True on success, false on failure
      */
-    public static function delete_option(string $option_name): bool
+    public function delete_option(string $option_name): bool
     {
         if (empty($option_name)) {
             return false;
@@ -210,7 +194,7 @@ class DatabaseHelper
 
             return $result;
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::delete_option failed for option '{$option_name}': " . $e->getMessage());
+            $this->log_error("DatabaseHelper::delete_option failed for option '{$option_name}': " . $e->getMessage());
             return false;
         }
     }
@@ -221,31 +205,30 @@ class DatabaseHelper
      * @param string $pattern Pattern to match option names
      * @return int Number of options deleted
      */
-    public static function delete_options_by_pattern(string $pattern): int
+    public function delete_options_by_pattern(string $pattern): int
     {
-        if (empty($pattern) || !self::validate_option_name($pattern)) {
+        if (empty($pattern) || !$this->validate_option_name($pattern)) {
             return 0;
         }
 
         try {
             $deleted_count = 0;
-            $wpdb = self::get_wpdb();
-            $options = self::get_results(
-                $wpdb->prepare(
-                    "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
-                    '%' . $wpdb->esc_like(sanitize_text_field($pattern)) . '%'
+            $options = $this->get_results(
+                $this->wpdb->prepare(
+                    "SELECT option_name FROM {$this->wpdb->options} WHERE option_name LIKE %s",
+                    '%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%'
                 )
             );
 
             foreach ($options as $option) {
-                if (self::delete_option($option->option_name)) {
+                if ($this->delete_option($option->option_name)) {
                     $deleted_count++;
                 }
             }
 
             return $deleted_count;
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::delete_options_by_pattern failed for pattern '{$pattern}': " . $e->getMessage());
+            $this->log_error("DatabaseHelper::delete_options_by_pattern failed for pattern '{$pattern}': " . $e->getMessage());
             return 0;
         }
     }
@@ -256,7 +239,7 @@ class DatabaseHelper
      * @param string $pattern Pattern to match transient names
      * @return int Number of transients deleted
      */
-    public static function delete_transients_by_pattern(string $pattern): int
+    public function delete_transients_by_pattern(string $pattern): int
     {
         if (empty($pattern)) {
             return 0;
@@ -266,23 +249,23 @@ class DatabaseHelper
             $deleted_count = 0;
 
             // Delete regular transients
-            $deleted_count += self::delete_options_by_pattern('_transient_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_transient_' . $pattern);
 
             // Delete transient timeouts
-            $deleted_count += self::delete_options_by_pattern('_transient_timeout_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_transient_timeout_' . $pattern);
 
             // Delete site transients
-            $deleted_count += self::delete_options_by_pattern('_site_transient_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_site_transient_' . $pattern);
 
             // Delete site transient timeouts
-            $deleted_count += self::delete_options_by_pattern('_site_transient_timeout_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_site_transient_timeout_' . $pattern);
 
             // Clear WordPress object cache
             wp_cache_flush();
 
             return $deleted_count;
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::delete_transients_by_pattern failed for pattern '{$pattern}': " . $e->getMessage());
+            $this->log_error("DatabaseHelper::delete_transients_by_pattern failed for pattern '{$pattern}': " . $e->getMessage());
             return 0;
         }
     }
@@ -294,15 +277,15 @@ class DatabaseHelper
      * @param array $args Query arguments
      * @return mixed Query result
      */
-    public static function query(string $query, array $args = [])
+    public function query(string $query, array $args = [])
     {
         try {
             if (empty($args)) {
-                return self::get_wpdb()->query($query);
+                return $this->wpdb->query($query);
             }
-            return self::get_wpdb()->query(self::get_wpdb()->prepare($query, ...$args));
+            return $this->wpdb->query($this->wpdb->prepare($query, ...$args));
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::query failed: " . $e->getMessage());
+            $this->log_error("DatabaseHelper::query failed: " . $e->getMessage());
             return false;
         }
     }
@@ -314,15 +297,15 @@ class DatabaseHelper
      * @param array $args Query arguments
      * @return mixed Single value result
      */
-    public static function get_var(string $query, array $args = [])
+    public function get_var(string $query, array $args = [])
     {
         try {
             if (empty($args)) {
-                return self::get_wpdb()->get_var($query);
+                return $this->wpdb->get_var($query);
             }
-            return self::get_wpdb()->get_var(self::get_wpdb()->prepare($query, ...$args));
+            return $this->wpdb->get_var($this->wpdb->prepare($query, ...$args));
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::get_var failed: " . $e->getMessage());
+            $this->log_error("DatabaseHelper::get_var failed: " . $e->getMessage());
             return null;
         }
     }
@@ -335,16 +318,16 @@ class DatabaseHelper
      * @param string $output Output type (OBJECT, ARRAY_A, ARRAY_N)
      * @return mixed Row result
      */
-    public static function get_row(string $query, array $args = [], string $output = 'OBJECT')
+    public function get_row(string $query, array $args = [], string $output = 'OBJECT')
     {
         try {
             if (empty($args)) {
-                return self::get_wpdb()->get_row($query, $output);
+                return $this->wpdb->get_row($query, $output);
             }
 
-            return self::get_wpdb()->get_row(self::get_wpdb()->prepare($query, ...$args), $output);
+            return $this->wpdb->get_row($this->wpdb->prepare($query, ...$args), $output);
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::get_row failed: " . $e->getMessage());
+            $this->log_error("DatabaseHelper::get_row failed: " . $e->getMessage());
             return null;
         }
     }
@@ -357,19 +340,19 @@ class DatabaseHelper
      * @param string $output Output type (OBJECT, ARRAY_A, ARRAY_N)
      * @return array Row results
      */
-    public static function get_results(string $query, array $args = [], string $output = 'OBJECT'): ?array
+    public function get_results(string $query, array $args = [], string $output = 'OBJECT'): ?array
     {
         try {
             if (empty($args)) {
-                $results = self::get_wpdb()->get_results($query, $output);
+                $results = $this->wpdb->get_results($query, $output);
             } else {
-                $results = self::get_wpdb()->get_results(self::get_wpdb()->prepare($query, ...$args), $output);
+                $results = $this->wpdb->get_results($this->wpdb->prepare($query, ...$args), $output);
             }
 
             // Return null if no results found or if results is false (error)
             return $results === false || empty($results) ? null : $results;
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::get_results failed: " . $e->getMessage());
+            $this->log_error("DatabaseHelper::get_results failed: " . $e->getMessage());
             return null;
         }
     }
@@ -382,15 +365,15 @@ class DatabaseHelper
      * @param int $column_offset Column offset (0 for first column)
      * @return array Column results
      */
-    public static function get_col(string $query, array $args = [], int $column_offset = 0): array
+    public function get_col(string $query, array $args = [], int $column_offset = 0): array
     {
         try {
             if (empty($args)) {
-                return self::get_wpdb()->get_col($query, $column_offset);
+                return $this->wpdb->get_col($query, $column_offset);
             }
-            return self::get_wpdb()->get_col(self::get_wpdb()->prepare($query, ...$args), $column_offset);
+            return $this->wpdb->get_col($this->wpdb->prepare($query, ...$args), $column_offset);
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::get_col failed: " . $e->getMessage());
+            $this->log_error("DatabaseHelper::get_col failed: " . $e->getMessage());
             return [];
         }
     }
@@ -403,23 +386,23 @@ class DatabaseHelper
      * @param array $format Optional format array for data types
      * @return int|false The number of rows inserted, or false on error
      */
-    public static function insert(string $table_name, array $data, array $format = null)
+    public function insert(string $table_name, array $data, array $format = null)
     {
         if (empty($table_name) || empty($data)) {
             return false;
         }
 
         try {
-            $result = self::get_wpdb()->insert($table_name, $data, $format);
+            $result = $this->wpdb->insert($table_name, $data, $format);
 
             if ($result === false) {
-                self::log_error("DatabaseHelper::insert failed for table '{$table_name}': " . self::get_wpdb()->last_error);
+                $this->log_error("DatabaseHelper::insert failed for table '{$table_name}': " . $this->wpdb->last_error);
                 return false;
             }
 
             return $result;
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::insert failed for table '{$table_name}': " . $e->getMessage());
+            $this->log_error("DatabaseHelper::insert failed for table '{$table_name}': " . $e->getMessage());
             return false;
         }
     }
@@ -434,38 +417,51 @@ class DatabaseHelper
      * @param array $where_format Optional format array for where conditions
      * @return int|false The number of rows updated, or false on error
      */
-    public static function update(string $table_name, array $data, array $where, array $format = null, array $where_format = null)
+    public function update(string $table_name, array $data, array $where, array $format = null, array $where_format = null)
     {
         if (empty($table_name) || empty($data) || empty($where)) {
             return false;
         }
 
         try {
-            $result = self::get_wpdb()->update($table_name, $data, $where, $format, $where_format);
+            $result = $this->wpdb->update($table_name, $data, $where, $format, $where_format);
 
             if ($result === false) {
-                self::log_error("DatabaseHelper::update failed for table '{$table_name}': " . self::get_wpdb()->last_error);
+                $this->log_error("DatabaseHelper::update failed for table '{$table_name}': " . $this->wpdb->last_error);
                 return false;
             }
 
             return $result;
         } catch (\Throwable $e) {
-            self::log_error("DatabaseHelper::update failed for table '{$table_name}': " . $e->getMessage());
+            $this->log_error("DatabaseHelper::update failed for table '{$table_name}': " . $e->getMessage());
             return false;
         }
     }
 
     /**
-     * Log an error message
+     * Log an error message with additional context
      *
      * @param string $message Error message to log
+     * @param string $operation The database operation that failed
+     * @param array $context Additional context information
      * @return void
      */
-    private static function log_error(string $message): void
+    private function log_error(string $message, string $operation = '', array $context = []): void
     {
+        // Build detailed error message
+        $error_message = '[ODCM DatabaseHelper ERROR] ' . $message;
+        if (!empty($operation)) {
+            $error_message .= " (Operation: {$operation})";
+        }
+
+        // Add context information
+        if (!empty($context)) {
+            $error_message .= " | Context: " . json_encode($context);
+        }
+
         // Use WordPress error logging if available
         if (function_exists('error_log')) {
-            error_log('[ODCM DatabaseHelper ERROR] ' . $message);
+            error_log($error_message);
         }
 
         // Also store in a transient for potential debugging
@@ -474,7 +470,83 @@ class DatabaseHelper
             $log = [];
         }
 
-        $log[] = '[ERROR] ' . current_time('mysql') . ': ' . $message;
+        $log_entry = [
+            'timestamp' => current_time('mysql'),
+            'message' => $message,
+            'operation' => $operation,
+            'context' => $context,
+            'error_type' => 'error'
+        ];
+
+        $log[] = $log_entry;
         set_transient('odcm_database_log', $log, HOUR_IN_SECONDS);
+
+        // Store last error for debugging
+        update_option('odcm_last_database_error', $log_entry, 'no');
+    }
+
+    /**
+     * Log a warning message
+     *
+     * @param string $message Warning message to log
+     * @param string $operation The database operation that generated warning
+     * @param array $context Additional context information
+     * @return void
+     */
+    private function log_warning(string $message, string $operation = '', array $context = []): void
+    {
+        // Build detailed warning message
+        $warning_message = '[ODCM DatabaseHelper WARNING] ' . $message;
+        if (!empty($operation)) {
+            $warning_message .= " (Operation: {$operation})";
+        }
+
+        // Add context information
+        if (!empty($context)) {
+            $warning_message .= " | Context: " . json_encode($context);
+        }
+
+        // Use WordPress error logging if available
+        if (function_exists('error_log')) {
+            error_log($warning_message);
+        }
+
+        // Also store in a transient for potential debugging
+        $log = get_transient('odcm_database_log');
+        if (!is_array($log)) {
+            $log = [];
+        }
+
+        $log_entry = [
+            'timestamp' => current_time('mysql'),
+            'message' => $message,
+            'operation' => $operation,
+            'context' => $context,
+            'error_type' => 'warning'
+        ];
+
+        $log[] = $log_entry;
+        set_transient('odcm_database_log', $log, HOUR_IN_SECONDS);
+    }
+
+    /**
+     * Get database logs
+     *
+     * @return array Array of log entries
+     */
+    public function get_logs(): array
+    {
+        $logs = get_transient('odcm_database_log');
+        return is_array($logs) ? $logs : [];
+    }
+
+    /**
+     * Clear database logs
+     *
+     * @return bool True if logs were cleared, false otherwise
+     */
+    public function clear_logs(): bool
+    {
+        return delete_transient('odcm_database_log');
     }
 }
