@@ -13,7 +13,7 @@ class Installer
     /**
      * The current database version.
      */
-    const DB_VERSION = '1.2';
+    const DB_VERSION = '1.3';
 
     /**
      * The option key for storing the database version.
@@ -26,7 +26,7 @@ class Installer
      * @var DatabaseHelper
      */
     private static DatabaseHelper $db_helper;
-    
+
     /**
      * Cache of table existence checks to prevent redundant queries
      *
@@ -35,14 +35,26 @@ class Installer
     private static array $table_existence_cache = [];
 
     /**
+     * Initialize the database helper if not already initialized
+     *
+     * @return void
+     */
+    private static function initialize_db_helper(): void
+    {
+        if (!isset(self::$db_helper)) {
+            self::$db_helper = new DatabaseHelper();
+            self::$db_helper->initialize($GLOBALS['wpdb']);
+        }
+    }
+
+    /**
      * Activation hook callback.
      * This is called when the plugin is activated.
      */
     public static function activate(): void
     {
         // Initialize database helper
-        self::$db_helper = new DatabaseHelper();
-        self::$db_helper->initialize($GLOBALS['wpdb']);
+        self::initialize_db_helper();
         
         self::install();
     }
@@ -53,6 +65,7 @@ class Installer
      */
     public static function install(): void
     {
+        self::initialize_db_helper();
         self::setup_database();
     }
 
@@ -62,6 +75,7 @@ class Installer
      */
     private static function setup_database(): void
     {
+        self::initialize_db_helper();
         try {
             // Create both tables with their complete structure
             self::create_complete_audit_log_table();
@@ -334,7 +348,7 @@ class Installer
             $safe_table = esc_sql($payload_table);
             $sql = "ALTER TABLE $safe_table ADD COLUMN last_processed TIMESTAMP NULL DEFAULT NULL";
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared -- Table name escaped with esc_sql(), ALTER TABLE cannot use placeholders
-            self::$db_helper->squery($sql);
+            self::$db_helper->query($sql);
         }
     }
 
@@ -458,8 +472,9 @@ class Installer
      */
     private static function verify_table_exists(string $table_name): bool
     {
+        self::initialize_db_helper();
         global $wpdb;
-        
+
         // Check static cache first (fastest)
         if (isset(self::$table_existence_cache[$table_name])) {
             return self::$table_existence_cache[$table_name];
