@@ -278,8 +278,8 @@ final class RuleIndexBuilder
                             wp_debug_log('ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage());
                         } elseif (function_exists('do_action')) {
                             do_action('odcm_log_error', 'ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage());
-                        } elseif (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-                            $debug_file = WP_CONTENT_DIR . '/debug.log';
+                        } elseif (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                            $debug_file = odcm_get_uploads_dir() . '/debug.log';
                             @file_put_contents(
                                 $debug_file,
                                 '[' . gmdate('Y-m-d H:i:s') . '] ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage() . PHP_EOL,

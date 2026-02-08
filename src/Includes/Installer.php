@@ -40,20 +40,13 @@ class Installer
      * @return void
      * @throws \Exception If database helper initialization fails
      */
-    private static function initialize_db_helper(): void
+    public static function initialize_db_helper(): void
     {
         if (!isset(self::$db_helper)) {
             try {
-                self::$db_helper = new DatabaseHelper($GLOBALS['wpdb']);
-
-                // Verify database connection
-                if (!$self::$db_helper->is_connected()) {
-                    throw new \Exception('Database connection failed during helper initialization');
-                }
-
+                self::$db_helper = DatabaseHelper::get_instance();
             } catch (\Exception $e) {
-                odcm_log_message('Database helper initialization failed: ' . $e->getMessage(), 'error');
-                throw new \Exception('Failed to initialize database helper', 1001, $e);
+                throw new \Exception('Failed to initialize database helper:' . esc_html($e->getMessage()));
             }
         }
     }
@@ -186,7 +179,7 @@ class Installer
             UNIQUE KEY idx_idempotency_unique (idempotency_key)
         ) $charset_collate;";
 
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        require_once wp_normalize_path(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
 
         // Verify table creation with caching
@@ -216,7 +209,7 @@ class Installer
             FULLTEXT KEY idx_payload_search (payload)
         ) $charset_collate;";
 
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        require_once wp_normalize_path(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
 
         // Verify table creation with caching
@@ -249,7 +242,7 @@ class Installer
             KEY processed_at (processed_at)
         ) $charset_collate;";
 
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        require_once wp_normalize_path(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
 
         // Verify table creation with caching
@@ -759,7 +752,7 @@ class Installer
 
         // Check if database is available
         try {
-            self::$db_helper->get_var("SELECT 1 FROM {$GLOBALS['wpdb']->prefix}odcm_audit_log LIMIT 1");
+            self::$db_helper->get_var("SELECT 1 FROM {$wpdb->prefix}odcm_audit_log LIMIT 1");
         } catch (\Exception $e) {
             odcm_log_message('Database safety check failed: ' . $e->getMessage(), 'error');
             return false;
@@ -788,7 +781,8 @@ class Installer
      */
     public static function get_current_db_version(): string
     {
-        $version = self::$db_helper->get_option(self::DB_VERSION_OPTION_KEY, '0.0');
+        $version = DatabaseHelper::get_instance()->get_option(self::DB_VERSION_OPTION_KEY, '0.0');
+
 
         // Validate version format
         if (!preg_match('/^\d+\.\d+$/', $version)) {
@@ -833,7 +827,7 @@ class Installer
         // Initialize DatabaseHelper if not already initialized
         if (!isset(self::$db_helper)) {
             self::$db_helper = new DatabaseHelper();
-            self::$db_helper->initialize($wpdb);
+            
         }
 
         // Cache miss - perform the table existence check

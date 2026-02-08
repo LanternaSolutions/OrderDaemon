@@ -73,6 +73,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     private ?TimelineBuilderInterface $timelineBuilder = null;
     private ?TimelineRendererInterface $timelineRenderer = null;
+    private ?DatabaseHelper $db_helper = null;
 
     /**
      * Constructor with dependency injection
@@ -97,6 +98,10 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Defer initialization to runtime in render_components()
             $this->timelineRenderer = $timelineRenderer ?: null;
         }
+
+		if (class_exists(DatabaseHelper::class)) {
+			$this->db_helper = DatabaseHelper::get_instance();
+		}
     }
 
     /**
@@ -132,8 +137,8 @@ class AuditLogEndpoint extends WP_REST_Controller
         }
 
         // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-            $debug_file = WP_CONTENT_DIR . '/debug.log';
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+            $debug_file = odcm_get_uploads_dir() . '/debug.log';
             @file_put_contents(
                 $debug_file,
                 '[' . current_time('mysql') . '] ' . $message . PHP_EOL,
@@ -1219,7 +1224,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ORDER BY l.timestamp ASC";
 
             // Use DatabaseHelper to handle preparation and execution safely
-            $logs = DatabaseHelper::get_results($query, ['', $process_id], ARRAY_A);
+            $logs = $this->db_helper->get_results($query, ['', $process_id], ARRAY_A);
 
             if ($logs === false) {
                 throw new \Exception('Database query failed: ' . ($wpdb->last_error ?: 'Unknown error'));
@@ -1511,7 +1516,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Execute the query
             // Use DatabaseHelper to handle preparation and execution safely
-            $logs = DatabaseHelper::get_results($full_query, $params, ARRAY_A);
+            $logs = $this->db_helper->get_results($full_query, $params, ARRAY_A);
 
             $result = $logs ?: [];
 
@@ -1593,7 +1598,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             // Use DatabaseHelper to handle preparation and execution safely
-            $logs = DatabaseHelper::get_results($full_query, $params, ARRAY_A);
+            $logs = $this->db_helper->get_results($full_query, $params, ARRAY_A);
 
             $result = $logs ?: [];
 
@@ -1665,7 +1670,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             // Use DatabaseHelper to handle preparation and execution safely
-            $count = DatabaseHelper::get_var($full_query, $params);
+            $count = $this->db_helper->get_var($full_query, $params);
 
             $result = (int) $count;
 
@@ -2388,7 +2393,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         );
 
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is prepared above via $wpdb->prepare()
-        $valid_ids = DatabaseHelper::get_col($sql);
+        $valid_ids = $this->db_helper->get_col($sql);
         $result = array_map('intval', $valid_ids);
 
         return $result;
@@ -2430,7 +2435,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ...$log_ids
             );
             // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $payload_ids_query is prepared above via $wpdb->prepare()
-            $payload_ids = DatabaseHelper::get_col($payload_ids_query);
+            $payload_ids = $this->db_helper->get_col($payload_ids_query);
 
             // Delete logs using prepared statement
             $delete_logs_query = $wpdb->prepare(
@@ -2457,7 +2462,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     ...$payload_ids
                 );
                 // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $used_payloads_query is prepared above via $wpdb->prepare()
-                $used_payloads = DatabaseHelper::get_col($used_payloads_query);
+                $used_payloads = $this->db_helper->get_col($used_payloads_query);
 
                 // Calculate orphaned payloads
                 $orphaned_payloads = array_diff($payload_ids, $used_payloads);
@@ -2746,7 +2751,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $audit_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
             $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
-            $table_check = DatabaseHelper::get_var($wpdb->prepare(
+            $table_check = $this->db_helper->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",
                 DB_NAME,
                 $audit_table
@@ -2761,15 +2766,15 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Get basic stats
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for diagnostic purposes
-            $total_logs = DatabaseHelper::get_var("SELECT COUNT(*) FROM {$audit_table}");
-            $recent_logs = DatabaseHelper::get_var($wpdb->prepare(
+            $total_logs = $this->db_helper->get_var("SELECT COUNT(*) FROM {$audit_table}");
+            $recent_logs = $this->db_helper->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)"
             ));
-            $completion_logs = DatabaseHelper::get_var($wpdb->prepare(
+            $completion_logs = $this->db_helper->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE %s",
                 '%completion%'
             ));
-            $debug_logs = DatabaseHelper::get_var($wpdb->prepare(
+            $debug_logs = $this->db_helper->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM {$audit_table} WHERE status = %s OR event_type LIKE %s",
                 'debug', 'debug_%'
             ));
@@ -2784,7 +2789,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 // Get recent log samples
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                 // Direct query is needed for diagnostic purposes
-                $sample_logs = DatabaseHelper::get_results($wpdb->prepare(
+                $sample_logs = $this->db_helper->get_results($wpdb->prepare(
                     "SELECT id, timestamp, status, event_type, summary, order_id
                     FROM {$audit_table}
                     ORDER BY timestamp DESC
@@ -3174,13 +3179,13 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ORDER BY l.timestamp DESC
                 LIMIT %d OFFSET %d";
 
-            $summary_results = DatabaseHelper::get_results($summary_sql, [$safe_search_term, $per_page, $offset], ARRAY_A);
+            $summary_results = $this->db_helper->get_results($summary_sql, [$safe_search_term, $per_page, $offset], ARRAY_A);
 
             // If we have enough results from summary search, return them
             if (count($summary_results) >= $per_page) {
                 $total_sql = "SELECT COUNT(*) FROM `{$log_table}` l WHERE l.summary LIKE %s";
 
-                $total = (int) DatabaseHelper::get_var($total_sql, [$safe_search_term]);
+                $total = (int) $this->db_helper->get_var($total_sql, [$safe_search_term]);
 
                 $execution_time = microtime(true) - $start_time;
 
@@ -3213,7 +3218,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ORDER BY l.timestamp DESC
                 LIMIT %d";
 
-            $payload_results = DatabaseHelper::get_results($payload_sql, [$safe_search_term, $safe_search_term, $per_page - count($summary_results)], ARRAY_A);
+            $payload_results = $this->db_helper->get_results($payload_sql, [$safe_search_term, $safe_search_term, $per_page - count($summary_results)], ARRAY_A);
 
             // Combine results
             $combined_results = array_merge($summary_results, $payload_results);
@@ -3224,7 +3229,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
                 WHERE l.summary LIKE %s OR p.payload LIKE %s";
 
-            $total = (int) DatabaseHelper::get_var($total_sql, [$safe_search_term, $safe_search_term]);
+            $total = (int) $this->db_helper->get_var($total_sql, [$safe_search_term, $safe_search_term]);
 
             $execution_time = microtime(true) - $start_time;
 
@@ -3272,7 +3277,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Get available statuses
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical filter options
-            $statuses = DatabaseHelper::get_col("
+            $statuses = $this->db_helper->get_col("
                 SELECT DISTINCT status
                 FROM {$wpdb->prefix}odcm_audit_log
                 WHERE status != ''
@@ -3282,7 +3287,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Get available event types
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical filter options
-            $event_types = DatabaseHelper::get_col("
+            $event_types = $this->db_helper->get_col("
                 SELECT DISTINCT event_type
                 FROM {$wpdb->prefix}odcm_audit_log
                 WHERE event_type != ''
@@ -3292,7 +3297,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Get available sources
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical filter options
-            $sources = DatabaseHelper::get_col("
+            $sources = $this->db_helper->get_col("
                 SELECT DISTINCT source
                 FROM {$wpdb->prefix}odcm_audit_log
                 WHERE source != ''
@@ -3302,7 +3307,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Get order IDs with logs
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             // Direct query is needed for performance-critical filter options
-            $order_ids = DatabaseHelper::get_col("
+            $order_ids = $this->db_helper->get_col("
                 SELECT DISTINCT order_id
                 FROM {$wpdb->prefix}odcm_audit_log
                 WHERE order_id IS NOT NULL
@@ -3324,7 +3329,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             if (in_array('universal_event_processing', $event_types, true)) {
                 // Get payloads for universal_event_processing events
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                $universal_payloads = DatabaseHelper::get_results("
+                $universal_payloads = $this->db_helper->get_results("
                     SELECT DISTINCT p.payload
                     FROM {$wpdb->prefix}odcm_audit_log l
                     JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id

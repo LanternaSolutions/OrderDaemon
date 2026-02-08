@@ -237,9 +237,9 @@ final class AttributionTracker
 
         $content_dir = odcm_get_uploads_dir();
         $plugins_dir = odcm_get_plugin_dir();
-        $mu_dir      = defined('WPMU_PLUGIN_DIR') ? wp_normalize_path((string) constant('WPMU_PLUGIN_DIR')) : ($content_dir . '/mu-plugins');
-        $themes_dir  = function_exists('get_theme_root') ? get_theme_root() : ($content_dir . '/themes');
-        $themes_dir  = is_string($themes_dir) ? wp_normalize_path($themes_dir) : ($content_dir . '/themes');
+        $mu_dir      = defined('WPMU_PLUGIN_DIR') ? wp_normalize_path((string) constant('WPMU_PLUGIN_DIR')) : (odcm_get_uploads_dir() . '/mu-plugins');
+        $themes_dir  = function_exists('get_theme_root') ? get_theme_root() : (odcm_get_uploads_dir() . '/themes');
+        $themes_dir  = is_string($themes_dir) ? wp_normalize_path($themes_dir) : (odcm_get_uploads_dir() . '/themes');
 
         $best = $result;
         $frame_index = -1;
@@ -345,8 +345,10 @@ final class AttributionTracker
         // IP address detection with sanitization
         $ip = $this->detect_ip();
 
-        $user_agent = isset($headers['user-agent']) ? sanitize_text_field($headers['user-agent']) : (isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_USER_AGENT'])) : null);
-        $referer    = isset($headers['referer']) ? esc_url_raw($headers['referer']) : (isset($_SERVER['HTTP_REFERER']) ? esc_url_raw(wp_unslash((string) $_SERVER['HTTP_REFERER'])) : null);
+        $user_agent = isset($headers['user-agent']) ? sanitize_text_field($headers['user-agent']) : null;
+        $referer    = isset($headers['referer']) ? esc_url_raw($headers['referer']) : null;
+        $user_agent = isset($headers['user-agent']) ? sanitize_text_field($headers['user-agent']) : null;
+        $referer    = isset($headers['referer']) ? esc_url_raw($headers['referer']) : null;
 
         // Session indicators
         $session = [
@@ -575,13 +577,10 @@ final class AttributionTracker
                 foreach ($raw as $key => $value) {
                     $lk = strtolower(str_replace('_', '-', (string) $key));
                     if (isset($allowed_headers[$lk])) {
-                        switch ($allowed_headers[$lk]['type']) {
-                            case 'string':
-                                $headers[$lk] = is_string($value) ? sanitize_text_field($value) : '';
-                                break;
-                            case 'integer':
-                                $headers[$lk] = is_numeric($value) ? absint($value) : 0;
-                                break;
+                        try {
+                            $headers[$lk] = odcm_validate_and_sanitize_params([$lk => $value], [$lk => $allowed_headers[$lk]])[$lk];
+                        } catch (InvalidArgumentException $e) {
+                            $headers[$lk] = '';
                         }
                     }
                 }
@@ -592,19 +591,24 @@ final class AttributionTracker
             if (strpos($key, 'HTTP_') === 0) {
                 $name = strtolower(str_replace('_', '-', substr((string) $key, 5)));
                 if (isset($allowed_headers[$name])) {
-                    switch ($allowed_headers[$name]['type']) {
-                        case 'string':
-                            $headers[$name] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
-                            break;
-                        case 'integer':
-                            $headers[$name] = is_numeric($value) ? absint(wp_unslash($value)) : 0;
-                            break;
+                    try {
+                        $headers[$name] = odcm_validate_and_sanitize_params([$name => $value], [$name => $allowed_headers[$name]])[$name];
+                    } catch (InvalidArgumentException $e) {
+                        $headers[$name] = '';
                     }
                 }
             } elseif ($key === 'CONTENT_TYPE') {
-                $headers['content-type'] = is_string($value) ? sanitize_text_field(wp_unslash($value)) : '';
+                try {
+                    $headers['content-type'] = odcm_validate_and_sanitize_params(['content-type' => $value], ['content-type' => $allowed_headers['content-type']])['content-type'];
+                } catch (InvalidArgumentException $e) {
+                    $headers['content-type'] = '';
+                }
             } elseif ($key === 'CONTENT_LENGTH') {
-                $headers['content-length'] = is_numeric($value) ? absint(wp_unslash($value)) : 0;
+                try {
+                    $headers['content-length'] = odcm_validate_and_sanitize_params(['content-length' => $value], ['content-length' => $allowed_headers['content-length']])['content-length'];
+                } catch (InvalidArgumentException $e) {
+                    $headers['content-length'] = 0;
+                }
             }
         }
         return $headers;
@@ -651,27 +655,45 @@ final class AttributionTracker
      */
     private function detect_ip(): ?string
     {
-        $candidates = [];
-        if (isset($_SERVER['HTTP_CLIENT_IP'])) {
-            $candidates[] = sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_CLIENT_IP']));
-        }
-        if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            // First IP from list
-            $parts = explode(',', sanitize_text_field(wp_unslash((string) $_SERVER['HTTP_X_FORWARDED_FOR'])));
-            if (!empty($parts)) {
-                $candidates[] = trim((string) $parts[0]);
+        $headers = [
+            'client-ip' => ['type' => 'string'],
+            'x-forwarded-for' => ['type' => 'string'],
+            'x-forwarded' => ['type' => 'string'],
+            'x-cluster-client-ip' => ['type' => 'string'],
+            'forwarded-for' => ['type' => 'string'],
+            'forwarded' => ['type' => 'string'],
+        ];
+
+        try {
+            $validated_headers = odcm_validate_and_sanitize_params($this->headers, $headers);
+            $candidates = [];
+
+            if (isset($validated_headers['client-ip'])) {
+                $candidates[] = $validated_headers['client-ip'];
             }
-        }
-        if (isset($_SERVER['REMOTE_ADDR'])) {
-            $candidates[] = sanitize_text_field(wp_unslash((string) $_SERVER['REMOTE_ADDR']));
-        }
-        foreach ($candidates as $ip) {
-            $ip = trim($ip);
-            if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP)) {
-                return sanitize_text_field($ip);
+            if (isset($validated_headers['x-forwarded-for'])) {
+                $parts = explode(',', $validated_headers['x-forwarded-for']);
+                if (!empty($parts)) {
+                    $candidates[] = trim((string) $parts[0]);
+                }
             }
+            if (isset($validated_headers['x-forwarded'])) {
+                $candidates[] = $validated_headers['x-forwarded'];
+            }
+            if (isset($validated_headers['x-cluster-client-ip'])) {
+                $candidates[] = $validated_headers['x-cluster-client-ip'];
+            }
+            if (isset($validated_headers['forwarded-for'])) {
+                $candidates[] = $validated_headers['forwarded-for'];
+            }
+            if (isset($validated_headers['forwarded'])) {
+                $candidates[] = $validated_headers['forwarded'];
+            }
+
+            return !empty($candidates) ? $candidates[0] : null;
+        } catch (InvalidArgumentException $e) {
+            return null;
         }
-        return null;
     }
 
     /**
@@ -681,14 +703,22 @@ final class AttributionTracker
      */
     private function has_wc_session_cookie(): bool
     {
-        foreach ($_COOKIE as $name => $v) {
-            if (is_string($name) && strpos($name, 'wp_woocommerce_session_') === 0) {
-                // Validate cookie name format without accessing the value
-                if (preg_match('/^wp_woocommerce_session_[a-zA-Z0-9]+$/', $name)) {
-                    return true;
+        $cookie_rules = [
+            'wp_woocommerce_session_' => ['type' => 'string', 'required' => true]
+        ];
+
+        try {
+            foreach ($_COOKIE as $name => $value) {
+                if (is_string($name) && strpos($name, 'wp_woocommerce_session_') === 0) {
+                    $validated_name = odcm_validate_and_sanitize_params(['name' => $name], $cookie_rules)['name'];
+                    if (preg_match('/^wp_woocommerce_session_[a-zA-Z0-9]+$/', $validated_name)) {
+                        return true;
+                    }
                 }
             }
+            return false;
+        } catch (InvalidArgumentException $e) {
+            return false;
         }
-        return false;
     }
 }

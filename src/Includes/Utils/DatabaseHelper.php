@@ -31,13 +31,23 @@ class DatabaseHelper
      */
     private \wpdb $wpdb;
 
+    private static ?DatabaseHelper $instance = null;
+
     /**
      * Initialize the database helper and sets the wpdb object.
      */
-    public function __construct()
+    private function __construct()
     {
         global $wpdb;
         $this->wpdb = $wpdb;
+    }
+
+    public static function get_instance(): DatabaseHelper
+    {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
     }
 
     /**
@@ -46,7 +56,12 @@ class DatabaseHelper
      * @param string $table_name Table name to check
      * @return bool True if table exists, false otherwise
      */
-    public function table_exists(string $table_name): bool
+    public static function table_exists(string $table_name): bool
+    {
+        return self::get_instance()->_table_exists($table_name);
+    }
+
+    private function _table_exists(string $table_name): bool
     {
         if (empty($table_name)) {
             return false;
@@ -84,14 +99,19 @@ class DatabaseHelper
      * @param string $table_name Table name to drop
      * @return bool True on success, false on failure
      */
-    public function drop_table(string $table_name): bool
+    public static function drop_table(string $table_name): bool
+    {
+        return self::get_instance()->_drop_table($table_name);
+    }
+
+    private function _drop_table(string $table_name): bool
     {
         if (empty($table_name) || !$this->table_exists($table_name) || !self::validate_table_name($table_name)) {
             return true; // Table doesn't exist or invalid name, consider it successful
         }
 
         try {
-            $result = $this->wpdb->query("DROP TABLE IF EXISTS {$table_name}");
+            $result = $this->wpdb->query($this->wpdb->prepare("DROP TABLE IF EXISTS %s", $table_name));
 
             if ($result === false) {
                 $this->log_error("DatabaseHelper::drop_table failed for table '{$table_name}'");
@@ -116,7 +136,12 @@ class DatabaseHelper
      * @param mixed $default Default value if option doesn't exist
      * @return mixed Option value or default value
      */
-    public function get_option(string $option_name, $default = false)
+    public static function get_option(string $option_name, $default = false)
+    {
+        return self::get_instance()->_get_option($option_name, $default);
+    }
+
+    private function _get_option(string $option_name, $default = false)
     {
         if (empty($option_name)) {
             return $default;
@@ -149,7 +174,12 @@ class DatabaseHelper
      * @param string $autoload Whether to autoload option (default: 'yes')
      * @return bool True on success, false on failure
      */
-    public function update_option(string $option_name, $value, string $autoload = 'yes'): bool
+    public static function update_option(string $option_name, $value, string $autoload = 'yes'): bool
+    {
+        return self::get_instance()->_update_option($option_name, $value, $autoload);
+    }
+
+    private function _update_option(string $option_name, $value, string $autoload = 'yes'): bool
     {
         if (empty($option_name)) {
             return false;
@@ -177,7 +207,12 @@ class DatabaseHelper
      * @param string $option_name Option name to delete
      * @return bool True on success, false on failure
      */
-    public function delete_option(string $option_name): bool
+    public static function delete_option(string $option_name): bool
+    {
+        return self::get_instance()->_delete_option($option_name);
+    }
+
+    private function _delete_option(string $option_name): bool
     {
         if (empty($option_name)) {
             return false;
@@ -205,7 +240,12 @@ class DatabaseHelper
      * @param string $pattern Pattern to match option names
      * @return int Number of options deleted
      */
-    public function delete_options_by_pattern(string $pattern): int
+    public static function delete_options_by_pattern(string $pattern): int
+    {
+        return self::get_instance()->_delete_options_by_pattern($pattern);
+    }
+
+    private function _delete_options_by_pattern(string $pattern): int
     {
         if (empty($pattern) || !$this->validate_option_name($pattern)) {
             return 0;
@@ -219,6 +259,9 @@ class DatabaseHelper
                     '%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%'
                 )
             );
+
+            // Add explicit escaping for LIKE queries
+            $pattern = $this->wpdb->esc_like($pattern);
 
             foreach ($options as $option) {
                 if ($this->delete_option($option->option_name)) {
@@ -239,7 +282,12 @@ class DatabaseHelper
      * @param string $pattern Pattern to match transient names
      * @return int Number of transients deleted
      */
-    public function delete_transients_by_pattern(string $pattern): int
+    public static function delete_transients_by_pattern(string $pattern): int
+    {
+        return self::get_instance()->_delete_transients_by_pattern($pattern);
+    }
+
+    private function _delete_transients_by_pattern(string $pattern): int
     {
         if (empty($pattern)) {
             return 0;
@@ -277,12 +325,15 @@ class DatabaseHelper
      * @param array $args Query arguments
      * @return mixed Query result
      */
-    public function query(string $query, array $args = [])
+    public static function query(string $query, array $args = [])
+    {
+        return self::get_instance()->_query($query, $args);
+    }
+
+    private function _query(string $query, array $args = [])
     {
         try {
-            if (empty($args)) {
-                return $this->wpdb->query($query);
-            }
+            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
             return $this->wpdb->query($this->wpdb->prepare($query, ...$args));
         } catch (\Throwable $e) {
             $this->log_error("DatabaseHelper::query failed: " . $e->getMessage());
@@ -297,12 +348,15 @@ class DatabaseHelper
      * @param array $args Query arguments
      * @return mixed Single value result
      */
-    public function get_var(string $query, array $args = [])
+    public static function get_var(string $query, array $args = [])
+    {
+        return self::get_instance()->_get_var($query, $args);
+    }
+
+    private function _get_var(string $query, array $args = [])
     {
         try {
-            if (empty($args)) {
-                return $this->wpdb->get_var($query);
-            }
+            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
             return $this->wpdb->get_var($this->wpdb->prepare($query, ...$args));
         } catch (\Throwable $e) {
             $this->log_error("DatabaseHelper::get_var failed: " . $e->getMessage());
@@ -318,13 +372,15 @@ class DatabaseHelper
      * @param string $output Output type (OBJECT, ARRAY_A, ARRAY_N)
      * @return mixed Row result
      */
-    public function get_row(string $query, array $args = [], string $output = 'OBJECT')
+    public static function get_row(string $query, array $args = [], string $output = 'OBJECT')
+    {
+        return self::get_instance()->_get_row($query, $args, $output);
+    }
+
+    private function _get_row(string $query, array $args = [], string $output = 'OBJECT')
     {
         try {
-            if (empty($args)) {
-                return $this->wpdb->get_row($query, $output);
-            }
-
+            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
             return $this->wpdb->get_row($this->wpdb->prepare($query, ...$args), $output);
         } catch (\Throwable $e) {
             $this->log_error("DatabaseHelper::get_row failed: " . $e->getMessage());
@@ -340,14 +396,16 @@ class DatabaseHelper
      * @param string $output Output type (OBJECT, ARRAY_A, ARRAY_N)
      * @return array Row results
      */
-    public function get_results(string $query, array $args = [], string $output = 'OBJECT'): ?array
+    public static function get_results(string $query, array $args = [], string $output = 'OBJECT'): ?array
+    {
+        return self::get_instance()->_get_results($query, $args, $output);
+    }
+
+    private function _get_results(string $query, array $args = [], string $output = 'OBJECT'): ?array
     {
         try {
-            if (empty($args)) {
-                $results = $this->wpdb->get_results($query, $output);
-            } else {
-                $results = $this->wpdb->get_results($this->wpdb->prepare($query, ...$args), $output);
-            }
+            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            $results = $this->wpdb->get_results($this->wpdb->prepare($query, ...$args), $output);
 
             // Return null if no results found or if results is false (error)
             return $results === false || empty($results) ? null : $results;
@@ -365,12 +423,15 @@ class DatabaseHelper
      * @param int $column_offset Column offset (0 for first column)
      * @return array Column results
      */
-    public function get_col(string $query, array $args = [], int $column_offset = 0): array
+    public static function get_col(string $query, array $args = [], int $column_offset = 0): array
+    {
+        return self::get_instance()->_get_col($query, $args, $column_offset);
+    }
+
+    private function _get_col(string $query, array $args = [], int $column_offset = 0): array
     {
         try {
-            if (empty($args)) {
-                return $this->wpdb->get_col($query, $column_offset);
-            }
+            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
             return $this->wpdb->get_col($this->wpdb->prepare($query, ...$args), $column_offset);
         } catch (\Throwable $e) {
             $this->log_error("DatabaseHelper::get_col failed: " . $e->getMessage());
@@ -386,13 +447,19 @@ class DatabaseHelper
      * @param array $format Optional format array for data types
      * @return int|false The number of rows inserted, or false on error
      */
-    public function insert(string $table_name, array $data, array $format = null)
+    public static function insert(string $table_name, array $data, array $format = null)
+    {
+        return self::get_instance()->_insert($table_name, $data, $format);
+    }
+
+    private function _insert(string $table_name, array $data, array $format = null)
     {
         if (empty($table_name) || empty($data)) {
             return false;
         }
 
         try {
+            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
             $result = $this->wpdb->insert($table_name, $data, $format);
 
             if ($result === false) {
@@ -417,13 +484,19 @@ class DatabaseHelper
      * @param array $where_format Optional format array for where conditions
      * @return int|false The number of rows updated, or false on error
      */
-    public function update(string $table_name, array $data, array $where, array $format = null, array $where_format = null)
+    public static function update(string $table_name, array $data, array $where, array $format = null, array $where_format = null)
+    {
+        return self::get_instance()->_update($table_name, $data, $where, $format, $where_format);
+    }
+
+    private function _update(string $table_name, array $data, array $where, array $format = null, array $where_format = null)
     {
         if (empty($table_name) || empty($data) || empty($where)) {
             return false;
         }
 
         try {
+            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
             $result = $this->wpdb->update($table_name, $data, $where, $format, $where_format);
 
             if ($result === false) {
@@ -527,6 +600,23 @@ class DatabaseHelper
 
         $log[] = $log_entry;
         set_transient('odcm_database_log', $log, HOUR_IN_SECONDS);
+    }
+
+    /**
+     * Check if database connection is active
+     *
+     * @return bool True if connected, false otherwise
+     */
+    public function is_connected(): bool
+    {
+        try {
+            // Simple test query to check connection
+            $result = $this->wpdb->get_var("SELECT 1");
+            return $result === '1';
+        } catch (\Throwable $e) {
+            $this->log_error("Database connection check failed: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**

@@ -151,7 +151,7 @@ final class RuleBuilder
                     // If action isn't handled, write to WordPress debug.log if available
                     if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
                         // Write to debug.log file using WordPress constants
-                        $debug_file = WP_CONTENT_DIR . '/debug.log';
+                        $debug_file = odcm_get_uploads_dir() . '/debug.log';
                         @file_put_contents(
                             $debug_file,
                             '[' . gmdate('Y-m-d H:i:s') . '] ODCM Rule Builder: ' . $message . PHP_EOL,

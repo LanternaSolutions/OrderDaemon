@@ -179,8 +179,8 @@ function odcm_log_message(string $message, string $level='notice'): void
     }
 
     // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-        $debug_file = WP_CONTENT_DIR . '/debug.log';
+    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+        $debug_file = odcm_get_uploads_dir() . '/debug.log';
         @file_put_contents(
             $debug_file,
             '[' . gmdate('Y-m-d H:i:s') . '] ' . $prefix . ' ' . $message . PHP_EOL,
@@ -219,8 +219,8 @@ function odcm_critical_log(string $message): void
     }
 
     // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-        $debug_file = WP_CONTENT_DIR . '/debug.log';
+    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+        $debug_file = odcm_get_uploads_dir() . '/debug.log';
         @file_put_contents(
             $debug_file,
             '[' . gmdate('Y-m-d H:i:s') . '] ' . $formatted_message . PHP_EOL,
@@ -1480,7 +1480,8 @@ function odcm_insert_audit_log_queue_entry(string $queue_id, string $event_data,
     ];
 
     // Use DatabaseHelper for database operations with proper error handling
-    $result = \OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper::insert(
+    $database_helper = \OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper::get_instance();
+    $result = $database_helper->insert(
         $wpdb->prefix . 'odcm_audit_log_queue',
         $data,
         ['%s', '%s', '%s', '%s'] // Format: string, string, string, string
