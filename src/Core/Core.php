@@ -211,7 +211,7 @@ class Core
     }
 
     /**
-     * REFACTORED: Handles the "Reprocess Orders" request from the developer tools page.
+     * Handles the "Reprocess Orders" request
      *
      * This method now calls the fully asynchronous reprocess_pending_orders() method
      * and redirects the user back with a success notice.
@@ -224,87 +224,76 @@ class Core
      */
     public function handle_reprocess_request(): void
     {
-        // Only process when explicitly requested via admin-post action
-        // Verify the nonce and check the action
-        $action = isset($_REQUEST['action']) ? sanitize_key((string) wp_unslash($_REQUEST['action'])) : '';
-        if ($action !== 'odcm_reprocess_orders') {
+        // Define validation rules for all expected parameters.
+        $validation_rules = [
+            'page'   => ['type' => 'string', 'required' => false],
+            'tab'    => ['type' => 'string', 'required' => false],
+            'action' => ['type' => 'string', 'required' => false], // Checked manually below
+            '_wpnonce' => ['type' => 'string', 'required' => false],
+            'odcm_reprocess_orders' => ['type' => 'string', 'required' => false],
+            'odcm_reprocess_nonce'  => ['type' => 'string', 'required' => false],
+        ];
+
+        try {
+            // SECURITY: Sanitize only specific expected parameters from $_REQUEST.
+            $safe_params = odcm_validate_and_sanitize_params([
+                'page' => sanitize_text_field($_REQUEST['page'] ?? ''),
+                'tab' => sanitize_text_field($_REQUEST['tab'] ?? ''),
+                'action' => sanitize_text_field($_REQUEST['action'] ?? ''),
+                '_wpnonce' => sanitize_text_field($_REQUEST['_wpnonce'] ?? ''),
+                'odcm_reprocess_orders' => sanitize_text_field($_REQUEST['odcm_reprocess_orders'] ?? ''),
+                'odcm_reprocess_nonce' => sanitize_text_field($_REQUEST['odcm_reprocess_nonce'] ?? ''),
+            ], $validation_rules);
+        } catch (\InvalidArgumentException $e) {
+            // This should not happen with all fields being optional, but as a safeguard:
+            odcm_log_message("Parameter validation failed for reprocess request: " . $e->getMessage(), 'error');
             return;
         }
-        
-        // Verify nonce for added security
-        if (!isset($_REQUEST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])), 'odcm_reprocess_action')) {
+
+        // Guard: Only proceed if our specific action is set.
+        if (empty($safe_params['action']) || 'odcm_reprocess_orders' !== $safe_params['action']) {
+            return;
+        }
+
+        // Security: Consolidate nonce verification for both GET and POST.
+        $nonce = $safe_params['_wpnonce'] ?? $safe_params['odcm_reprocess_nonce'] ?? '';
+        if ( ! wp_verify_nonce($nonce, 'odcm_reprocess_action')) {
             wp_die(esc_html__('Security check failed', 'order-daemon'));
         }
 
-        // DEFENSIVE CHECK: Verify post type exists before processing
-        if (!post_type_exists('odcm_order_rule')) {
-            odcm_log_message("CRITICAL: Post type 'odcm_order_rule' not registered during reprocess request", 'error');
-            odcm_log_message("This indicates a race condition in plugin initialization", 'error');
+        // Security: Verify user capabilities.
+        if ( ! current_user_can('manage_woocommerce')) {
+            wp_die(esc_html__('You do not have sufficient permissions to perform this action.', 'order-daemon'));
+        }
 
-            // Add admin notice for debugging
+        // DEFENSIVE CHECK: Verify post type exists before processing.
+        if ( ! post_type_exists('odcm_order_rule')) {
+            odcm_log_message("CRITICAL: Post type 'odcm_order_rule' not registered during reprocess request", 'error');
             add_action('admin_notices', function() {
-                echo '<div class="error"><p>';
-                echo esc_html__('core.errors.post_type_not_available', 'order-daemon');
-                echo '</p></div>';
+                echo '<div class="error"><p>' . esc_html__('core.errors.post_type_not_available', 'order-daemon') . '</p></div>';
             });
             return;
         }
 
-        // Log that this method was called
+        // Logging for debugging purposes.
         odcm_log_message("handle_reprocess_request() called from hook: " . current_action(), 'info');
         odcm_log_message("REQUEST_METHOD: " . (isset($_SERVER["REQUEST_METHOD"]) ? sanitize_text_field(wp_unslash($_SERVER["REQUEST_METHOD"])) : "unknown"), 'info');
         odcm_log_message("REQUEST_URI: " . (isset($_SERVER["REQUEST_URI"]) ? esc_url_raw(wp_unslash($_SERVER["REQUEST_URI"])) : "unknown"), 'info');
-        
-        // Sanitize and verify nonce for $_POST and $_GET data
-        $allowed_get_params = ['page', 'tab', 'action', '_wpnonce'];
-        $allowed_post_params = ['odcm_reprocess_orders', 'odcm_reprocess_nonce', 'action'];
+        odcm_log_message("Sanitized params: " . wp_json_encode($safe_params), 'info');
 
-        $validation_rules = [
-            'page' => ['type' => 'string', 'required' => false],
-            'tab' => ['type' => 'string', 'required' => false],
-            'action' => ['type' => 'string', 'required' => false],
-            '_wpnonce' => ['type' => 'string', 'required' => true],
-            'odcm_reprocess_orders' => ['type' => 'string', 'required' => false],
-            'odcm_reprocess_nonce' => ['type' => 'string', 'required' => true]
-        ];
-
-        try {
-            $safe_get = odcm_validate_and_sanitize_params($_GET, $validation_rules);
-            $safe_post = odcm_validate_and_sanitize_params($_POST, $validation_rules);
-        } catch (InvalidArgumentException $e) {
-            // Log error and provide fallback
-            odcm_log_message("Parameter validation error: " . $e->getMessage(), 'error');
-            $safe_get = [];
-            $safe_post = [];
-        }
-        
-        odcm_log_message("POST data: " . wp_json_encode($safe_post), 'info');
-        odcm_log_message("GET data: " . wp_json_encode($safe_get), 'info');
-        odcm_log_message("Current user ID: " . get_current_user_id(), 'info');
-        odcm_log_message("Is admin: " . (is_admin() ? "yes" : "no"), 'info');
-
-        // Log the verification attempt
-        odcm_log_message("About to verify reprocess request", 'info');
-
-        if (!$this->verify_reprocess_request()) {
-            odcm_log_message("verify_reprocess_request() returned false - exiting", 'error');
-            return;
-        }
-
-        odcm_log_message("verify_reprocess_request() passed - proceeding", 'info');
-
-        // Call our new, asynchronous method.
+        // Call the asynchronous reprocessing method.
         $count = $this->reprocess_pending_orders();
 
         odcm_log_message("reprocess_pending_orders() returned count: " . $count, 'info');
 
-        // Log the reprocess action to the audit trail
+        // Log the admin action to the audit trail.
         $this->log_reprocess_action($count);
 
+        // Add a success notice for the user.
         $this->add_reprocess_success_notice($count);
 
+        // Redirect back to the tools page.
         odcm_log_message("About to redirect after reprocess", 'info');
-
         $this->redirect_after_reprocess();
     }
 
@@ -425,24 +414,7 @@ class Core
             return false;
         }
     }
-
-    /**
-     * Verifies the nonce and user capabilities for the reprocess request.
-     * (This is a pre-existing private method, assumed to exist).
-     *
-     * @return bool True if the request is valid, false otherwise.
-     */
-    private function verify_reprocess_request(): bool
-    {
-        // Check if the reprocess button was clicked and nonce is valid
-        if (isset($_POST['odcm_reprocess_orders']) &&
-            isset($_POST['odcm_reprocess_nonce']) &&
-            wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['odcm_reprocess_nonce'])), 'odcm_reprocess_action')) {
-            return current_user_can('manage_woocommerce');
-        }
-        return false;
-    }
-
+    
     /**
      * Adds an admin notice indicating the success of the reprocessing request.
      * Uses the plugin's built-in Notices system for consistent messaging.

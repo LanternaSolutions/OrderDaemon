@@ -2315,11 +2315,17 @@ function insightDashboard() {
                 const cfg = this.config.dateTimeConfig || {};
                 let timestamp = ts;
 
-                // Handle string timestamps and unit conversion
+                // Enhanced timestamp parsing with proper ISO 8601 handling
                 if (typeof timestamp === 'string') {
-                    // Check if it's a numeric string (possibly with milliseconds)
-                    if (/^\d+(\.\d+)?$/.test(timestamp)) {
-                        // Convert to number
+                    // First, try to parse as ISO 8601 with timezone offset
+                    if (typeof timestamp === 'string') {
+                        // Try native Date parsing first
+                        const parsedDate = new Date(timestamp);
+                        if (!isNaN(parsedDate.getTime())) {
+                            timestamp = parsedDate.getTime();
+                        }
+                    } else if (/^\d+(\.\d+)?$/.test(timestamp)) {
+                        // Handle numeric strings (Unix timestamps)
                         timestamp = parseFloat(timestamp);
 
                         // If it's a Unix timestamp in seconds (10 digits), convert to milliseconds
@@ -2327,7 +2333,7 @@ function insightDashboard() {
                             timestamp = timestamp * 1000;
                         }
                     } else {
-                        // Try to parse as ISO date string
+                        // Try to parse as ISO date string without timezone offset
                         const parsedDate = new Date(timestamp);
                         if (!isNaN(parsedDate.getTime())) {
                             timestamp = parsedDate.getTime();
@@ -2344,8 +2350,33 @@ function insightDashboard() {
                 const d = new Date(timestamp);
                 const mode = this.timestampDisplayMode || 'dateTime';
 
+                // Use WordPress timezone if available
+                const timezone = cfg.timezone || undefined;
+
                 if (mode === 'timeOnly') {
-                    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                    // Get the base time string without milliseconds
+                    let timeString = d.toLocaleTimeString(undefined, { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    });
+
+                    // Add milliseconds if available (same logic as dateTime mode)
+                    if (typeof ts === 'string' && /\.\d{3}/.test(ts)) {
+                        const ms = ts.match(/\.(\d{3})/);
+                        if (ms) {
+                            timeString += '.' + ms[1];
+                        }
+                    } else if (typeof ts === 'number') {
+                        // Get milliseconds from numeric timestamp
+                        const ms = d.getMilliseconds();
+                        if (ms) {
+                            timeString += '.' + ms.toString().padStart(3, '0');
+                        }
+                    }
+
+                    return timeString;
                 }
                 if (mode === 'relative') {
                     const diff = (Date.now() - d.getTime()) / 1000;
@@ -2355,16 +2386,59 @@ function insightDashboard() {
                     return `${Math.floor(diff/86400)}d ago`;
                 }
 
-                // date & time
-                return d.toLocaleString(undefined, {
-                    year: 'numeric', month: 'short', day: '2-digit',
-                    hour: '2-digit', minute: '2-digit'
-                });
+                // date & time with milliseconds
+                let formatted;
+                if (timezone && !/^(\+|-)\d{2}:\d{2}$/.test(timezone)) {
+                    // Use timezone only if it's a valid IANA timezone name
+                    try {
+                        formatted = d.toLocaleString(timezone, {
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: '2-digit',
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false
+                        });
+                    } catch (e) {
+                        // Fallback if timezone is invalid
+                        formatted = d.toLocaleString(undefined, {
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: '2-digit',
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false
+                        });
+                    }
+                } else {
+                    // Fallback to default locale without timezone
+                    formatted = d.toLocaleString(undefined, {
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: '2-digit',
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    });
+                }
+
+                // Add milliseconds if available
+                if (typeof ts === 'string' && /\.\d{3}/.test(ts)) {
+                    const ms = ts.match(/\.(\d{3})/);
+                    if (ms) {
+                        formatted += '.' + ms[1];
+                    }
+                }
+
+                return formatted;
 
             } catch (e) {
                 console.warn('ODCM: Timestamp formatting error:', e);
                 // Return a formatted error message instead of raw timestamp
-                return 'invalid: ' + String(ts || '');
+                return String(ts || 'Invalid timestamp');
             }
         },
 
