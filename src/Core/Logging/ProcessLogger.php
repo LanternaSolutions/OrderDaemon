@@ -557,10 +557,10 @@ final class ProcessLogger
                     do_action('odcm_log_error', 'ProcessLogger: ' . $message);
                 }
                 
-                        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+                        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file using safe file operation
                         if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                            $debug_file = odcm_get_uploads_dir() . '/debug.log';
-                            @file_put_contents(
+                            $debug_file = odcm_get_safe_debug_file_path();
+                            odcm_safe_file_put_contents(
                                 $debug_file,
                                 '[' . gmdate('Y-m-d H:i:s') . '] ODCM ProcessLogger: ' . $message . PHP_EOL,
                                 FILE_APPEND

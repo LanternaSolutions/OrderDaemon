@@ -178,14 +178,10 @@ function odcm_log_message(string $message, string $level='notice'): void
         return;
     }
 
-    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file using safe file operation
     if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-        $debug_file = odcm_get_uploads_dir() . '/debug.log';
-        @file_put_contents(
-            $debug_file,
-            '[' . gmdate('Y-m-d H:i:s') . '] ' . $prefix . ' ' . $message . PHP_EOL,
-            FILE_APPEND
-        );
+        $debug_file = odcm_get_safe_debug_file_path();
+        odcm_safe_file_put_contents($debug_file, '[' . gmdate('Y-m-d H:i:s') . '] ' . $prefix . ' ' . $message . PHP_EOL, FILE_APPEND);
         return;
     }
 
@@ -218,14 +214,10 @@ function odcm_critical_log(string $message): void
         return;
     }
 
-    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file using safe file operation
     if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-        $debug_file = odcm_get_uploads_dir() . '/debug.log';
-        @file_put_contents(
-            $debug_file,
-            '[' . gmdate('Y-m-d H:i:s') . '] ' . $formatted_message . PHP_EOL,
-            FILE_APPEND
-        );
+        $debug_file = odcm_get_safe_debug_file_path();
+        odcm_safe_file_put_contents($debug_file, '[' . gmdate('Y-m-d H:i:s') . '] ' . $formatted_message . PHP_EOL, FILE_APPEND);
         return;
     }
 
@@ -1045,7 +1037,12 @@ function odcm_validate_custom_summary(string $summary, int $max_length = 60): st
 /**
  * Get the plugin's uploads directory with fallback
  *
- * @return string The uploads directory path
+ * This function retrieves the path to the WordPress uploads directory. It uses
+ * wp_upload_dir() as the primary method. If that fails, it constructs the path
+ * using wp_content_dir() or the WP_CONTENT_DIR constant as fallbacks.
+ *
+ * @since 1.0.0 (Enhanced in 2.0.5)
+ * @return string The uploads directory path.
  */
 function odcm_get_uploads_dir(): string {
     static $cached_dir = null;
@@ -1054,14 +1051,25 @@ function odcm_get_uploads_dir(): string {
     }
 
     $uploads = wp_upload_dir();
+    $basedir = '';
+
     if (!empty($uploads['basedir'])) {
-        $cached_dir = $uploads['basedir'];
+        $basedir = $uploads['basedir'];
     } else {
         // Fallback to WordPress standard uploads directory
-        $content_dir = wp_normalize_path((string) (rtrim(WP_CONTENT_DIR, '/\\') . '/wp-content'));
-        $cached_dir = trailingslashit($content_dir) . 'uploads';
+        if (function_exists('wp_content_dir')) {
+            $content_dir = wp_content_dir();
+        } elseif (defined('WP_CONTENT_DIR')) {
+            $content_dir = WP_CONTENT_DIR;
+        } else {
+            // Last resort fallback
+            $content_dir = ABSPATH . 'wp-content';
+        }
+        $basedir = rtrim($content_dir, '/\\') . '/uploads';
     }
-
+    
+    $cached_dir = wp_normalize_path($basedir);
+    
     return $cached_dir;
 }
 
@@ -1612,4 +1620,194 @@ function odcm_validate_and_sanitize_params(array $params, array $rules): array {
     }
 
     return $validated;
+}
+
+/**
+ * File Operation Utilities
+ * 
+ * These functions provide secure, validated file operations for the plugin.
+ * They replace direct file operations with proper validation and error handling.
+ */
+
+/**
+ * Validate a file path for security
+ *
+ * Ensures the path is safe for file operations by checking for directory traversal
+ * and other security issues.
+ *
+ * @since 2.0.5
+ * @param string $path The file path to validate
+ * @return bool True if path is safe, false otherwise
+ */
+function odcm_validate_file_path(string $path): bool {
+    // Normalize the path
+    $normalized = wp_normalize_path($path);
+    
+    // Check for directory traversal attempts
+    if (strpos($normalized, '../') !== false || strpos($normalized, '..\\') !== false) {
+        return false;
+    }
+    
+    // Check for absolute paths outside allowed directories
+    $allowed_dirs = [
+        wp_upload_dir()['basedir'],
+        wp_content_dir(),
+        ABSPATH,
+        plugin_dir_path(__FILE__),
+    ];
+    
+    foreach ($allowed_dirs as $allowed_dir) {
+        $allowed_dir = wp_normalize_path($allowed_dir);
+        if (strpos($normalized, $allowed_dir) === 0) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Safe file put contents with validation
+ *
+ * A wrapper for file_put_contents that includes proper validation and error handling.
+ * Follows WordPress security best practices.
+ *
+ * @since 2.0.5
+ * @param string $filename The filename to write to
+ * @param mixed $data The data to write
+ * @param int $flags Flags for file_put_contents
+ * @param resource $context Stream context
+ * @return int|false The number of bytes written, or false on failure
+ */
+function odcm_safe_file_put_contents(string $filename, $data, int $flags = 0, $context = null) {
+    // Validate the file path
+    if (!odcm_validate_file_path($filename)) {
+        odcm_critical_log("Invalid file path attempted: " . esc_html($filename));
+        return false;
+    }
+    
+    // Ensure the directory exists and is writable
+    $directory = dirname($filename);
+    if (!is_dir($directory) || !is_writable($directory)) {
+        odcm_critical_log("Directory not writable or doesn't exist: " . esc_html($directory));
+        return false;
+    }
+    
+    // Use WordPress error logging for failures
+    $result = @file_put_contents($filename, $data, $flags, $context);
+    
+    if ($result === false) {
+        odcm_critical_log("Failed to write to file: " . esc_html($filename));
+        return false;
+    }
+    
+    return $result;
+}
+
+/**
+ * Ensure a directory exists and is writable
+ *
+ * Creates the directory if it doesn't exist and verifies it's writable.
+ * Uses WordPress directory creation functions.
+ *
+ * @since 2.0.5
+ * @param string $directory The directory path
+ * @return bool True if directory exists and is writable, false otherwise
+ */
+function odcm_ensure_directory_writable(string $directory): bool {
+    // Normalize the path
+    $directory = wp_normalize_path($directory);
+    
+    // Check if directory exists
+    if (!is_dir($directory)) {
+        // Try to create the directory
+        if (!wp_mkdir_p($directory)) {
+            odcm_critical_log("Failed to create directory: " . esc_html($directory));
+            return false;
+        }
+    }
+    
+    // Check if directory is writable
+    if (!is_writable($directory)) {
+        odcm_critical_log("Directory is not writable: " . esc_html($directory));
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Get a safe debug file path
+ *
+ * Returns a validated debug file path within the uploads directory.
+ * Ensures the directory exists and is writable.
+ *
+ * @since 2.0.5
+ * @return string The safe debug file path
+ */
+function odcm_get_safe_debug_file_path(): string {
+    $uploads_dir = odcm_get_uploads_dir();
+    $debug_dir = $uploads_dir . '/order-daemon-debug';
+    
+    // Ensure the debug directory exists and is writable
+    if (!odcm_ensure_directory_writable($debug_dir)) {
+        // Fallback to uploads directory
+        return $uploads_dir . '/debug.log';
+    }
+    
+    return $debug_dir . '/debug.log';
+}
+
+/**
+ * Get the WordPress content directory using WordPress function
+ *
+ * Wrapper for wp_content_dir() with proper fallback handling using our helper methods.
+ *
+ * @since 2.0.5
+ * @return string The content directory path
+ */
+function odcm_get_content_dir(): string {
+    if (function_exists('wp_content_dir')) {
+        return wp_normalize_path(trailingslashit(wp_content_dir()));
+    }
+    
+    // Fallback to uploads directory parent (since uploads is typically in wp-content)
+    $uploads_dir = odcm_get_uploads_dir();
+    $content_dir = dirname($uploads_dir);
+    
+    // If uploads is not in wp-content, fall back to ABSPATH
+    if (basename($content_dir) !== 'wp-content') {
+        $content_dir = wp_normalize_path(trailingslashit(ABSPATH . 'wp-content'));
+    }
+    
+    return $content_dir;
+}
+
+/**
+ * Get the plugin's cache directory
+ *
+ * Returns a dedicated cache directory for the plugin with proper validation.
+ *
+ * @since 2.0.5
+ * @return string The cache directory path
+ */
+function odcm_get_cache_directory(): string {
+    static $cached_dir = null;
+    
+    if ($cached_dir !== null) {
+        return $cached_dir;
+    }
+    
+    $uploads_dir = odcm_get_uploads_dir();
+    $cache_dir = $uploads_dir . '/order-daemon-cache';
+    
+    // Ensure the cache directory exists and is writable
+    if (odcm_ensure_directory_writable($cache_dir)) {
+        $cached_dir = $cache_dir;
+    } else {
+        // Fallback to uploads directory
+        $cached_dir = $uploads_dir;
+    }
+    
+    return $cached_dir;
 }

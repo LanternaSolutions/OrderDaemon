@@ -136,14 +136,10 @@ class AuditLogEndpoint extends WP_REST_Controller
             return;
         }
 
-        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file using safe file operation
         if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-            $debug_file = odcm_get_uploads_dir() . '/debug.log';
-            @file_put_contents(
-                $debug_file,
-                '[' . current_time('mysql') . '] ' . $message . PHP_EOL,
-                FILE_APPEND
-            );
+            $debug_file = odcm_get_safe_debug_file_path();
+            odcm_safe_file_put_contents($debug_file, '[' . current_time('mysql') . '] ' . $message . PHP_EOL, FILE_APPEND);
             return;
         }
     }
@@ -1767,8 +1763,13 @@ class AuditLogEndpoint extends WP_REST_Controller
         }
 
         if (!empty($search)) {
-            $conditions[] = "l.summary LIKE %s";
-            $params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
+            $search_term = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
+            $conditions[] = "(l.summary LIKE %s OR l.order_id LIKE %s OR l.event_type LIKE %s OR l.source LIKE %s OR p.payload LIKE %s)";
+            $params[] = $search_term;
+            $params[] = $search_term;
+            $params[] = $search_term;
+            $params[] = $search_term;
+            $params[] = $search_term;
         }
 
         return [$conditions, $params];

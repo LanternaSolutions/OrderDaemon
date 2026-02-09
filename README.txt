@@ -164,15 +164,39 @@ Order Daemon is open source! Developers can contribute to the project and report
 
 == External Services ==
 
-This plugin connects to PayPal's API services to verify PayPal payment notifications and ensure secure transaction processing.
+This plugin can receive and process webhook notifications from various payment gateways to ensure secure and reliable order processing. It does not initiate outbound connections to these services unless explicitly configured to do so for verification purposes.
 
 **PayPal API Services**
 - **Service**: PayPal IPN and Webhook Verification
 - **Purpose**: Verify authenticity of PayPal payment notifications to prevent fraud
-- **Data Sent**: Transaction details (payment status, transaction ID, amount, currency) and webhook payloads
-- **When Sent**: During PayPal payment processing when configured to handle PayPal payments
+- **Data Received/Sent**: Receives transaction details (payment status, transaction ID, amount, currency) via webhook payloads. May send back verification requests to PayPal's servers.
+- **When**: During PayPal payment processing when configured to handle PayPal payments.
 - **Terms of Service**: https://www.paypal.com/legalhub
 - **Privacy Policy**: https://www.paypal.com/privacy
+
+**Stripe Webhooks**
+- **Service**: Stripe Webhook Processing
+- **Purpose**: To identify order-related events sent from Stripe.
+- **Data Received**: Receives webhook payloads containing event details, which may include customer and order information. The plugin does not send data to Stripe.
+- **When**: When your site receives a webhook from Stripe.
+- **Terms of Service**: https://stripe.com/legal/ssa
+- **Privacy Policy**: https://stripe.com/privacy
+
+**Mollie Webhooks**
+- **Service**: Mollie Webhook Processing
+- **Purpose**: To identify order-related events sent from Mollie.
+- **Data Received**: Receives webhook payloads containing event details. The plugin does not send data to Mollie.
+- **When**: When your site receives a webhook from Mollie.
+- **Terms of Service**: https://www.mollie.com/en/user-agreement
+- **Privacy Policy**: https://www.mollie.com/en/privacy
+
+**Square Webhooks**
+- **Service**: Square Webhook Processing
+- **Purpose**: To identify order-related events sent from Square.
+- **Data Received**: Receives webhook payloads containing event details. The plugin does not send data to Square.
+- **When**: When your site receives a webhook from Square.
+- **Terms of Service**: https://squareup.com/us/en/legal/general/ua
+- **Privacy Policy**: https://squareup.com/us/en/legal/general/privacy-notice
 
 **Important Notes About Google Services: Order Daemon Does Not Connect to Them**
 The plugin's diagnostic system mentions Google Tag Manager (https://googletagmanager.com), Google Analytics (https://google-analytics.com), and reCAPTCHA (https://www.google.com/recaptcha/api.js) as examples of common third-party services that might be detected as duplicates. However, Order Daemon does NOT actively connect to or use these Google services. These are only diagnostic reference patterns used to identify potential script conflicts caused by other plugins or themes.

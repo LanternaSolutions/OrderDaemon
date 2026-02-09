@@ -13,6 +13,7 @@ use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
 use OrderDaemon\CompletionManager\Core\Events\EvaluationContext;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
 use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
+use OrderDaemon\CompletionManager\Includes\Functions;
 use WC_Order;
 
 /**
@@ -52,15 +53,18 @@ class Core
                         wp_debug_log('ODCM_CORE: ' . $message);
                     }
                     
-                    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
+                    // If WP_DEBUG_LOG is enabled, write to debug.log file using safe utilities
                     if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                        // Write to WordPress debug.log file using WordPress constants
-                        $debug_file = odcm_get_uploads_dir() . '/debug.log';
-                        @file_put_contents(
-                            $debug_file,
-                            '[' . gmdate('Y-m-d H:i:s') . '] ODCM_CORE: ' . $message . PHP_EOL,
-                            FILE_APPEND
-                        );
+                        // Get validated debug file path
+                        $debug_file = odcm_get_safe_debug_file_path();
+                        if ($debug_file) {
+                            // Write to debug.log file using safe file operations
+                            odcm_safe_file_put_contents(
+                                $debug_file,
+                                '[' . gmdate('Y-m-d H:i:s') . '] ODCM_CORE: ' . $message . PHP_EOL,
+                                FILE_APPEND
+                            );
+                        }
                     }
                 }
             }
@@ -1935,7 +1939,7 @@ class Core
                     // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
                     if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
                         $debug_file = odcm_get_uploads_dir() . '/debug.log';
-                        @file_put_contents(
+                        odcm_safe_file_put_contents(
                             $debug_file,
                             '[' . gmdate('Y-m-d H:i:s') . '] ' . $log_message . PHP_EOL,
                             FILE_APPEND

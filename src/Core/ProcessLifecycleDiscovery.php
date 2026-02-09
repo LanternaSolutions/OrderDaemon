@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core;
 
+// Include functions.php for helper methods
+require_once __DIR__ . '/../../Includes/functions.php';
+
 /**
  * Auto-discovering registry for Process Lifecycle Consolidation.
  *
@@ -347,11 +350,15 @@ final class ProcessLifecycleDiscovery
                     // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
                     if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
                         $debug_file = odcm_get_uploads_dir() . '/debug.log';
-                        @file_put_contents(
-                            $debug_file,
-                            '[' . gmdate('Y-m-d H:i:s') . '] ODCM: Process type discovery failed: ' . $e->getMessage() . PHP_EOL,
-                            FILE_APPEND
-                        );
+                        if (odcm_validate_file_path($debug_file)) {
+                            odcm_safe_file_put_contents(
+                                $debug_file,
+                                '[' . gmdate('Y-m-d H:i:s') . '] ODCM: Process type discovery failed: ' . $e->getMessage() . PHP_EOL,
+                                FILE_APPEND
+                            );
+                        } else {
+                            odcm_critical_log("Invalid debug file path: " . esc_html($debug_file));
+                        }
                     }
                 }
             }

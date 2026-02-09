@@ -591,17 +591,20 @@ final class AttributionTracker
                     }
                 }
             }
-            // Fallback to $_SERVER
-            foreach ($_SERVER as $key => $value) {
-                if (strpos($key, 'HTTP_') === 0) {
-                    $name = strtolower(str_replace('_', '-', substr((string) $key, 5)));
-                    if (isset($allowed_headers[$name])) {
-                        $headers[$name] = $this->validate_and_sanitize_header($name, $value, $allowed_headers[$name]);
-                    }
-                } elseif ($key === 'CONTENT_TYPE') {
-                    $headers['content-type'] = $this->validate_and_sanitize_header('content-type', $value, $allowed_headers['content-type']);
-                } elseif ($key === 'CONTENT_LENGTH') {
-                    $headers['content-length'] = $this->validate_and_sanitize_header('content-length', $value, $allowed_headers['content-length']);
+            
+            // Fallback to $_SERVER - Targeted extraction to avoid processing the whole stack
+            foreach ($allowed_headers as $name => $rule) {
+                $server_key = '';
+                if ($name === 'content-type') {
+                    $server_key = 'CONTENT_TYPE';
+                } elseif ($name === 'content-length') {
+                    $server_key = 'CONTENT_LENGTH';
+                } else {
+                    $server_key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
+                }
+
+                if (isset($_SERVER[$server_key])) {
+                    $headers[$name] = $this->validate_and_sanitize_header($name, wp_unslash($_SERVER[$server_key]), $rule);
                 }
             }
             return $headers;

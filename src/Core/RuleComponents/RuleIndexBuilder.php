@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core\RuleComponents;
 
+// Import functions.php for helper methods
+require_once __DIR__ . '/../../Includes/functions.php';
+
 /**
  * RuleIndexBuilder: derives read-only admin indexes from _odcm_rule_data
  *
@@ -272,15 +275,10 @@ final class RuleIndexBuilder
                 } catch (\Throwable $e) {
                     // Only log errors in debug mode
                     if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                        if (function_exists('odcm_log_message')) {
-                            odcm_log_message('Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage(), 'error');
-                        } elseif (function_exists('wp_debug_log')) {
-                            wp_debug_log('ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage());
-                        } elseif (function_exists('do_action')) {
-                            do_action('odcm_log_error', 'ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage());
-                        } elseif (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                            $debug_file = odcm_get_uploads_dir() . '/debug.log';
-                            @file_put_contents(
+                        // Use safe file operation utilities with proper path validation
+                        $debug_file = odcm_get_safe_debug_file_path();
+                        if (odcm_validate_file_path($debug_file)) {
+                            odcm_safe_file_put_contents(
                                 $debug_file,
                                 '[' . gmdate('Y-m-d H:i:s') . '] ODCM: Index backfill error for post ' . (int)$pid . ': ' . $e->getMessage() . PHP_EOL,
                                 FILE_APPEND
