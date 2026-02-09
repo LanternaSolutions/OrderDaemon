@@ -3,6 +3,78 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core;
 
+use Exception;
+
+/**
+ * Custom exception for attribution tracking errors
+ *
+ * This exception is thrown when errors occur during the attribution tracking process.
+ * It extends the base Exception class and provides additional context for attribution-related failures.
+ *
+ * @package OrderDaemon\CompletionManager\Core
+ * @since   2.0.4
+ */
+class AttributionTrackerException extends Exception
+{
+    /**
+     * Constructor for AttributionTrackerException
+     *
+     * @param string         $message  The error message
+     * @param int            $code     The error code (default: 0)
+     * @param Exception|null $previous The previous exception for chaining (default: null)
+     */
+    public function __construct(string $message, int $code = 0, ?Exception $previous = null)
+    {
+        parent::__construct($message, $code, $previous);
+    }
+}
+
+/**
+ * Custom exception for validation errors
+ *
+ * This exception is thrown when validation fails during the attribution tracking process.
+ * It extends AttributionTrackerException and is specifically used for validation-related failures.
+ *
+ * @package OrderDaemon\CompletionManager\Core
+ * @since   2.0.4
+ */
+class AttributionValidationException extends AttributionTrackerException
+{
+    /**
+     * Constructor for AttributionValidationException
+     *
+     * @param string $message The error message
+     * @param int    $code    The error code (default: 400)
+     */
+    public function __construct(string $message, int $code = 400)
+    {
+        parent::__construct($message, $code);
+    }
+}
+
+/**
+ * Custom exception for configuration errors
+ *
+ * This exception is thrown when configuration issues occur during the attribution tracking process.
+ * It extends AttributionTrackerException and is specifically used for configuration-related failures.
+ *
+ * @package OrderDaemon\CompletionManager\Core
+ * @since   2.0.4
+ */
+class AttributionConfigurationException extends AttributionTrackerException
+{
+    /**
+     * Constructor for AttributionConfigurationException
+     *
+     * @param string $message The error message
+     * @param int    $code    The error code (default: 500)
+     */
+    public function __construct(string $message, int $code = 500)
+    {
+        parent::__construct($message, $code);
+    }
+}
+
 /**
  * AttributionTracker
  *
@@ -49,7 +121,7 @@ final class AttributionTracker
     /**
      * Get singleton instance.
      *
-     * @return self
+     * @return self The singleton instance of AttributionTracker
      */
     public static function instance(): self
     {
@@ -61,6 +133,10 @@ final class AttributionTracker
 
     /**
      * Main entry: builds or returns cached attribution context for the request.
+     *
+     * This is the primary method for capturing comprehensive attribution context
+     * around order-affecting operations. It handles caching, error handling,
+     * and orchestrates all the detection methods to build a complete context.
      *
      * Structure example:
      * [
@@ -74,81 +150,89 @@ final class AttributionTracker
      *   'timestamp'       => 'RFC3339 string',
      * ]
      *
-     * @return array<string,mixed>
+     * @return array<string,mixed> The complete attribution context array
      */
     public function capture_context(): array
     {
-        $perf_start = microtime(true);
-        self::$served_from_cache = false;
+        try {
+            $perf_start = microtime(true);
+            self::$served_from_cache = false;
 
-        $cache_enabled = (bool) apply_filters('odcm_enable_context_cache', true);
-        if ($cache_enabled && is_array(self::$cached_context)) {
-            self::$served_from_cache = true;
-            $context = self::$cached_context;
-            $context['performance']['cache'] = true;
+            // Validate configuration
+            $cache_enabled = $this->validate_cache_configuration();
+
+            if ($cache_enabled && is_array(self::$cached_context)) {
+                self::$served_from_cache = true;
+                $context = self::$cached_context;
+                $context['performance']['cache'] = true;
+                return $context;
+            }
+
+            // Enhanced error handling for header processing
+            try {
+                $headers = $this->get_normalized_headers();
+            } catch (AttributionValidationException $e) {
+                odcm_log_message(esc_html("Header validation failed: " . $e->getMessage()), 'error');
+                $headers = []; // Fallback to empty headers
+            }
+
+            // Layered detectors with error handling
+            $request_type = $this->detect_request_type($headers);
+            $user_context = $this->capture_user_context($headers);
+            $external_service = $this->detect_external_service($headers);
+
+            // Plugin attribution with timeout handling
+            $source_plugin = $this->detect_source_plugin_with_timeout();
+
+            // Environment & HTTP info with validation
+            $environment = $this->get_environment_data();
+            $http = $this->get_http_data($headers);
+
+            $perf_end = microtime(true);
+            $mem_delta = $this->calculate_memory_delta($perf_start);
+
+            $context = [
+                'request_type' => $request_type,
+                'source_plugin' => $source_plugin,
+                'user_context' => $user_context,
+                'external_service' => $external_service,
+                'environment' => $environment,
+                'http' => $http,
+                'performance' => [
+                    'build_ms' => ($perf_end - $perf_start) * 1000.0,
+                    'memory_delta' => $mem_delta,
+                    'cache' => false,
+                    'backtrace_ms' => $source_plugin['backtrace_ms'] ?? 0,
+                ],
+                'timestamp' => odcm_iso8601_now(),
+            ];
+
+            // Allow last-minute customization with validation
+            $context = $this->validate_and_apply_filters($context);
+
+            if ($cache_enabled) {
+                self::$cached_context = $context;
+                self::$last_captured_at = microtime(true);
+            }
+
             return $context;
+        } catch (AttributionTrackerException $e) {
+            odcm_critical_log(esc_html("Failed to capture attribution context: " . $e->getMessage()));
+            return $this->get_fallback_context($e);
+        } catch (Exception $e) {
+            odcm_critical_log(esc_html("Unexpected error in capture_context: " . $e->getMessage()));
+            return $this->get_fallback_context($e);
         }
-
-        $headers = $this->get_normalized_headers();
-
-        // Layered detectors
-        $request_type      = $this->detect_request_type($headers);
-        $user_context      = $this->capture_user_context($headers);
-        $external_service  = $this->detect_external_service($headers);
-
-        // Plugin attribution can be relatively expensive; guard with time budget
-        $bt_start = microtime(true);
-        $source_plugin     = $this->detect_source_plugin();
-        $bt_ms             = (microtime(true) - $bt_start) * 1000.0;
-
-        // Environment & HTTP info (sanitized)
-        $environment = [
-            'wp_version'  => sanitize_text_field((string) get_bloginfo('version')),
-            'wc_version'  => sanitize_text_field((string) get_option('woocommerce_version')),
-            'php_version' => sanitize_text_field((string) PHP_VERSION),
-        ];
-
-        $http = [
-            'method'  => isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash((string) $_SERVER['REQUEST_METHOD'])) : null,
-            'uri'     => isset($_SERVER['REQUEST_URI']) ? esc_url_raw(wp_unslash((string) $_SERVER['REQUEST_URI'])) : null,
-            'query'   => isset($_SERVER['QUERY_STRING']) ? sanitize_text_field(wp_unslash((string) $_SERVER['QUERY_STRING'])) : null,
-            'headers' => $headers,
-        ];
-
-        $perf_end  = microtime(true);
-        $mem_delta = function_exists('memory_get_usage') ? (int) (memory_get_usage() - (self::$last_captured_at ? 0 : 0)) : 0; // simplified, avoids heavy baselines
-
-        $context = [
-            'request_type'     => $request_type,
-            'source_plugin'    => $source_plugin,
-            'user_context'     => $user_context,
-            'external_service' => $external_service,
-            'environment'      => $environment,
-            'http'             => $http,
-            'performance'      => [
-                'build_ms'     => ($perf_end - $perf_start) * 1000.0,
-                'memory_delta' => $mem_delta,
-                'cache'        => false,
-                'backtrace_ms' => $bt_ms,
-            ],
-            'timestamp'        => odcm_iso8601_now(),
-        ];
-
-        // Allow last-minute customization
-        $context = (array) apply_filters('odcm_attribution_context', $context);
-
-        if ($cache_enabled) {
-            self::$cached_context   = $context;
-            self::$last_captured_at = microtime(true);
-        }
-
-        return $context;
     }
 
     /**
      * Detect the request type with layered heuristics.
      *
-     * @param array<string,string> $headers
+     * This method determines the type of request being processed by examining
+     * various WordPress environment signals, headers, and server variables.
+     * It uses a layered approach to accurately identify the request context.
+     *
+     * @param array<string,string> $headers Optional headers array for webhook detection
      * @return string One of: cli, wp_cli, cron, action_scheduler, rest, ajax, admin, frontend, webhook
      */
     public function detect_request_type(array $headers = []): string
@@ -202,251 +286,208 @@ final class AttributionTracker
      * Perform call stack analysis to attribute likely source plugin/theme/vendor.
      * Uses WordPress-compatible backtrace approach with limited frames and a small time budget.
      *
+     * This method analyzes the call stack to determine which plugin, theme, or
+     * vendor code is most likely responsible for the current operation. It uses
+     * a time-limited backtrace approach to avoid performance impact.
+     *
      * @return array<string,mixed> ['type'=>..., 'slug'=>..., 'file'=>..., 'frame'=>int, 'confidence'=>float]
      */
     public function detect_source_plugin(): array
     {
-        $allowed = (bool) apply_filters('odcm_enable_deep_attribution', true);
-        $limit   = (int) apply_filters('odcm_attribution_backtrace_limit', 20);
-        $budget  = (int) apply_filters('odcm_attribution_time_budget_ms', 25); // ms
+        try {
+            $allowed = (bool) apply_filters('odcm_enable_deep_attribution', true);
+            $limit = (int) apply_filters('odcm_attribution_backtrace_limit', 20);
+            $budget = (int) apply_filters('odcm_attribution_time_budget_ms', 25);
 
-        $result = [
-            'type'       => 'unknown',
-            'slug'       => null,
-            'file'       => null,
-            'frame'      => null,
-            'confidence' => 0.0,
-        ];
-
-        if (!$allowed) {
-            return $result;
-        }
-
-        // Get backtrace using production-safe methods
-        $trace = [];
-        $t0 = microtime(true);
-
-        // Use debug_backtrace only when absolutely necessary and wrap in error suppression
-        if (function_exists('debug_backtrace') && apply_filters('odcm_allow_backtrace_for_attribution', false)) {
-            $trace = @debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS, max(1, $limit));
-        }
-        
-        if (!is_array($trace) || empty($trace)) {
-            return $result;
-        }
-
-        $content_dir = odcm_get_uploads_dir();
-        $plugins_dir = odcm_get_plugin_dir();
-        $mu_dir      = defined('WPMU_PLUGIN_DIR') ? wp_normalize_path((string) constant('WPMU_PLUGIN_DIR')) : (odcm_get_uploads_dir() . '/mu-plugins');
-        $themes_dir  = function_exists('get_theme_root') ? get_theme_root() : (odcm_get_uploads_dir() . '/themes');
-        $themes_dir  = is_string($themes_dir) ? wp_normalize_path($themes_dir) : (odcm_get_uploads_dir() . '/themes');
-
-        $best = $result;
-        $frame_index = -1;
-        foreach ($trace as $i => $frame) {
-            // Circuit breaker on time budget
-            $elapsed_ms = (microtime(true) - $t0) * 1000.0;
-            if ($elapsed_ms > $budget) {
-                break;
+            if (!$allowed) {
+                return $this->get_default_plugin_info();
             }
 
-            if (!is_array($frame) || empty($frame['file'])) {
-                continue;
-            }
-            $file = wp_normalize_path((string) $frame['file']);
+            // Get backtrace with timeout protection
+            $trace = $this->get_backtrace_with_timeout($limit, $budget);
 
-            // Skip core
-            if (strpos($file, '/wp-includes/') !== false || strpos($file, '/wp-admin/') !== false) {
-                continue;
+            if (!is_array($trace) || empty($trace)) {
+                return $this->get_default_plugin_info();
             }
 
-            $matched = null;
-            $confidence = 0.5; // base confidence
-            $type = 'vendor';
-            $slug = null;
+            // Enhanced file path validation
+            $content_dir = $this->validate_directory_path(odcm_get_uploads_dir());
+            $plugins_dir = $this->validate_directory_path(odcm_get_plugin_dir());
+            $mu_dir = $this->validate_mu_plugin_directory();
+            $themes_dir = $this->validate_theme_directory();
 
-            if (strpos($file, $plugins_dir) === 0) {
-                $type = 'plugin';
-                $slug = $this->extract_slug($file, $plugins_dir);
-                $confidence = 0.85;
-            } elseif (strpos($file, $mu_dir) === 0) {
-                $type = 'mu-plugin';
-                $slug = $this->extract_slug($file, $mu_dir);
-                $confidence = 0.8;
-            } elseif (strpos($file, $themes_dir) === 0) {
-                $type = 'theme';
-                $slug = $this->extract_slug($file, $themes_dir);
-                $confidence = 0.7;
-            } elseif (strpos($file, $content_dir) === 0) {
-                $type = 'content';
-                $slug = $this->extract_slug($file, $content_dir);
-                $confidence = 0.6;
-            } else {
-                $type = 'vendor';
-                $slug = $this->guess_vendor_slug($file);
-                $confidence = 0.4;
+            $best = $this->get_default_plugin_info();
+            $frame_index = -1;
+
+            foreach ($trace as $i => $frame) {
+                if (!is_array($frame) || empty($frame['file'])) {
+                    continue;
+                }
+
+                $file = wp_normalize_path((string) $frame['file']);
+
+                // Skip core with enhanced validation
+                if ($this->is_core_file($file)) {
+                    continue;
+                }
+
+                $matched = $this->analyze_frame_for_plugin($file, $content_dir, $plugins_dir, $mu_dir, $themes_dir, $i);
+
+                if ($best['confidence'] < $matched['confidence']) {
+                    $best = $matched;
+                    $frame_index = $i;
+                }
             }
 
-            $matched = [
-                'type'       => $type,
-                'slug'       => $slug,
-                'file'       => $file,
-                'frame'      => $i,
-                'confidence' => $confidence,
-            ];
-
-            // Prefer earlier frames that live inside plugins/mu-plugins/themes
-            if ($best['confidence'] < $matched['confidence']) {
-                $best = $matched;
-                $frame_index = $i;
+            if ($frame_index >= 0 && empty($best['file'])) {
+                $best['file'] = (string) $trace[$frame_index]['file'];
+                $best['frame'] = $frame_index;
             }
+
+            return $best;
+        } catch (AttributionTrackerException $e) {
+            odcm_log_message(esc_html("Failed to detect source plugin: " . $e->getMessage()), 'warning');
+            return $this->get_default_plugin_info();
+        } catch (Exception $e) {
+            odcm_critical_log(esc_html("Unexpected error in detect_source_plugin: " . $e->getMessage()));
+            return $this->get_default_plugin_info();
         }
-
-        if ($frame_index >= 0 && empty($best['file'])) {
-            $best['file']  = (string) $trace[$frame_index]['file'];
-            $best['frame'] = $frame_index;
-        }
-
-        return $best;
     }
 
     /**
      * Capture user context with minimal sensitive data and sanitization.
      *
-     * @param array<string,string> $headers
-     * @return array<string,mixed>
+     * This method captures user-related context information while minimizing
+     * the collection of sensitive data. It includes user ID, roles, capabilities,
+     * login status, IP address, user agent, referer, and session information.
+     *
+     * @param array<string,string> $headers Optional headers array for IP detection
+     * @return array<string,mixed> The user context array
      */
     public function capture_user_context(array $headers = []): array
     {
-        $user_id = function_exists('get_current_user_id') ? (int) get_current_user_id() : 0;
-        $is_logged_in = function_exists('is_user_logged_in') ? (bool) is_user_logged_in() : false;
+        try {
+            $user_id = $this->get_validated_user_id();
+            $is_logged_in = $this->check_user_login_status();
 
-        $roles = [];
-        $caps  = [];
-        if ($is_logged_in && function_exists('wp_get_current_user')) {
-            $user = wp_get_current_user();
-            if ($user && isset($user->roles)) {
-                foreach ((array) $user->roles as $role) {
-                    $roles[] = sanitize_text_field((string) $role);
-                }
+            $roles = [];
+            $caps = [];
+
+            if ($is_logged_in) {
+                $roles = $this->get_user_roles();
+                $caps = $this->get_user_capabilities();
             }
-            // Minimal capability snapshot; avoid iterating all caps
-            $key_caps = [
-                'manage_woocommerce',
-                'view_woocommerce_reports',
-                'edit_shop_orders',
-                'manage_options',
+
+            // Enhanced IP detection with validation
+            $ip = $this->detect_validated_ip($headers);
+
+            // Enhanced header processing with validation
+            $user_agent = $this->get_validated_header($headers, 'user-agent');
+            $referer = $this->get_validated_header($headers, 'referer');
+
+            // Enhanced session detection
+            $session = $this->get_validated_session_data();
+
+            return [
+                'user_id' => $user_id ?: null,
+                'roles' => $roles,
+                'caps' => $caps,
+                'is_logged_in' => $is_logged_in,
+                'ip' => $ip,
+                'user_agent' => $user_agent,
+                'referer' => $referer,
+                'session' => $session,
             ];
-            foreach ($key_caps as $cap) {
-                $caps[$cap] = function_exists('current_user_can') ? (bool) current_user_can($cap) : false;
-            }
+        } catch (AttributionValidationException $e) {
+            odcm_log_message(esc_html("User context validation failed: " . $e->getMessage()), 'warning');
+            return $this->get_default_user_context();
+        } catch (Exception $e) {
+            odcm_critical_log(esc_html("Unexpected error in capture_user_context: " . $e->getMessage()));
+            return $this->get_default_user_context();
         }
-
-        // IP address detection with sanitization
-        $ip = $this->detect_ip();
-
-        $user_agent = isset($headers['user-agent']) ? sanitize_text_field($headers['user-agent']) : null;
-        $referer    = isset($headers['referer']) ? esc_url_raw($headers['referer']) : null;
-        $user_agent = isset($headers['user-agent']) ? sanitize_text_field($headers['user-agent']) : null;
-        $referer    = isset($headers['referer']) ? esc_url_raw($headers['referer']) : null;
-
-        // Session indicators
-        $session = [
-            'php_session' => isset($_COOKIE[session_name()]) ? true : false,
-            'wc_session'  => $this->has_wc_session_cookie(),
-        ];
-        if (function_exists('WC') && WC()) {
-            $wc = WC();
-            if (isset($wc->session) && method_exists($wc->session, 'get_customer_id')) {
-                $sid = (string) $wc->session->get_customer_id();
-                $session['wc_customer_id'] = $sid !== '' ? sanitize_text_field($sid) : null;
-            }
-        }
-
-        return [
-            'user_id'      => $user_id ?: null,
-            'roles'        => $roles,
-            'caps'         => $caps,
-            'is_logged_in' => $is_logged_in,
-            'ip'           => $ip,
-            'user_agent'   => $user_agent,
-            'referer'      => $referer,
-            'session'      => $session,
-        ];
     }
 
     /**
      * Detect external services (e.g., Stripe, PayPal) based on headers and UA.
      *
-     * @param array<string,string> $headers
-     * @return array<string,mixed>|null ['name'=>..., 'indicators'=>[], 'confidence'=>float]
+     * This method detects external payment services and webhooks by examining
+     * headers and user agent strings. It supports Stripe, PayPal, Mollie, Square,
+     * and generic webhook detection with confidence scoring.
+     *
+     * @param array<string,string> $headers Optional headers array for service detection
+     * @return array<string,mixed>|null ['name'=>..., 'indicators'=>[], 'confidence'=>float] or null if no service detected
      */
     public function detect_external_service(array $headers = []): ?array
     {
-        $ua = isset($headers['user-agent']) ? strtolower($headers['user-agent']) : '';
+        try {
+            $ua = isset($headers['user-agent']) ? strtolower($headers['user-agent']) : '';
 
-        // Stripe
-        if (isset($headers['stripe-signature']) || strpos($ua, 'stripe') !== false) {
-            return [
-                'name'       => 'stripe',
-                'indicators' => [
-                    'stripe-signature' => isset($headers['stripe-signature']),
-                    'ua_contains'      => strpos($ua, 'stripe') !== false,
-                ],
-                'confidence' => isset($headers['stripe-signature']) ? 0.99 : 0.8,
-            ];
+            // Stripe
+            if (isset($headers['stripe-signature']) || strpos($ua, 'stripe') !== false) {
+                return [
+                    'name' => 'stripe',
+                    'indicators' => [
+                        'stripe-signature' => isset($headers['stripe-signature']),
+                        'ua_contains' => strpos($ua, 'stripe') !== false,
+                    ],
+                    'confidence' => isset($headers['stripe-signature']) ? 0.99 : 0.8,
+                ];
+            }
+
+            // PayPal
+            if (isset($headers['paypal-transmission-sig']) || isset($headers['paypal-auth-algo']) || strpos($ua, 'paypal') !== false) {
+                return [
+                    'name' => 'paypal',
+                    'indicators' => [
+                        'paypal-transmission-sig' => isset($headers['paypal-transmission-sig']),
+                        'paypal-auth-algo' => isset($headers['paypal-auth-algo']),
+                        'ua_contains' => strpos($ua, 'paypal') !== false,
+                    ],
+                    'confidence' => (isset($headers['paypal-transmission-sig']) || isset($headers['paypal-auth-algo'])) ? 0.98 : 0.75,
+                ];
+            }
+
+            // Mollie
+            if (isset($headers['x-mollie-signature']) || strpos($ua, 'mollie') !== false) {
+                return [
+                    'name' => 'mollie',
+                    'indicators' => [
+                        'x-mollie-signature' => isset($headers['x-mollie-signature']),
+                        'ua_contains' => strpos($ua, 'mollie') !== false,
+                    ],
+                    'confidence' => isset($headers['x-mollie-signature']) ? 0.96 : 0.7,
+                ];
+            }
+
+            // Square
+            if (isset($headers['x-square-signature']) || strpos($ua, 'square') !== false) {
+                return [
+                    'name' => 'square',
+                    'indicators' => [
+                        'x-square-signature' => isset($headers['x-square-signature']),
+                        'ua_contains' => strpos($ua, 'square') !== false,
+                    ],
+                    'confidence' => isset($headers['x-square-signature']) ? 0.95 : 0.65,
+                ];
+            }
+
+            // Generic webhook signals
+            if ($this->looks_like_webhook($headers)) {
+                return [
+                    'name' => 'webhook',
+                    'indicators' => [
+                        'content-type' => $headers['content-type'] ?? null,
+                        'event' => $headers['x-event'] ?? ($headers['x-webhook-event'] ?? null),
+                    ],
+                    'confidence' => 0.6,
+                ];
+            }
+
+            return null;
+        } catch (Exception $e) {
+            odcm_critical_log(esc_html("Error detecting external service: " . $e->getMessage()));
+            return null;
         }
-
-        // PayPal
-        if (isset($headers['paypal-transmission-sig']) || isset($headers['paypal-auth-algo']) || strpos($ua, 'paypal') !== false) {
-            return [
-                'name'       => 'paypal',
-                'indicators' => [
-                    'paypal-transmission-sig' => isset($headers['paypal-transmission-sig']),
-                    'paypal-auth-algo'        => isset($headers['paypal-auth-algo']),
-                    'ua_contains'             => strpos($ua, 'paypal') !== false,
-                ],
-                'confidence' => (isset($headers['paypal-transmission-sig']) || isset($headers['paypal-auth-algo'])) ? 0.98 : 0.75,
-            ];
-        }
-
-        // Mollie
-        if (isset($headers['x-mollie-signature']) || strpos($ua, 'mollie') !== false) {
-            return [
-                'name'       => 'mollie',
-                'indicators' => [
-                    'x-mollie-signature' => isset($headers['x-mollie-signature']),
-                    'ua_contains'        => strpos($ua, 'mollie') !== false,
-                ],
-                'confidence' => isset($headers['x-mollie-signature']) ? 0.96 : 0.7,
-            ];
-        }
-
-        // Square
-        if (isset($headers['x-square-signature']) || strpos($ua, 'square') !== false) {
-            return [
-                'name'       => 'square',
-                'indicators' => [
-                    'x-square-signature' => isset($headers['x-square-signature']),
-                    'ua_contains'        => strpos($ua, 'square') !== false,
-                ],
-                'confidence' => isset($headers['x-square-signature']) ? 0.95 : 0.65,
-            ];
-        }
-
-        // Generic webhook signals
-        if ($this->looks_like_webhook($headers)) {
-            return [
-                'name'       => 'webhook',
-                'indicators' => [
-                    'content-type' => $headers['content-type'] ?? null,
-                    'event'        => $headers['x-event'] ?? ($headers['x-webhook-event'] ?? null),
-                ],
-                'confidence' => 0.6,
-            ];
-        }
-
-        return null;
     }
 
     // ------------------------
@@ -456,8 +497,12 @@ final class AttributionTracker
     /**
      * Determine if headers/route looks like a webhook.
      *
-     * @param array<string,string> $headers
-     * @return bool
+     * This method uses heuristics to determine if the current request is a webhook
+     * by examining user agent strings, content types, request URIs, and specific
+     * webhook signature headers from various payment gateways.
+     *
+     * @param array<string,string> $headers The headers array to examine
+     * @return bool True if the request appears to be a webhook, false otherwise
      */
     private function looks_like_webhook(array $headers): bool
     {
@@ -481,8 +526,12 @@ final class AttributionTracker
     /**
      * Heuristics for Action Scheduler processing.
      *
-     * @param array<string,string> $headers
-     * @return bool
+     * This method uses multiple heuristics to determine if the current request
+     * is being processed by Action Scheduler. It checks user agent strings,
+     * current filter names, and various WordPress constants and classes.
+     *
+     * @param array<string,string> $headers The headers array to examine
+     * @return bool True if the request appears to be processed by Action Scheduler, false otherwise
      */
     private function looks_like_action_scheduler(array $headers): bool
     {
@@ -498,7 +547,7 @@ final class AttributionTracker
                 return true;
             }
         }
-        
+
         // Use a safer approach to detect action scheduler
         $action_scheduler_detected = false;
 
@@ -514,7 +563,7 @@ final class AttributionTracker
             // Check for Action Scheduler class existence
             $action_scheduler_detected = true;
         }
-        
+
         return $action_scheduler_detected;
     }
 
@@ -525,93 +574,154 @@ final class AttributionTracker
      */
     private function get_normalized_headers(): array
     {
-        $allowed_headers = [
-            // Standard web headers
-            'user-agent' => ['type' => 'string'],
-            'referer' => ['type' => 'string'],
-            'content-type' => ['type' => 'string'],
-            'content-length' => ['type' => 'integer'],
-            'host' => ['type' => 'string'],
-            'origin' => ['type' => 'string'],
-            
-            // Security headers
-            'x-wp-nonce' => ['type' => 'string'],
-            
-            // Webhook headers (specific gateways)
-            'stripe-signature' => ['type' => 'string'],
-            'paypal-transmission-sig' => ['type' => 'string'],
-            'paypal-auth-algo' => ['type' => 'string'],
-            'x-mollie-signature' => ['type' => 'string'],
-            'x-square-signature' => ['type' => 'string'],
-            
-            // CORS headers
-            'access-control-allow-origin' => ['type' => 'string'],
-            'access-control-allow-methods' => ['type' => 'string'],
-            'access-control-allow-headers' => ['type' => 'string'],
-            'access-control-allow-credentials' => ['type' => 'string'],
-            
-            // API headers
-            'authorization' => ['type' => 'string'],
-            'accept' => ['type' => 'string'],
-            
-            // Email headers
-            'from' => ['type' => 'string'],
-            'reply-to' => ['type' => 'string'],
-            'cc' => ['type' => 'string'],
-            'bcc' => ['type' => 'string'],
-            
-            // IP detection headers
-            'client-ip' => ['type' => 'string'],
-            'x-forwarded-for' => ['type' => 'string'],
-            'x-forwarded' => ['type' => 'string'],
-            'x-cluster-client-ip' => ['type' => 'string'],
-            'forwarded-for' => ['type' => 'string'],
-            'forwarded' => ['type' => 'string'],
-        ];
+        try {
+            $allowed_headers = $this->get_allowed_headers();
 
-        $headers = [];
-        // Prefer getallheaders if available
-        if (function_exists('getallheaders')) {
-            $raw = @getallheaders();
-            if (is_array($raw)) {
-                foreach ($raw as $key => $value) {
-                    $lk = strtolower(str_replace('_', '-', (string) $key));
-                    if (isset($allowed_headers[$lk])) {
-                        try {
-                            $headers[$lk] = odcm_validate_and_sanitize_params([$lk => $value], [$lk => $allowed_headers[$lk]])[$lk];
-                        } catch (InvalidArgumentException $e) {
-                            $headers[$lk] = '';
+            $headers = [];
+
+            // Prefer getallheaders if available
+            if (function_exists('getallheaders')) {
+                $raw = @getallheaders();
+                if (is_array($raw)) {
+                    foreach ($raw as $key => $value) {
+                        $lk = strtolower(str_replace('_', '-', (string) $key));
+                        if (isset($allowed_headers[$lk])) {
+                            $headers[$lk] = $this->validate_and_sanitize_header($lk, $value, $allowed_headers[$lk]);
                         }
                     }
                 }
             }
-        }
-        // Fallback to $_SERVER
-        foreach ($_SERVER as $key => $value) {
-            if (strpos($key, 'HTTP_') === 0) {
-                $name = strtolower(str_replace('_', '-', substr((string) $key, 5)));
-                if (isset($allowed_headers[$name])) {
-                    try {
-                        $headers[$name] = odcm_validate_and_sanitize_params([$name => $value], [$name => $allowed_headers[$name]])[$name];
-                    } catch (InvalidArgumentException $e) {
-                        $headers[$name] = '';
+            // Fallback to $_SERVER
+            foreach ($_SERVER as $key => $value) {
+                if (strpos($key, 'HTTP_') === 0) {
+                    $name = strtolower(str_replace('_', '-', substr((string) $key, 5)));
+                    if (isset($allowed_headers[$name])) {
+                        $headers[$name] = $this->validate_and_sanitize_header($name, $value, $allowed_headers[$name]);
                     }
-                }
-            } elseif ($key === 'CONTENT_TYPE') {
-                try {
-                    $headers['content-type'] = odcm_validate_and_sanitize_params(['content-type' => $value], ['content-type' => $allowed_headers['content-type']])['content-type'];
-                } catch (InvalidArgumentException $e) {
-                    $headers['content-type'] = '';
-                }
-            } elseif ($key === 'CONTENT_LENGTH') {
-                try {
-                    $headers['content-length'] = odcm_validate_and_sanitize_params(['content-length' => $value], ['content-length' => $allowed_headers['content-length']])['content-length'];
-                } catch (InvalidArgumentException $e) {
-                    $headers['content-length'] = 0;
+                } elseif ($key === 'CONTENT_TYPE') {
+                    $headers['content-type'] = $this->validate_and_sanitize_header('content-type', $value, $allowed_headers['content-type']);
+                } elseif ($key === 'CONTENT_LENGTH') {
+                    $headers['content-length'] = $this->validate_and_sanitize_header('content-length', $value, $allowed_headers['content-length']);
                 }
             }
+            return $headers;
+        } catch (AttributionValidationException $e) {
+            odcm_log_message(esc_html("Header validation failed: " . $e->getMessage()), 'error');
+            throw $e;
+        } catch (Exception $e) {
+            odcm_critical_log(esc_html("Unexpected error in get_normalized_headers: " . $e->getMessage()));
+            throw new AttributionTrackerException(esc_html("Failed to normalize headers", 500, $e));
         }
-        return $headers;
+    }
+
+    // ------------------------
+    // Error handling methods
+    // ------------------------
+
+    /**
+     * Validate cache configuration with error handling
+     */
+    private function validate_cache_configuration(): bool
+    {
+        $cache_enabled = (bool) apply_filters('odcm_enable_context_cache', true);
+        if (!is_bool($cache_enabled)) {
+            throw new AttributionConfigurationException(esc_html("Invalid cache configuration"));
+        }
+        return $cache_enabled;
+    }
+
+    /**
+     * Validate directory path with error handling
+     */
+    private function validate_directory_path(string $path): string
+    {
+        $normalized = wp_normalize_path($path);
+        if (!is_dir($normalized)) {
+            throw new AttributionConfigurationException(esc_html("Invalid directory path: $path"));
+        }
+        return $normalized;
+    }
+
+    /**
+     * Validate and sanitize header with error handling
+     */
+    private function validate_and_sanitize_header(string $name, $value, array $rule): string
+    {
+        try {
+            return odcm_validate_and_sanitize_params([$name => $value], [$name => $rule])[$name];
+        } catch (InvalidArgumentException $e) {
+            throw new AttributionValidationException(esc_html("Invalid header value for $name: " . $e->getMessage()));
+        }
+    }
+
+    /**
+     * Get fallback context when errors occur
+     */
+    private function get_fallback_context(Exception $e): array
+    {
+        return [
+            'request_type' => 'unknown',
+            'source_plugin' => ['type' => 'unknown', 'slug' => null, 'file' => null, 'frame' => null, 'confidence' => 0.0],
+            'user_context' => $this->get_default_user_context(),
+            'external_service' => null,
+            'environment' => $this->get_default_environment(),
+            'http' => ['method' => null, 'uri' => null, 'query' => null, 'headers' => []],
+            'performance' => ['build_ms' => 0, 'memory_delta' => 0, 'cache' => false, 'backtrace_ms' => 0],
+            'timestamp' => odcm_iso8601_now(),
+            'error' => [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'timestamp' => time(),
+            ],
+        ];
+    }
+
+    /**
+     * Get default plugin info for fallback
+     */
+    private function get_default_plugin_info(): array
+    {
+        return [
+            'type' => 'unknown',
+            'slug' => null,
+            'file' => null,
+            'frame' => null,
+            'confidence' => 0.0,
+            'backtrace_ms' => 0,
+        ];
+    }
+
+    /**
+     * Get default user context for fallback
+     */
+    private function get_default_user_context(): array
+    {
+        return [
+            'user_id' => null,
+            'roles' => [],
+            'caps' => [],
+            'is_logged_in' => false,
+            'ip' => null,
+            'user_agent' => null,
+            'referer' => null,
+            'session' => [
+                'php_session' => false,
+                'wc_session' => false,
+                'wc_customer_id' => null,
+            ],
+        ];
+    }
+
+    /**
+     * Get default environment for fallback
+     */
+    private function get_default_environment(): array
+    {
+        return [
+            'wp_version' => null,
+            'wc_version' => null,
+            'php_version' => null,
+        ];
     }
 
     /**
@@ -719,6 +829,423 @@ final class AttributionTracker
             return false;
         } catch (InvalidArgumentException $e) {
             return false;
+        }
+    }
+
+    /**
+     * Get backtrace with timeout protection
+     *
+     * @param int $limit Maximum number of frames to retrieve
+     * @param int $budget Maximum time budget in milliseconds
+     * @return array|null Backtrace array or null if timeout occurs
+     */
+    private function get_backtrace_with_timeout(int $limit, int $budget): ?array
+    {
+        $t0 = microtime(true);
+
+        // Use debug_backtrace only when absolutely necessary and wrap in error suppression
+        if (function_exists('debug_backtrace') && apply_filters('odcm_allow_backtrace_for_attribution', false)) {
+            $trace = @debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS, max(1, $limit));
+
+            // Check time budget
+            $elapsed_ms = (microtime(true) - $t0) * 1000.0;
+            if ($elapsed_ms > $budget) {
+                odcm_log_message(esc_html("Backtrace timeout exceeded: {$elapsed_ms}ms (budget: {$budget}ms)"), 'warning');
+                return null;
+            }
+
+            return is_array($trace) ? $trace : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a file is a WordPress core file
+     *
+     * @param string $file File path to check
+     * @return bool True if file is a WordPress core file, false otherwise
+     */
+    private function is_core_file(string $file): bool
+    {
+        $file = wp_normalize_path($file);
+        return strpos($file, '/wp-includes/') !== false || strpos($file, '/wp-admin/') !== false;
+    }
+
+    /**
+     * Analyze a backtrace frame for plugin information
+     *
+     * @param string $file File path from backtrace frame
+     * @param string $content_dir Content directory path
+     * @param string $plugins_dir Plugins directory path
+     * @param string $mu_dir MU plugins directory path
+     * @param string $themes_dir Themes directory path
+     * @param int $frame Frame index
+     * @return array Plugin information array
+     */
+    private function analyze_frame_for_plugin(string $file, string $content_dir, string $plugins_dir, string $mu_dir, string $themes_dir, int $frame): array
+    {
+        $matched = [
+            'type' => 'vendor',
+            'slug' => null,
+            'file' => $file,
+            'frame' => $frame,
+            'confidence' => 0.4,
+        ];
+
+        if (strpos($file, $plugins_dir) === 0) {
+            $matched['type'] = 'plugin';
+            $matched['slug'] = $this->extract_slug($file, $plugins_dir);
+            $matched['confidence'] = 0.85;
+        } elseif (strpos($file, $mu_dir) === 0) {
+            $matched['type'] = 'mu-plugin';
+            $matched['slug'] = $this->extract_slug($file, $mu_dir);
+            $matched['confidence'] = 0.8;
+        } elseif (strpos($file, $themes_dir) === 0) {
+            $matched['type'] = 'theme';
+            $matched['slug'] = $this->extract_slug($file, $themes_dir);
+            $matched['confidence'] = 0.7;
+        } elseif (strpos($file, $content_dir) === 0) {
+            $matched['type'] = 'content';
+            $matched['slug'] = $this->extract_slug($file, $content_dir);
+            $matched['confidence'] = 0.6;
+        } else {
+            $matched['type'] = 'vendor';
+            $matched['slug'] = $this->guess_vendor_slug($file);
+            $matched['confidence'] = 0.4;
+        }
+
+        return $matched;
+    }
+
+    /**
+     * Get validated user ID
+     *
+     * @return int|null Validated user ID or null if not available
+     */
+    private function get_validated_user_id(): ?int
+    {
+        if (!function_exists('get_current_user_id')) {
+            return null;
+        }
+
+        $user_id = (int) get_current_user_id();
+        return $user_id > 0 ? $user_id : null;
+    }
+
+    /**
+     * Check user login status
+     *
+     * @return bool True if user is logged in, false otherwise
+     */
+    private function check_user_login_status(): bool
+    {
+        if (!function_exists('is_user_logged_in')) {
+            return false;
+        }
+
+        return (bool) is_user_logged_in();
+    }
+
+    /**
+     * Get user roles
+     *
+     * @return array Array of user roles
+     */
+    private function get_user_roles(): array
+    {
+        if (!function_exists('wp_get_current_user')) {
+            return [];
+        }
+
+        $user = wp_get_current_user();
+        if (!$user || !isset($user->roles)) {
+            return [];
+        }
+
+        $roles = [];
+        foreach ((array) $user->roles as $role) {
+            $roles[] = sanitize_text_field((string) $role);
+        }
+
+        return $roles;
+    }
+
+    /**
+     * Get user capabilities
+     *
+     * @return array Array of user capabilities
+     */
+    private function get_user_capabilities(): array
+    {
+        if (!function_exists('current_user_can')) {
+            return [];
+        }
+
+        $key_caps = [
+            'manage_woocommerce',
+            'view_woocommerce_reports',
+            'edit_shop_orders',
+            'manage_options',
+        ];
+
+        $caps = [];
+        foreach ($key_caps as $cap) {
+            $caps[$cap] = (bool) current_user_can($cap);
+        }
+
+        return $caps;
+    }
+
+    /**
+     * Detect validated IP address
+     *
+     * @param array $headers Headers array
+     * @return string|null Validated IP address or null if not available
+     */
+    private function detect_validated_ip(array $headers): ?string
+    {
+        $headers = [
+            'client-ip' => ['type' => 'string'],
+            'x-forwarded-for' => ['type' => 'string'],
+            'x-forwarded' => ['type' => 'string'],
+            'x-cluster-client-ip' => ['type' => 'string'],
+            'forwarded-for' => ['type' => 'string'],
+            'forwarded' => ['type' => 'string'],
+        ];
+
+        try {
+            $validated_headers = odcm_validate_and_sanitize_params($headers, $headers);
+            $candidates = [];
+
+            if (isset($validated_headers['client-ip'])) {
+                $candidates[] = $validated_headers['client-ip'];
+            }
+            if (isset($validated_headers['x-forwarded-for'])) {
+                $parts = explode(',', $validated_headers['x-forwarded-for']);
+                if (!empty($parts)) {
+                    $candidates[] = trim((string) $parts[0]);
+                }
+            }
+            if (isset($validated_headers['x-forwarded'])) {
+                $candidates[] = $validated_headers['x-forwarded'];
+            }
+            if (isset($validated_headers['x-cluster-client-ip'])) {
+                $candidates[] = $validated_headers['x-cluster-client-ip'];
+            }
+            if (isset($validated_headers['forwarded-for'])) {
+                $candidates[] = $validated_headers['forwarded-for'];
+            }
+            if (isset($validated_headers['forwarded'])) {
+                $candidates[] = $validated_headers['forwarded'];
+            }
+
+            return !empty($candidates) ? $candidates[0] : null;
+        } catch (InvalidArgumentException $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Get validated header
+     *
+     * @param array $headers Headers array
+     * @param string $name Header name
+     * @return string|null Validated header value or null if not available
+     */
+    private function get_validated_header(array $headers, string $name): ?string
+    {
+        if (!isset($headers[$name])) {
+            return null;
+        }
+
+        try {
+            $allowed_headers = $this->get_allowed_headers();
+            if (!isset($allowed_headers[$name])) {
+                return null;
+            }
+
+            return $this->validate_and_sanitize_header($name, $headers[$name], $allowed_headers[$name]);
+        } catch (AttributionValidationException $e) {
+            odcm_log_message(esc_html("Header validation failed for {$name}: " . $e->getMessage()), 'error');
+            return null;
+        }
+    }
+
+    /**
+     * Get validated session data
+     *
+     * @return array Session data array
+     */
+    private function get_validated_session_data(): array
+    {
+        $session = [
+            'php_session' => isset($_COOKIE[session_name()]) ? true : false,
+            'wc_session' => $this->has_wc_session_cookie(),
+            'wc_customer_id' => null,
+        ];
+
+        if (function_exists('WC') && WC()) {
+            $wc = WC();
+            if (isset($wc->session) && method_exists($wc->session, 'get_customer_id')) {
+                $sid = (string) $wc->session->get_customer_id();
+                $session['wc_customer_id'] = $sid !== '' ? sanitize_text_field($sid) : null;
+            }
+        }
+
+        return $session;
+    }
+
+    /**
+     * Get allowed headers configuration
+     *
+     * @return array Allowed headers configuration
+     */
+    private function get_allowed_headers(): array
+    {
+        return [
+            // Standard web headers
+            'user-agent' => ['type' => 'string'],
+            'referer' => ['type' => 'string'],
+            'content-type' => ['type' => 'string'],
+            'content-length' => ['type' => 'integer'],
+            'host' => ['type' => 'string'],
+            'origin' => ['type' => 'string'],
+
+            // Security headers
+            'x-wp-nonce' => ['type' => 'string'],
+
+            // Webhook headers (specific gateways)
+            'stripe-signature' => ['type' => 'string'],
+            'paypal-transmission-sig' => ['type' => 'string'],
+            'paypal-auth-algo' => ['type' => 'string'],
+            'x-mollie-signature' => ['type' => 'string'],
+            'x-square-signature' => ['type' => 'string'],
+
+            // CORS headers
+            'access-control-allow-origin' => ['type' => 'string'],
+            'access-control-allow-methods' => ['type' => 'string'],
+            'access-control-allow-headers' => ['type' => 'string'],
+            'access-control-allow-credentials' => ['type' => 'string'],
+
+            // API headers
+            'authorization' => ['type' => 'string'],
+            'accept' => ['type' => 'string'],
+
+            // Email headers
+            'from' => ['type' => 'string'],
+            'reply-to' => ['type' => 'string'],
+            'cc' => ['type' => 'string'],
+            'bcc' => ['type' => 'string'],
+
+            // IP detection headers
+            'client-ip' => ['type' => 'string'],
+            'x-forwarded-for' => ['type' => 'string'],
+            'x-forwarded' => ['type' => 'string'],
+            'x-cluster-client-ip' => ['type' => 'string'],
+            'forwarded-for' => ['type' => 'string'],
+            'forwarded' => ['type' => 'string'],
+        ];
+    }
+
+    /**
+     * Get environment data
+     *
+     * @return array Environment data array
+     */
+    private function get_environment_data(): array
+    {
+        return [
+            'wp_version' => sanitize_text_field((string) get_bloginfo('version')),
+            'wc_version' => sanitize_text_field((string) get_option('woocommerce_version')),
+            'php_version' => sanitize_text_field((string) PHP_VERSION),
+        ];
+    }
+
+    /**
+     * Get HTTP data
+     *
+     * @param array $headers Headers array
+     * @return array HTTP data array
+     */
+    private function get_http_data(array $headers): array
+    {
+        return [
+            'method' => isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash((string) $_SERVER['REQUEST_METHOD'])) : null,
+            'uri' => isset($_SERVER['REQUEST_URI']) ? esc_url_raw(wp_unslash((string) $_SERVER['REQUEST_URI'])) : null,
+            'query' => isset($_SERVER['QUERY_STRING']) ? sanitize_text_field(wp_unslash((string) $_SERVER['QUERY_STRING'])) : null,
+            'headers' => $headers,
+        ];
+    }
+
+    /**
+     * Calculate memory delta
+     *
+     * @param float $perf_start Performance start time
+     * @return int Memory delta in bytes
+     */
+    private function calculate_memory_delta(float $perf_start): int
+    {
+        return function_exists('memory_get_usage') ? (int) (memory_get_usage() - (self::$last_captured_at ? 0 : 0)) : 0;
+    }
+
+    /**
+     * Validate and apply filters
+     *
+     * @param array $context Context array
+     * @return array Validated and filtered context
+     */
+    private function validate_and_apply_filters(array $context): array
+    {
+        // Allow last-minute customization
+        $context = (array) apply_filters('odcm_attribution_context', $context);
+
+        // Validate the final context
+        if (!is_array($context)) {
+            odcm_log_message(esc_html("Invalid context after filters - expected array, got " . gettype($context)), 'error');
+            return $this->get_fallback_context(new AttributionConfigurationException("Invalid context after filters"));
+        }
+
+        return $context;
+    }
+
+    /**
+     * Validate configuration
+     */
+    private function validate_configuration(): void
+    {
+        $filters = [
+            'odcm_enable_context_cache' => ['type' => 'boolean', 'required' => false],
+            'odcm_enable_deep_attribution' => ['type' => 'boolean', 'required' => false],
+            'odcm_attribution_backtrace_limit' => ['type' => 'integer', 'required' => false, 'min' => 1, 'max' => 100],
+            'odcm_attribution_time_budget_ms' => ['type' => 'integer', 'required' => false, 'min' => 1, 'max' => 1000],
+        ];
+
+        foreach ($filters as $filter => $rule) {
+            $value = apply_filters($filter, $rule['required'] ? null : $this->get_default_value($rule));
+            odcm_validate_and_sanitize_params([$filter => $value], [$filter => $rule]);
+        }
+    }
+
+    /**
+     * Get default value for validation
+     *
+     * @param array $rule Validation rule
+     * @return mixed Default value
+     */
+    private function get_default_value(array $rule)
+    {
+        switch ($rule['type']) {
+            case 'boolean':
+                return false;
+            case 'integer':
+                return $rule['min'] ?? 0;
+            case 'string':
+                return '';
+            case 'array':
+                return [];
+            default:
+                return null;
         }
     }
 }
