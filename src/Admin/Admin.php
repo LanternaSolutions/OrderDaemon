@@ -153,7 +153,7 @@ class Admin
         }
         
         // Get the rule order data
-        $rule_ids_raw = isset($_POST['rule_ids']) ? sanitize_text_field(wp_unslash($_POST['rule_ids'])) : [];
+        $rule_ids_raw = isset($_POST['rule_ids']) ? wp_unslash($_POST['rule_ids']) : [];
         
         // Sanitize the rule IDs
         if (is_string($rule_ids_raw)) {

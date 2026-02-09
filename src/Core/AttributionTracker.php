@@ -820,19 +820,13 @@ final class AttributionTracker
             'wp_woocommerce_session_' => ['type' => 'string', 'required' => true]
         ];
 
-        try {
-            foreach ($_COOKIE as $name => $value) {
-                if (is_string($name) && strpos($name, 'wp_woocommerce_session_') === 0) {
-                    $validated_name = odcm_validate_and_sanitize_params(['name' => $name], $cookie_rules)['name'];
-                    if (preg_match('/^wp_woocommerce_session_[a-zA-Z0-9]+$/', $validated_name)) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        } catch (InvalidArgumentException $e) {
-            return false;
+        // Avoid iterating over $_COOKIE (flagged by WP.org review)
+        // Use the standard WooCommerce session cookie name pattern if COOKIEHASH is available
+        if (defined('COOKIEHASH') && isset($_COOKIE['wp_woocommerce_session_' . COOKIEHASH])) {
+            return true;
         }
+        
+        return false;
     }
 
     /**
