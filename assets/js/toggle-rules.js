@@ -127,9 +127,9 @@
                             }
 
 
-                            // Success feedback (optional - you can add a success toast here)
+                            // Success feedback for debug
                             if (typeof console !== 'undefined' && console.log) {
-                                console.log('Rule toggle successful:', response.data);
+                                if (odcmIsDebug()) {console.log('Rule toggle successful:', response.data);}
                             }
 
                         } else if (response.success === false) {

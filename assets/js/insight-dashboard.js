@@ -642,7 +642,7 @@ function insightDashboard() {
 
                 return data;
             } catch (error) {
-                if (odcmIsDebug()) { console.warn('ODCM: Could not fetch filter options:', error); }
+                if (odcmIsDebug()) { console.warn('ODCM: Could not fetch filter options.', error); }
                 // Graceful degradation: keep hardcoded defaults
                 return null;
             }
@@ -652,7 +652,7 @@ function insightDashboard() {
             try {
                 const now = Date.now();
                 if (this.filterOptionsCache && this.filterOptionsCacheExpiry && now < this.filterOptionsCacheExpiry) {
-                    if (odcmIsDebug()) { console.log('ODCM: Filter options served from cache'); }
+                    if (odcmIsDebug()) { console.log('ODCM: Filter options served from cache.'); }
                     // Apply cached options to DOM in case of re-entry
                     this.filterOptions = this.filterOptionsCache;
                     this.applyFilterOptionsToDOM();
@@ -663,12 +663,12 @@ function insightDashboard() {
                 if (data && data.filter_options) {
                     this.filterOptionsCache = this.filterOptions;
                     const ttl = (data.meta && Number.isFinite(data.meta.cache_ttl)) ? data.meta.cache_ttl * 1000 : 300000; // default 5 min
-                    this.filterOptionsCacheExpiry = Date.now() + ttl;
-                    if (odcmIsDebug()) { console.log('ODCM: Filter options cached for', Math.round(ttl/1000), 's'); }
+                    this.filterOptionsCacheExpiry = now + ttl;
+                    if (odcmIsDebug()) { console.log(`ODCM: Filter options cached for ${Math.round(ttl/1000)}s.`); }
                 }
                 return { cached: false, data };
             } catch (e) {
-                if (odcmIsDebug()) { console.warn('ODCM: Filter options cache fetch failed:', e); }
+                if (odcmIsDebug()) { console.warn('ODCM: Filter options cache fetch failed.', e); }
                 return { cached: false, data: null };
             }
         },
@@ -783,7 +783,7 @@ function insightDashboard() {
                             // Server error - retry with exponential backoff
                             const delay = baseDelay * Math.pow(2, attempt - 1);
                             if (odcmIsDebug()) {
-                                console.log(`ODCM: Server error ${response.status}, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`);
+                                console.log(`ODCM: Server error ${response.status}, retrying in ${delay}ms (attempt ${attempt}/${maxRetries}).`);
                             }
                             await new Promise(resolve => setTimeout(resolve, delay));
                             continue;
@@ -845,7 +845,7 @@ function insightDashboard() {
                     if (shouldRetry) {
                         const delay = baseDelay * Math.pow(2, attempt - 1);
                         if (odcmIsDebug()) {
-                            console.warn(`ODCM: Retry ${attempt + 1}/${maxRetries} for log ${logId} after ${delay}ms. Error: ${error.message}`);
+                            console.warn(`ODCM: Retry ${attempt + 1}/${maxRetries} for log ${logId} after ${delay}ms. Error: ${error.message}.`);
                         }
                         await new Promise(resolve => setTimeout(resolve, delay));
                         continue;
@@ -1057,9 +1057,9 @@ function insightDashboard() {
             });
         },
 
-        // =================================================================
-        // SETTINGS HELPERS (Accordion, Timestamp, Per-Page, Debug, Retention, Reprocess)
-        // =================================================================
+        // ==============================================================================
+        // SETTINGS HELPERS (Timestamp, Per-Page, Debug, Retention, Reprocess, Uninstall)
+        // ==============================================================================
         toggleSettingsSection(section) {
             try {
                 if (odcmIsDebug()) {
@@ -1161,6 +1161,49 @@ function insightDashboard() {
             } catch (e) {
                 this.showToast('Failed to save debug setting', 'error');
             }
+        },
+        async saveUninstallDataSetting(checked) {
+            // Show loading state
+            this.isSavingUninstallSetting = true;
+
+            // Make AJAX request
+            fetch(this.config.ajaxUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({
+                    action: 'odcm_save_uninstall_data_setting',
+                    _wpnonce: this.config.nonce,
+                    odcm_remove_all_data_on_uninstall: checked ? '1' : '0'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.isSavingUninstallSetting = false;
+                
+                if (data.success) {
+                    // Show success toast with proper message string
+                    this.showToast(data.message, 'success', {
+                        duration: 5000
+                    });
+                } else {
+                    // Show error toast with proper message string
+                    this.showToast(data.message, 'error', {
+                        duration: 5000
+                    });
+                }
+            })
+            .catch(error => {
+                this.isSavingUninstallSetting = false;
+                console.error('Error saving uninstall setting:', error);
+                
+                // Show error toast
+                    this.showToast('Failed to save uninstall setting. Please try again.', 'error', {
+                    duration: 5000
+                });
+            });
         },
 
         // =================================================================
@@ -1850,9 +1893,11 @@ function insightDashboard() {
 
                 // Log to console for debugging
                 if (type === 'error' || type === 'network-error' || type === 'timeout-error') {
-                    console.error('ODCM Toast (Error):', message);
-                    if (odcmIsDebug() && error) {
-                        console.error('Error details:', error);
+                    if (odcmIsDebug()) {
+                        console.error('ODCM Toast (Error):', message);
+                        if (options && options.error) {
+                            console.error('Error details:', options.error);
+                        }
                     }
                 } else if (odcmIsDebug()) {
                     console.log('ODCM Toast (' + type + '):', message);
@@ -2120,7 +2165,7 @@ function insightDashboard() {
                 if (log && log.is_process_group === true) {
                     // This is a consolidated entry - fetch constituent logs from the process endpoint
                     try {
-                        console.log(`ODCM: Found consolidated entry ${selectedId}, fetching constituent logs...`);
+                        if (odcmIsDebug()) { console.log(`ODCM: Found consolidated entry ${selectedId}, fetching constituent logs...`); }
 
                         // Use the process endpoint to get all logs for this process
                         const processResponse = await fetch(`${this.config.apiUrl}process/${log.process_id}/`, {
@@ -2139,24 +2184,24 @@ function insightDashboard() {
                                 if (constituentIds.length > 0) {
                                     expandedIds.push(...constituentIds);
                                     consolidatedEntriesExpanded++;
-                                    console.log(`ODCM: Expanded consolidated entry ${selectedId} to ${constituentIds.length} constituent IDs:`, constituentIds);
+                                    if (odcmIsDebug()) { console.log(`ODCM: Expanded consolidated entry ${selectedId} to ${constituentIds.length} constituent IDs:`, constituentIds); }
                                 } else {
-                                    console.warn(`ODCM: Consolidated entry ${selectedId} had no valid constituent IDs`);
+                                    if (odcmIsDebug()) { console.warn(`ODCM: Consolidated entry ${selectedId} had no valid constituent IDs`); }
                                     // Fall back to deleting the placeholder ID
                                     expandedIds.push(selectedId);
                                 }
                             } else {
-                                console.warn(`ODCM: Process endpoint returned no logs for process_id ${log.process_id}`);
+                                if (odcmIsDebug()) { console.warn(`ODCM: Process endpoint returned no logs for process_id ${log.process_id}`); }
                                 // Fall back to deleting the placeholder ID
                                 expandedIds.push(selectedId);
                             }
                         } else {
-                            console.error(`ODCM: Failed to fetch constituent logs for process_id ${log.process_id}: ${processResponse.status}`);
+                            if (odcmIsDebug()) { console.error(`ODCM: Failed to fetch constituent logs for process_id ${log.process_id}: ${processResponse.status}`); }
                             // Fall back to deleting the placeholder ID
                             expandedIds.push(selectedId);
                         }
                     } catch (error) {
-                        console.error(`ODCM: Error fetching constituent logs for consolidated entry ${selectedId}:`, error);
+                        if (odcmIsDebug()) { console.error(`ODCM: Error fetching constituent logs for consolidated entry ${selectedId}:`, error); }
                         // Fall back to deleting the placeholder ID
                         expandedIds.push(selectedId);
                     }
@@ -2169,15 +2214,17 @@ function insightDashboard() {
             // Remove duplicates (in case of overlapping selections)
             const uniqueIds = [...new Set(expandedIds)];
 
-            console.log('ODCM: Starting batch delete:', {
-                selectedCount,
-                originalIds: selectedIds.length,
-                expandedIds: expandedIds.length,
-                uniqueIds: uniqueIds.length,
-                consolidatedEntriesExpanded,
-                apiUrl: this.config.apiUrl,
-                nonce: this.config.nonce ? 'present' : 'missing'
-            });
+            if (odcmIsDebug()) {
+                console.log('ODCM: Starting batch delete:', {
+                    selectedCount,
+                    originalIds: selectedIds.length,
+                    expandedIds: expandedIds.length,
+                    uniqueIds: uniqueIds.length,
+                    consolidatedEntriesExpanded,
+                    apiUrl: this.config.apiUrl,
+                    nonce: this.config.nonce ? 'present' : 'missing'
+                });
+            }
 
             // Split into chunks of 100 for server compatibility
             const CHUNK_SIZE = 100;
@@ -2186,7 +2233,7 @@ function insightDashboard() {
                 chunks.push(uniqueIds.slice(i, i + CHUNK_SIZE));
             }
 
-            console.log(`ODCM: Processing ${chunks.length} chunks of max ${CHUNK_SIZE} items each`);
+            if (odcmIsDebug()) { console.log(`ODCM: Processing ${chunks.length} chunks of max ${CHUNK_SIZE} items each`); }
 
             let totalDeleted = 0;
             let totalFailed = 0;
@@ -2198,7 +2245,7 @@ function insightDashboard() {
                     const chunk = chunks[chunkIndex];
                     const chunkNumber = chunkIndex + 1;
 
-                    console.log(`ODCM: Processing chunk ${chunkNumber}/${chunks.length} (${chunk.length} items)`);
+                    if (odcmIsDebug()) { console.log(`ODCM: Processing chunk ${chunkNumber}/${chunks.length} (${chunk.length} items)`); }
 
                     try {
                         const requestUrl = `${this.config.apiUrl}batch-delete/`;
@@ -2236,16 +2283,15 @@ function insightDashboard() {
 
                             this.showToast(progressMessage, 'success');
 
-                            console.log(`ODCM: Chunk ${chunkNumber} completed successfully:`, {
-                                deleted_count: deletedCount,
-                                chunk_size: chunk.length
-                            });
+                            if (odcmIsDebug()) {
+                                console.log(`ODCM: Chunk ${chunkNumber} completed successfully:`, { deleted_count: deletedCount, chunk_size: chunk.length });
+                            }
                         } else {
                             throw new Error(data.message || 'Unexpected response format');
                         }
 
                     } catch (chunkError) {
-                        console.error(`ODCM: Chunk ${chunkNumber} failed:`, chunkError);
+                        if (odcmIsDebug()) { console.error(`ODCM: Chunk ${chunkNumber} failed:`, chunkError); }
                         totalFailed += chunk.length;
                         failedChunks.push({ chunk: chunkNumber, size: chunk.length, error: chunkError.message });
 
@@ -2265,15 +2311,17 @@ function insightDashboard() {
                     }
                 }
 
-                console.log('ODCM: Batch delete process completed:', {
-                    total_selected: selectedCount,
-                    total_expanded: uniqueIds.length,
-                    total_deleted: totalDeleted,
-                    total_failed: totalFailed,
-                    chunks_processed: chunks.length,
-                    failed_chunks: failedChunks.length,
-                    consolidated_entries_expanded: consolidatedEntriesExpanded
-                });
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Batch delete process completed:', {
+                        total_selected: selectedCount,
+                        total_expanded: uniqueIds.length,
+                        total_deleted: totalDeleted,
+                        total_failed: totalFailed,
+                        chunks_processed: chunks.length,
+                        failed_chunks: failedChunks.length,
+                        consolidated_entries_expanded: consolidatedEntriesExpanded
+                    });
+                }
 
                 // Refresh log stream to show remaining entries and prevent empty state
                 if (totalDeleted > 0) {

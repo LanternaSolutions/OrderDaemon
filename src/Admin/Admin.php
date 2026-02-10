@@ -5,8 +5,6 @@ namespace OrderDaemon\CompletionManager\Admin;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// require_once ODCM_PLUGIN_DIR . 'src/Admin/AuditTrailAdmin.php';
-
 use OrderDaemon\CompletionManager\Admin\RuleBuilder;
 use OrderDaemon\CompletionManager\Admin\Notices;
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
@@ -27,13 +25,6 @@ class Admin
      * @var Notices
      */
     private Notices $notices;
-
-    /**
-     * Audit trail admin instance.
-     *
-     * @var AuditTrailAdmin
-     */
-    // private AuditTrailAdmin $audit_trail_admin;
 
     /**
      * Admin constructor.
@@ -231,9 +222,6 @@ class Admin
             'nonce' => wp_create_nonce('odcm_dismiss_notice_nonce')
         ]);
 
-        // Call the audit trail admin enqueue method for audit trail specific assets
-        // $this->audit_trail_admin->enqueue_assets($hook_suffix);
-
         // Define whitelist of plugin pages where other assets should be loaded
         $allowed_hooks = [
             'post.php',
@@ -387,7 +375,7 @@ class Admin
 
         register_post_type('odcm_order_rule', $args);
 
-    }//end register_completion_rule_post_type()
+    }
 
 
     /**

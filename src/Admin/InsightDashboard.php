@@ -74,6 +74,7 @@ class InsightDashboard
         // Register AJAX handlers for settings
         add_action('wp_ajax_odcm_update_per_page', [$this, 'handle_update_per_page_ajax']);
         add_action('wp_ajax_odcm_save_debug_settings', [$this, 'handle_debug_settings_ajax']);
+        add_action('wp_ajax_odcm_save_uninstall_data_setting', [$this, 'handle_uninstall_data_setting_ajax']);
         add_action('wp_ajax_odcm_reprocess_pending_orders', [$this, 'handle_reprocess_pending_orders_ajax']);
 
         // Register AJAX handlers for onboarding
@@ -1154,6 +1155,24 @@ class InsightDashboard
                 </div>
             </div>
 
+            <!-- DANGER ZONE Settings Section -->
+            <div class="odcm-settings-section">
+                <div class="odcm-settings-group">
+                    <div class="odcm-setting-row">
+                        <h3 class="odcm-settings-section-title">DANGER ZONE</h3>
+                        <label for="odcm_remove_all_data_on_uninstall" class="odcm-setting-label">
+                            <input type="checkbox"
+                                name="odcm_remove_all_data_on_uninstall"
+                                id="odcm_remove_all_data_on_uninstall"
+                                <?php checked(get_option('odcm_remove_all_data_on_uninstall', false)); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'saveUninstallDataSetting($event.target.checked)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                            Uninstall Removes All Order Daemon Data
+                        </label>
+                        <span class="odcm-setting-hint">When this plugin is uninstalled, also remove all audit log tables, options, and rules. This cannot be undone.</span>
+                    </div>
+                </div>
+            </div>
+
             <?php
             // Allow extension plugins to add additional settings sections
             // Placed at the bottom to maintain UI consistency - extensions should appear after core settings
@@ -1235,6 +1254,12 @@ class InsightDashboard
             $updated_settings['detailed_notes'] = $detailed_notes;
         }
 
+        if (isset($_POST['odcm_remove_all_data_on_uninstall'])) {
+            $remove_all_data = $_POST['odcm_remove_all_data_on_uninstall'] === '1';
+            update_option('odcm_remove_all_data_on_uninstall', $remove_all_data, 'no');
+            $updated_settings['remove_all_data_on_uninstall'] = $remove_all_data;
+        }
+
         // Log the debug setting change
         if (isset($updated_settings['global_debug'])) {
             $this->log_debug_mode_change($updated_settings['global_debug']);
@@ -1244,6 +1269,73 @@ class InsightDashboard
             'message' => __('admin.insight_dashboard.ajax.debug_settings_saved', 'order-daemon'),
             'updated_settings' => $updated_settings
         ]);
+    }
+
+    /**
+     * Handle AJAX request to save uninstall data removal setting
+     * 
+     * This endpoint specifically handles the "Remove all Order Daemon data on uninstall" checkbox.
+     * It provides dedicated toast responses for success/failure of this specific setting.
+     */
+    public function handle_uninstall_data_setting_ajax(): void
+    {
+        // Check user capabilities - require manage_woocommerce for settings changes
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error([
+                'message' => __('admin.insight_dashboard.ajax.permission_denied', 'order-daemon'),
+                'type' => 'error',
+                'toast' => true
+            ]);
+        }
+
+        // Verify nonce
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
+            wp_send_json_error([
+                'message' => __('Security check failed', 'order-daemon'),
+                'type' => 'error',
+                'toast' => true
+            ]);
+        }
+
+        // Get and validate input
+        if (!isset($_POST['odcm_remove_all_data_on_uninstall'])) {
+            wp_send_json_error([
+                'message' => __('Missing required parameter: odcm_remove_all_data_on_uninstall', 'order-daemon'),
+                'type' => 'error',
+                'toast' => true
+            ]);
+        }
+
+        $remove_all_data = $_POST['odcm_remove_all_data_on_uninstall'] === '1';
+
+        try {
+            // Update the option
+            $updated = update_option('odcm_remove_all_data_on_uninstall', $remove_all_data, 'no');
+
+            if ($updated !== false) {
+                wp_send_json_success([
+                    'message' => $remove_all_data 
+                        ? __('admin.insight_dashboard.ajax.uninstall_data_enabled', 'order-daemon')
+                        : __('admin.insight_dashboard.ajax.uninstall_data_disabled', 'order-daemon'),
+                    'type' => 'success',
+                    'toast' => true,
+                    'setting' => 'odcm_remove_all_data_on_uninstall',
+                    'value' => $remove_all_data
+                ]);
+            } else {
+                wp_send_json_error([
+                    'message' => __('admin.insight_dashboard.ajax.failed_to_update_uninstall_setting', 'order-daemon'),
+                    'type' => 'error',
+                    'toast' => true
+                ]);
+            }
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => sprintf(__('admin.insight_dashboard.ajax.uninstall_setting_error', 'order-daemon'), $e->getMessage()),
+                'type' => 'error',
+                'toast' => true
+            ]);
+        }
     }
 
     /**

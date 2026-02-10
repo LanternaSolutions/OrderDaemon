@@ -820,7 +820,7 @@ final class AttributionTracker
             'wp_woocommerce_session_' => ['type' => 'string', 'required' => true]
         ];
 
-        // Avoid iterating over $_COOKIE (flagged by WP.org review)
+        // Avoid iterating over $_COOKIE
         // Use the standard WooCommerce session cookie name pattern if COOKIEHASH is available
         if (defined('COOKIEHASH') && isset($_COOKIE['wp_woocommerce_session_' . COOKIEHASH])) {
             return true;

@@ -1184,10 +1184,12 @@ function ruleBuilder() {
             const hasConditionalGroups = schema.properties.comparison_type?.['ui:conditional_groups'];
 
             // Debug logging to trace execution path
-            console.log('🔍 RENDERING SETTINGS FORM for component:', componentType, index);
-            console.log('🔍 Schema properties:', Object.keys(schema.properties));
-            console.log('🔍 Has comparison_type:', !!schema.properties.comparison_type);
-            console.log('🔍 Has conditional groups:', hasConditionalGroups);
+            if (odcmIsDebug()) {
+                console.log('🔍 RENDERING SETTINGS FORM for component:', componentType, index);
+                console.log('🔍 Schema properties:', Object.keys(schema.properties));
+                console.log('🔍 Has comparison_type:', !!schema.properties.comparison_type);
+                console.log('🔍 Has conditional groups:', hasConditionalGroups);
+            }
 
             // Get the current comparison type for Alpine.js reactive binding
             const comparisonType = hasConditionalGroups 
@@ -1205,7 +1207,7 @@ function ruleBuilder() {
             html += '>';
 
             if (hasConditionalGroups) {
-                console.log('🔍 USING CONDITIONAL RENDERING PATH with activeGroup:', comparisonType);
+                if (odcmIsDebug()) {console.log('🔍 USING CONDITIONAL RENDERING PATH with activeGroup:', comparisonType);}
                 // Render non-conditional fields (includes radio buttons that control visibility)
                 html += '<div class="odcm-non-conditional-fields">';
                 const nonConditionalFields = this.getNonConditionalFieldsForSchema(schema);
@@ -1217,7 +1219,7 @@ function ruleBuilder() {
                 // Render conditional field groups (these will use x-show to toggle visibility)
                 html += this.renderConditionalFieldGroups(schema, currentSettings, componentType, index);
             } else {
-                console.log('🔍 USING LEGACY RENDERING PATH');
+                if (odcmIsDebug()) {console.log('🔍 USING LEGACY RENDERING PATH');}
                 // Original behavior for backward compatibility
                 for (const [key, property] of Object.entries(schema.properties)) {
                     html += this.renderFormField(key, property, currentSettings[key], componentType, index);
@@ -1239,16 +1241,18 @@ function ruleBuilder() {
             let html = '';
 
             // Debug log to verify this method is being called
-            console.log('🔧 RENDERING CONDITIONAL FIELD GROUPS for comparison type:', comparisonType);
-            console.log('🔧 Conditional groups found:', Object.keys(conditionalGroups));
-            console.log('🔧 Current settings:', currentSettings);
+            if (odcmIsDebug()) {
+                console.log('🔧 RENDERING CONDITIONAL FIELD GROUPS for comparison type:', comparisonType);
+                console.log('🔧 Conditional groups found:', Object.keys(conditionalGroups));
+                console.log('🔧 Current settings:', currentSettings);
+            }
 
             // Container for conditional field groups (no x-data here - parent form already has it)
             html += `<div class="odcm-conditional-field-groups">`;
 
             // Create a container for each possible group
             for (const [groupKey, fieldKeys] of Object.entries(conditionalGroups)) {
-                console.log(`🔧 Processing group: ${groupKey} with fields:`, fieldKeys);
+                if (odcmIsDebug()) {console.log(`🔧 Processing group: ${groupKey} with fields:`, fieldKeys);}
 
                 html += `<div class="odcm-field-group odcm-field-group-${groupKey}"`;
                 html += ` x-show="activeGroup === '${groupKey}'"`;
@@ -1276,15 +1280,15 @@ function ruleBuilder() {
                             value: currentSettings[fieldKey]
                         });
 
-                        console.log(`🔧 Field ${fieldKey} assigned to inline group: ${inlineGroup}`);
+                        if (odcmIsDebug()) {console.log(`🔧 Field ${fieldKey} assigned to inline group: ${inlineGroup}`);}
                     }
                 }
 
-                console.log(`🔧 Inline groups organized:`, Object.keys(inlineGroups));
+                if (odcmIsDebug()) {console.log(`🔧 Inline groups organized:`, Object.keys(inlineGroups));}
 
                 // Render each inline group
                 for (const [inlineGroupName, fields] of Object.entries(inlineGroups)) {
-                    console.log(`🔧 Rendering inline group: ${inlineGroupName} with ${fields.length} fields`);
+                    if (odcmIsDebug()) {console.log(`🔧 Rendering inline group: ${inlineGroupName} with ${fields.length} fields`);}
 
                     if (inlineGroupName === 'default') {
                         // Render default fields individually
@@ -1301,12 +1305,12 @@ function ruleBuilder() {
                         }
                     } else {
                         // Render inline group fields together in a horizontal container
-                        console.log(`🔧 Creating horizontal container for inline group: ${inlineGroupName}`);
+                        if (odcmIsDebug()) {console.log(`🔧 Creating horizontal container for inline group: ${inlineGroupName}`);}
                         html += `<div class="odcm-form-group odcm-inline-group odcm-inline-group--${inlineGroupName}">`;
                         html += `<div class="odcm-horizontal-field-group">`;
 
                         for (const fieldData of fields) {
-                            console.log(`🔧 Rendering field ${fieldData.key} with skipWrapper=true`);
+                            if (odcmIsDebug()) {console.log(`🔧 Rendering field ${fieldData.key} with skipWrapper=true`);}
                             html += this.renderFormField(
                                 fieldData.key,
                                 fieldData.field,
@@ -1424,7 +1428,7 @@ function ruleBuilder() {
                 html += this.renderRadioGroup(key, property, value, fieldId, componentType, index);
             } else if (property['ui:widget'] === 'textarea') {
                 // DEBUG: Simple console log to see if we get here
-                console.log('🔍 TEXTAREA DEBUG: About to render textarea for key:', key);
+                if (odcmIsDebug()) {console.log('🔍 TEXTAREA DEBUG: About to render textarea for key:', key);}
                 html += this.renderTextarea(key, property, value, fieldId, componentType, index);
             } else {
                 html += this.renderTextInput(key, property, value, fieldId, componentType, index);
@@ -1631,13 +1635,14 @@ function ruleBuilder() {
             return html;
         },
 
+        /*
+        *
+        * Settings update methods
+        * 
+        */
 
-
-
-
-        // Enhanced settings update methods
         updateSetting(key, value, componentType, index) {
-            console.log(`🔧 UPDATE: Setting ${key} = ${JSON.stringify(value)} for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 UPDATE: Setting ${key} = ${JSON.stringify(value)} for ${componentType}[${index}]`);}
             
             if (componentType === 'trigger') {
                 if (!this.rule.trigger) this.rule.trigger = { id: '', settings: {} };
@@ -1659,7 +1664,7 @@ function ruleBuilder() {
         },
 
         updateArraySetting(key, value, checked, componentType, index) {
-            console.log(`🔧 UPDATE ARRAY: ${key}[${value}] = ${checked} for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 UPDATE ARRAY: ${key}[${value}] = ${checked} for ${componentType}[${index}]`);}
 
             let currentArray;
 
@@ -1695,7 +1700,7 @@ function ruleBuilder() {
 
         // Select All functionality for regular checkbox groups
         selectAllCheckboxes(key, enumOptions, componentType, index) {
-            console.log(`🔧 SELECT ALL: ${key} for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 SELECT ALL: ${key} for ${componentType}[${index}]`);}
             
             // Get all available option values
             const allValues = Object.keys(enumOptions || {});
@@ -1704,7 +1709,7 @@ function ruleBuilder() {
 
         // Clear All functionality for regular checkbox groups
         clearAllCheckboxes(key, componentType, index) {
-            console.log(`🔧 CLEAR ALL: ${key} for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 CLEAR ALL: ${key} for ${componentType}[${index}]`);}
             this.updateSetting(key, [], componentType, index);
         },
 
@@ -1748,11 +1753,11 @@ function ruleBuilder() {
         },
 
         updateRadioSetting(key, value, componentType, index) {
-            console.log(`🔧 UPDATE RADIO: ${key} = ${value} for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 UPDATE RADIO: ${key} = ${value} for ${componentType}[${index}]`);}
 
             // Special handling for comparison_type changes to trigger re-render
             if (key === 'comparison_type' && componentType === 'condition' && index !== null) {
-                console.log(`🔧 TRIGGERING RE-RENDER FOR COMPARISON TYPE CHANGE: ${value}`);
+                if (odcmIsDebug()) {console.log(`🔧 TRIGGERING RE-RENDER FOR COMPARISON TYPE CHANGE: ${value}`);}
 
                 // Force a re-render by toggling the editing state
                 const currentEditingIndex = this.editingConditionIndex;
@@ -1770,7 +1775,7 @@ function ruleBuilder() {
 
         // Handle radio-with-inline-number sibling field updates
         updateSiblingField(radioKey, siblingKey, value, componentType, index) {
-            console.log(`🔧 UPDATE SIBLING: ${siblingKey} = ${value} (radio: ${radioKey}) for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 UPDATE SIBLING: ${siblingKey} = ${value} (radio: ${radioKey}) for ${componentType}[${index}]`);}
 
             // Convert to appropriate type
             const numericValue = value === '' ? null : (isNaN(Number(value)) ? value : Number(value));
