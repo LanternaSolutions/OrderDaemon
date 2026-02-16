@@ -1219,8 +1219,9 @@ final class AttributionTracker
         ];
 
         foreach ($filters as $filter => $rule) {
-            $value = apply_filters($filter, $rule['required'] ? null : $this->get_default_value($rule));
-            odcm_validate_and_sanitize_params([$filter => $value], [$filter => $rule]);
+            $prefixed_filter = (strpos($filter, 'odcm_') === 0) ? $filter : 'odcm_' . $filter;
+            $value = apply_filters($prefixed_filter, $rule['required'] ? null : $this->get_default_value($rule));
+            odcm_validate_and_sanitize_params([$prefixed_filter => $value], [$filter => $rule]);
         }
     }
 

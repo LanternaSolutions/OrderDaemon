@@ -1680,6 +1680,7 @@ function odcm_validate_file_path(string $path): bool {
  * @return int|false The number of bytes written, or false on failure
  */
 function odcm_safe_file_put_contents(string $filename, $data, int $flags = 0, $context = null) {
+    // $context is retained for backward‑compatibility but is ignored because WP_Filesystem does not support it.
     // Validate the file path
     if (!odcm_validate_file_path($filename)) {
         odcm_critical_log("Invalid file path attempted: " . esc_html($filename));
@@ -1688,13 +1689,19 @@ function odcm_safe_file_put_contents(string $filename, $data, int $flags = 0, $c
     
     // Ensure the directory exists and is writable
     $directory = dirname($filename);
-    if (!is_dir($directory) || !is_writable($directory)) {
+    global $wp_filesystem;
+    if (empty($wp_filesystem)) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        WP_Filesystem();
+    }
+    if (!is_dir($directory) || !$wp_filesystem->is_writable($directory)) {
         odcm_critical_log("Directory not writable or doesn't exist: " . esc_html($directory));
         return false;
     }
     
     // Use WordPress error logging for failures
-    $result = @file_put_contents($filename, $data, $flags, $context);
+    // $context is retained for backward‑compatibility but is ignored because WP_Filesystem does not support it.
+    $result = $wp_filesystem->put_contents($filename, $data, $flags);
     
     if ($result === false) {
         odcm_critical_log("Failed to write to file: " . esc_html($filename));
@@ -1727,8 +1734,15 @@ function odcm_ensure_directory_writable(string $directory): bool {
         }
     }
     
-    // Check if directory is writable
-    if (!is_writable($directory)) {
+    // Initialize WP_Filesystem if needed
+    global $wp_filesystem;
+    if (empty($wp_filesystem)) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        WP_Filesystem();
+    }
+    
+    // Check if directory is writable using WP_Filesystem
+    if (! $wp_filesystem->is_writable($directory)) {
         odcm_critical_log("Directory is not writable: " . esc_html($directory));
         return false;
     }

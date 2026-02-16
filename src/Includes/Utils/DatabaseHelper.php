@@ -253,9 +253,11 @@ class DatabaseHelper
 
         try {
             $deleted_count = 0;
+            // Escape table identifier and wrap in backticks
+            $option_table = esc_sql($this->wpdb->options);
             $options = $this->get_results(
                 $this->wpdb->prepare(
-                    "SELECT option_name FROM {$this->wpdb->options} WHERE option_name LIKE %s",
+                    "SELECT option_name FROM `{$option_table}` WHERE option_name LIKE %s",
                     '%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%'
                 )
             );
@@ -295,18 +297,21 @@ class DatabaseHelper
 
         try {
             $deleted_count = 0;
+            // Sanitize and escape pattern for safe concatenation
+            $sanitized_pattern = sanitize_text_field($pattern);
+            $escaped_pattern = $this->wpdb->esc_like($sanitized_pattern);
 
             // Delete regular transients
-            $deleted_count += $this->delete_options_by_pattern('_transient_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_transient_' . $escaped_pattern);
 
             // Delete transient timeouts
-            $deleted_count += $this->delete_options_by_pattern('_transient_timeout_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_transient_timeout_' . $escaped_pattern);
 
             // Delete site transients
-            $deleted_count += $this->delete_options_by_pattern('_site_transient_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_site_transient_' . $escaped_pattern);
 
             // Delete site transient timeouts
-            $deleted_count += $this->delete_options_by_pattern('_site_transient_timeout_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_site_transient_timeout_' . $escaped_pattern);
 
             // Clear WordPress object cache
             wp_cache_flush();
@@ -512,32 +517,38 @@ class DatabaseHelper
     }
 
     /**
-     * Log an error message with additional context
+     * Log an error message with additional context.
      *
-     * @param string $message Error message to log
-     * @param string $operation The database operation that failed
-     * @param array $context Additional context information
-     * @return void
+     * This method prefers the WordPress `wp_debug_log` function when available,
+     * falling back to the native `error_log`. It also records the error in a
+     * transient for later inspection and updates a dedicated option with the most
+     * recent error details.
+     *
+     * @param string $message   The error message to log.
+     * @param string $operation The database operation that failed (optional).
+     * @param array  $context   Additional context data (optional).
      */
     private function log_error(string $message, string $operation = '', array $context = []): void
     {
-        // Build detailed error message
+        // Build a detailed error message.
         $error_message = '[ODCM DatabaseHelper ERROR] ' . $message;
         if (!empty($operation)) {
             $error_message .= " (Operation: {$operation})";
         }
 
-        // Add context information
+        // Add context information if provided.
         if (!empty($context)) {
-            $error_message .= " | Context: " . json_encode($context);
+            $error_message .= ' | Context: ' . json_encode($context);
         }
 
-        // Use WordPress error logging if available
-        if (function_exists('error_log')) {
+        // Use WordPress debug logger when available; otherwise fall back to PHP error_log.
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($error_message);
+        } elseif (function_exists('error_log')) {
             error_log($error_message);
         }
 
-        // Also store in a transient for potential debugging
+        // Persist the error in a transient for debugging purposes.
         $log = get_transient('odcm_database_log');
         if (!is_array($log)) {
             $log = [];
@@ -545,16 +556,16 @@ class DatabaseHelper
 
         $log_entry = [
             'timestamp' => current_time('mysql'),
-            'message' => $message,
+            'message'   => $message,
             'operation' => $operation,
-            'context' => $context,
-            'error_type' => 'error'
+            'context'   => $context,
+            'error_type'=> 'error',
         ];
 
         $log[] = $log_entry;
         set_transient('odcm_database_log', $log, HOUR_IN_SECONDS);
 
-        // Store last error for debugging
+        // Store the most recent error in an option for quick access.
         update_option('odcm_last_database_error', $log_entry, 'no');
     }
 
@@ -566,25 +577,38 @@ class DatabaseHelper
      * @param array $context Additional context information
      * @return void
      */
+    /**
+     * Log a warning message with additional context.
+     *
+     * This method prefers the WordPress `wp_debug_log` function when available,
+     * falling back to the native `error_log`. It also records the warning in a
+     * transient for later inspection.
+     *
+     * @param string $message   The warning message to log.
+     * @param string $operation The database operation that generated the warning (optional).
+     * @param array  $context   Additional context data (optional).
+     */
     private function log_warning(string $message, string $operation = '', array $context = []): void
     {
-        // Build detailed warning message
+        // Build a detailed warning message.
         $warning_message = '[ODCM DatabaseHelper WARNING] ' . $message;
         if (!empty($operation)) {
             $warning_message .= " (Operation: {$operation})";
         }
 
-        // Add context information
+        // Add context information if provided.
         if (!empty($context)) {
-            $warning_message .= " | Context: " . json_encode($context);
+            $warning_message .= ' | Context: ' . json_encode($context);
         }
 
-        // Use WordPress error logging if available
-        if (function_exists('error_log')) {
+        // Use WordPress debug logger when available; otherwise fall back to PHP error_log.
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($warning_message);
+        } elseif (function_exists('error_log')) {
             error_log($warning_message);
         }
 
-        // Also store in a transient for potential debugging
+        // Persist the warning in a transient for debugging purposes.
         $log = get_transient('odcm_database_log');
         if (!is_array($log)) {
             $log = [];
@@ -592,10 +616,10 @@ class DatabaseHelper
 
         $log_entry = [
             'timestamp' => current_time('mysql'),
-            'message' => $message,
+            'message'   => $message,
             'operation' => $operation,
-            'context' => $context,
-            'error_type' => 'warning'
+            'context'   => $context,
+            'error_type'=> 'warning',
         ];
 
         $log[] = $log_entry;
