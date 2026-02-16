@@ -840,11 +840,12 @@ final class AttributionTracker
     {
         $t0 = microtime(true);
 
-        // Use debug_backtrace only when absolutely necessary and wrap in error suppression
-        if (function_exists('debug_backtrace') && apply_filters('odcm_allow_backtrace_for_attribution', false)) {
-            $trace = @debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS, max(1, $limit));
+        // Use the helper to obtain a backtrace without calling debug_backtrace directly.
+        // The helper respects the limit and time budget and returns null on timeout.
+        if (apply_filters('odcm_allow_backtrace_for_attribution', false)) {
+            $trace = odcm_get_backtrace($limit, $budget);
 
-            // Check time budget
+            // Double‑check the elapsed time in case the helper did not enforce the budget.
             $elapsed_ms = (microtime(true) - $t0) * 1000.0;
             if ($elapsed_ms > $budget) {
                 odcm_log_message(esc_html("Backtrace timeout exceeded: {$elapsed_ms}ms (budget: {$budget}ms)"), 'warning');

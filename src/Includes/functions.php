@@ -1074,6 +1074,37 @@ function odcm_get_uploads_dir(): string {
 }
 
 /**
+ * Helper function to retrieve a backtrace with a limit and time budget.
+ *
+ * This function replaces direct calls to `debug_backtrace()` in performance‑critical
+ * code paths. It respects the configured `$limit` (maximum number of frames) and
+ * `$budget` (maximum execution time in milliseconds). If the backtrace generation
+ * exceeds the budget, the function returns `null` and logs a warning.
+ *
+ * @param int $limit  Maximum number of stack frames to capture.
+ * @param int $budget Maximum allowed time in milliseconds.
+ * @return array|null Backtrace array if within budget, otherwise `null`.
+ */
+function odcm_get_backtrace(int $limit, int $budget): ?array
+{
+    $t0 = microtime(true);
+
+    // Use debug_backtrace with the requested limit.
+    $trace = @debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS, max(1, $limit));
+
+    // Calculate elapsed time in milliseconds.
+    $elapsed_ms = (microtime(true) - $t0) * 1000.0;
+
+    // If the operation exceeded the time budget, log a warning and return null.
+    if ($elapsed_ms > $budget) {
+        odcm_log_message(esc_html("Backtrace timeout exceeded: {$elapsed_ms}ms (budget: {$budget}ms)"), 'warning');
+        return null;
+    }
+
+    return is_array($trace) ? $trace : null;
+}
+
+/**
  * Get the plugin's base directory
  *
  * @return string The plugin base directory path
