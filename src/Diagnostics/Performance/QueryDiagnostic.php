@@ -254,13 +254,8 @@ class QueryDiagnostic extends AbstractDiagnostic
 
             if (false === $size_mb) {
                 $size_mb = DatabaseHelper::get_var(
-                    $wpdb->prepare(
-                        "SELECT ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb'
-                        FROM information_schema.TABLES
-                        WHERE table_schema = %s AND table_name = %s",
-                        DB_NAME,
-                        $full_table_name
-                    )
+                    "SELECT ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb' FROM information_schema.TABLES WHERE table_schema = %s AND table_name = %s",
+                    [DB_NAME, $full_table_name]
                 ) ?? 0;
 
                 // Cache the result for 1 hour - table sizes don't change frequently
@@ -338,8 +333,9 @@ class QueryDiagnostic extends AbstractDiagnostic
                 // Since we can't use prepare() for identifiers, we use esc_sql() to escape them
                 $escaped_column = esc_sql($column);
                 $escaped_table = esc_sql(trim(str_replace('`', '', $table_identifier)));
+                $query = "SELECT DISTINCT `{$escaped_column}` FROM `{$escaped_table}` WHERE `{$escaped_column}` IS NOT NULL AND `{$escaped_column}` != %s ORDER BY `{$escaped_column}` ASC";
                 $sql = $wpdb->prepare(
-                    "SELECT DISTINCT `{$escaped_column}` FROM `{$escaped_table}` WHERE `{$escaped_column}` IS NOT NULL AND `{$escaped_column}` != %s ORDER BY `{$escaped_column}` ASC",
+                    $query,
                     '' // Empty string parameter for the != %s comparison
                 );
 
@@ -402,22 +398,17 @@ class QueryDiagnostic extends AbstractDiagnostic
         $test_scenarios = [];
 
         // Basic select
-        $test_scenarios['basic_select'] = $wpdb->prepare(
-            "SELECT COUNT(*) FROM %s",
-            $table_identifier
-        );
+        $test_scenarios['basic_select'] = "SELECT COUNT(*) FROM {$table_identifier}";
 
         // Recent logs
         $test_scenarios['recent_logs'] = $wpdb->prepare(
-            "SELECT * FROM %s ORDER BY timestamp DESC LIMIT %d",
-            $table_identifier,
+            "SELECT * FROM {$table_identifier} ORDER BY timestamp DESC LIMIT %d",
             20
         );
 
         // With filters
         $test_scenarios['with_filters'] = $wpdb->prepare(
-            "SELECT * FROM %s WHERE status = %s ORDER BY timestamp DESC LIMIT %d",
-            $table_identifier,
+            "SELECT * FROM {$table_identifier} WHERE status = %s ORDER BY timestamp DESC LIMIT %d",
             'success',
             20
         );
@@ -425,8 +416,7 @@ class QueryDiagnostic extends AbstractDiagnostic
         // Date range - using a prepared statement with the interval
         $interval_hours = 24;
         $test_scenarios['date_range'] = $wpdb->prepare(
-            "SELECT * FROM %s WHERE timestamp >= DATE_SUB(NOW(), INTERVAL %d HOUR) ORDER BY timestamp DESC LIMIT %d",
-            $table_identifier,
+            "SELECT * FROM {$table_identifier} WHERE timestamp >= DATE_SUB(NOW(), INTERVAL %d HOUR) ORDER BY timestamp DESC LIMIT %d",
             $interval_hours,
             20
         );
@@ -436,13 +426,11 @@ class QueryDiagnostic extends AbstractDiagnostic
             $test_scenarios['with_payload'] = $wpdb->prepare(
                 "SELECT l.*,
                     COALESCE(p.payload, l.details, %s) as payload
-                FROM %s l
-                    LEFT JOIN %s p ON l.payload_id = p.payload_id
+                FROM {$table_identifier} l
+                    LEFT JOIN {$payload_table_identifier} p ON l.payload_id = p.payload_id
                 ORDER BY l.timestamp DESC
                 LIMIT %d",
                 '',
-                $table_identifier,
-                $payload_table_identifier,
                 20
             );
         }
@@ -516,7 +504,7 @@ class QueryDiagnostic extends AbstractDiagnostic
             if (false === $indexes) {
                 $table_name_clean = trim(str_replace('`', '', $table_identifier));
 
-                $query = DatabaseHelper::get_results($wpdb->prepare("SHOW INDEX FROM `%s`", $table_name_clean), 'ARRAY_A');
+                $query = DatabaseHelper::get_results("SHOW INDEX FROM `{$table_name_clean}`", [], 'ARRAY_A');
 
                 if ($query !== null) {
                     // Cache for 1 hour - indexes don't change frequently
@@ -594,7 +582,7 @@ class QueryDiagnostic extends AbstractDiagnostic
             $mysql_version = wp_cache_get($cache_key);
             
             if (false === $mysql_version) {
-                $mysql_version = DatabaseHelper::get_var($wpdb->prepare("SELECT %s", 'VERSION()'));
+                $mysql_version = DatabaseHelper::get_var("SELECT VERSION()");
                 // Cache for 24 hours - MySQL version rarely changes
                 if ($mysql_version) {
                     wp_cache_set($cache_key, $mysql_version, '', DAY_IN_SECONDS);
@@ -627,7 +615,7 @@ class QueryDiagnostic extends AbstractDiagnostic
                     if (false === $var_value) {
                         // Use separate prepared statement for show variables
                         // Since SHOW VARIABLES LIKE has specific syntax requirements
-                        $var_value = DatabaseHelper::get_row($wpdb->prepare("SHOW VARIABLES LIKE %s", $var));
+                        $var_value = DatabaseHelper::get_row("SHOW VARIABLES LIKE %s", [$var]);
                         $var_value = $var_value ? $var_value->Value : null;
                         if ($var_value !== null) {
                             // Cache individual variables for 24 hours

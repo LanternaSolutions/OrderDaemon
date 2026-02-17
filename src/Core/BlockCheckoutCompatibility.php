@@ -688,11 +688,9 @@ final class BlockCheckoutCompatibility
         // Use direct database query for reliable job detection
         global $wpdb;
         
-        // Construct query with prepared statement. Table name uses trusted $wpdb->prefix directly
-        // since SQL prepared statements cannot parameterize table identifiers.
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table reference uses trusted $wpdb->prefix
+        $sql = "SELECT COUNT(*) FROM `{$wpdb->prefix}actionscheduler_actions` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s";
         $query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM `{$wpdb->prefix}actionscheduler_actions` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s",
+            $sql,
             'odcm_process_checkout_completion',
             '%"order_id":' . intval($order_id) . '%'
         );

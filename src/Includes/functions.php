@@ -1725,7 +1725,7 @@ function odcm_safe_file_put_contents(string $filename, $data, int $flags = 0, $c
         require_once ABSPATH . 'wp-admin/includes/file.php';
         WP_Filesystem();
     }
-    if (!is_dir($directory) || !$wp_filesystem->is_writable($directory)) {
+    if (!$wp_filesystem->is_dir($directory) || !$wp_filesystem->is_writable($directory)) {
         odcm_critical_log("Directory not writable or doesn't exist: " . esc_html($directory));
         return false;
     }
@@ -1756,20 +1756,20 @@ function odcm_ensure_directory_writable(string $directory): bool {
     // Normalize the path
     $directory = wp_normalize_path($directory);
     
-    // Check if directory exists
-    if (!is_dir($directory)) {
-        // Try to create the directory
-        if (!wp_mkdir_p($directory)) {
-            odcm_critical_log("Failed to create directory: " . esc_html($directory));
-            return false;
-        }
-    }
-    
     // Initialize WP_Filesystem if needed
     global $wp_filesystem;
     if (empty($wp_filesystem)) {
         require_once ABSPATH . 'wp-admin/includes/file.php';
         WP_Filesystem();
+    }
+    
+    // Check if directory exists
+    if (!$wp_filesystem->is_dir($directory)) {
+        // Try to create the directory
+        if (!wp_mkdir_p($directory)) {
+            odcm_critical_log("Failed to create directory: " . esc_html($directory));
+            return false;
+        }
     }
     
     // Check if directory is writable using WP_Filesystem

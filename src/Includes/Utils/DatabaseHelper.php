@@ -255,11 +255,11 @@ class DatabaseHelper
             $deleted_count = 0;
             // Escape table identifier and wrap in backticks
             $option_table = esc_sql($this->wpdb->options);
+            // Replaced interpolated variables with $wpdb->prepare() for security
+            $query = "SELECT option_name FROM `{$option_table}` WHERE option_name LIKE %s";
             $options = $this->get_results(
-                $this->wpdb->prepare(
-                    "SELECT option_name FROM `{$option_table}` WHERE option_name LIKE %s",
-                    '%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%'
-                )
+                $query,
+                ['%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%']
             );
 
             // Add explicit escaping for LIKE queries

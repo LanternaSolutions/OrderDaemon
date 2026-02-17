@@ -661,7 +661,7 @@ class InsightDashboard
         if ($log_count === false) {
             $log_table_escaped = esc_sql($wpdb->prefix . 'odcm_audit_log');
             $database_helper = DatabaseHelper::get_instance();
-            $log_count = $database_helper->get_var("SELECT COUNT(*) FROM `{$log_table_escaped}`");
+            $log_count = $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$log_table_escaped}`"));
 
             // Cache the result for 5 minutes - log count may change more frequently
             wp_cache_set($log_count_cache_key, $log_count, '', 5 * MINUTE_IN_SECONDS);

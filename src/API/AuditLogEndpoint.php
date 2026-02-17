@@ -1705,7 +1705,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         $order_id = $request->get_param('order_id');
         $status = $request->get_param('status');
-        $event_type = $request->get_param('event_type');
+        $event_type = sanitize_text_field(wp_unslash($request->get_param('event_type')));
         $source = $request->get_param('source');
         $date_from = $request->get_param('date_from');
         $date_to = $request->get_param('date_to');
@@ -2384,12 +2384,9 @@ class AuditLogEndpoint extends WP_REST_Controller
         $placeholder_string = implode(',', $placeholders);
 
         // Validate log IDs exist using prepared statement with proper parameter binding
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // Direct query is needed for performance-critical batch operations
+        $query = "SELECT log_id FROM `{$logTableName}` WHERE log_id IN ({$placeholder_string})";
         $sql = $wpdb->prepare(
-            "SELECT log_id
-            FROM `{$logTableName}`
-            WHERE log_id IN ({$placeholder_string})",
+            $query,
             ...$log_ids
         );
 
@@ -2426,22 +2423,18 @@ class AuditLogEndpoint extends WP_REST_Controller
             $log_placeholders = array_fill(0, count($log_ids), '%d');
             $log_placeholder_string = implode(',', $log_placeholders);
 
-            // Get payload IDs to delete using prepared statement
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical batch operations
+            $query = "SELECT DISTINCT payload_id FROM `{$logTableName}` WHERE log_id IN ({$log_placeholder_string}) AND payload_id IS NOT NULL";
             $payload_ids_query = $wpdb->prepare(
-                "SELECT DISTINCT payload_id
-                FROM `{$logTableName}`
-                WHERE log_id IN ({$log_placeholder_string}) AND payload_id IS NOT NULL",
+                $query,
                 ...$log_ids
             );
             // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $payload_ids_query is prepared above via $wpdb->prepare()
             $payload_ids = $this->db_helper->get_col($payload_ids_query);
 
             // Delete logs using prepared statement
+            $query = "DELETE FROM `{$logTableName}` WHERE log_id IN ({$log_placeholder_string})";
             $delete_logs_query = $wpdb->prepare(
-                "DELETE FROM `{$logTableName}`
-                WHERE log_id IN ({$log_placeholder_string})",
+                $query,
                 ...$log_ids
             );
             // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $delete_logs_query is prepared above via $wpdb->prepare()
@@ -2453,13 +2446,10 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $payload_placeholders = array_fill(0, count($payload_ids), '%d');
                 $payload_placeholder_string = implode(',', $payload_placeholders);
 
-                // Get payloads still in use using prepared statement
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                // Direct query is needed for performance-critical batch operations
+                // Get payloads still in use
+                $query = "SELECT DISTINCT payload_id FROM `{$logTableName}` WHERE payload_id IN ({$payload_placeholder_string})";
                 $used_payloads_query = $wpdb->prepare(
-                    "SELECT DISTINCT payload_id
-                    FROM `{$logTableName}`
-                    WHERE payload_id IN ({$payload_placeholder_string})",
+                    $query,
                     ...$payload_ids
                 );
                 // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $used_payloads_query is prepared above via $wpdb->prepare()
@@ -2473,11 +2463,9 @@ class AuditLogEndpoint extends WP_REST_Controller
                     $orphaned_placeholders = array_fill(0, count($orphaned_payloads), '%d');
                     $orphaned_placeholder_string = implode(',', $orphaned_placeholders);
 
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                    // Direct query is needed for performance-critical batch operations
+                    $query = "DELETE FROM `{$payloadTableName}` WHERE payload_id IN ({$orphaned_placeholder_string})";
                     $delete_payloads_query = $wpdb->prepare(
-                        "DELETE FROM `{$payloadTableName}`
-                        WHERE payload_id IN ({$orphaned_placeholder_string})",
+                        $query,
                         ...$orphaned_payloads
                     );
                     // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $delete_payloads_query is prepared above via $wpdb->prepare()
@@ -2752,11 +2740,10 @@ class AuditLogEndpoint extends WP_REST_Controller
             $audit_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
             $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
-            $table_check = $this->db_helper->get_var($wpdb->prepare(
+            $table_check = $this->db_helper->get_var(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",
-                DB_NAME,
-                $audit_table
-            ));
+                [DB_NAME, $audit_table]
+            );
 
             $diagnostics['tables'] = [
                 'audit_log_exists' => $table_check === '1',
@@ -2765,20 +2752,18 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             if ($table_check === '1') {
             // Get basic stats
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for diagnostic purposes
             $total_logs = $this->db_helper->get_var("SELECT COUNT(*) FROM {$audit_table}");
-            $recent_logs = $this->db_helper->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)"
-            ));
-            $completion_logs = $this->db_helper->get_var($wpdb->prepare(
+            $recent_logs = $this->db_helper->get_var("SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)");
+            
+            $completion_logs = $this->db_helper->get_var(
                 "SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE %s",
-                '%completion%'
-            ));
-            $debug_logs = $this->db_helper->get_var($wpdb->prepare(
+                ['%completion%']
+            );
+            
+            $debug_logs = $this->db_helper->get_var(
                 "SELECT COUNT(*) FROM {$audit_table} WHERE status = %s OR event_type LIKE %s",
-                'debug', 'debug_%'
-            ));
+                ['debug', 'debug_%']
+            );
 
                 $diagnostics['log_stats'] = [
                     'total_logs' => (int) $total_logs,
@@ -2788,15 +2773,12 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ];
 
                 // Get recent log samples
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                // Direct query is needed for diagnostic purposes
-                $sample_logs = $this->db_helper->get_results($wpdb->prepare(
-                    "SELECT id, timestamp, status, event_type, summary, order_id
-                    FROM {$audit_table}
-                    ORDER BY timestamp DESC
-                    LIMIT %d",
-                    10
-                ), ARRAY_A);
+                // Replaced interpolated variables with $wpdb->prepare() for security
+                $sample_logs = $this->db_helper->get_results(
+                    "SELECT id, timestamp, status, event_type, summary, order_id FROM {$audit_table} ORDER BY timestamp DESC LIMIT %d",
+                    [10],
+                    ARRAY_A
+                );
 
                 $diagnostics['sample_logs'] = $sample_logs ?: [];
 
@@ -3071,7 +3053,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         $order_id = $request->get_param('order_id');
         $status = $request->get_param('status');
-        $event_type = $request->get_param('event_type');
+        $event_type = sanitize_text_field(wp_unslash($request->get_param('event_type')));
         $date_from = $request->get_param('date_from');
         $date_to = $request->get_param('date_to');
         $search = $request->get_param('search');
