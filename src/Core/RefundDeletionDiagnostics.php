@@ -670,7 +670,7 @@ final class RefundDeletionDiagnostics
                 );
             }
         } catch (\Throwable $e) {
-            $this->safe_error_log('handle_order_refunded error', $e);
+            $this->safe_odcm_log_message('handle_order_refunded error', $e, 'error');
         } finally {
             // Memory cleanup and concurrency decrement
             if (isset($context)) { unset($context); }
@@ -781,7 +781,7 @@ final class RefundDeletionDiagnostics
                 );
             }
         } catch (\Throwable $e) {
-            $this->safe_error_log('handle_order_partially_refunded error', $e);
+            $this->safe_odcm_log_message('handle_order_partially_refunded error', $e, 'error');
         } finally {
             // Memory cleanup and concurrency decrement
             if (isset($context)) { unset($context); }
@@ -891,7 +891,7 @@ final class RefundDeletionDiagnostics
                 );
             }
         } catch (\Throwable $e) {
-            $this->safe_error_log('handle_order_fully_refunded error', $e);
+            $this->safe_odcm_log_message('handle_order_fully_refunded error', $e, 'error');
         } finally {
             if (isset($lockKey)) {
                 $this->release_lock($lockKey);
@@ -991,7 +991,7 @@ final class RefundDeletionDiagnostics
                 );
             }
         } catch (\Throwable $e) {
-            $this->safe_error_log('handle_refund_created error', $e);
+            $this->safe_odcm_log_message('handle_refund_created error', $e, 'error');
         } finally {
             if (isset($lockKey)) {
                 $this->release_lock($lockKey);
@@ -1089,7 +1089,7 @@ final class RefundDeletionDiagnostics
                 );
             }
         } catch (\Throwable $e) {
-            $this->safe_error_log('handle_refund_deleted error', $e);
+            $this->safe_odcm_log_message('handle_refund_deleted error', $e, 'error');
         } finally {
             if (isset($lockKey)) {
                 $this->release_lock($lockKey);
@@ -1147,7 +1147,7 @@ final class RefundDeletionDiagnostics
             }
             $this->log_deletion_event('order_deleted', $order_id, 'error', 'Before Delete', isset($snapshot) && is_array($snapshot) ? $snapshot : null);
         } catch (\Throwable $e) {
-            $this->safe_error_log('handle_before_delete_order error', $e);
+            $this->safe_odcm_log_message('handle_before_delete_order error', $e, 'error');
         } finally {
             if (isset($lockKey)) {
                 $this->release_lock($lockKey);
@@ -1176,7 +1176,7 @@ final class RefundDeletionDiagnostics
             $snapshot = get_transient('odcm_pre_delete_order_' . $order_id);
             $this->log_deletion_event('order_deleted', $order_id, 'error', 'Deleted', is_array($snapshot) ? $snapshot : null);
         } catch (\Throwable $e) {
-            $this->safe_error_log('handle_delete_order error', $e);
+            $this->safe_odcm_log_message('handle_delete_order error', $e, 'error');
         } finally {
             delete_transient('odcm_pre_delete_order_' . (int)$order_id);
             if ($lockKey) {
@@ -1222,7 +1222,7 @@ final class RefundDeletionDiagnostics
             }
             $this->log_deletion_event('order_trashed', $order_id, 'warning', 'Before Trash');
         } catch (\Throwable $e) {
-            $this->safe_error_log('handle_before_trash_order error', $e);
+            $this->safe_odcm_log_message('handle_before_trash_order error', $e, 'error');
         } finally {
             if (isset($lockKey)) {
                 $this->release_lock($lockKey);
@@ -1251,7 +1251,7 @@ final class RefundDeletionDiagnostics
             $snapshot = get_transient('odcm_pre_delete_order_' . $order_id);
             $this->log_deletion_event('order_trashed', $order_id, 'warning', 'Trashed', is_array($snapshot) ? $snapshot : null);
         } catch (\Throwable $e) {
-            $this->safe_error_log('handle_trash_order error', $e);
+            $this->safe_odcm_log_message('handle_trash_order error', $e, 'error');
         } finally {
             delete_transient('odcm_pre_delete_order_' . (int)$order_id);
             if ($lockKey) {
@@ -1282,7 +1282,7 @@ final class RefundDeletionDiagnostics
             }
             $this->log_deletion_event('order_restored', $post_id, 'info', 'Restored');
         } catch (\Throwable $e) {
-            $this->safe_error_log('handle_untrashed_post error', $e);
+            $this->safe_odcm_log_message('handle_untrashed_post error', $e, 'error');
         } finally {
             if (isset($lockKey)) {
                 $this->release_lock($lockKey);
@@ -1382,7 +1382,7 @@ final class RefundDeletionDiagnostics
             $event_type
         );
         } catch (\Throwable $e) {
-            $this->safe_error_log('log_refund_event error', $e);
+            $this->safe_odcm_log_message('log_refund_event error', $e, 'error');
         }
     }
 
@@ -1493,7 +1493,7 @@ final class RefundDeletionDiagnostics
             $event_type
         );
         } catch (\Throwable $e) {
-            $this->safe_error_log('log_deletion_event error', $e);
+            $this->safe_odcm_log_message('log_deletion_event error', $e, 'error');
         }
     }
 

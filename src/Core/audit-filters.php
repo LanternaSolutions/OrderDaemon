@@ -367,7 +367,7 @@ function odcm_render_event_type_filter(array $filter, bool $has_permission, stri
             }
         } catch (\Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('ODCM: Failed to fetch dynamic event types: ' . $e->getMessage());
+                odcm_log_message('ODCM: Failed to fetch dynamic event types: ' . $e->getMessage(), 'error');
             }
             $use_fallback = true;
         }

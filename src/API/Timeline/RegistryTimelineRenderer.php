@@ -425,7 +425,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         $html = '<div class="odcm-key-value-list">';
 
         foreach ($displaySections as $key => $section) {
-            if ($key === 'event_description' || $key === 'order_id') {
+            if ('event_description' === $key || 'order_id' === $key) {
                 continue; // Already shown in header
             }
 
@@ -458,12 +458,12 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
 
         foreach ($displaySections as $key => $section) {
             // Skip event_description as it's already shown in the header
-            if ($key === 'event_description' || $key === 'order_id') {
+            if ('event_description' === $key || 'order_id' === $key) {
                 continue;
             }
 
             // Handle timestamp with client-side formatting
-            if ($key === 'timestamp' || strpos($section['label'], 'Timestamp') !== false) {
+            if ('timestamp' === $key || strpos($section['label'], 'Timestamp') !== false) {
                 $rawTimestamp = $rawPayload['ts'] ?? time();
                 $html .= '<div class="odcm-key">' . esc_html($section['label']) . '</div>';
                 $html .= '<div class="odcm-value">';
@@ -809,7 +809,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
 
         // FIFTH: Check for incomplete rule execution events ("Rule Processing Started")
         // These have event_type "rule_execution" but lack complete rule data
-        if ($event_type === 'rule_execution') {
+        if ('rule_execution' === $event_type) {
             $hasCompleteRuleData = !empty($payload['rule_execution']['rule_name']) ||
                                   !empty($payload['rule_execution']['rule_configuration']['rule_name']) ||
                                   !empty($payload['rule_name']) ||

@@ -220,14 +220,6 @@ function odcm_critical_log(string $message): void
         odcm_safe_file_put_contents($debug_file, '[' . gmdate('Y-m-d H:i:s') . '] ' . $formatted_message . PHP_EOL, FILE_APPEND);
         return;
     }
-
-    // As a last resort, use error_log() inside a condition the plugin checker won't flag
-    // This ensures critical errors are always logged
-    if (1 === 1) {
-        // This condition will always evaluate to true, but doesn't trigger plugin checker
-        // The plugin checker specifically looks for direct error_log() calls, not conditionally called ones
-        // error_log($formatted_message);
-    }
 }//end odcm_critical_log()
 
 

@@ -145,7 +145,7 @@ class Admin
         
         // Get the rule order data
         $rule_ids_raw = isset($_POST['rule_ids']) ? wp_unslash($_POST['rule_ids']) : [];
-        
+
         // Sanitize the rule IDs
         if (is_string($rule_ids_raw)) {
             // Try to decode JSON if it appears to be JSON
@@ -162,10 +162,14 @@ class Admin
         } elseif (!is_array($rule_ids_raw)) {
             $rule_ids_raw = [$rule_ids_raw]; // Ensure it's an array
         }
-        
+
         // Now sanitize each ID as an integer
         $rule_ids = array_map('absint', $rule_ids_raw);
-        
+
+        // Additional validation to ensure we have valid rule IDs
+        $rule_ids = array_filter($rule_ids, function($id) {
+            return $id > 0 && get_post($id) && get_post_type($id) === 'odcm_order_rule';
+        });
         if (empty($rule_ids)) {
             wp_send_json_error(['message' => __('No rule order data received', 'order-daemon')]);
             wp_die();

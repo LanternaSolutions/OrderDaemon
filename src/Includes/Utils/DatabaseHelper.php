@@ -76,12 +76,12 @@ class DatabaseHelper
         }
 
         try {
-            $result = $this->wpdb->get_var(
-                $this->wpdb->prepare(
-                    "SHOW TABLES LIKE %s",
-                    '%' . $this->wpdb->esc_like($table_name) . '%'
-                )
+            $query = $this->wpdb->prepare(
+                "SHOW TABLES LIKE %s",
+                '%' . $this->wpdb->esc_like($table_name) . '%'
             );
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is already prepared above.
+            $result = $this->wpdb->get_var($query);
 
             $table_exists = ! empty($result);
             wp_cache_set($cache_key, $table_exists, 'odcm_database', HOUR_IN_SECONDS);
@@ -111,7 +111,9 @@ class DatabaseHelper
         }
 
         try {
-            $result = $this->wpdb->query($this->wpdb->prepare("DROP TABLE IF EXISTS %s", $table_name));
+            // WordPress prepare() cannot be used for table names (identifiers).
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Table name is an identifier and cannot be prepared; validation performed above.
+            $result = $this->wpdb->query("DROP TABLE IF EXISTS `{$table_name}`");
 
             if ($result === false) {
                 $this->log_error("DatabaseHelper::drop_table failed for table '{$table_name}'");
@@ -338,8 +340,14 @@ class DatabaseHelper
     private function _query(string $query, array $args = [])
     {
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
-            return $this->wpdb->query($this->wpdb->prepare($query, ...$args));
+            $prepared_query = $this->wpdb->prepare($query, ...$args);
+            if (empty($prepared_query)) {
+                $this->log_warning("DatabaseHelper::query failed to prepare query.", 'query', ['query' => $query]);
+                return false;
+            }
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is already prepared above.
+            return $this->wpdb->query($prepared_query);
         } catch (\Throwable $e) {
             $this->log_error("DatabaseHelper::query failed: " . $e->getMessage());
             return false;
@@ -361,8 +369,14 @@ class DatabaseHelper
     private function _get_var(string $query, array $args = [])
     {
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
-            return $this->wpdb->get_var($this->wpdb->prepare($query, ...$args));
+            $prepared_query = $this->wpdb->prepare($query, ...$args);
+            if (empty($prepared_query)) {
+                $this->log_warning("DatabaseHelper::get_var failed to prepare query.", 'get_var', ['query' => $query]);
+                return null;
+            }
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is already prepared above.
+            return $this->wpdb->get_var($prepared_query);
         } catch (\Throwable $e) {
             $this->log_error("DatabaseHelper::get_var failed: " . $e->getMessage());
             return null;
@@ -385,8 +399,14 @@ class DatabaseHelper
     private function _get_row(string $query, array $args = [], string $output = 'OBJECT')
     {
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
-            return $this->wpdb->get_row($this->wpdb->prepare($query, ...$args), $output);
+            $prepared_query = $this->wpdb->prepare($query, ...$args);
+            if (empty($prepared_query)) {
+                $this->log_warning("DatabaseHelper::get_row failed to prepare query.", 'get_row', ['query' => $query]);
+                return null;
+            }
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is already prepared above.
+            return $this->wpdb->get_row($prepared_query, $output);
         } catch (\Throwable $e) {
             $this->log_error("DatabaseHelper::get_row failed: " . $e->getMessage());
             return null;
@@ -409,8 +429,14 @@ class DatabaseHelper
     private function _get_results(string $query, array $args = [], string $output = 'OBJECT'): ?array
     {
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
-            $results = $this->wpdb->get_results($this->wpdb->prepare($query, ...$args), $output);
+            $prepared_query = $this->wpdb->prepare($query, ...$args);
+            if (empty($prepared_query)) {
+                $this->log_warning("DatabaseHelper::get_results failed to prepare query.", 'get_results', ['query' => $query]);
+                return null;
+            }
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is already prepared above.
+            $results = $this->wpdb->get_results($prepared_query, $output);
 
             // Return null if no results found or if results is false (error)
             return $results === false || empty($results) ? null : $results;
@@ -436,8 +462,14 @@ class DatabaseHelper
     private function _get_col(string $query, array $args = [], int $column_offset = 0): array
     {
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
-            return $this->wpdb->get_col($this->wpdb->prepare($query, ...$args), $column_offset);
+            $prepared_query = $this->wpdb->prepare($query, ...$args);
+            if (empty($prepared_query)) {
+                $this->log_warning("DatabaseHelper::get_col failed to prepare query.", 'get_col', ['query' => $query]);
+                return [];
+            }
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is already prepared above.
+            return $this->wpdb->get_col($prepared_query, $column_offset);
         } catch (\Throwable $e) {
             $this->log_error("DatabaseHelper::get_col failed: " . $e->getMessage());
             return [];
@@ -464,7 +496,7 @@ class DatabaseHelper
         }
 
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- wpdb::insert handles escaping internally.
             $result = $this->wpdb->insert($table_name, $data, $format);
 
             if ($result === false) {
@@ -501,7 +533,7 @@ class DatabaseHelper
         }
 
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- wpdb::update handles escaping internally.
             $result = $this->wpdb->update($table_name, $data, $where, $format, $where_format);
 
             if ($result === false) {
@@ -541,11 +573,9 @@ class DatabaseHelper
             $error_message .= ' | Context: ' . json_encode($context);
         }
 
-        // Use WordPress debug logger when available; otherwise fall back to PHP error_log.
+        // Use WordPress debug logger when available; otherwise do nothing.
         if (function_exists('wp_debug_log')) {
             wp_debug_log($error_message);
-        } elseif (function_exists('error_log')) {
-            error_log($error_message);
         }
 
         // Persist the error in a transient for debugging purposes.
@@ -601,12 +631,10 @@ class DatabaseHelper
             $warning_message .= ' | Context: ' . json_encode($context);
         }
 
-        // Use WordPress debug logger when available; otherwise fall back to PHP error_log.
-        if (function_exists('wp_debug_log')) {
-            wp_debug_log($warning_message);
-        } elseif (function_exists('error_log')) {
-            error_log($warning_message);
-        }
+ // Use WordPress debug logger when available; otherwise do nothing.
+if (function_exists('wp_debug_log')) {
+    wp_debug_log($warning_message);
+}
 
         // Persist the warning in a transient for debugging purposes.
         $log = get_transient('odcm_database_log');

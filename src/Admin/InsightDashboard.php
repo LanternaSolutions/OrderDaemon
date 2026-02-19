@@ -1767,8 +1767,8 @@ class InsightDashboard
         }
 
         // Get raw data
-        $env_raw = isset($_POST['env']) ? wp_unslash($_POST['env']) : '';
-        $issues_raw = isset($_POST['issues']) ? wp_unslash($_POST['issues']) : '';
+        $env_raw = isset($_POST['env']) ? sanitize_text_field(wp_unslash($_POST['env'])) : '';
+        $issues_raw = isset($_POST['issues']) ? sanitize_text_field(wp_unslash($_POST['issues'])) : '';
 
         // Validate and sanitize the JSON
         try {

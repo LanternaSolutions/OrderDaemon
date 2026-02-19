@@ -1488,7 +1488,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         try {
             // Use proper table name escaping (cannot use placeholders for table names)
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table query required for audit log retrieval.
             $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
             $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
@@ -2384,8 +2384,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         $placeholder_string = implode(',', $placeholders);
 
         // Validate log IDs exist using prepared statement with proper parameter binding
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // Direct query is needed for performance-critical batch operations
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical batch operations.
         $sql = $wpdb->prepare(
             "SELECT log_id
             FROM `{$logTableName}`
@@ -2427,8 +2426,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $log_placeholder_string = implode(',', $log_placeholders);
 
             // Get payload IDs to delete using prepared statement
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical batch operations
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical batch operations.
             $payload_ids_query = $wpdb->prepare(
                 "SELECT DISTINCT payload_id
                 FROM `{$logTableName}`
@@ -2454,8 +2452,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $payload_placeholder_string = implode(',', $payload_placeholders);
 
                 // Get payloads still in use using prepared statement
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                // Direct query is needed for performance-critical batch operations
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical batch operations.
                 $used_payloads_query = $wpdb->prepare(
                     "SELECT DISTINCT payload_id
                     FROM `{$logTableName}`
@@ -2473,8 +2470,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     $orphaned_placeholders = array_fill(0, count($orphaned_payloads), '%d');
                     $orphaned_placeholder_string = implode(',', $orphaned_placeholders);
 
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                    // Direct query is needed for performance-critical batch operations
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical batch operations.
                     $delete_payloads_query = $wpdb->prepare(
                         "DELETE FROM `{$payloadTableName}`
                         WHERE payload_id IN ({$orphaned_placeholder_string})",
@@ -2765,8 +2761,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             if ($table_check === '1') {
             // Get basic stats
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for diagnostic purposes
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for diagnostic purposes.
             $total_logs = $this->db_helper->get_var("SELECT COUNT(*) FROM {$audit_table}");
             $recent_logs = $this->db_helper->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)"
@@ -2788,8 +2783,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ];
 
                 // Get recent log samples
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                // Direct query is needed for diagnostic purposes
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for diagnostic purposes.
                 $sample_logs = $this->db_helper->get_results($wpdb->prepare(
                     "SELECT id, timestamp, status, event_type, summary, order_id
                     FROM {$audit_table}
@@ -3276,8 +3270,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $start_time = microtime(true);
 
             // Get available statuses
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical filter options
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical filter options.
             $statuses = $this->db_helper->get_col("
                 SELECT DISTINCT status
                 FROM {$wpdb->prefix}odcm_audit_log
@@ -3286,8 +3279,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             ");
 
             // Get available event types
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical filter options
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical filter options.
             $event_types = $this->db_helper->get_col("
                 SELECT DISTINCT event_type
                 FROM {$wpdb->prefix}odcm_audit_log
@@ -3296,8 +3288,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             ");
 
             // Get available sources
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical filter options
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical filter options.
             $sources = $this->db_helper->get_col("
                 SELECT DISTINCT source
                 FROM {$wpdb->prefix}odcm_audit_log
@@ -3306,8 +3297,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             ");
 
             // Get order IDs with logs
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical filter options
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical filter options.
             $order_ids = $this->db_helper->get_col("
                 SELECT DISTINCT order_id
                 FROM {$wpdb->prefix}odcm_audit_log
@@ -3329,7 +3319,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $universal_event_types = [];
             if (in_array('universal_event_processing', $event_types, true)) {
                 // Get payloads for universal_event_processing events
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query needed to extract nested event types from payloads.
                 $universal_payloads = $this->db_helper->get_results("
                     SELECT DISTINCT p.payload
                     FROM {$wpdb->prefix}odcm_audit_log l

@@ -123,7 +123,7 @@ class ManualStatusTracker
         }
 
         // Verify nonce for any state‑changing request (form, AJAX, REST)
-        $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'] ?? $_REQUEST['security'] ?? ''));
+        $nonce = (isset($_REQUEST['_wpnonce']) && is_string($_REQUEST['_wpnonce'])) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : ((isset($_REQUEST['security']) && is_string($_REQUEST['security'])) ? sanitize_text_field(wp_unslash($_REQUEST['security'])) : '');
         if (empty($nonce)) {
             // No nonce supplied – abort processing to prevent CSRF
             if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -208,7 +208,7 @@ class ManualStatusTracker
     public static function track_manual_order_edit(int $post_id, mixed $post_or_order): void
     {
         // Verify nonce for admin form submissions
-        $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'] ?? $_REQUEST['security'] ?? ''));
+        $nonce = (isset($_REQUEST['_wpnonce']) && is_string($_REQUEST['_wpnonce'])) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : ((isset($_REQUEST['security']) && is_string($_REQUEST['security'])) ? sanitize_text_field(wp_unslash($_REQUEST['security'])) : '');
         if (empty($nonce)) {
             // Missing nonce – abort processing
             if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -474,7 +474,7 @@ class ManualStatusTracker
 
         // Check if we're on the orders list page with edit action
         if ($pagenow === 'edit.php' && $typenow === 'shop_order') {
-            $action = isset($_GET['action']) ? sanitize_key(wp_unslash($_GET['action'])) : '';
+            $action = (isset($_GET['action']) && is_string($_GET['action'])) ? sanitize_key(wp_unslash($_GET['action'])) : '';
             return $action === 'edit';
         }
 
@@ -509,8 +509,9 @@ class ManualStatusTracker
         // Note: We don't verify nonce as a strict requirement here because this is detection-only code
         // and we don't want to break WooCommerce's own AJAX handlers that may not include our nonces
         if (isset($_REQUEST['security'])) {
+            $security_nonce = is_string($_REQUEST['security']) ? sanitize_text_field(wp_unslash($_REQUEST['security'])) : '';
             $nonce_valid = wp_verify_nonce(
-                sanitize_text_field(wp_unslash($_REQUEST['security'])), 
+                $security_nonce, 
                 'woocommerce-order-ajax'
             );
             if (!$nonce_valid) {
@@ -551,7 +552,7 @@ class ManualStatusTracker
 
         // Check for REST API nonce when available (WP REST API will handle authorization)
         if (isset($_REQUEST['_wpnonce'])) {
-            $rest_nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
+            $rest_nonce = is_string($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '';
             $nonce_valid = wp_verify_nonce($rest_nonce, 'wp_rest');
             
             // Log if invalid but don't block - this is just detection code

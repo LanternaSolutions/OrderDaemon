@@ -112,7 +112,7 @@ class GenericEventAdapter extends DisplayAdapter
         } catch (\Throwable $e) {
             // Log the error but don't throw
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM: GenericEventAdapter error: ' . $e->getMessage());
+                    odcm_log_message('ODCM: GenericEventAdapter error: ' . $e->getMessage(), 'error');
             }
 
             // Return minimal valid data - ensures rendering can continue

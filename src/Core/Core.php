@@ -47,12 +47,12 @@ class Core
                     if (function_exists('do_action')) {
                         do_action('odcm_log_error', 'ODCM_CORE: ' . $message);
                     }
-                    
+
                     // Use WordPress debug log function if available
                     if (function_exists('wp_debug_log')) {
                         wp_debug_log('ODCM_CORE: ' . $message);
                     }
-                    
+
                     // If WP_DEBUG_LOG is enabled, write to debug.log file using safe utilities
                     if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
                         // Get validated debug file path
@@ -81,12 +81,12 @@ class Core
         global $woocommerce;
         
         if (!isset($woocommerce) || !is_object($woocommerce)) {
-            $this->controlled_error_log('Emergency check: WooCommerce global not available');
+            odcm_log_message('Emergency check: WooCommerce global not available', 'error');
             return false;
         }
         
         if (!method_exists($woocommerce, 'init') || !property_exists($woocommerce, 'version')) {
-            $this->controlled_error_log('Emergency check: WooCommerce global missing required methods/properties');
+            odcm_log_message('Emergency check: WooCommerce global missing required methods/properties', 'error');
             return false;
         }
         
@@ -241,12 +241,12 @@ class Core
         try {
             // SECURITY: Sanitize only specific expected parameters from $_REQUEST.
             $safe_params = odcm_validate_and_sanitize_params([
-                'page' => sanitize_text_field($_REQUEST['page'] ?? ''),
-                'tab' => sanitize_text_field($_REQUEST['tab'] ?? ''),
-                'action' => sanitize_text_field($_REQUEST['action'] ?? ''),
-                '_wpnonce' => sanitize_text_field($_REQUEST['_wpnonce'] ?? ''),
-                'odcm_reprocess_orders' => sanitize_text_field($_REQUEST['odcm_reprocess_orders'] ?? ''),
-                'odcm_reprocess_nonce' => sanitize_text_field($_REQUEST['odcm_reprocess_nonce'] ?? ''),
+                'page' => sanitize_text_field(wp_unslash($_REQUEST['page'] ?? '')),
+                'tab' => sanitize_text_field(wp_unslash($_REQUEST['tab'] ?? '')),
+                'action' => sanitize_text_field(wp_unslash($_REQUEST['action'] ?? '')),
+                '_wpnonce' => sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'] ?? '')),
+                'odcm_reprocess_orders' => sanitize_text_field(wp_unslash($_REQUEST['odcm_reprocess_orders'] ?? '')),
+                'odcm_reprocess_nonce' => sanitize_text_field(wp_unslash($_REQUEST['odcm_reprocess_nonce'] ?? '')),
             ], $validation_rules);
         } catch (\InvalidArgumentException $e) {
             // This should not happen with all fields being optional, but as a safeguard:
@@ -737,7 +737,7 @@ class Core
         if (empty($matching_rules)) {
             // Log when no rules match (only in debug mode)
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->controlled_error_log("DEBUG_TRACE: Order #{$order_id} - NO RULES MATCHED, skipping rule evaluation but timeline event already created");
+                odcm_log_message("DEBUG_TRACE: Order #{$order_id} - NO RULES MATCHED, skipping rule evaluation but timeline event already created", 'error');
             }
             
             // Schedule basic order check for compatibility
@@ -749,7 +749,7 @@ class Core
 
         // Log that we found matching rules (only in debug mode)
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            $this->controlled_error_log("DEBUG_TRACE: Order #{$order_id} - RULES MATCHED, proceeding to rule evaluation");
+            odcm_log_message("DEBUG_TRACE: Order #{$order_id} - RULES MATCHED, proceeding to rule evaluation", 'error');
             foreach ($matching_rules as $rule) {
                 $this->controlled_error_log("DEBUG_TRACE: Order #{$order_id} - Matching rule: {$rule['name']} (ID: {$rule['id']})");
             }
@@ -1132,11 +1132,22 @@ class Core
 
         // DEBUG: Log the UniversalEvent data structure
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            $this->controlled_error_log("PROCESS_ID_DEBUG: UniversalEvent data for order #{$order_id}:");
-            $this->controlled_error_log("PROCESS_ID_DEBUG: - primaryObjectType: " . $universal_event_data['primaryObjectType']);
-            $this->controlled_error_log("PROCESS_ID_DEBUG: - primaryObjectID: " . $universal_event_data['primaryObjectID'] . " (type: " . gettype($universal_event_data['primaryObjectID']) . ")");
-            $this->controlled_error_log("PROCESS_ID_DEBUG: - eventType: " . $universal_event_data['eventType']);
-            $this->controlled_error_log("PROCESS_ID_DEBUG: - idempotencyKey: " . $universal_event_data['idempotencyKey']);
+            odcm_log_event(
+                "UniversalEvent data for order #{$order_id}",
+                [
+                    'primaryObjectType' => $universal_event_data['primaryObjectType'],
+                    'primaryObjectID' => $universal_event_data['primaryObjectID'],
+                    'primaryObjectID_type' => gettype($universal_event_data['primaryObjectID']),
+                    'eventType' => $universal_event_data['eventType'],
+                    'idempotencyKey' => $universal_event_data['idempotencyKey'],
+                    'debug_mode' => true
+                ],
+                $order_id,
+                'debug',
+                '_universal_event_debug',
+                false,
+                \OrderDaemon\CompletionManager\Core\ProcessIdManager::instance()->get_or_create_process_id($order_id)
+            );
         }
 
         return new UniversalEvent($universal_event_data);
@@ -2031,11 +2042,11 @@ class Core
                     'order_id' => $order_id
                 ], 'odcm-emergency-processing');
                 
-                $this->controlled_error_log("EMERGENCY: Scheduled fallback processing for order #{$order_id}");
+                odcm_log_message("EMERGENCY: Scheduled fallback processing for order #{$order_id}", 'error');
             }
         } catch (\Throwable $e) {
             // Even emergency fallback should not break checkout
-            $this->controlled_error_log("EMERGENCY: Final fallback failed for order #{$order_id}");
+            odcm_log_message("EMERGENCY: Final fallback failed for order #{$order_id}", 'error');
         }
     }
 
@@ -2223,7 +2234,6 @@ class Core
     {
         // Check if we've already scheduled processing for this order
         if (!$this->should_process_checkout_unified($order_id)) {
-            $this->log_checkout_event_minimal($order_id, 'skipped_already_scheduled');
             odcm_log_message("Unified checkout processor skipped for order #{$order_id} - already scheduled", 'info');
             return;
         }
@@ -2249,7 +2259,7 @@ class Core
             $this->schedule_unified_checkout_completion($order_id);
             
             // Minimal sync logging only - no heavy operations during checkout
-            $this->log_checkout_event_minimal($order_id, 'unified_scheduled');
+            odcm_log_message("Unified checkout completion scheduled for order #{$order_id}", 'info');
             
         } catch (\Throwable $e) {
             // Log error but continue - should not break checkout
@@ -2610,13 +2620,13 @@ class Core
         }
 
         if ($order_id <= 0) {
-            $this->controlled_error_log('BACKGROUND: Invalid order ID for payment processing');
+            odcm_log_message('BACKGROUND: Invalid order ID for payment processing', 'error');
             return;
         }
 
         $order = wc_get_order($order_id);
         if (!$order instanceof \WC_Order) {
-            $this->controlled_error_log("BACKGROUND: Order #{$order_id} not found for payment processing");
+            odcm_log_message("BACKGROUND: Order #{$order_id} not found for payment processing", 'error');
             return;
         }
 
@@ -2627,7 +2637,7 @@ class Core
             // Process through universal event pipeline
             $this->process_universal_event_from_hook($universal_event);
 
-            $this->controlled_error_log("BACKGROUND: Payment completion processed for order #{$order_id}");
+            odcm_log_message("BACKGROUND: Payment completion processed for order #{$order_id}", 'error');
 
         } catch (\Throwable $e) {
             $this->controlled_error_log("BACKGROUND: Payment processing failed for order #{$order_id}: " . $e->getMessage());
