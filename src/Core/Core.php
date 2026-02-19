@@ -13,6 +13,7 @@ use OrderDaemon\CompletionManager\Core\Events\UniversalEvent;
 use OrderDaemon\CompletionManager\Core\Events\EvaluationContext;
 use OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor;
 use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
+use OrderDaemon\CompletionManager\Includes\Utils\RequestHelper;
 use OrderDaemon\CompletionManager\Includes\Functions;
 use WC_Order;
 
@@ -239,15 +240,17 @@ class Core
         ];
 
         try {
-            // SECURITY: Sanitize only specific expected parameters from $_REQUEST.
-            $safe_params = odcm_validate_and_sanitize_params([
-                'page' => sanitize_text_field(wp_unslash($_REQUEST['page'] ?? '')),
-                'tab' => sanitize_text_field(wp_unslash($_REQUEST['tab'] ?? '')),
-                'action' => sanitize_text_field(wp_unslash($_REQUEST['action'] ?? '')),
-                '_wpnonce' => sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'] ?? '')),
-                'odcm_reprocess_orders' => sanitize_text_field(wp_unslash($_REQUEST['odcm_reprocess_orders'] ?? '')),
-                'odcm_reprocess_nonce' => sanitize_text_field(wp_unslash($_REQUEST['odcm_reprocess_nonce'] ?? '')),
-            ], $validation_rules);
+            // SECURITY: Use RequestHelper for proper input validation and sanitization
+            $validation_rules = [
+                'page' => ['type' => 'string', 'required' => false],
+                'tab' => ['type' => 'string', 'required' => false],
+                'action' => ['type' => 'string', 'required' => false], // Checked manually below
+                '_wpnonce' => ['type' => 'string', 'required' => false],
+                'odcm_reprocess_orders' => ['type' => 'string', 'required' => false],
+                'odcm_reprocess_nonce' => ['type' => 'string', 'required' => false],
+            ];
+
+            $safe_params = RequestHelper::validate_request($validation_rules);
         } catch (\InvalidArgumentException $e) {
             // This should not happen with all fields being optional, but as a safeguard:
             odcm_log_message("Parameter validation failed for reprocess request: " . $e->getMessage(), 'error');
@@ -259,14 +262,14 @@ class Core
             return;
         }
 
-        // Security: Consolidate nonce verification for both GET and POST.
+        // Security: Use RequestHelper for nonce verification
         $nonce = $safe_params['_wpnonce'] ?? $safe_params['odcm_reprocess_nonce'] ?? '';
-        if ( ! wp_verify_nonce($nonce, 'odcm_reprocess_action')) {
+        if (!RequestHelper::verify_nonce($nonce, 'odcm_reprocess_action')) {
             wp_die(esc_html__('Security check failed', 'order-daemon'));
         }
 
-        // Security: Verify user capabilities.
-        if ( ! current_user_can('manage_woocommerce')) {
+        // Security: Use RequestHelper for capability verification
+        if (!RequestHelper::check_capabilities('manage_woocommerce')) {
             wp_die(esc_html__('You do not have sufficient permissions to perform this action.', 'order-daemon'));
         }
 

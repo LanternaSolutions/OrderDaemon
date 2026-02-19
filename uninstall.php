@@ -71,7 +71,7 @@ function odcm_is_dry_run_mode() {
  * @param string $message The action message to log.
  */
 function odcm_log_uninstall_action($message) {
-    if (function_exists('error_log')) {
+    if (function_exists('odcm_log_message')) {
         odcm_log_message('[ODCM Uninstall] ' . $message, 'error');
     }
 
@@ -94,7 +94,7 @@ function odcm_log_uninstall_action($message) {
  * @param string $message The error message to log.
  */
 function odcm_log_uninstall_error($message) {
-    if (function_exists('error_log')) {
+    if (function_exists('odcm_log_message')) {
         odcm_log_message('[ODCM Uninstall ERROR] ' . $message, 'error');
     }
 
