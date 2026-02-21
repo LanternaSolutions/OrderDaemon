@@ -1244,6 +1244,7 @@ final class AttributionTracker
         foreach ($filters as $filter => $rule) {
             // Ensure all filter names use the proper odcm_ prefix
             $prefixed_filter = 'odcm_' . ltrim($filter, 'odcm_');
+            // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- Hook name is constructed with prefix.
             $value = apply_filters($prefixed_filter, $rule['required'] ? null : $this->get_default_value($rule));
             odcm_validate_and_sanitize_params([$prefixed_filter => $value], [$filter => $rule]);
         }

@@ -2424,7 +2424,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $log_placeholder_string = implode(',', $log_placeholders);
 
             // Get payload IDs to delete using prepared statement
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical batch operations.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Direct query is needed for performance-critical batch operations. Table name is escaped; IN clause built safely.
             $payload_ids_query = $wpdb->prepare(
                 "SELECT DISTINCT payload_id
                 FROM `{$logTableName}`
@@ -2435,6 +2435,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $payload_ids = $this->db_helper->get_col($payload_ids_query);
 
             // Delete logs using prepared statement
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name is escaped; IN clause built safely.
             $delete_logs_query = $wpdb->prepare(
                 "DELETE FROM `{$logTableName}`
                 WHERE log_id IN ({$log_placeholder_string})",
@@ -2450,7 +2451,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $payload_placeholder_string = implode(',', $payload_placeholders);
 
                 // Get payloads still in use using prepared statement
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical batch operations.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Direct query is needed for performance-critical batch operations. Table name is escaped; IN clause built safely.
                 $used_payloads_query = $wpdb->prepare(
                     "SELECT DISTINCT payload_id
                     FROM `{$logTableName}`
@@ -2468,7 +2469,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     $orphaned_placeholders = array_fill(0, count($orphaned_payloads), '%d');
                     $orphaned_placeholder_string = implode(',', $orphaned_placeholders);
 
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical batch operations.
+                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Direct query is needed for performance-critical batch operations. Table name is escaped; IN clause built safely.
                     $delete_payloads_query = $wpdb->prepare(
                         "DELETE FROM `{$payloadTableName}`
                         WHERE payload_id IN ({$orphaned_placeholder_string})",
@@ -2759,15 +2760,18 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             if ($table_check === '1') {
             // Get basic stats
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for diagnostic purposes.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Direct query is needed for diagnostic purposes. Table name is escaped.
             $total_logs = $this->db_helper->get_var("SELECT COUNT(*) FROM {$audit_table}");
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped.
             $recent_logs = $this->db_helper->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)"
             ));
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped.
             $completion_logs = $this->db_helper->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE %s",
                 '%completion%'
             ));
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped.
             $debug_logs = $this->db_helper->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM {$audit_table} WHERE status = %s OR event_type LIKE %s",
                 'debug', 'debug_%'
@@ -2781,7 +2785,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ];
 
                 // Get recent log samples
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for diagnostic purposes.
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Direct query is needed for diagnostic purposes. Table name is escaped.
                 $sample_logs = $this->db_helper->get_results($wpdb->prepare(
                     "SELECT id, timestamp, status, event_type, summary, order_id
                     FROM {$audit_table}

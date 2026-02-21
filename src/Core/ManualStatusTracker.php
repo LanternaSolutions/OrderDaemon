@@ -210,6 +210,7 @@ class ManualStatusTracker
     public static function track_manual_order_edit(int $post_id, mixed $post_or_order): void
     {
                 // Verify nonce for admin form submissions
+                // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce is verified immediately after this line.
                 $nonce = isset($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '';
                 if (empty($nonce) || !wp_verify_nonce($nonce, 'odcm_manual_order_edit')) {
                     // Log security event with proper context

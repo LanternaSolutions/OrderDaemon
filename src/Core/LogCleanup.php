@@ -65,6 +65,7 @@ class LogCleanup
         // Cache miss - perform count query
         if (false === $total_to_delete) {
             $total_to_delete = DatabaseHelper::get_var(
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped and trusted.
                 $wpdb->prepare(
                     "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s",
                     $cutoff_date
@@ -97,6 +98,7 @@ class LogCleanup
             // Cache miss - perform batch query
             if (false === $logs_to_delete) {
                 $logs_to_delete = DatabaseHelper::get_results(
+                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped and trusted.
                     $wpdb->prepare(
                         "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d",
                         $cutoff_date,
@@ -270,6 +272,7 @@ class LogCleanup
         // Cache miss - perform count query
         if (false === $count_to_delete) {
             $count_to_delete = DatabaseHelper::get_var(
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped and trusted.
                 $wpdb->prepare(
                     "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s",
                     $cutoff_date
@@ -298,6 +301,7 @@ class LogCleanup
         // Cache miss - perform count query
         if (false === $payload_count_to_delete) {
             $payload_count_to_delete = DatabaseHelper::get_var(
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped and trusted.
                 $wpdb->prepare(
                     "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL",
                     $cutoff_date

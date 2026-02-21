@@ -257,7 +257,8 @@ class DatabaseHelper
             // Options table name from $wpdb is trusted.
             $option_table = $this->wpdb->options;
 
-            $sql = "SELECT option_name FROM `{$option_table}` WHERE option_name LIKE %s"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table name is trusted.
+            $sql = "SELECT option_name FROM `{$option_table}` WHERE option_name LIKE %s";
 
             $options = $this->get_results(
                 $this->wpdb->prepare(
@@ -349,7 +350,8 @@ class DatabaseHelper
         try {
             $sanitized_args = $this->sanitize_query_args($args);
 
-            $prepared_query = $this->wpdb->prepare($query, $sanitized_args); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is dynamic by design in this helper.
+            $prepared_query = $this->wpdb->prepare($query, $sanitized_args);
             
             if (empty($prepared_query)) {
                 $this->log_warning(
@@ -362,7 +364,8 @@ class DatabaseHelper
 
             $this->log_query($query, $sanitized_args);
 
-            return $this->wpdb->query($prepared_query); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Prepared above.
+            return $this->wpdb->query($prepared_query);
             
         } catch (\Throwable $e) {
             $this->log_error('DatabaseHelper::query failed: ' . $e->getMessage());
@@ -391,7 +394,8 @@ class DatabaseHelper
         try {
             $sanitized_args = $this->sanitize_query_args($args);
 
-            $prepared_query = $this->wpdb->prepare($query, $sanitized_args); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is dynamic.
+            $prepared_query = $this->wpdb->prepare($query, $sanitized_args);
 
             if (empty($prepared_query)) {
                 $this->log_warning(
@@ -404,7 +408,8 @@ class DatabaseHelper
 
             $this->log_query($query, $sanitized_args);
 
-            return $this->wpdb->get_var($prepared_query); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Prepared above.
+            return $this->wpdb->get_var($prepared_query);
 
         } catch (\Throwable $e) {
             $this->log_error('DatabaseHelper::get_var failed: ' . $e->getMessage());
@@ -434,7 +439,8 @@ class DatabaseHelper
         try {
             $sanitized_args = $this->sanitize_query_args($args);
 
-            $prepared_query = $this->wpdb->prepare($query, $sanitized_args); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is dynamic.
+            $prepared_query = $this->wpdb->prepare($query, $sanitized_args);
 
             if (empty($prepared_query)) {
                 $this->log_warning(
@@ -447,7 +453,8 @@ class DatabaseHelper
 
             $this->log_query($query, $sanitized_args);
 
-            return $this->wpdb->get_row($prepared_query, $output); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Prepared above.
+            return $this->wpdb->get_row($prepared_query, $output);
 
         } catch (\Throwable $e) {
             $this->log_error('DatabaseHelper::get_row failed: ' . $e->getMessage());
@@ -477,7 +484,8 @@ class DatabaseHelper
         try {
             $sanitized_args = $this->sanitize_query_args($args);
 
-            $prepared_query = $this->wpdb->prepare($query, $sanitized_args); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is dynamic.
+            $prepared_query = $this->wpdb->prepare($query, $sanitized_args);
 
             if (empty($prepared_query)) {
                 $this->log_warning(
@@ -490,7 +498,8 @@ class DatabaseHelper
 
             $this->log_query($query, $sanitized_args);
 
-            $results = $this->wpdb->get_results($prepared_query, $output); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Prepared above.
+            $results = $this->wpdb->get_results($prepared_query, $output);
 
             // Return null if no results found or if results is false (error)
             return $results === false || empty($results) ? null : $results;
@@ -522,7 +531,8 @@ class DatabaseHelper
         try {
             $sanitized_args = $this->sanitize_query_args($args);
 
-            $prepared_query = $this->wpdb->prepare($query, $sanitized_args); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is dynamic.
+            $prepared_query = $this->wpdb->prepare($query, $sanitized_args);
 
             if (empty($prepared_query)) {
                 $this->log_warning(
@@ -535,7 +545,8 @@ class DatabaseHelper
 
             $this->log_query($query, $sanitized_args);
 
-            return $this->wpdb->get_col($prepared_query, $column_offset); // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Prepared above.
+            return $this->wpdb->get_col($prepared_query, $column_offset);
 
         } catch (\Throwable $e) {
             $this->log_error('DatabaseHelper::get_col failed: ' . $e->getMessage());
@@ -707,7 +718,7 @@ class DatabaseHelper
      * @param string $table_name Table name to validate
      * @return bool True if valid, false otherwise
      */
-    private function validate_table_name(string $table_name): bool
+    public static function validate_table_name(string $table_name): bool
     {
         // Only allow alphanumeric characters, underscores, and hyphens
         return preg_match('/^[a-zA-Z0-9_-]+$/', $table_name) === 1;

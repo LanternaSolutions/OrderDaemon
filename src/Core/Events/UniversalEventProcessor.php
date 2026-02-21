@@ -3259,7 +3259,7 @@ class UniversalEventProcessor
         }
 
         // Get the raw value
-        $raw_value = $_SERVER['REQUEST_TIME_FLOAT'];
+        $raw_value = sanitize_text_field(wp_unslash($_SERVER['REQUEST_TIME_FLOAT']));
 
         // Apply wp_unslash to remove any magic quotes/slashes
         $unslashed_value = wp_unslash($raw_value);
