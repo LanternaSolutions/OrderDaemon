@@ -208,7 +208,7 @@ class UniversalEventProcessor
             $result = $this->processUniversalEventRules($context, $process_id);
 
             // Log final processing result
-            $execution_time = microtime(true) - $start_time;
+            $execution_time = microtime(true) - ($this->getValidatedRequestTimeFloat() ?? $start_time);
             $this->logProcessingResult($context, $result, $execution_time, $process_id);
 
             return $result;

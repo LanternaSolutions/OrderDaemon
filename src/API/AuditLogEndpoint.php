@@ -2383,17 +2383,15 @@ class AuditLogEndpoint extends WP_REST_Controller
         $placeholders = array_fill(0, count($log_ids), '%d');
         $placeholder_string = implode(',', $placeholders);
 
-        // Validate log IDs exist using prepared statement with proper parameter binding
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical batch operations.
-        $sql = $wpdb->prepare(
-            "SELECT log_id
-            FROM `{$logTableName}`
-            WHERE log_id IN ({$placeholder_string})",
-            ...$log_ids
-        );
+        if (! DatabaseHelper::validate_table_name($logTableName)) {
+            return new WP_Error('odcm_invalid_table_name', __('Invalid table name provided', 'order-daemon'), ['status' => 400]);
+        }
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is prepared above via $wpdb->prepare()
-        $valid_ids = $this->db_helper->get_col($sql);
+        $log_ids = array_map('intval', explode(',', $placeholder_string));
+        $valid_ids = DatabaseHelper::get_col(
+            "SELECT log_id FROM `{$logTableName}` WHERE log_id IN (%s)",
+            [implode(',', $log_ids)]
+        );
         $result = array_map('intval', $valid_ids);
 
         return $result;

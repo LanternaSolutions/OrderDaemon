@@ -309,8 +309,11 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
-        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
-        $table_identifier = ($table_name === $wpdb->prefix . 'odcm_audit_log') ? '`' . $table_name . '`' : '`odcm_audit_log`';
+        // Validate identifier using DatabaseHelper
+        if (!DatabaseHelper::validate_table_name($table_name)) {
+            throw new \InvalidArgumentException('Invalid table name');
+        }
+        $table_identifier = '`' . $table_name . '`';
         $start_time = microtime(true);
 
         try {
@@ -335,11 +338,9 @@ class QueryDiagnostic extends AbstractDiagnostic
 
                 // Prepare the query using proper WordPress database abstraction
                 // Column names are validated against whitelist for security
-                // Since we can't use prepare() for identifiers, we use esc_sql() to escape them
-                $escaped_column = esc_sql($column);
-                $escaped_table = esc_sql(trim(str_replace('`', '', $table_identifier)));
+                // Since we can't use prepare() for identifiers, we use whitelist validation
                 $sql = $wpdb->prepare(
-                    "SELECT DISTINCT `{$escaped_column}` FROM `{$escaped_table}` WHERE `{$escaped_column}` IS NOT NULL AND `{$escaped_column}` != %s ORDER BY `{$escaped_column}` ASC",
+                    "SELECT DISTINCT {$column} FROM {$table_identifier} WHERE {$column} IS NOT NULL AND {$column} != %s ORDER BY {$column} ASC",
                     '' // Empty string parameter for the != %s comparison
                 );
 
@@ -501,8 +502,11 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
-        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
-        $table_identifier = ($table_name === $wpdb->prefix . 'odcm_audit_log') ? '`' . $table_name . '`' : '`odcm_audit_log`';
+        // Validate identifier using DatabaseHelper
+        if (!DatabaseHelper::validate_table_name($table_name)) {
+            throw new \InvalidArgumentException('Invalid table name');
+        }
+        $table_identifier = '`' . $table_name . '`';
 
         try {
             // Get existing indexes
@@ -703,6 +707,10 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
+        // Validate identifier using DatabaseHelper
+        if (!DatabaseHelper::validate_table_name($table_name)) {
+            throw new \InvalidArgumentException('Invalid table name');
+        }
         
         // Construct a test query that will benefit from indexing
         $cutoff_time = gmdate('Y-m-d H:i:s', strtotime('-1 hour'));

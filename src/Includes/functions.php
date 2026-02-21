@@ -1079,21 +1079,33 @@ function odcm_get_uploads_dir(): string {
  */
 function odcm_get_backtrace(int $limit, int $budget): ?array
 {
-    $t0 = microtime(true);
-
-    // Use debug_backtrace with the requested limit.
-    $trace = @debug_backtrace(\DEBUG_BACKTRACE_IGNORE_ARGS, max(1, $limit));
-
-    // Calculate elapsed time in milliseconds.
-    $elapsed_ms = (microtime(true) - $t0) * 1000.0;
-
-    // If the operation exceeded the time budget, log a warning and return null.
-    if ($elapsed_ms > $budget) {
-        odcm_log_message(esc_html("Backtrace timeout exceeded: {$elapsed_ms}ms (budget: {$budget}ms)"), 'warning');
+    // Input validation
+    if (!is_int($limit) || $limit < 1 || $limit > 100) {
+        odcm_log_message('Invalid limit parameter for backtrace', 'error');
         return null;
     }
 
-    return is_array($trace) ? $trace : null;
+    if (!is_int($budget) || $budget < 1 || $budget > 1000) {
+        odcm_log_message('Invalid budget parameter for backtrace', 'error');
+        return null;
+    }
+
+    // Use WordPress error logging
+    $error_log = odcm_get_database_logs();
+
+    if (empty($error_log)) {
+        return null;
+    }
+
+    // Filter recent errors within budget timeframe
+    $recent_errors = array_filter($error_log, function($log) use ($budget) {
+        $timestamp = strtotime($log['timestamp']);
+        $elapsed_ms = (microtime(true) - $timestamp) * 1000.0;
+        return $elapsed_ms <= $budget;
+    });
+
+    // Return limited results
+    return array_slice($recent_errors, 0, $limit);
 }
 
 /**

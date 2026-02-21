@@ -145,27 +145,28 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
-        // Use WordPress-approved database query method with proper escaping
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery -- Table names are trusted; Custom table with complex JOIN required.
-        $result = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT l.log_id,
-                    l.timestamp,
-                    l.status,
-                    l.summary,
-                    l.order_id,
-                    l.event_type,
-                    l.source,
-                    l.payload_id,
-                    l.is_test,
-                    l.process_id,
-                    COALESCE(p.payload, l.details, %s) as payload
-                FROM `{$log_table}` l
-                    LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
-                WHERE l.log_id = %d",
-                '',
-                $logId
-            ),
+        // Validate table names
+        if (!DatabaseHelper::validate_table_name($log_table) || !DatabaseHelper::validate_table_name($payload_table)) {
+            throw new \Exception("Invalid table names in DatabaseTimelineBuilder::fetchLogEntry");
+        }
+
+        // Use DatabaseHelper for secure database operations
+        $result = DatabaseHelper::get_row(
+            "SELECT l.log_id,
+                l.timestamp,
+                l.status,
+                l.summary,
+                l.order_id,
+                l.event_type,
+                l.source,
+                l.payload_id,
+                l.is_test,
+                l.process_id,
+                COALESCE(p.payload, l.details, %s) as payload
+            FROM `{$log_table}` l
+                LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+            WHERE l.log_id = %d",
+            ['', $logId],
             'ARRAY_A'
         );
 
@@ -238,28 +239,29 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
-        // Use WordPress-approved database query method with proper escaping
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery -- Table names are trusted; Custom table with complex JOIN required.
-        $results = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT l.log_id,
-                    l.timestamp,
-                    l.status,
-                    l.summary,
-                    l.order_id,
-                    l.event_type,
-                    l.source,
-                    l.payload_id,
-                    l.is_test,
-                    l.process_id,
-                    COALESCE(p.payload, l.details, %s) as payload
-                FROM `{$log_table}` l
-                    LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
-                WHERE l.process_id = %s
-                ORDER BY l.timestamp ASC",
-                '',
-                $processId
-            ),
+        // Validate table names
+        if (!DatabaseHelper::validate_table_name($log_table) || !DatabaseHelper::validate_table_name($payload_table)) {
+            throw new \Exception("Invalid table names in DatabaseTimelineBuilder::fetchProcessLogEntries");
+        }
+
+        // Use DatabaseHelper for secure database operations
+        $results = DatabaseHelper::get_results(
+            "SELECT l.log_id,
+                l.timestamp,
+                l.status,
+                l.summary,
+                l.order_id,
+                l.event_type,
+                l.source,
+                l.payload_id,
+                l.is_test,
+                l.process_id,
+                COALESCE(p.payload, l.details, %s) as payload
+            FROM `{$log_table}` l
+                LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+            WHERE l.process_id = %s
+            ORDER BY l.timestamp ASC",
+            ['', $processId],
             'ARRAY_A'
         );
 

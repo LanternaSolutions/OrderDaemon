@@ -143,8 +143,8 @@ class Admin
             wp_die();
         }
         
-        // Get the rule order data
-        $rule_ids_raw = isset($_POST['rule_ids']) ? wp_unslash($_POST['rule_ids']) : [];
+        // Get the rule order data with proper sanitization
+        $rule_ids_raw = isset($_POST['rule_ids']) ? sanitize_text_field(wp_unslash($_POST['rule_ids'])) : [];
 
         // Sanitize the rule IDs
         if (is_string($rule_ids_raw)) {
@@ -165,6 +165,18 @@ class Admin
 
         // Now sanitize each ID as an integer
         $rule_ids = array_map('absint', $rule_ids_raw);
+
+        // Additional validation to ensure we have valid rule IDs
+        $rule_ids = array_filter($rule_ids, function($id) {
+            return $id > 0 && get_post($id) && get_post_type($id) === 'odcm_order_rule';
+        });
+        if (empty($rule_ids)) {
+            wp_send_json_error([
+                'message' => __('Invalid rule IDs provided', 'order-daemon'),
+                'code'    => 'invalid_rule_ids'
+            ]);
+            wp_die();
+        }
 
         // Additional validation to ensure we have valid rule IDs
         $rule_ids = array_filter($rule_ids, function($id) {

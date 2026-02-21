@@ -122,37 +122,39 @@ class ManualStatusTracker
             return;
         }
 
-        // Verify nonce for any state‑changing request (form, AJAX, REST)
-        $nonce = (isset($_REQUEST['_wpnonce']) && is_string($_REQUEST['_wpnonce'])) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : ((isset($_REQUEST['security']) && is_string($_REQUEST['security'])) ? sanitize_text_field(wp_unslash($_REQUEST['security'])) : '');
-        if (empty($nonce)) {
-            // No nonce supplied – abort processing to prevent CSRF
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                odcm_log_event(
-                    'Missing nonce on manual status change',
-                    ['order_id' => $order_id, 'from' => $from, 'to' => $to],
-                    $order_id,
-                    'error',
-                    'nonce_missing'
-                );
-            }
-            return;
-        }
-        try {
-            $guard = GuardFactory::createNonceGuard($nonce, 'odcm_manual_status_change');
-            $guard->verify();
-        } catch (SecurityException $e) {
-            // Invalid nonce – log and abort
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                odcm_log_event(
-                    'Invalid nonce on manual status change',
-                    ['order_id' => $order_id, 'error' => $e->getMessage()],
-                    $order_id,
-                    'error',
-                    'nonce_invalid'
-                );
-            }
-            return;
-        }
+                // Verify nonce for any state‑changing request (form, AJAX, REST)
+                $nonce = isset($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '';
+                if (empty($nonce) || !wp_verify_nonce($nonce, 'odcm_manual_status_change')) {
+                    // Log security event with proper context
+                    odcm_log_event(
+                        'Nonce verification failed',
+                        ['order_id' => $order_id, 'context' => 'manual_status_change'],
+                        $order_id,
+                        'error',
+                        'nonce_verification_failed'
+                    );
+                    return;
+                }
+
+                // Create and verify nonce guard with proper error handling
+                try {
+                    $guard = GuardFactory::createNonceGuard($nonce, 'odcm_manual_status_change');
+                    $guard->verify();
+                } catch (SecurityException $e) {
+                    // Log security exception with detailed context
+                    odcm_log_event(
+                        'Nonce guard verification failed',
+                        [
+                            'order_id' => $order_id,
+                            'error' => $e->getMessage(),
+                            'context' => 'manual_status_change'
+                        ],
+                        $order_id,
+                        'error',
+                        'nonce_guard_failed'
+                    );
+                    return;
+                }
 
         // Capture attribution context for manual changes
         $attr = AttributionTracker::instance()->capture_context();
@@ -207,37 +209,39 @@ class ManualStatusTracker
      */
     public static function track_manual_order_edit(int $post_id, mixed $post_or_order): void
     {
-        // Verify nonce for admin form submissions
-        $nonce = (isset($_REQUEST['_wpnonce']) && is_string($_REQUEST['_wpnonce'])) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : ((isset($_REQUEST['security']) && is_string($_REQUEST['security'])) ? sanitize_text_field(wp_unslash($_REQUEST['security'])) : '');
-        if (empty($nonce)) {
-            // Missing nonce – abort processing
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                odcm_log_event(
-                    'Missing nonce on manual order edit',
-                    ['order_id' => $post_id],
-                    $post_id,
-                    'error',
-                    'nonce_missing'
-                );
-            }
-            return;
-        }
-        try {
-            $guard = GuardFactory::createNonceGuard($nonce, 'odcm_manual_order_edit');
-            $guard->verify();
-        } catch (SecurityException $e) {
-            // Invalid nonce – log and abort
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                odcm_log_event(
-                    'Invalid nonce on manual order edit',
-                    ['order_id' => $post_id, 'error' => $e->getMessage()],
-                    $post_id,
-                    'error',
-                    'nonce_invalid'
-                );
-            }
-            return;
-        }
+                // Verify nonce for admin form submissions
+                $nonce = isset($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '';
+                if (empty($nonce) || !wp_verify_nonce($nonce, 'odcm_manual_order_edit')) {
+                    // Log security event with proper context
+                    odcm_log_event(
+                        'Nonce verification failed',
+                        ['order_id' => $post_id, 'context' => 'manual_order_edit'],
+                        $post_id,
+                        'error',
+                        'nonce_verification_failed'
+                    );
+                    return;
+                }
+
+                // Create and verify nonce guard with proper error handling
+                try {
+                    $guard = GuardFactory::createNonceGuard($nonce, 'odcm_manual_order_edit');
+                    $guard->verify();
+                } catch (SecurityException $e) {
+                    // Log security exception with detailed context
+                    odcm_log_event(
+                        'Nonce guard verification failed',
+                        [
+                            'order_id' => $post_id,
+                            'error' => $e->getMessage(),
+                            'context' => 'manual_order_edit'
+                        ],
+                        $post_id,
+                        'error',
+                        'nonce_guard_failed'
+                    );
+                    return;
+                }
 
         // Extract order ID from either WP_Post or HPOS order object
         if ($post_or_order instanceof \WP_Post) {

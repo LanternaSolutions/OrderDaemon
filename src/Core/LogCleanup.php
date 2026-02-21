@@ -140,10 +140,8 @@ class LogCleanup
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
                     $deleted_rows = DatabaseHelper::query(
-                        $wpdb->prepare(
-                            "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)",
-                            ...$log_ids
-                        )
+                        "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)",
+                        $log_ids
                     );
 
                     // Delete log ID cache keys after deletion
@@ -180,10 +178,8 @@ class LogCleanup
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
                     DatabaseHelper::query(
-                        $wpdb->prepare(
-                            "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)",
-                            ...$payload_ids
-                        )
+                        "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)",
+                        $payload_ids
                     );
 
                     // Delete payload cache keys after deletion

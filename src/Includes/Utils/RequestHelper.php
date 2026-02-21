@@ -135,6 +135,12 @@ class RequestHelper
      */
     public static function validate_request(array $rules): array
     {
+        // Verify nonce first
+        $nonce = self::get_param('_wpnonce', '', ['string']);
+        if (!self::verify_nonce($nonce)) {
+            throw new \InvalidArgumentException(esc_html('Invalid security token'));
+        }
+        
         return self::validate_and_sanitize($_REQUEST, $rules);
     }
 
@@ -147,6 +153,12 @@ class RequestHelper
      */
     public static function validate_post(array $rules): array
     {
+        // Verify nonce first
+        $nonce = self::get_param('_wpnonce', '', ['string']);
+        if (!self::verify_nonce($nonce)) {
+            throw new \InvalidArgumentException(esc_html('Invalid security token'));
+        }
+        
         return self::validate_and_sanitize($_POST, $rules);
     }
 
@@ -159,6 +171,12 @@ class RequestHelper
      */
     public static function validate_get(array $rules): array
     {
+        // Verify nonce first
+        $nonce = self::get_param('_wpnonce', '', ['string']);
+        if (!self::verify_nonce($nonce)) {
+            throw new \InvalidArgumentException(esc_html('Invalid security token'));
+        }
+        
         return self::validate_and_sanitize($_GET, $rules);
     }
 
@@ -170,7 +188,8 @@ class RequestHelper
      */
     public static function is_method(string $method): bool
     {
-        return strtoupper($_SERVER['REQUEST_METHOD'] ?? '') === strtoupper($method);
+        $request_method = wp_unslash($_SERVER['REQUEST_METHOD'] ?? '');
+        return strtoupper($request_method) === strtoupper($method);
     }
 
     /**
@@ -189,16 +208,17 @@ class RequestHelper
 
         $value = wp_unslash($_REQUEST[$key]);
 
-        if (!empty($rules)) {
-            try {
-                $validated = self::validate_and_sanitize([$key => $value], [$key => $rules]);
-                return $validated[$key] ?? $default;
-            } catch (\InvalidArgumentException $e) {
-                return $default;
-            }
+        // Sanitize based on type if no rules provided
+        if (empty($rules)) {
+            return sanitize_text_field($value);
         }
 
-        return sanitize_text_field($value);
+        try {
+            $validated = self::validate_and_sanitize([$key => $value], [$key => $rules]);
+            return $validated[$key] ?? $default;
+        } catch (\InvalidArgumentException $e) {
+            return $default;
+        }
     }
 
     /**
@@ -245,5 +265,67 @@ class RequestHelper
 
         // Store the most recent error in an option for quick access
         update_option('odcm_last_request_error', $log_entry, 'no');
+    }
+
+    /**
+     * Validate input for security
+     *
+     * @param string $input Input to validate
+     * @return bool True if input is safe, false otherwise
+     */
+    private static function validate_input(string $input): bool
+    {
+        // Only allow specific safe operations
+        $allowed_operations = '/^\s*(SELECT|INSERT|UPDATE|DELETE|SHOW|DESCRIBE|EXPLAIN)\s+/i';
+
+        if (! preg_match($allowed_operations, $input)) {
+            return false;
+        }
+
+        // No dangerous patterns - rely on WordPress security functions
+        return true;
+    }
+
+    /**
+     * Log security error
+     *
+     * @param string $message Error message
+     * @param string $operation Operation that failed
+     * @param array $context Additional context
+     */
+    private static function log_security_error(string $message, string $operation = '', array $context = []): void
+    {
+        // Build detailed error message
+        $error_message = '[ODCM RequestHelper SECURITY ERROR] ' . $message;
+        if (!empty($operation)) {
+            $error_message .= " (Operation: {$operation})";
+        }
+
+        // Add context information
+        if (!empty($context)) {
+            $error_message .= ' | Context: ' . json_encode($context);
+        }
+
+        // Use WordPress debug logger
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($error_message);
+        }
+
+        // Persist error for debugging
+        $log = get_transient('odcm_request_security_log');
+        if (!is_array($log)) {
+            $log = [];
+        }
+
+        $log_entry = [
+            'timestamp' => current_time('mysql'),
+            'message'   => $message,
+            'operation' => $operation,
+            'context'   => $context,
+            'error_type'=> 'security',
+        ];
+
+        $log[] = $log_entry;
+        set_transient('odcm_request_security_log', $log, HOUR_IN_SECONDS);
     }
 }

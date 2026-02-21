@@ -581,14 +581,25 @@ final class AttributionTracker
 
             // Prefer getallheaders if available
             if (function_exists('getallheaders')) {
-                $raw = @getallheaders();
-                if (is_array($raw)) {
-                    foreach ($raw as $key => $value) {
-                        $lk = strtolower(str_replace('_', '-', (string) $key));
-                        if (isset($allowed_headers[$lk])) {
+                try {
+                    $raw = @getallheaders();
+                    if (is_array($raw)) {
+                        foreach ($raw as $key => $value) {
+                            $lk = strtolower(str_replace('_', '-', (string) $key));
+                            if (isset($allowed_headers[$lk])) {
+                                try {
                             $headers[$lk] = $this->validate_and_sanitize_header($lk, $value, $allowed_headers[$lk]);
+                        } catch (AttributionValidationException $e) {
+                            odcm_log_message(esc_html("Header validation failed for {$lk}: " . $e->getMessage()), 'warning');
+                            // Skip invalid header
+                            continue;
                         }
                     }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    odcm_log_message(esc_html("Error getting all headers: " . $e->getMessage()), 'warning');
+                    // Fallback to $_SERVER
                 }
             }
             
@@ -603,15 +614,26 @@ final class AttributionTracker
                     $server_key = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
                 }
 
-                if (isset($_SERVER[$server_key])) {
-                    $headers[$name] = $this->validate_and_sanitize_header($name, wp_unslash($_SERVER[$server_key]), $rule);
+                try {
+                    if (isset($_SERVER[$server_key])) {
+                        $sanitized_value = sanitize_text_field(wp_unslash((string) $_SERVER[$server_key]));
+                        $headers[$name] = $this->validate_and_sanitize_header($name, $sanitized_value, $rule);
+                    }
+                } catch (AttributionValidationException $e) {
+                    odcm_log_message(esc_html("Header validation failed for {$name}: " . $e->getMessage()), 'warning');
+                    // Skip invalid header
+                    continue;
+                } catch (\Throwable $e) {
+                    odcm_log_message(esc_html("Error processing header {$name}: " . $e->getMessage()), 'warning');
+                    // Skip invalid header
+                    continue;
                 }
             }
             return $headers;
         } catch (AttributionValidationException $e) {
             odcm_log_message(esc_html("Header validation failed: " . $e->getMessage()), 'error');
             throw $e;
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             odcm_critical_log(esc_html("Unexpected error in get_normalized_headers: " . $e->getMessage()));
             throw new AttributionTrackerException(esc_html("Failed to normalize headers", 500, $e));
         }
@@ -1220,7 +1242,8 @@ final class AttributionTracker
         ];
 
         foreach ($filters as $filter => $rule) {
-            $prefixed_filter = (strpos($filter, 'odcm_') === 0) ? $filter : 'odcm_' . $filter;
+            // Ensure all filter names use the proper odcm_ prefix
+            $prefixed_filter = 'odcm_' . ltrim($filter, 'odcm_');
             $value = apply_filters($prefixed_filter, $rule['required'] ? null : $this->get_default_value($rule));
             odcm_validate_and_sanitize_params([$prefixed_filter => $value], [$filter => $rule]);
         }
