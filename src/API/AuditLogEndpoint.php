@@ -2760,22 +2760,14 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             if ($table_check === '1') {
             // Get basic stats
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Direct query is needed for diagnostic purposes. Table name is escaped.
-            $total_logs = $this->db_helper->get_var("SELECT COUNT(*) FROM {$audit_table}");
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped.
-            $recent_logs = $this->db_helper->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)"
-            ));
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped.
-            $completion_logs = $this->db_helper->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE %s",
-                '%completion%'
-            ));
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped.
-            $debug_logs = $this->db_helper->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$audit_table} WHERE status = %s OR event_type LIKE %s",
-                'debug', 'debug_%'
-            ));
+            // Use safe_count() method instead of direct interpolation
+            $total_logs = DatabaseHelper::safe_count($audit_table);
+            // Use safe_count() method instead of direct interpolation
+            $recent_logs = DatabaseHelper::safe_count($audit_table, "WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)");
+            // Use safe_count() method instead of direct interpolation
+            $completion_logs = DatabaseHelper::safe_count($audit_table, "WHERE event_type LIKE %s", ['%completion%']);
+            // Use safe_count() method instead of direct interpolation
+            $debug_logs = DatabaseHelper::safe_count($audit_table, "WHERE status = %s OR event_type LIKE %s", ['debug', 'debug_%']);
 
                 $diagnostics['log_stats'] = [
                     'total_logs' => (int) $total_logs,

@@ -1,5 +1,5 @@
 FILE: src/Includes/Utils/DatabaseHelper.php
-Line 	Column 	Type 	Code 	Message 	Edit Link
+Line 	Column 	Type 	Code 	Message  
 264 	21 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $sql 	View in code editor (opens in a new tab)
 352 	52 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $query 	View in code editor (opens in a new tab)
 365 	39 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $prepared_query 	View in code editor (opens in a new tab)
@@ -13,7 +13,7 @@ Line 	Column 	Type 	Code 	Message 	Edit Link
 538 	41 	ERROR 	WordPress.DB.PreparedSQL.NotPrepared 	Use placeholders and $wpdb->prepare(); found $prepared_query 	View in code editor (opens in a new tab)
 
 FILE: src/API/AuditLogEndpoint.php
-Line 	Column 	Type 	Code 	Message 	Edit Link
+Line 	Column 	Type 	Code 	Message  
 2430 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$logTableName} at FROM `{$logTableName}`\n 	View in code editor (opens in a new tab)
 2431 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$log_placeholder_string} at WHERE log_id IN ({$log_placeholder_string}) AND payload_id IS NOT NULL" 	View in code editor (opens in a new tab)
 2431 	88 	WARNING 	WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare 	Replacement variables found, but no valid placeholders found in the query. 	View in code editor (opens in a new tab)
@@ -32,7 +32,7 @@ Line 	Column 	Type 	Code 	Message 	Edit Link
 2787 	1 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$audit_table} at FROM {$audit_table}\n 	View in code editor (opens in a new tab)
 
 FILE: src/Diagnostics/Performance/QueryDiagnostic.php
-Line 	Column 	Type 	Code 	Message 	Edit Link
+Line 	Column 	Type 	Code 	Message  
 343 	21 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$column} at "SELECT DISTINCT {$column} FROM {$table_identifier} WHERE {$column} IS NOT NULL AND {$column} != %s ORDER BY {$column} ASC" 	View in code editor (opens in a new tab)
 343 	21 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$table_identifier} at "SELECT DISTINCT {$column} FROM {$table_identifier} WHERE {$column} IS NOT NULL AND {$column} != %s ORDER BY {$column} ASC" 	View in code editor (opens in a new tab)
 343 	21 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$column} at "SELECT DISTINCT {$column} FROM {$table_identifier} WHERE {$column} IS NOT NULL AND {$column} != %s ORDER BY {$column} ASC" 	View in code editor (opens in a new tab)
@@ -40,25 +40,25 @@ Line 	Column 	Type 	Code 	Message 	Edit Link
 343 	21 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$column} at "SELECT DISTINCT {$column} FROM {$table_identifier} WHERE {$column} IS NOT NULL AND {$column} != %s ORDER BY {$column} ASC" 	View in code editor (opens in a new tab)
 
 FILE: src/Core/Events/UniversalEventProcessor.php
-Line 	Column 	Type 	Code 	Message 	Edit Link
+Line 	Column 	Type 	Code 	Message  
 3262 	22 	WARNING 	WordPress.Security.ValidatedSanitizedInput.MissingUnslash 	$_SERVER['REQUEST_TIME_FLOAT'] not unslashed before sanitization. Use wp_unslash() or similar 	View in code editor (opens in a new tab)
 3262 	22 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_SERVER['REQUEST_TIME_FLOAT'] 	View in code editor (opens in a new tab)
 
 FILE: src/Core/LogCleanup.php
-Line 	Column 	Type 	Code 	Message 	Edit Link
+Line 	Column 	Type 	Code 	Message  
 69 	21 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$log_table_identifier} at "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s" 	View in code editor (opens in a new tab)
 101 	25 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$log_table_identifier} at "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d" 	View in code editor (opens in a new tab)
 274 	21 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$log_table_identifier} at "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s" 	View in code editor (opens in a new tab)
 302 	21 	WARNING 	WordPress.DB.PreparedSQL.InterpolatedNotPrepared 	Use placeholders and $wpdb->prepare(); found interpolated variable {$log_table_identifier} at "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL" 	View in code editor (opens in a new tab)
 
 FILE: src/Core/ManualStatusTracker.php
-Line 	Column 	Type 	Code 	Message 	Edit Link
+Line 	Column 	Type 	Code 	Message  
 481 	30 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification. 	View in code editor (opens in a new tab)
 481 	60 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification. 	View in code editor (opens in a new tab)
 481 	104 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification. 	View in code editor (opens in a new tab)
 
 FILE: src/Includes/Utils/RequestHelper.php
-Line 	Column 	Type 	Code 	Message 	Edit Link
+Line 	Column 	Type 	Code 	Message  
 144 	44 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification. 	View in code editor (opens in a new tab)
 162 	44 	WARNING 	WordPress.Security.NonceVerification.Missing 	Processing form data without nonce verification. 	View in code editor (opens in a new tab)
 180 	44 	WARNING 	WordPress.Security.NonceVerification.Recommended 	Processing form data without nonce verification. 	View in code editor (opens in a new tab)
@@ -68,5 +68,5 @@ Line 	Column 	Type 	Code 	Message 	Edit Link
 209 	29 	WARNING 	WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 	Detected usage of a non-sanitized input variable: $_REQUEST[$key] 	View in code editor (opens in a new tab)
 
 FILE: src/Core/AttributionTracker.php
-Line 	Column 	Type 	Code 	Message 	Edit Link
+Line 	Column 	Type 	Code 	Message  
 1247 	36 	WARNING 	WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound 	Hook names invoked by a theme/plugin should start with the theme/plugin prefix. Found: "$prefixed_filter". 	View in code editor (opens in a new tab)

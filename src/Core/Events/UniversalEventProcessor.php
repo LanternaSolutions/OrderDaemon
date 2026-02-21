@@ -3207,41 +3207,6 @@ class UniversalEventProcessor
                 }
         }
     }
-    /**
-     * Generate a status change message based on the actual payload data
-     * 
-     * @param string $summary The original summary from the event
-     * @return string Status change message
-     */
-    private function generateStatusChangeMessage(string $summary): string
-    {
-        // Extract status change information from the summary or payload
-        // The summary might contain information like "Status Changed to Completed"
-        // We need to parse this to get the actual status transition
-
-        // Look for patterns in the summary that indicate status changes
-        if (strpos($summary, 'Status Changed to') !== false) {
-            // Extract the target status
-            preg_match('/Status Changed to ([^\s]+)/', $summary, $matches);
-            if (!empty($matches[1])) {
-                $to_status = $matches[1];
-
-                // Look for "From" pattern to get the source status
-                preg_match('/From ([^\s]+) To ([^\s]+)/', $summary, $from_matches);
-                if (!empty($from_matches[1]) && !empty($from_matches[2])) {
-                    $from_status = $from_matches[1];
-                    $to_status = $from_matches[2];
-                    return sprintf('Status changed: %s → %s', $from_status, $to_status);
-                } else {
-                    // If we don't have the "From" information, just show the target status
-                    return sprintf('Status changed to %s', $to_status);
-                }
-            }
-        }
-
-        // Fallback: if we can't parse the status change, use a generic message
-        return 'Status updated';
-    }
 
     /**
      * Get validated REQUEST_TIME_FLOAT value with proper sanitization
@@ -3280,6 +3245,42 @@ class UniversalEventProcessor
         }
 
         return $float_value;
+    }
+
+    /**
+     * Generate a status change message based on the actual payload data
+     * 
+     * @param string $summary The original summary from the event
+     * @return string Status change message
+     */
+    private function generateStatusChangeMessage(string $summary): string
+    {
+        // Extract status change information from the summary or payload
+        // The summary might contain information like "Status Changed to Completed"
+        // We need to parse this to get the actual status transition
+
+        // Look for patterns in the summary that indicate status changes
+        if (strpos($summary, 'Status Changed to') !== false) {
+            // Extract the target status
+            preg_match('/Status Changed to ([^\s]+)/', $summary, $matches);
+            if (!empty($matches[1])) {
+                $to_status = $matches[1];
+
+                // Look for "From" pattern to get the source status
+                preg_match('/From ([^\s]+) To ([^\s]+)/', $summary, $from_matches);
+                if (!empty($from_matches[1]) && !empty($from_matches[2])) {
+                    $from_status = $from_matches[1];
+                    $to_status = $from_matches[2];
+                    return sprintf('Status changed: %s → %s', $from_status, $to_status);
+                } else {
+                    // If we don't have the "From" information, just show the target status
+                    return sprintf('Status changed to %s', $to_status);
+                }
+            }
+        }
+
+        // Fallback: if we can't parse the status change, use a generic message
+        return 'Status updated';
     }
 
     /**

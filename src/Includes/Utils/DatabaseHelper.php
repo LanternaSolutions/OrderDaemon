@@ -111,7 +111,8 @@ class DatabaseHelper
 
         try {
             // WordPress prepare() cannot be used for table names (identifiers).
-            $result = $this->query("DROP TABLE IF EXISTS `{$table_name}`"); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $result = $this->query("DROP TABLE IF EXISTS `{$table_name}`");
 
             if ($result === false) {
                 $this->log_error("DatabaseHelper::drop_table failed for table '{$table_name}'");
@@ -569,7 +570,8 @@ class DatabaseHelper
 
     private function _insert(string $table_name, array $data, array $format = null)
     {
-        if (empty($table_name) || empty($data)) {
+        if (empty($table_name) || empty($data) || !self::validate_table_name($table_name)) {
+            $this->log_error("Invalid table name for insert: {$table_name}");
             return false;
         }
 
@@ -605,12 +607,14 @@ class DatabaseHelper
 
     private function _update(string $table_name, array $data, array $where, array $format = null, array $where_format = null)
     {
-        if (empty($table_name) || empty($data) || empty($where)) {
+        if (empty($table_name) || empty($data) || empty($where) || !self::validate_table_name($table_name)) {
+            $this->log_error("Invalid table name for update: {$table_name}");
             return false;
         }
 
         try {
-            $result = $this->wpdb->update($table_name, $data, $where, $format, $where_format); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+             // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+            $result = $this->wpdb->update($table_name, $data, $where, $format, $where_format);
 
             if ($result === false) {
                 $this->log_error("DatabaseHelper::update failed for table '{$table_name}': " . $this->wpdb->last_error);
@@ -713,15 +717,25 @@ class DatabaseHelper
     }
 
     /**
-     * Validate table name for SQL queries
+     * Validate table name for SQL queries with WordPress prefix check
      *
      * @param string $table_name Table name to validate
      * @return bool True if valid, false otherwise
      */
     public static function validate_table_name(string $table_name): bool
     {
-        // Only allow alphanumeric characters, underscores, and hyphens
-        return preg_match('/^[a-zA-Z0-9_-]+$/', $table_name) === 1;
+        // Basic validation: alphanumeric, underscores, hyphens only
+        if (preg_match('/^[a-zA-Z0-9_-]+$/', $table_name) !== 1) {
+            return false;
+        }
+        
+        // Must start with WordPress prefix (defense-in-depth)
+        $instance = self::get_instance();
+        if (empty($instance->wpdb->prefix) || strpos($table_name, $instance->wpdb->prefix) !== 0) {
+            return false;
+        }
+        
+        return true;
     }
 
     /**
@@ -850,6 +864,64 @@ class DatabaseHelper
         if (function_exists('wp_debug_log')) {
             wp_debug_log($debug_message);
         }
+    }
+
+    /**
+     * Trusted table registry for plugin tables only
+     * 
+     * @return array List of trusted table names (without prefix)
+     */
+    private function get_trusted_tables(): array
+    {
+        return [
+            'odcm_audit_log',
+            'odcm_orders',
+            'odcm_completions'
+            // Add new plugin tables here
+        ];
+    }
+
+    /**
+     * Check if table is trusted (plugin-owned)
+     */
+    private function is_trusted_table(string $table_name): bool
+    {
+        if (!self::validate_table_name($table_name)) {
+            return false;
+        }
+        
+        $short_name = str_replace($this->wpdb->prefix, '', $table_name);
+        return in_array($short_name, $this->get_trusted_tables(), true);
+    }
+
+    /**
+     * Build safe COUNT query for trusted tables
+     */
+    public static function safe_count(string $table_name, array $conditions = []): int
+    {
+        $instance = self::get_instance();
+        
+        if (!$instance->is_trusted_table($table_name)) {
+            $instance->log_error("Untrusted table in safe_count: {$table_name}");
+            return 0;
+        }
+        
+        $where_clauses = [];
+        $args = [];
+        
+        foreach ($conditions as $column => $value) {
+            $where_clauses[] = "{$column} = %s";
+            $args[] = $value;
+        }
+        
+        $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
+        
+        $query = $instance->wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table_name} {$where_sql}",
+            $args
+        );
+        
+        return (int) $instance->wpdb->get_var($query);
     }
 
     /**

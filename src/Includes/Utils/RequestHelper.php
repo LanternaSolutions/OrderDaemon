@@ -18,6 +18,9 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Includes\Utils;
 
+use OrderDaemon\CompletionManager\Core\Security\NonceGuard;
+use OrderDaemon\CompletionManager\Core\Security\SecurityException;
+
 /**
  * Request Helper Class
  *
@@ -135,10 +138,15 @@ class RequestHelper
      */
     public static function validate_request(array $rules): array
     {
-        // Verify nonce first
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce is verified immediately after this line.
-        $nonce = self::get_param('_wpnonce', '', ['string']);
-        if (!self::verify_nonce($nonce)) {
+        // Verify nonce using NonceGuard
+        try {
+            $nonce_guard = new NonceGuard(
+                self::get_param('_wpnonce', '', ['string']),
+                'odcm_request',
+                false
+            );
+            $nonce_guard->verify();
+        } catch (SecurityException $e) {
             throw new \InvalidArgumentException(esc_html('Invalid security token'));
         }
         
@@ -154,10 +162,15 @@ class RequestHelper
      */
     public static function validate_post(array $rules): array
     {
-        // Verify nonce first
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce is verified immediately after this line.
-        $nonce = self::get_param('_wpnonce', '', ['string']);
-        if (!self::verify_nonce($nonce)) {
+        // Verify nonce using NonceGuard
+        try {
+            $nonce_guard = new NonceGuard(
+                self::get_param('_wpnonce', '', ['string']),
+                'odcm_post',
+                false
+            );
+            $nonce_guard->verify();
+        } catch (SecurityException $e) {
             throw new \InvalidArgumentException(esc_html('Invalid security token'));
         }
         
@@ -173,10 +186,15 @@ class RequestHelper
      */
     public static function validate_get(array $rules): array
     {
-        // Verify nonce first
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce is verified immediately after this line.
-        $nonce = self::get_param('_wpnonce', '', ['string']);
-        if (!self::verify_nonce($nonce)) {
+        // Verify nonce using NonceGuard
+        try {
+            $nonce_guard = new NonceGuard(
+                self::get_param('_wpnonce', '', ['string']),
+                'odcm_get',
+                false
+            );
+            $nonce_guard->verify();
+        } catch (SecurityException $e) {
             throw new \InvalidArgumentException(esc_html('Invalid security token'));
         }
         
@@ -191,7 +209,7 @@ class RequestHelper
      */
     public static function is_method(string $method): bool
     {
-        $request_method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])) : '';
+        $request_method = isset($_SERVER['REQUEST_METHOD']) ? sanitize_key($_SERVER['REQUEST_METHOD']) : '';
         return strtoupper($request_method) === strtoupper($method);
     }
 
@@ -205,12 +223,22 @@ class RequestHelper
      */
     public static function get_param(string $key, $default = null, array $rules = [])
     {
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This is a helper function, nonce verification should be handled by caller.
+        // Verify nonce using NonceGuard
+        try {
+            $nonce_guard = new NonceGuard(
+                self::get_param('_wpnonce', '', ['string']),
+                'odcm_request',
+                false
+            );
+            $nonce_guard->verify();
+        } catch (SecurityException $e) {
+            throw new \InvalidArgumentException(esc_html('Invalid security token'));
+        }
         if (!isset($_REQUEST[$key])) {
             return $default;
         }
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitization happens immediately below.
+        // Get raw value and let validate_and_sanitize handle sanitization
         $value = wp_unslash($_REQUEST[$key]);
 
         // Sanitize based on type if no rules provided

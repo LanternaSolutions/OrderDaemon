@@ -156,6 +156,26 @@ class ManualStatusTracker
                     return;
                 }
 
+                // Create and verify nonce guard with proper error handling
+                try {
+                    $guard = GuardFactory::createNonceGuard($nonce, 'odcm_manual_status_change');
+                    $guard->verify();
+                } catch (SecurityException $e) {
+                    // Log security exception with detailed context
+                    odcm_log_event(
+                        'Nonce guard verification failed',
+                        [
+                            'order_id' => $order_id,
+                            'error' => $e->getMessage(),
+                            'context' => 'manual_status_change'
+                        ],
+                        $order_id,
+                        'error',
+                        'nonce_guard_failed'
+                    );
+                    return;
+                }
+
         // Capture attribution context for manual changes
         $attr = AttributionTracker::instance()->capture_context();
         
@@ -220,6 +240,26 @@ class ManualStatusTracker
                         $post_id,
                         'error',
                         'nonce_verification_failed'
+                    );
+                    return;
+                }
+
+                // Create and verify nonce guard with proper error handling
+                try {
+                    $guard = GuardFactory::createNonceGuard($nonce, 'odcm_manual_order_edit');
+                    $guard->verify();
+                } catch (SecurityException $e) {
+                    // Log security exception with detailed context
+                    odcm_log_event(
+                        'Nonce guard verification failed',
+                        [
+                            'order_id' => $post_id,
+                            'error' => $e->getMessage(),
+                            'context' => 'manual_order_edit'
+                        ],
+                        $post_id,
+                        'error',
+                        'nonce_guard_failed'
                     );
                     return;
                 }

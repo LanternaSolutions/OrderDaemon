@@ -5,9 +5,16 @@ namespace OrderDaemon\CompletionManager\Core;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
+
 /**
  * Handles automatic cleanup of old audit trail logs.
  * This class implements safe batch deletion to prevent database performance issues.
+ *
+ * SECURITY NOTES:
+ * - Uses plugin-owned tables built from $wpdb->prefix and validated via DatabaseHelper::validate_table_name().
+ * - All dynamic values (dates, IDs) are bound through DatabaseHelper's prepared queries.
+ * - Table names are never taken from user input and are not passed as placeholders.
  */
 class LogCleanup
 {
@@ -46,12 +53,18 @@ class LogCleanup
         // 30 day retention period to keep DB lean
         $retention_days = 30;
 
-        // Define table names - use esc_sql for table identifiers
+        // Build plugin-owned tables
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payloads_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-        // Escape table names for use in SQL queries (placeholders cannot be used for identifiers)
-        $log_table_identifier = esc_sql($log_table);
-        $payloads_table_identifier = esc_sql($payloads_table);
+
+        // Validate tables using DatabaseHelper
+        if (
+            ! \OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper::validate_table_name($log_table)
+            || ! \OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper::validate_table_name($payloads_table)
+        ) {
+            // Fail closed: do nothing if table names are not what we expect
+            return;
+        }
 
         // Calculate the cutoff date
         $cutoff_date = gmdate('Y-m-d H:i:s', strtotime("-{$retention_days} days"));
@@ -65,11 +78,8 @@ class LogCleanup
         // Cache miss - perform count query
         if (false === $total_to_delete) {
             $total_to_delete = DatabaseHelper::get_var(
-                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped and trusted.
-                $wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s",
-                    $cutoff_date
-                )
+                "SELECT COUNT(*) FROM {$log_table} WHERE timestamp < %s",
+                [ $cutoff_date ]
             );
 
             // Cache the result for 10 minutes
@@ -98,13 +108,9 @@ class LogCleanup
             // Cache miss - perform batch query
             if (false === $logs_to_delete) {
                 $logs_to_delete = DatabaseHelper::get_results(
-                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped and trusted.
-                    $wpdb->prepare(
-                        "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d",
-                        $cutoff_date,
-                        self::BATCH_SIZE
-                    )
-                );
+                "SELECT log_id, payload_id FROM {$log_table} WHERE timestamp < %s LIMIT %d",
+                [ $cutoff_date, self::BATCH_SIZE ]
+            );
 
                 // Cache the result briefly - just enough to avoid duplicate queries
                 // in case of concurrent cleanup processes
@@ -142,7 +148,7 @@ class LogCleanup
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
                     $deleted_rows = DatabaseHelper::query(
-                        "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)",
+                        "DELETE FROM {$log_table} WHERE log_id IN ({$placeholders})",
                         $log_ids
                     );
 
@@ -180,7 +186,7 @@ class LogCleanup
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
                     DatabaseHelper::query(
-                        "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)",
+                        "DELETE FROM {$payloads_table} WHERE payload_id IN ({$placeholders})",
                         $payload_ids
                     );
 
@@ -272,11 +278,8 @@ class LogCleanup
         // Cache miss - perform count query
         if (false === $count_to_delete) {
             $count_to_delete = DatabaseHelper::get_var(
-                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped and trusted.
-                $wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s",
-                    $cutoff_date
-                )
+                "SELECT COUNT(*) FROM {$log_table} WHERE timestamp < %s",
+                [ $cutoff_date ]
             );
 
             // Cache the result for 5 minutes - manual cleanup has higher freshness expectations
@@ -301,11 +304,8 @@ class LogCleanup
         // Cache miss - perform count query
         if (false === $payload_count_to_delete) {
             $payload_count_to_delete = DatabaseHelper::get_var(
-                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is escaped and trusted.
-                $wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL",
-                    $cutoff_date
-                )
+                "SELECT COUNT(*) FROM {$log_table} WHERE timestamp < %s AND payload_id IS NOT NULL",
+                [ $cutoff_date ]
             );
 
             // Cache the result for 5 minutes
