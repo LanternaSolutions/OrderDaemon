@@ -729,9 +729,22 @@ class DatabaseHelper
             return false;
         }
         
-        // Must start with WordPress prefix (defense-in-depth)
+        // Must start with WordPress prefix or plugin prefix (defense-in-depth)
         $instance = self::get_instance();
-        if (empty($instance->wpdb->prefix) || strpos($table_name, $instance->wpdb->prefix) !== 0) {
+        $allowed_prefixes = [
+            $instance->wpdb->prefix, // WordPress prefix (e.g., "wp_")
+            'odcm_' // Plugin prefix
+        ];
+        
+        $prefix_valid = false;
+        foreach ($allowed_prefixes as $prefix) {
+            if (!empty($prefix) && strpos($table_name, $prefix) === 0) {
+                $prefix_valid = true;
+                break;
+            }
+        }
+        
+        if (!$prefix_valid) {
             return false;
         }
         

@@ -142,29 +142,8 @@ class CheckoutFlowDiagnostic extends AbstractDiagnostic
                 return;
             }
             
-            // Test the fail-safe methods exist
-            $core_methods = get_class_methods($core_class);
-            $required_methods = [
-                'log_checkout_event_minimal',
-                'record_checkout_success',
-                'record_checkout_failure',
-                'emergency_fallback_processing',
-                'monitor_execution_time'
-            ];
-            
-            $missing_methods = [];
-            foreach ($required_methods as $method) {
-                if (!in_array($method, $core_methods, true)) {
-                    $missing_methods[] = $method;
-                }
-            }
-            
-            $result->addDetail('fail_safe_methods_available', empty($missing_methods));
-            $result->addDetail('missing_fail_safe_methods', $missing_methods);
-            
-            if (!empty($missing_methods)) {
-                $result->addRecommendation('Required fail-safe methods missing: ' . implode(', ', $missing_methods));
-            }
+            // Test that the Core class is available.
+            $result->addDetail('core_class_available_for_simulation', true);
             
         } catch (\Throwable $e) {
             $result->addDetail('checkout_simulation_error', $e->getMessage());

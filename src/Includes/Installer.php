@@ -751,10 +751,8 @@ class Installer
         }
 
         // Check if database is available
-        try {
-            self::$db_helper->get_var("SELECT 1 FROM {$wpdb->prefix}odcm_audit_log LIMIT 1");
-        } catch (\Exception $e) {
-            odcm_log_message('Database safety check failed: ' . $e->getMessage(), 'error');
+        if (!self::$db_helper->is_connected()) {
+            odcm_log_message('Database safety check failed: connection not available', 'error');
             return false;
         }
 
