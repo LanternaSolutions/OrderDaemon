@@ -56,7 +56,62 @@ abstract class DisplayAdapter
         $additionalFields = $this->detectAdditionalFields($payload);
 
         // Organize into display sections
-        return $this->organizeIntoSections($standardFields, $specializedFields, $additionalFields);
+        $result = $this->organizeIntoSections($standardFields, $specializedFields, $additionalFields);
+
+        // If we have display sections from the adapter logic, use them (priority)
+        if (!empty($result['display_sections'])) {
+            return $result;
+        }
+
+        // Fallback: Check if payload has pre-formatted display sections and use them if available
+        // This allows events to explicitly define their display presentation if the adapter didn't extract anything
+        if (!empty($payload['display_sections']) && is_array($payload['display_sections'])) {
+            $first = reset($payload['display_sections']);
+            
+            // Case 1: Modern flat format ['key' => ['label' => '...', 'value' => '...']]
+            if (isset($first['label']) && isset($first['value'])) {
+                return [
+                    'display_sections' => $payload['display_sections'],
+                    'detail_sections' => [],
+                    'tech_data' => []
+                ];
+            }
+            
+            // Case 2: Nested sections format [{'title' => '...', 'items' => [...]}]
+            // We need to flatten this for the unified renderer
+            if (isset($first['items']) || isset($first['title'])) {
+                $flattened = [];
+                foreach ($payload['display_sections'] as $section) {
+                    if (!empty($section['items']) && is_array($section['items'])) {
+                        foreach ($section['items'] as $item) {
+                            if (isset($item['key']) && isset($item['value'])) {
+                                $slug = function_exists('sanitize_key') ? sanitize_key($item['key']) : strtolower(preg_replace('/[^a-z0-9_]/i', '_', $item['key']));
+                                
+                                // Ensure unique keys
+                                if (isset($flattened[$slug])) {
+                                    $slug .= '_' . uniqid();
+                                }
+                                
+                                $flattened[$slug] = [
+                                    'label' => $item['key'],
+                                    'value' => $item['value']
+                                ];
+                            }
+                        }
+                    }
+                }
+                
+                if (!empty($flattened)) {
+                    return [
+                        'display_sections' => $flattened,
+                        'detail_sections' => [],
+                        'tech_data' => []
+                    ];
+                }
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -218,15 +273,16 @@ abstract class DisplayAdapter
         $business_relevant_fields = [
             'timestamp', 'customer', 'payment_method', 'amount', 'currency',
             'order_id', 'status', 'status_change', 'new_status', 'previous_status',
-            'payment_status', 'rule', 'execution_status', 'change_type',
-            'checkout_type', 'transaction_id', 'gateway', 'event_description',
+            'payment_status', 'rule', 'execution_status', 'change_type', 'explanation',
+            'debug_explanation', 'context', 'debug_info', 'captured_event', 'processed_event',
+            'result', 'checkout_type', 'transaction_id', 'gateway', 'event_description',
             'trigger', 'actions_taken'
         ];
 
         // Technical fields that should only appear in raw data section
         $technical_fields = [
-            'event_type', 'process_id', 'correlation_id', 'source',
-            'attribution', 'metrics', 'component_count', 'actor',
+            'event_type', 'process_id', 'correlation_id', 'idempotency_key',
+            'source','attribution', 'metrics', 'component_count', 'actor',
             'real_occurrence_timestamp', 'processing_timestamp',
             'queued_at', 'processed_from_queue', 'technical_context',
             'rule_execution', 'trigger_event_context', 'condition_evaluation',
@@ -291,6 +347,7 @@ abstract class DisplayAdapter
 
                 // Only add business-relevant specialized fields to display
                 if (in_array($key, $business_relevant_fields) ||
+                    ($debugMode && in_array($key, ['explanation', 'context', 'debug_info'])) ||
                     strpos($key, 'status') !== false ||
                     strpos($key, 'amount') !== false ||
                     strpos($key, 'customer') !== false ||
@@ -645,6 +702,12 @@ abstract class DisplayAdapter
             }
         }
 
+        // Handle _universal_event_debug
+        if ($eventType === '_universal_event_debug') {
+            $capturedType = $data['eventType'] ?? 'event';
+            return sprintf('Captured %s', $capturedType);
+        }
+
         // Fallback for non-debug events
         return ucwords(str_replace('_', ' ', $eventType));
     }
@@ -700,7 +763,7 @@ abstract class DisplayAdapter
         $originalSummary = $payload['summary'] ?? $logEntry['summary'] ?? '';
 
         // Case 1: Debug events - use simplified titles in both views
-        if ($eventType === 'universal_event_processing_debug') {
+        if ($eventType === 'universal_event_processing_debug' || $eventType === '_universal_event_debug') {
             return self::generateDebugEventTitle($payload);
         }
 
@@ -967,7 +1030,7 @@ abstract class DisplayAdapter
         ];
 
         // Special handling for debug events - use debug status pill
-        if (in_array($eventType, ['rule_evaluation_non_canonical', 'debug'])) {
+        if (in_array($eventType, ['rule_evaluation_non_canonical', 'debug', '_universal_event_debug', 'universal_event_processing_debug'])) {
             return 'debug';
         }
 
@@ -1032,6 +1095,14 @@ abstract class DisplayAdapter
             return [
                 'label' => $rawPayload['status'],
                 'type' => $pillType
+            ];
+        }
+
+        // Force debug status for debug events if no explicit status found
+        if (in_array($eventType, ['universal_event_processing_debug', 'debug', 'rule_evaluation_non_canonical'])) {
+            return [
+                'label' => 'Debug',
+                'type' => 'debug'
             ];
         }
 
@@ -1304,6 +1375,14 @@ abstract class DisplayAdapter
                 'status_display' => 'monitored',
                 'priority' => 2,
                 'category' => 'System'
+            ],
+            '_universal_event_debug' => [
+                'dashicon' => 'dashicons-search',
+                'theme_class' => 'odcm-component--debug',
+                'primary_color' => 'grey-700',
+                'status_display' => 'debug',
+                'priority' => 1,
+                'category' => 'Debug'
             ],
             'universal_event_duplicate' => [
                 'dashicon' => 'dashicons-admin-generic',

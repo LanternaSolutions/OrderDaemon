@@ -12,6 +12,7 @@ use OrderDaemon\CompletionManager\API\Timeline\TimelineRequest;
 use OrderDaemon\CompletionManager\API\Timeline\DatabaseTimelineBuilder;
 use OrderDaemon\CompletionManager\API\Timeline\ProcessLoggerComponentExtractor;
 use OrderDaemon\CompletionManager\API\Timeline\RegistryTimelineRenderer;
+use OrderDaemon\CompletionManager\Includes\Utils\RequestHelper;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_REST_Request;
@@ -630,7 +631,19 @@ class AuditLogEndpoint extends WP_REST_Controller
             $start_time = microtime(true);
 
             // Get pagination parameters
-            $per_page = $request->get_param('per_page') ?: 20;
+            $per_page = $request->get_param('per_page');
+
+            // If per_page is not explicitly provided, try to get from user settings
+            if (!isset($request->get_query_params()['per_page']) && !isset($request->get_body_params()['per_page'])) {
+                $user_id = get_current_user_id();
+                if ($user_id) {
+                    $user_setting = get_user_meta($user_id, 'odcm_logs_per_page', true);
+                    if ($user_setting) {
+                        $per_page = (int) $user_setting;
+                    }
+                }
+            }
+            $per_page = $per_page ?: 20;
             $page = $request->get_param('page') ?: 1;
 
             // Validate pagination parameters
@@ -720,12 +733,21 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Compute consolidated totals and slice current page
             $total = is_array($all_logs) ? count($all_logs) : 0;
+            $is_truncated = ($total >= 500); // Check if we hit the safety limit
+            
+            if ($is_truncated && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: Search results truncated at limit (500 items) to prevent memory exhaustion", 'warning');
+            }
+            
             $total_pages = max(1, (int) ceil($total / $per_page));
             if ($page > $total_pages) {
                 $page = $total_pages; // Clamp to last page
             }
             $offset = ($page - 1) * $per_page;
             $page_logs = $total > 0 ? array_slice($all_logs, $offset, $per_page) : [];
+            
+            // Hydrate payloads for the current page only to save memory
+            $page_logs = $this->hydrate_payloads($page_logs);
             $start_item = $total > 0 ? ($offset + 1) : 0;
             $end_item = $total > 0 ? min($offset + $per_page, $total) : 0;
 
@@ -758,6 +780,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'consolidated_pagination' => true,
                     'pagination_basis' => 'consolidated',
                     'view_mode' => 'consolidated',
+                    'is_truncated' => $is_truncated, // Frontend can show "2500+ results"
                 ],
             ];
 
@@ -1475,6 +1498,59 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
+     * Hydrate payloads for a list of logs
+     * 
+     * @param array $logs Array of log entries
+     * @return array Logs with payloads hydrated
+     */
+    private function hydrate_payloads(array $logs): array
+    {
+        global $wpdb;
+        
+        if (empty($logs)) {
+            return [];
+        }
+        
+        $log_ids = [];
+        foreach ($logs as $log) {
+            if (!empty($log['log_id'])) {
+                $log_ids[] = (int)$log['log_id'];
+            }
+        }
+        
+        if (empty($log_ids)) {
+            return $logs;
+        }
+        
+        $log_ids = array_unique($log_ids);
+        $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
+        
+        $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+        $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
+        
+        $query = "SELECT l.log_id, COALESCE(p.payload, l.details) as payload 
+             FROM {$log_table} l 
+             LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id 
+             WHERE l.log_id IN ($placeholders)";
+        
+        $results = $this->db_helper->get_results($query, $log_ids, ARRAY_A);
+        
+        if (empty($results)) {
+            return $logs;
+        }
+        
+        $payload_map = array_column($results, 'payload', 'log_id');
+        
+        foreach ($logs as &$log) {
+            if (isset($log['log_id']) && isset($payload_map[$log['log_id']])) {
+                $log['payload'] = $payload_map[$log['log_id']];
+            }
+        }
+        
+        return $logs;
+    }
+
+    /**
      * Get all filtered logs based on request parameters
      *
      * All query building is inlined directly in this method.
@@ -1492,18 +1568,35 @@ class AuditLogEndpoint extends WP_REST_Controller
             $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
             $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
-            // Build the base query
-            $base_query = "SELECT l.*, p.payload FROM `{$log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
-
             // Get conditions and params from helper
             list($conditions, $params) = $this->build_query_conditions($request);
+            
+            // Optimization: Don't select payload column for the bulk query to prevent OOM.
+            // We only need payloads for the final paginated result set.
+            // We also exclude l.details to be safe, selecting only necessary columns.
+            $base_query = "SELECT l.log_id, l.timestamp, l.status, l.summary, l.event_type, l.source, l.process_id, l.order_id, l.payload_id, l.is_test, l.parent_id, l.display_data, l.dedupe_key FROM `{$log_table}` l";
+            
+            // Check if we need to join for filtering
+            $needs_join = false;
+            foreach ($conditions as $condition) {
+                if (strpos($condition, 'p.') !== false) {
+                    $needs_join = true;
+                    break;
+                }
+            }
+            
+            if ($needs_join) {
+                $base_query .= " LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
+            }
 
             // Build final query
             if (!empty($conditions)) {
                 $where_clause = implode(' AND ', $conditions);
-                $full_query = $base_query . " WHERE " . $where_clause . " ORDER BY l.timestamp DESC";
+                // Add safety LIMIT to prevent OOM on broad searches (e.g. "failure"). Reduced to 500 to ensure stability.
+                $full_query = $base_query . " WHERE " . $where_clause . " ORDER BY l.timestamp DESC LIMIT 500";
             } else {
-                $full_query = $base_query . " ORDER BY l.timestamp DESC";
+                // Add safety LIMIT for default view as well
+                $full_query = $base_query . " ORDER BY l.timestamp DESC LIMIT 500";
             }
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -1513,6 +1606,11 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Execute the query
             // Use DatabaseHelper to handle preparation and execution safely
             $logs = $this->db_helper->get_results($full_query, $params, ARRAY_A);
+
+            // Debug: Log if query returned false (error) but wasn't caught
+            if ($logs === null && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: Database query returned null (error occurred). Query: " . $full_query, 'error');
+            }
 
             $result = $logs ?: [];
 
@@ -1551,16 +1649,20 @@ class AuditLogEndpoint extends WP_REST_Controller
             $cache_group = 'odcm_audit_logs';
             $cache_ttl = 300; // 5 minutes cache TTL
 
-            // Try to get cached result
-            $cached_result = wp_cache_get($cache_key, $cache_group);
+            // Check if search is active
+            $search = $request->get_param('search');
 
-            if ($cached_result !== false) {
-                // Cache hit - return cached data
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: Cache hit for filtered_logs with key: " . $cache_key, 'debug');
+            // Only use cache if NOT searching. Search results should be fresh.
+            if (empty($search)) {
+                // Try to get cached result
+                $cached_result = wp_cache_get($cache_key, $cache_group);
+
+                if ($cached_result !== false) {
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage("ODCM: Cache hit for filtered_logs with key: " . $cache_key, 'debug');
+                    }
+                    return $cached_result;
                 }
-
-                return $cached_result;
             }
 
             // Cache miss - perform database query
@@ -1571,11 +1673,24 @@ class AuditLogEndpoint extends WP_REST_Controller
             $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
             $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
-            // Build base query
-            $base_query = "SELECT l.*, p.payload FROM `{$log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
-
             // Get conditions and params from helper
             list($conditions, $params) = $this->build_query_conditions($request);
+            
+            // Optimization: Lightweight select for flat view as well
+            $base_query = "SELECT l.log_id, l.timestamp, l.status, l.summary, l.event_type, l.source, l.process_id, l.order_id, l.payload_id, l.is_test, l.parent_id, l.display_data, l.dedupe_key FROM `{$log_table}` l";
+
+            // Check if we need to join for filtering
+            $needs_join = false;
+            foreach ($conditions as $condition) {
+                if (strpos($condition, 'p.') !== false) {
+                    $needs_join = true;
+                    break;
+                }
+            }
+            
+            if ($needs_join) {
+                $base_query .= " LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
+            }
 
             // Add pagination params
             $params[] = absint($per_page);
@@ -1597,6 +1712,9 @@ class AuditLogEndpoint extends WP_REST_Controller
             $logs = $this->db_helper->get_results($full_query, $params, ARRAY_A);
 
             $result = $logs ?: [];
+            
+            // Hydrate payloads for the current page
+            $result = $this->hydrate_payloads($result);
 
             // Cache the result
             wp_cache_set($cache_key, $result, $cache_group, $cache_ttl);
@@ -1631,27 +1749,49 @@ class AuditLogEndpoint extends WP_REST_Controller
             $cache_group = 'odcm_audit_logs';
             $cache_ttl = 60; // 1 minute cache TTL (shorter since counts change more frequently)
 
-            // Try to get cached result
-            $cached_result = wp_cache_get($cache_key, $cache_group);
+            // Check if search is active
+            $search = $request->get_param('search');
 
-            if ($cached_result !== false) {
-                // Cache hit - return cached data
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: Cache hit for filtered_log_count with key: " . $cache_key, 'debug');
+            // Only use cache if NOT searching
+            if (empty($search)) {
+                // Try to get cached result
+                $cached_result = wp_cache_get($cache_key, $cache_group);
+
+                if ($cached_result !== false) {
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage("ODCM: Cache hit for filtered_log_count with key: " . $cache_key, 'debug');
+                    }
+                    return $cached_result;
                 }
-
-                return $cached_result;
             }
 
             // Cache miss - perform database query
             // Use proper table name escaping (cannot use placeholders for table names)
             $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
+            $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
             // Build base query
-            $base_query = "SELECT COUNT(*) FROM `{$log_table}` l";
+            $base_query = "SELECT COUNT(*) FROM `{$log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
 
             // Get conditions and params from helper
             list($conditions, $params) = $this->build_query_conditions($request);
+
+            // Optimization: Only join payload table if we are actually filtering by payload fields
+            // This significantly improves performance for default views and simple filters
+            $needs_payload_join = false;
+            foreach ($conditions as $condition) {
+                if (strpos($condition, 'p.') !== false) {
+                    $needs_payload_join = true;
+                    break;
+                }
+            }
+
+            // Build base query based on requirement
+            if ($needs_payload_join) {
+                $base_query = "SELECT COUNT(*) FROM `{$log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
+            } else {
+                $base_query = "SELECT COUNT(*) FROM `{$log_table}` l";
+            }
 
             // Build final query
             if (!empty($conditions)) {
@@ -1730,6 +1870,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             $params[] = $eventType;
         }
 
+        // Order ID Filter
+        // Always add strict order_id filter if present
         if (!empty($order_id) && is_numeric($order_id)) {
             $conditions[] = "l.order_id = %d";
             $params[] = absint($order_id);
@@ -1763,13 +1905,92 @@ class AuditLogEndpoint extends WP_REST_Controller
         }
 
         if (!empty($search)) {
-            $search_term = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
-            $conditions[] = "(l.summary LIKE %s OR l.order_id LIKE %s OR l.event_type LIKE %s OR l.source LIKE %s OR p.payload LIKE %s)";
-            $params[] = $search_term;
-            $params[] = $search_term;
-            $params[] = $search_term;
-            $params[] = $search_term;
-            $params[] = $search_term;
+            // Use trim() instead of sanitize_text_field() to better handle special characters in search terms
+            $trimmed_search = trim($search);
+            $is_numeric_search = is_numeric($trimmed_search);
+
+            // Re-introduce specific logic for numeric searches for performance and accuracy.
+            // A numeric search should prioritize an exact match on order_id.
+            if ($is_numeric_search) {
+                $search_clauses = ["l.order_id = %d"];
+                $params[] = absint($trimmed_search);
+
+                // Also search text-based fields with LIKE for cases where the ID is in the summary.
+                $text_fields = ['l.summary', 'l.event_type', 'l.status', 'l.source'];
+                $text_fields[] = 'p.payload';
+
+                $like_term = '%' . $wpdb->esc_like($trimmed_search) . '%';
+                foreach ($text_fields as $field) {
+                    $search_clauses[] = "$field LIKE %s";
+                    $params[] = $like_term;
+                }
+
+                $conditions[] = "(" . implode(' OR ', $search_clauses) . ")";
+            } else {
+                // For non-numeric searches, search all relevant fields with LIKE.
+                $search_term = '%' . $wpdb->esc_like($trimmed_search) . '%';
+
+                $search_fields = [
+                    'l.summary',
+                    'l.event_type',
+                    'l.status',
+                    'l.source',
+                    'l.order_id', // Keep for "Order #123" style searches
+                ];
+
+                $search_fields[] = 'p.payload';
+
+                $search_clauses = array_map(fn($field) => "$field LIKE %s", $search_fields);
+                $params = array_merge($params, array_fill(0, count($search_fields), $search_term));
+                $conditions[] = "(" . implode(' OR ', $search_clauses) . ")";
+            }
+
+            // Log search debug info
+            if (function_exists('odcm_log_event')) {
+                odcm_log_event(
+                    'Audit Log Search Debug',
+                    [
+                        'search_term' => $search,
+                        'conditions' => $conditions,
+                        'params' => $params
+                    ],
+                    null,
+                    'debug',
+                    'search_debug'
+                );
+            }
+        }
+
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage(sprintf(
+                'ODCM Search Debug: Search Term="%s", Order ID="%s"',
+                $search ?? 'NULL',
+                $order_id ?? 'NULL'
+            ), 'debug');
+
+            $this->logDebugMessage(sprintf(
+                'ODCM Search Debug: Simplified Search Logic Applied'
+            ), 'debug');
+
+            $this->logDebugMessage(sprintf(
+                'ODCM Search Debug: Current Conditions Count=%d',
+                count($conditions)
+            ), 'debug');
+
+            if (!empty($conditions)) {
+                $this->logDebugMessage('ODCM Search Debug: Current Conditions: ' . json_encode($conditions), 'debug');
+            }
+        }
+if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
+            $this->logDebugMessage(sprintf(
+                'ODCM Search Query: Term="%s", Conditions=%s',
+                $search,
+                json_encode($conditions)
+            ), 'debug');
+
+            // Add detailed debug information about parameter binding
+            $this->logDebugMessage('ODCM Search Debug: Parameters to be bound: ' . json_encode($params), 'debug');
+            $this->logDebugMessage('ODCM Search Debug: Total parameters count: ' . count($params), 'debug');
         }
 
         return [$conditions, $params];
@@ -3110,8 +3331,45 @@ class AuditLogEndpoint extends WP_REST_Controller
         // Search filter
         $search = $request->get_param('search');
         if (!empty($search)) {
-            $where_conditions[] = "l.summary LIKE %s";
-            $where_values[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
+            // Use trim() instead of sanitize_text_field() to preserve special characters
+            $trimmed_search = trim($search);
+            $is_numeric_search = is_numeric($trimmed_search);
+
+            if ($is_numeric_search) {
+                $search_clauses = ["l.order_id = %d"];
+                $where_values[] = absint($trimmed_search);
+
+                $text_fields = ['l.summary', 'l.event_type', 'l.status', 'l.source'];
+                $text_fields[] = 'p.payload';
+
+                $like_term = '%' . $wpdb->esc_like($trimmed_search) . '%';
+                foreach ($text_fields as $field) {
+                    $search_clauses[] = "$field LIKE %s";
+                    $where_values[] = $like_term;
+                }
+
+                $where_conditions[] = "(" . implode(' OR ', $search_clauses) . ")";
+            } else {
+                $search_term = '%' . $wpdb->esc_like($trimmed_search) . '%';
+
+                $search_fields = [
+                    'l.summary',
+                    'l.event_type',
+                    'l.status',
+                    'l.source',
+                    'l.order_id',
+                ];
+
+                $search_fields[] = 'p.payload';
+
+                $search_clauses = [];
+                foreach ($search_fields as $field) {
+                    $search_clauses[] = "$field LIKE %s";
+                    $where_values[] = $search_term;
+                }
+
+                $where_conditions[] = "(" . implode(' OR ', $search_clauses) . ")";
+            }
         }
     }
 
@@ -3147,10 +3405,22 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             // Sanitize and prepare search term
-            $safe_search_term = '%' . $wpdb->esc_like(sanitize_text_field($search_term)) . '%';
+            $safe_search_term = '%' . $wpdb->esc_like(trim($search_term)) . '%';
 
             // Get pagination parameters
-            $per_page = $request->get_param('per_page') ?: 20;
+            $per_page = $request->get_param('per_page');
+
+            // If per_page is not explicitly provided, try to get from user settings
+            if (!isset($request->get_query_params()['per_page']) && !isset($request->get_body_params()['per_page'])) {
+                $user_id = get_current_user_id();
+                if ($user_id) {
+                    $user_setting = get_user_meta($user_id, 'odcm_logs_per_page', true);
+                    if ($user_setting) {
+                        $per_page = (int) $user_setting;
+                    }
+                }
+            }
+            $per_page = $per_page ?: 20;
             $page = $request->get_param('page') ?: 1;
             $per_page = max(1, min(200, (int) $per_page));
             $page = max(1, (int) $page);

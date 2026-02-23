@@ -127,6 +127,7 @@ function insightDashboard() {
         // Filters with persistence (will be set up in init)
         filters: {
             search: '',
+            full_search: false,
             status: '',
             event_type: '',
             source: '',
@@ -275,6 +276,9 @@ function insightDashboard() {
                         if (odcmIsDebug()) { console.warn('ODCM: selectAll sync failed:', e); }
                     }
                 });
+
+                // Add click handler for outside clicks
+                this.setupOutsideClickHandler();
 
                 if (odcmIsDebug()) { console.log('ODCM Insight Dashboard: Initialized successfully'); }
             } catch (e) {
@@ -708,7 +712,7 @@ function insightDashboard() {
                     selectEl.appendChild(opt);
                 });
                 // Restore selection if still available
-                if (current && Array.isArray(items) && items.some(i => i.value === current)) {
+                if (current && ARRAY.isArray(items) && items.some(i => i.value === current)) {
                     selectEl.value = current;
                 }
             };
@@ -734,7 +738,7 @@ function insightDashboard() {
             let timeoutId = null; // Declare outside try block for proper scoping in finally
 
             // Track this request for cleanup
-            const requestId = `fetchDetails_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const requestId = `fetchDetails_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
             if (window.odcmActiveRequests) {
                 window.odcmActiveRequests.add(requestId);
             }
@@ -1366,7 +1370,7 @@ function insightDashboard() {
             const logsWithAnimation = trulyNewLogs.map(log => ({
                 ...log,
                 isNew: true,
-                animationId: `new_${Date.now()}_${Math.random()}`
+                animationId: `new_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
             }));
 
             // Prepend truly new logs to the beginning
@@ -1516,9 +1520,21 @@ function insightDashboard() {
         getActiveFilters() {
             const activeFilters = {};
 
-            // Basic search (always available)
+            // Search including order_id matching
             if (this.filters.search) {
-                activeFilters.search = this.filters.search;
+                const searchTerm = this.filters.search.trim();
+
+                // General search across multiple fields
+                activeFilters.search = searchTerm;
+
+                // Also search order_id field if search term is numeric
+                if (/^\d+$/.test(searchTerm)) {
+                    activeFilters.order_id = searchTerm;
+                }
+
+                if (this.filters.full_search) {
+                    activeFilters.full_search = '1';
+                }
             }
 
             // All filters are now available in the free version
@@ -1661,6 +1677,7 @@ function insightDashboard() {
         clearFilters() {
             this.filters = {
                 search: '',
+                full_search: false,
                 status: '',
                 event_type: '',
                 source: '',
@@ -2646,12 +2663,12 @@ function insightDashboard() {
                             const hasClass = component.classList.contains(expectedClass);
 
                             if (isCurrentlyExpanded && !hasClass) {
-                                component.classList.add(expectedClass);
+                                component.classList.add(`${target}-expanded`);
                                 if (odcmIsDebug()) {
                                     console.log(`ODCM: Added ${expectedClass} class to component for button ${index}`);
                                 }
                             } else if (!isCurrentlyExpanded && hasClass) {
-                                component.classList.remove(expectedClass);
+                                component.classList.remove(`${target}-expanded`);
                                 if (odcmIsDebug()) {
                                     console.log(`ODCM: Removed ${expectedClass} class from component for button ${index}`);
                                 }
@@ -2809,7 +2826,7 @@ function insightDashboard() {
                 toggleButton.setAttribute('aria-expanded', 'true');
             } else if (target === 'technical') {
                 toggleButton.textContent = showText.replace('Show', 'Hide');
-                toggleButton.setAttribute('aria-expanded', 'true');
+                toggleButton.setAttribute('ariaExpanded', 'true');
             }
 
             // Add expanded class to component
@@ -3080,6 +3097,82 @@ function insightDashboard() {
             } catch (error) {
                 console.error('ODCM: Error during cleanup:', error);
             }
+        },
+
+        // =================================================================
+        // OUTSIDE CLICK HANDLER
+        // =================================================================
+        setupOutsideClickHandler() {
+            // Add event listener for outside clicks
+            document.addEventListener('click', this.handleOutsideClick.bind(this));
+        },
+
+        handleOutsideClick(event) {
+            try {
+                // Check if the click was outside the detail pane
+                const detailPane = document.querySelector('.odcm-detail-pane');
+                const logEntries = document.querySelectorAll('.odcm-log-entry');
+
+                // Check if the click was on the detail pane or any log entry
+                const isClickOnDetailPane = detailPane && detailPane.contains(event.target);
+                const isClickOnLogEntry = Array.from(logEntries).some(entry => entry.contains(event.target));
+
+                // Check if the click was on any focusable/interactive element
+                const isClickOnInteractiveElement = this.isFocusable(event.target);
+
+                // If the click was outside the detail pane, log entries, and interactive elements, close the detail pane
+                if (!isClickOnDetailPane && !isClickOnLogEntry && !isClickOnInteractiveElement && this.selectedLog) {
+                    this.closeDetails();
+                }
+            } catch (error) {
+                if (odcmIsDebug()) {
+                    console.warn('ODCM: Error handling outside click:', error);
+                }
+            }
+        },
+
+        /**
+         * Check if an element is focusable/interactive
+         * This is a more portable approach that doesn't rely on specific class names
+         */
+        isFocusable(element) {
+            if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+                return false;
+            }
+
+            // Check for standard interactive elements
+            const interactiveTags = ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A'];
+            if (interactiveTags.includes(element.nodeName)) {
+                // For input, exclude hidden fields
+                if (element.nodeName === 'INPUT' && element.type === 'hidden') {
+                    return false;
+                }
+                return true;
+            }
+
+            // Check for tabindex (positive or zero)
+            if (element.hasAttribute('tabindex') && parseInt(element.getAttribute('tabindex')) >= 0) {
+                return true;
+            }
+
+            // Check for ARIA roles that indicate interactivity
+            const interactiveRoles = ['button', 'tab', 'menuitem', 'link', 'checkbox', 'radio', 'combobox', 'slider', 'switch'];
+            if (element.hasAttribute('role') && interactiveRoles.includes(element.getAttribute('role').toLowerCase())) {
+                return true;
+            }
+
+            // Check if element has click event listeners (more advanced check)
+            // This is a fallback for elements that might be interactive but don't fit other criteria
+            if (typeof element.onclick === 'function' || (element.hasAttribute('onclick') && element.getAttribute('onclick'))) {
+                return true;
+            }
+
+            // Recursively check parent elements (in case the click was on a child element)
+            if (element.parentElement) {
+                return this.isFocusable(element.parentElement);
+            }
+
+            return false;
         },
 
         // =================================================================

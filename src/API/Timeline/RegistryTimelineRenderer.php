@@ -467,7 +467,15 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                 $rawTimestamp = $rawPayload['ts'] ?? time();
                 $html .= '<div class="odcm-key">' . esc_html($section['label']) . '</div>';
                 $html .= '<div class="odcm-value">';
-                $html .= '<span class="js-format-timestamp" x-text="formatTimestamp(' . esc_attr($rawTimestamp) . ', $el)"></span>';
+                
+                // Ensure we pass a numeric timestamp to JS to avoid syntax errors and ensure correct formatting
+                // If it's a string (e.g. "2026-02-22..."), convert to unix timestamp
+                $jsTimestamp = $rawTimestamp;
+                if (!is_numeric($rawTimestamp) && is_string($rawTimestamp)) {
+                    $jsTimestamp = strtotime($rawTimestamp) ?: time();
+                }
+                
+                $html .= '<span class="js-format-timestamp" x-text="formatTimestamp(' . esc_attr($jsTimestamp) . ', $el)"></span>';
                 $html .= '</div>';
             } else {
                 $html .= '<div class="odcm-key">' . esc_html($section['label']) . '</div>';

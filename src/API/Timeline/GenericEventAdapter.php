@@ -39,6 +39,10 @@ class GenericEventAdapter extends DisplayAdapter
             if ($eventType === 'rule_no_match') {
                 return $this->extractRuleNoMatchFields($payload);
             }
+            
+            if ($eventType === '_universal_event_debug' || $eventType === 'universal_event_processing_debug') {
+                return $this->extractDebugEventFields($payload);
+            }
 
             // Enhanced handling for specific event categories
             if (strpos($eventType, 'webhook_') !== false || $eventType === 'universal_event_processing') {
@@ -126,6 +130,98 @@ class GenericEventAdapter extends DisplayAdapter
         }
     }
     
+    /**
+     * Extract fields for debug events
+     *
+     * @param array $payload The event payload
+     * @return array Extracted fields
+     */
+    private function extractDebugEventFields(array $payload): array
+    {
+        $fields = [];
+        $data = $payload['data'] ?? [];
+        $eventType = $payload['event_type'] ?? '';
+        
+        // Event Description
+        $fields['event_description'] = [
+            'label' => $this->translate('Event'),
+            'value' => DisplayAdapter::generateDebugEventTitle($payload),
+            'section' => 'primary'
+        ];
+        
+        // Explanation / Message
+        $explanation = $payload['debug_explanation'] ?? $data['debug_explanation'] ?? null;
+        
+        if (!empty($explanation)) {
+            $fields['explanation'] = [
+                'label' => $this->translate('Explanation'),
+                'value' => $explanation,
+                'section' => 'primary'
+            ];
+        } elseif (!empty($payload['message'])) {
+             $fields['explanation'] = [
+                'label' => $this->translate('Message'),
+                'value' => $payload['message'],
+                'section' => 'primary'
+            ];
+        }
+        
+        // Context for _universal_event_debug
+        if ($eventType === '_universal_event_debug') {
+            if (isset($data['eventType'])) {
+                $fields['captured_event'] = [
+                    'label' => $this->translate('Captured Event'),
+                    'value' => $data['eventType'],
+                    'section' => 'primary'
+                ];
+            }
+            if (isset($data['idempotencyKey'])) {
+                $fields['idempotency_key'] = [
+                    'label' => $this->translate('Idempotency Key'),
+                    'value' => $data['idempotencyKey'],
+                    'section' => 'primary'
+                ];
+            }
+        }
+
+        // Context for universal_event_processing_debug
+        if ($eventType === 'universal_event_processing_debug') {
+            if (isset($data['event_type'])) {
+                $fields['processed_event'] = [
+                    'label' => $this->translate('Processed Event'),
+                    'value' => $data['event_type'],
+                    'section' => 'primary'
+                ];
+            }
+            if (isset($data['source_gateway'])) {
+                $fields['gateway'] = [
+                    'label' => $this->translate('Gateway'),
+                    'value' => ucfirst($data['source_gateway']),
+                    'section' => 'primary'
+                ];
+            }
+             if (isset($data['processing_result']) && $data['processing_result'] === false) {
+                $fields['result'] = [
+                    'label' => $this->translate('Result'),
+                    'value' => $this->translate('No rules triggered'),
+                    'section' => 'primary'
+                ];
+            }
+        }
+
+        // Order ID
+        $order_id = $this->extractOrderId($payload);
+        if ($order_id > 0) {
+            $fields['order_id'] = [
+                'label' => $this->translate('Order'),
+                'value' => '#' . $order_id,
+                'section' => 'primary'
+            ];
+        }
+
+        return $fields;
+    }
+
     /**
      * Format generic event description
      *

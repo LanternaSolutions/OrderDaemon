@@ -1136,13 +1136,14 @@ class Core
         // DEBUG: Log the UniversalEvent data structure
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             odcm_log_event(
-                "UniversalEvent data for order #{$order_id}",
+                "Debug: Universal Event Captured ({$universal_event_data['eventType']})",
                 [
                     'primaryObjectType' => $universal_event_data['primaryObjectType'],
                     'primaryObjectID' => $universal_event_data['primaryObjectID'],
                     'primaryObjectID_type' => gettype($universal_event_data['primaryObjectID']),
                     'eventType' => $universal_event_data['eventType'],
                     'idempotencyKey' => $universal_event_data['idempotencyKey'],
+                    'debug_explanation' => "The system successfully captured a '{$universal_event_data['eventType']}' event for Order #{$order_id}. Next, this event will be processed by the automation rules engine.",
                     'debug_mode' => true
                 ],
                 $order_id,

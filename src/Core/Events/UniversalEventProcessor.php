@@ -587,12 +587,12 @@ class UniversalEventProcessor
             // Create user-friendly message based on event type
             if ($event->eventType === 'order_check_scheduled') {
                 $message = "Scheduled check: no rules triggered";
-                $short_explanation = "Order Daemon checked Order #{$order_id} but no rules were triggered. This is normal. It is also common when the order has already been processed recently.";
+                $payload_for_storage['debug_explanation'] = "Order Daemon checked Order #{$order_id} but no rules were triggered. This is normal behavior. It often means the order status does not match any active rule triggers, or the order has already been processed.";
 
                 // Add detailed explanation to payload
-                $payload_for_storage['debug_explanation'] = "Order Daemon automatically checks orders to run automation rules. This entry shows a check was performed on Order #{$order_id} (" . $gateway . ", " . $currency . " " . $amount . ") but no rules matched the current order status and conditions. Orders are often checked multiple times against different rules and triggers.";
             } else {
                 $message = !empty($summary) ? "No matching rules for: {$summary}" : sprintf('%s %s completed with no matching rules', $gateway, $event->eventType);
+                $payload_for_storage['debug_explanation'] = "The event '{$event->eventType}' was processed, but no active rules were configured to react to it.";
             }
 
             \odcm_log_event(
