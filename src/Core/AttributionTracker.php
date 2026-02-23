@@ -1242,10 +1242,25 @@ final class AttributionTracker
         ];
 
         foreach ($filters as $filter => $rule) {
-            // Use hardcoded filter names with proper odcm_ prefix
-            $value = apply_filters($filter, $rule['required'] ? null : $this->get_default_value($rule));
+            // Ensure filter name has proper odcm_ prefix
+            $prefixed_filter = $this->ensure_proper_filter_prefix($filter);
+            $value = apply_filters($prefixed_filter, $rule['required'] ? null : $this->get_default_value($rule));
             odcm_validate_and_sanitize_params([$filter => $value], [$filter => $rule]);
         }
+    }
+
+    /**
+     * Ensure filter name has proper odcm_ prefix
+     *
+     * @param string $filter_name The filter name to validate
+     * @return string The filter name with proper odcm_ prefix
+     */
+    private function ensure_proper_filter_prefix(string $filter_name): string
+    {
+        if (strpos($filter_name, 'odcm_') !== 0) {
+            return 'odcm_' . $filter_name;
+        }
+        return $filter_name;
     }
 
     /**

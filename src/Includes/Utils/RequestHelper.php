@@ -138,7 +138,7 @@ class RequestHelper
      */
     public static function validate_request(array $rules): array
     {
-        if (!isset($_REQUEST['_wpnonce']) || !wp_verify_nonce($_REQUEST['_wpnonce'], 'odcm_request')) {
+        if (!isset($_REQUEST['_wpnonce']) || !wp_verify_nonce(wp_unslash($_REQUEST['_wpnonce']), 'odcm_request')) {
             throw new \InvalidArgumentException(esc_html('Invalid security token'));
         }
 
@@ -154,7 +154,7 @@ class RequestHelper
      */
     public static function validate_post(array $rules): array
     {
-        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce($_POST['_wpnonce'], 'odcm_post')) {
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(wp_unslash($_POST['_wpnonce']), 'odcm_post')) {
             throw new \InvalidArgumentException(esc_html('Invalid security token'));
         }
 
@@ -170,7 +170,7 @@ class RequestHelper
      */
     public static function validate_get(array $rules): array
     {
-        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'odcm_get')) {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce(wp_unslash($_GET['_wpnonce']), 'odcm_get')) {
             throw new \InvalidArgumentException(esc_html('Invalid security token'));
         }
 
@@ -277,8 +277,15 @@ class RequestHelper
             throw new \InvalidArgumentException(esc_html('Invalid security token'));
         }
 
+        // Sanitize input
+        $input = sanitize_text_field(wp_unslash($input));
+
         // Only allow specific safe operations
         $allowed_operations = '/^\s*(SELECT|INSERT|UPDATE|DELETE|SHOW|DESCRIBE|EXPLAIN)\s+/i';
+
+        if (!isset($_REQUEST['_wpnonce']) || !wp_verify_nonce(wp_unslash($_REQUEST['_wpnonce']), $action)) {
+            throw new \InvalidArgumentException(esc_html('Invalid security token'));
+        }
 
         if (! preg_match($allowed_operations, $input)) {
             return false;

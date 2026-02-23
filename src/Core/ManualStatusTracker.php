@@ -509,13 +509,24 @@ class ManualStatusTracker
             return false;
         }
 
-        // Verify nonce for AJAX actions when present
-        // Note: We don't verify nonce as a strict requirement here because this is detection-only code
-        // and we don't want to break WooCommerce's own AJAX handlers that may not include our nonces
+        /**
+         * SECURITY JUSTIFICATION: This nonce verification is intentionally not enforced because:
+         * 1. This is detection-only code that should not block WooCommerce's AJAX handlers
+         * 2. WooCommerce handles its own security enforcement at the core level
+         * 3. We only log suspicious activity for monitoring purposes
+         * 4. Strict enforcement here would break WooCommerce's AJAX handlers that may not include our nonces
+         * 5. Different WooCommerce extensions might use different nonce patterns
+         * 6. Breaking WooCommerce functionality would create a poor user experience
+         *
+         * The nonce verification that exists is for monitoring purposes only and does not affect request flow.
+         * WooCommerce's own security mechanisms remain fully intact and functional.
+         */
+        // Verify nonce for AJAX actions when present (detection-only, no enforcement)
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This is detection-only code that should not block WooCommerce's AJAX handlers
         if (isset($_REQUEST['security'])) {
             $security_nonce = is_string($_REQUEST['security']) ? sanitize_text_field(wp_unslash($_REQUEST['security'])) : '';
             $nonce_valid = wp_verify_nonce(
-                $security_nonce, 
+                $security_nonce,
                 'woocommerce-order-ajax'
             );
             if (!$nonce_valid) {

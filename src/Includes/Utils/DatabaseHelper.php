@@ -259,14 +259,12 @@ class DatabaseHelper
             $option_table = $this->wpdb->options;
 
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table name is trusted.
-            $sql = "SELECT option_name FROM `{$option_table}` WHERE option_name LIKE %s";
-
-            $options = $this->get_results(
-                $this->wpdb->prepare(
-                    $sql,
-                    '%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%'
-                )
+            $sql = $this->wpdb->prepare(
+                "SELECT option_name FROM {$option_table} WHERE option_name LIKE %s",
+                '%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%'
             );
+
+            $options = $this->get_results($sql);
 
             // Add explicit escaping for LIKE queries
             $pattern = $this->wpdb->esc_like($pattern);
@@ -929,25 +927,34 @@ class DatabaseHelper
             return 0;
         }
 
-        $where_clauses = [];
-        $args = [];
-
-        foreach ($conditions as $column => $value) {
-            $where_clauses[] = "{$column} = %s";
-            $args[] = $value;
+        if (empty($conditions)) {
+            $query = $instance->wpdb->prepare("SELECT COUNT(*) FROM %s", esc_sql($table_name));
+            return (int) $instance->wpdb->get_var($query);
         }
 
-        $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
+        $where_conditions = [];
+        $prepare_args = [];
 
-        // Build query with trusted table name and prepared WHERE clause
-        $query = $this->wpdb->prepare(
-            "SELECT COUNT(*) FROM %s %s",
-            $table_name,
-            $where_sql
+        foreach ($conditions as $column => $value) {
+            $sanitized_column = esc_sql($column);
+            if (is_array($value)) {
+                $count = count($value);
+                $placeholders = implode(',', array_fill(0, $count, '%s'));
+                $where_conditions[] = "{$sanitized_column} IN ({$placeholders})";
+                $prepare_args = array_merge($prepare_args, $value);  // Raw array values OK for prepare()
+            } else {
+                $where_conditions[] = "{$sanitized_column} = %s";
+                $prepare_args[] = $value;  // Raw scalar OK for prepare()
+            }
+        }
+
+        $where_sql = implode(' AND ', $where_conditions);
+        $query = $instance->wpdb->prepare(
+            "SELECT COUNT(*) FROM %s WHERE {$where_sql}",
+            array_merge([esc_sql($table_name)], $prepare_args)
         );
 
-        // Use get_var with proper preparation for WHERE conditions
-        return (int) $this->wpdb->get_var($query);
+        return (int) $instance->wpdb->get_var($query);
     }
 
     /**

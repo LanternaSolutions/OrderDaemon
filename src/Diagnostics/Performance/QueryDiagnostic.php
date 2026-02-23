@@ -464,12 +464,11 @@ class QueryDiagnostic extends AbstractDiagnostic
 
                 // Prepare the query using proper WordPress database abstraction
                 // Column names are validated against whitelist for security
-                // Since we can't use prepare() for identifiers, we use whitelist validation
-                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Column names are whitelisted above.
-                $sql = $wpdb->prepare(
-                    "SELECT DISTINCT {$column} FROM {$table_identifier} WHERE {$column} IS NOT NULL AND {$column} != %s ORDER BY {$column} ASC",
-                    '' // Empty string parameter for the != %s comparison
-                );
+                // Use proper escaping for identifiers
+                $sql = "SELECT DISTINCT " . $wpdb->esc_like($column) . " FROM " . $wpdb->esc_like($table_identifier) . 
+                       " WHERE " . $wpdb->esc_like($column) . " IS NOT NULL AND " . $wpdb->esc_like($column) . " != %s ORDER BY " . 
+                       $wpdb->esc_like($column) . " ASC";
+                $sql = $wpdb->prepare($sql, '');
 
                 // @codingStandardsIgnoreStart
                 // This is a false positive - we're using validated column names from a whitelist

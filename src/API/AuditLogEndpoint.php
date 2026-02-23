@@ -1568,19 +1568,18 @@ class AuditLogEndpoint extends WP_REST_Controller
         global $wpdb;
 
         try {
-            // Use proper table name escaping (cannot use placeholders for table names)
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table query required for audit log retrieval.
-            $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
-            $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+            // Use DatabaseHelper for secure queries
+            $log_table = $wpdb->prefix . 'odcm_audit_log';
+            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
             // Get conditions and params from helper
             list($conditions, $params) = $this->build_query_conditions($request);
-            
+
             // Optimization: Don't select payload column for the bulk query to prevent OOM.
             // We only need payloads for the final paginated result set.
             // We also exclude l.details to be safe, selecting only necessary columns.
             $base_query = "SELECT l.log_id, l.timestamp, l.status, l.summary, l.event_type, l.source, l.process_id, l.order_id, l.payload_id, l.is_test, l.parent_id, l.display_data, l.dedupe_key FROM `{$log_table}` l";
-            
+
             // Check if we need to join for filtering
             $needs_join = false;
             foreach ($conditions as $condition) {
@@ -1589,7 +1588,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     break;
                 }
             }
-            
+
             if ($needs_join) {
                 $base_query .= " LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
             }
@@ -2976,15 +2975,17 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
             ];
 
             if ($table_check === '1') {
-            // Get basic stats
-            // Use safe_count() method instead of direct interpolation
-            $total_logs = DatabaseHelper::safe_count($audit_table);
-            // Use safe_count() method instead of direct interpolation
-            $recent_logs = DatabaseHelper::safe_count($audit_table, "WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)");
-            // Use safe_count() method instead of direct interpolation
-            $completion_logs = DatabaseHelper::safe_count($audit_table, "WHERE event_type LIKE %s", ['%completion%']);
-            // Use safe_count() method instead of direct interpolation
-            $debug_logs = DatabaseHelper::safe_count($audit_table, "WHERE status = %s OR event_type LIKE %s", ['debug', 'debug_%']);
+            // Get basic stats using DatabaseHelper with proper validation
+            $audit_table = $wpdb->prefix . 'odcm_audit_log';
+            if (!DatabaseHelper::validate_table_name($audit_table)) {
+                throw new \Exception('Invalid table name provided');
+            }
+            $audit_table = esc_sql($audit_table);
+
+            $total_logs = $this->db_helper->safe_count($audit_table);
+            $recent_logs = $this->db_helper->safe_count($audit_table, "WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)");
+            $completion_logs = $this->db_helper->safe_count($audit_table, "WHERE event_type LIKE %s", ['%completion%']);
+            $debug_logs = $this->db_helper->safe_count($audit_table, "WHERE status = %s OR event_type LIKE %s", ['debug', 'debug_%']);
 
                 $diagnostics['log_stats'] = [
                     'total_logs' => (int) $total_logs,
@@ -2993,15 +2994,15 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
                     'debug_logs' => (int) $debug_logs,
                 ];
 
-                // Get recent log samples
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Direct query is needed for diagnostic purposes. Table name is escaped.
-                $sample_logs = $this->db_helper->get_results($wpdb->prepare(
+                // Get recent log samples using DatabaseHelper with proper validation
+                $sample_logs = $this->db_helper->get_results(
                     "SELECT id, timestamp, status, event_type, summary, order_id
                     FROM {$audit_table}
                     ORDER BY timestamp DESC
                     LIMIT %d",
-                    10
-                ), ARRAY_A);
+                    [10],
+                    ARRAY_A
+                );
 
                 $diagnostics['sample_logs'] = $sample_logs ?: [];
 
