@@ -138,19 +138,10 @@ class RequestHelper
      */
     public static function validate_request(array $rules): array
     {
-        // Verify nonce using NonceGuard
-        try {
-            $nonce_guard = new NonceGuard(
-                self::get_param('_wpnonce', '', ['string']),
-                'odcm_request',
-                false
-            );
-            $nonce_guard->verify();
-        } catch (SecurityException $e) {
+        if (!isset($_REQUEST['_wpnonce']) || !wp_verify_nonce($_REQUEST['_wpnonce'], 'odcm_request')) {
             throw new \InvalidArgumentException(esc_html('Invalid security token'));
         }
-        
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce verified above using NonceGuard.
+
         return self::validate_and_sanitize($_REQUEST, $rules);
     }
 
@@ -163,19 +154,10 @@ class RequestHelper
      */
     public static function validate_post(array $rules): array
     {
-        // Verify nonce using NonceGuard
-        try {
-            $nonce_guard = new NonceGuard(
-                self::get_param('_wpnonce', '', ['string']),
-                'odcm_post',
-                false
-            );
-            $nonce_guard->verify();
-        } catch (SecurityException $e) {
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce($_POST['_wpnonce'], 'odcm_post')) {
             throw new \InvalidArgumentException(esc_html('Invalid security token'));
         }
-        
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified above using NonceGuard.
+
         return self::validate_and_sanitize($_POST, $rules);
     }
 
@@ -188,19 +170,10 @@ class RequestHelper
      */
     public static function validate_get(array $rules): array
     {
-        // Verify nonce using NonceGuard
-        try {
-            $nonce_guard = new NonceGuard(
-                self::get_param('_wpnonce', '', ['string']),
-                'odcm_get',
-                false
-            );
-            $nonce_guard->verify();
-        } catch (SecurityException $e) {
+        if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'odcm_get')) {
             throw new \InvalidArgumentException(esc_html('Invalid security token'));
         }
-        
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce verified above using NonceGuard.
+
         return self::validate_and_sanitize($_GET, $rules);
     }
 
@@ -226,13 +199,10 @@ class RequestHelper
      */
     public static function get_param(string $key, $default = null, array $rules = [])
     {
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Helper getter; nonce verification is the caller's responsibility.
         if (!isset($_REQUEST[$key])) {
             return $default;
         }
 
-        // Get raw value and let validate_and_sanitize handle sanitization.
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitization happens immediately below via validate_and_sanitize or sanitize_text_field.
         $value = wp_unslash($_REQUEST[$key]);
 
         // Sanitize based on type if no rules provided

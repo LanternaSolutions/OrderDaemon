@@ -1251,7 +1251,7 @@ final class AttributionTracker
             }
             
             $value = apply_filters($prefixed_filter, $rule['required'] ? null : $this->get_default_value($rule));
-            odcm_validate_and_sanitize_params([$prefixed_filter => $value], [$filter => $rule]);
+            odcm_validate_and_sanitize_params([$prefixed_filter => $value], [$prefixed_filter => $rule]);
         }
     }
 

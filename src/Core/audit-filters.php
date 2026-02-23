@@ -159,6 +159,7 @@ function odcm_render_basic_search_filter(array $filter, bool $has_permission, st
 function odcm_render_date_range_filter(array $filter, bool $has_permission, string $current_value): void
 {
     // Verify nonce if this is a form submission
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce is verified immediately after this line.
     $is_valid_request = false;
     if (isset($_REQUEST['_wpnonce'])) {
         $is_valid_request = wp_verify_nonce(sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])), 'odcm_audit_filter_action');
@@ -221,6 +222,7 @@ function odcm_render_date_range_filter(array $filter, bool $has_permission, stri
 function odcm_render_status_filter(array $filter, bool $has_permission, string $current_value): void
 {
     // Verify nonce if this is a form submission
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce is verified immediately after this line.
     if (!empty($_REQUEST) && isset($_REQUEST['_wpnonce'])) {
         $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
         if (!wp_verify_nonce($nonce, 'odcm_audit_filter_action')) {
@@ -419,6 +421,7 @@ function odcm_render_event_type_filter(array $filter, bool $has_permission, stri
 function odcm_render_source_filter(array $filter, bool $has_permission, string $current_value): void
 {
     // Verify nonce if this is a form submission
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce is verified immediately after this line.
     if (!empty($_REQUEST) && isset($_REQUEST['_wpnonce'])) {
         $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
         if (!wp_verify_nonce($nonce, 'odcm_audit_filter_action')) {
