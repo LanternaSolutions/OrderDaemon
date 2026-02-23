@@ -1589,7 +1589,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $base_query .= " LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
             }
 
-            // Build final query
+            // Build final query using DatabaseHelper
             if (!empty($conditions)) {
                 $where_clause = implode(' AND ', $conditions);
                 // Add safety LIMIT to prevent OOM on broad searches (e.g. "failure"). Reduced to 500 to ensure stability.
@@ -1603,8 +1603,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $this->logDebugMessage("ODCM: Executing all_filtered_logs query: " . $full_query, 'debug');
             }
 
-            // Execute the query
-            // Use DatabaseHelper to handle preparation and execution safely
+            // Execute the query using DatabaseHelper for security
             $logs = $this->db_helper->get_results($full_query, $params, ARRAY_A);
 
             // Debug: Log if query returned false (error) but wasn't caught
@@ -1669,9 +1668,15 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Calculate offset based on pagination
             $offset = max(0, ($page - 1) * $per_page);
 
-            // Use proper table name escaping
-            $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
-            $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+            // Use DatabaseHelper for secure queries
+            $log_table = $wpdb->prefix . 'odcm_audit_log';
+            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
+
+            // Get conditions and params from helper
+            list($conditions, $params) = $this->build_query_conditions($request);
+            // Use DatabaseHelper for secure queries
+            $log_table = $wpdb->prefix . 'odcm_audit_log';
+            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
             // Get conditions and params from helper
             list($conditions, $params) = $this->build_query_conditions($request);
@@ -1696,7 +1701,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $params[] = absint($per_page);
             $params[] = absint($offset);
 
-            // Build final query
+            // Build final query using DatabaseHelper
             if (!empty($conditions)) {
                 $where_clause = implode(' AND ', $conditions);
                 $full_query = $base_query . " WHERE " . $where_clause . " ORDER BY l.timestamp DESC LIMIT %d OFFSET %d";
@@ -1708,7 +1713,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $this->logDebugMessage("ODCM: Executing filtered_logs query: " . $full_query, 'debug');
             }
 
-            // Use DatabaseHelper to handle preparation and execution safely
+            // Execute the query using DatabaseHelper for security
             $logs = $this->db_helper->get_results($full_query, $params, ARRAY_A);
 
             $result = $logs ?: [];
@@ -1766,9 +1771,9 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
 
             // Cache miss - perform database query
-            // Use proper table name escaping (cannot use placeholders for table names)
-            $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
-            $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+            // Use DatabaseHelper for secure queries
+            $log_table = $wpdb->prefix . 'odcm_audit_log';
+            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
             // Build base query
             $base_query = "SELECT COUNT(*) FROM `{$log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
@@ -1793,7 +1798,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $base_query = "SELECT COUNT(*) FROM `{$log_table}` l";
             }
 
-            // Build final query
+            // Build final query using DatabaseHelper
             if (!empty($conditions)) {
                 $where_clause = implode(' AND ', $conditions);
                 $full_query = $base_query . " WHERE " . $where_clause;
@@ -1805,7 +1810,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $this->logDebugMessage("ODCM: Executing filtered_log_count query: " . $full_query, 'debug');
             }
 
-            // Use DatabaseHelper to handle preparation and execution safely
+            // Execute the query using DatabaseHelper for security
             $count = $this->db_helper->get_var($full_query, $params);
 
             $result = (int) $count;
@@ -2644,60 +2649,46 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
             $log_placeholders = array_fill(0, count($log_ids), '%d');
             $log_placeholder_string = implode(',', $log_placeholders);
 
-            // Get payload IDs to delete using prepared statement
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Direct query is needed for performance-critical batch operations. Table name is escaped; IN clause built safely.
-            $payload_ids_query = $wpdb->prepare(
+            // Validate table names before using them
+            if (!DatabaseHelper::validate_table_name($logTableName) || !DatabaseHelper::validate_table_name($payloadTableName)) {
+                throw new \Exception('Invalid table names provided for batch deletion');
+            }
+
+            // Get payload IDs to delete using DatabaseHelper for security
+            $payload_ids = DatabaseHelper::get_col(
                 "SELECT DISTINCT payload_id
-                FROM `{$logTableName}`
-                WHERE log_id IN ({$log_placeholder_string}) AND payload_id IS NOT NULL",
-                ...$log_ids
+                FROM %s
+                WHERE log_id IN (%s) AND payload_id IS NOT NULL",
+                [$logTableName, implode(',', array_map('intval', $log_ids))]
             );
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $payload_ids_query is prepared above via $wpdb->prepare()
-            $payload_ids = $this->db_helper->get_col($payload_ids_query);
 
-            // Delete logs using prepared statement
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name is escaped; IN clause built safely.
-            $delete_logs_query = $wpdb->prepare(
-                "DELETE FROM `{$logTableName}`
-                WHERE log_id IN ({$log_placeholder_string})",
-                ...$log_ids
+            // Delete logs using DatabaseHelper for security
+            $deleted = DatabaseHelper::query(
+                "DELETE FROM %s
+                WHERE log_id IN (%s)",
+                [$logTableName, implode(',', array_map('intval', $log_ids))]
             );
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $delete_logs_query is prepared above via $wpdb->prepare()
-            $deleted = DatabaseHelper::query($delete_logs_query);
 
-            // Delete orphaned payloads
+            // Delete orphaned payloads using DatabaseHelper for security
             if (!empty($payload_ids)) {
-                // Build safe IN clause for payload IDs
-                $payload_placeholders = array_fill(0, count($payload_ids), '%d');
-                $payload_placeholder_string = implode(',', $payload_placeholders);
-
-                // Get payloads still in use using prepared statement
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Direct query is needed for performance-critical batch operations. Table name is escaped; IN clause built safely.
-                $used_payloads_query = $wpdb->prepare(
+                // Get payloads still in use using DatabaseHelper
+                $used_payloads = DatabaseHelper::get_col(
                     "SELECT DISTINCT payload_id
-                    FROM `{$logTableName}`
-                    WHERE payload_id IN ({$payload_placeholder_string})",
-                    ...$payload_ids
+                    FROM %s
+                    WHERE payload_id IN (%s)",
+                    [$logTableName, implode(',', array_map('intval', $payload_ids))]
                 );
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $used_payloads_query is prepared above via $wpdb->prepare()
-                $used_payloads = $this->db_helper->get_col($used_payloads_query);
 
                 // Calculate orphaned payloads
                 $orphaned_payloads = array_diff($payload_ids, $used_payloads);
 
-                // Delete orphaned payloads using prepared statement
+                // Delete orphaned payloads using DatabaseHelper
                 if (!empty($orphaned_payloads)) {
-                    $orphaned_placeholders = array_fill(0, count($orphaned_payloads), '%d');
-                    $orphaned_placeholder_string = implode(',', $orphaned_placeholders);
-
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Direct query is needed for performance-critical batch operations. Table name is escaped; IN clause built safely.
-                    $delete_payloads_query = $wpdb->prepare(
-                        "DELETE FROM `{$payloadTableName}`
-                        WHERE payload_id IN ({$orphaned_placeholder_string})",
-                        ...$orphaned_payloads
+                    DatabaseHelper::query(
+                        "DELETE FROM %s
+                        WHERE payload_id IN (%s)",
+                        [$payloadTableName, implode(',', array_map('intval', $orphaned_payloads))]
                     );
-                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $delete_payloads_query is prepared above via $wpdb->prepare()
-                    DatabaseHelper::query($delete_payloads_query);
                 }
             }
 

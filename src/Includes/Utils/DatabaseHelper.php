@@ -913,28 +913,27 @@ class DatabaseHelper
     public static function safe_count(string $table_name, array $conditions = []): int
     {
         $instance = self::get_instance();
-        
+
         if (!$instance->is_trusted_table($table_name)) {
             $instance->log_error("Untrusted table in safe_count: {$table_name}");
             return 0;
         }
-        
+
         $where_clauses = [];
         $args = [];
-        
+
         foreach ($conditions as $column => $value) {
             $where_clauses[] = "{$column} = %s";
             $args[] = $value;
         }
-        
+
         $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
-        
-        $query = $instance->wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table_name} {$where_sql}",
-            $args
-        );
-        
-        return (int) $instance->wpdb->get_var($query);
+
+        // Build query with trusted table name and prepared WHERE clause
+        $query = "SELECT COUNT(*) FROM {$table_name} {$where_sql}";
+
+        // Use get_var with proper preparation for WHERE conditions
+        return (int) $instance->wpdb->get_var($instance->wpdb->prepare($query, $args));
     }
 
     /**
