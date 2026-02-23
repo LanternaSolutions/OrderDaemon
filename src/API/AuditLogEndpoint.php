@@ -1238,7 +1238,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     l.dedupe_key,
                     COALESCE(p.payload, l.details, %s) as payload
                 FROM `{$logTableName}` l
-                    LEFT JOIN `{$payloadTableName}` p ON l.payload_id = p.payload_id
+                LEFT JOIN `{$payloadTableName}` p ON l.payload_id = p.payload_id
                 WHERE l.process_id = %s
                 ORDER BY l.timestamp ASC";
 

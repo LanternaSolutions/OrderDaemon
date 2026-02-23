@@ -308,16 +308,15 @@ final class ProcessLifecycleDiscovery
             }
             
             // Cache miss - run the query
-            // Use $wpdb->get_col() with a properly prepared query
-            // The WHERE clause uses $wpdb->prepare() for proper value escaping
-            $query = $wpdb->prepare(
-                "SELECT DISTINCT event_type FROM `{$wpdb->prefix}odcm_audit_log` WHERE event_type IS NOT NULL AND event_type != %s",
+            // Use DatabaseHelper for proper database abstraction
+            $query = DatabaseHelper::get_instance()->_prepare(
+                "SELECT DISTINCT event_type FROM %s WHERE event_type IS NOT NULL AND event_type != %s",
+                $wpdb->prefix . 'odcm_audit_log',
                 $empty_value
             );
 
-            // Execute the query with WordPress's database API
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared -- Custom table query, $query is properly prepared above using $wpdb->prepare()
-            $results = $wpdb->get_col($query);
+            // Execute the query with DatabaseHelper
+            $results = DatabaseHelper::get_col($query);
             
             // Process the results
             $types = is_array($results) ? $results : [];

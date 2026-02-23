@@ -258,7 +258,7 @@ class DatabaseHelper
             // Options table name from $wpdb is trusted.
             $option_table = $this->wpdb->options;
 
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Table name is trusted.
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is trusted.
             $sql = $this->wpdb->prepare(
                 "SELECT option_name FROM {$option_table} WHERE option_name LIKE %s",
                 '%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%'
@@ -351,16 +351,7 @@ class DatabaseHelper
 
             // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is dynamic by design in this helper.
             $prepared_query = $this->wpdb->prepare($query, $sanitized_args);
-            
-            if (empty($prepared_query)) {
-                $this->log_warning(
-                    'DatabaseHelper::query failed to prepare query.',
-                    'query',
-                    ['query' => $query]
-                );
-                return false;
-            }
-            
+
             if (empty($prepared_query)) {
                 $this->log_warning(
                     'DatabaseHelper::query failed to prepare query.',
@@ -374,7 +365,7 @@ class DatabaseHelper
 
             // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Prepared above.
             return $this->wpdb->query($prepared_query);
-            
+
         } catch (\Throwable $e) {
             $this->log_error('DatabaseHelper::query failed: ' . $e->getMessage());
             return false;
@@ -928,8 +919,8 @@ class DatabaseHelper
         }
 
         if (empty($conditions)) {
-            $query = $instance->wpdb->prepare("SELECT COUNT(*) FROM %s", esc_sql($table_name));
-            return (int) $instance->wpdb->get_var($query);
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is trusted and escaped.
+            return (int) $this->wpdb->get_var("SELECT COUNT(*) FROM " . esc_sql($table_name));
         }
 
         $where_conditions = [];
@@ -949,12 +940,15 @@ class DatabaseHelper
         }
 
         $where_sql = implode(' AND ', $where_conditions);
-        $query = $instance->wpdb->prepare(
-            "SELECT COUNT(*) FROM %s WHERE {$where_sql}",
-            array_merge([esc_sql($table_name)], $prepare_args)
+        
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is trusted and escaped.
+        $query = $this->wpdb->prepare(
+            "SELECT COUNT(*) FROM " . esc_sql($table_name) . " WHERE {$where_sql}",
+            $prepare_args
         );
 
-        return (int) $instance->wpdb->get_var($query);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above.
+        return (int) $this->wpdb->get_var($query);
     }
 
     /**
