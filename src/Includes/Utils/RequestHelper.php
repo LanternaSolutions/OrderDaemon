@@ -270,8 +270,13 @@ class RequestHelper
      * @param string $input Input to validate
      * @return bool True if input is safe, false otherwise
      */
-    private static function validate_input(string $input): bool
+    private static function validate_input(string $input, string $nonce, string $action = 'odcm_input_validation'): bool
     {
+        // Verify nonce first
+        if (!wp_verify_nonce($nonce, $action)) {
+            throw new \InvalidArgumentException(esc_html('Invalid security token'));
+        }
+
         // Only allow specific safe operations
         $allowed_operations = '/^\s*(SELECT|INSERT|UPDATE|DELETE|SHOW|DESCRIBE|EXPLAIN)\s+/i';
 

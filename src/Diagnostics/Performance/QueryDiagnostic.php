@@ -376,21 +376,16 @@ class QueryDiagnostic extends AbstractDiagnostic
                 if ($wpdb->is_mysql) {
                     // MySQL/MariaDB implementation
                     $size_mb = DatabaseHelper::get_var(
-                        $wpdb->prepare(
-                            "SELECT ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb'
-                            FROM information_schema.TABLES
-                            WHERE table_schema = %s AND table_name = %s",
-                            DB_NAME,
-                            $full_table_name
-                        )
+                        "SELECT ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb'
+                        FROM information_schema.TABLES
+                        WHERE table_schema = %s AND table_name = %s",
+                        [DB_NAME, $full_table_name]
                     ) ?? 0;
                 } else {
                     // SQLite implementation - use PRAGMA for size information
                     $size_mb = DatabaseHelper::get_var(
-                        $wpdb->prepare(
-                            "SELECT ROUND((page_count * page_size) / 1024 / 1024, 2) AS 'size_mb'
-                            FROM pragma_page_count() pc, pragma_page_size() ps"
-                        )
+                        "SELECT ROUND((page_count * page_size) / 1024 / 1024, 2) AS 'size_mb'
+                        FROM pragma_page_count() pc, pragma_page_size() ps"
                     ) ?? 0;
                 }
 
@@ -748,10 +743,10 @@ class QueryDiagnostic extends AbstractDiagnostic
 
             if (false === $database_version) {
                 if ($wpdb->is_mysql) {
-                    $database_version = DatabaseHelper::get_var($wpdb->prepare("SELECT %s", 'VERSION()'));
+                    $database_version = DatabaseHelper::get_var("SELECT %s", ['VERSION()']);
                 } else {
                     // SQLite implementation
-                    $database_version = DatabaseHelper::get_var($wpdb->prepare("SELECT %s", 'sqlite_version()'));
+                    $database_version = DatabaseHelper::get_var("SELECT %s", ['sqlite_version()']);
                 }
 
                 // Cache for 24 hours - database version rarely changes
@@ -800,11 +795,11 @@ class QueryDiagnostic extends AbstractDiagnostic
                         if ($wpdb->is_mysql) {
                             // Use separate prepared statement for show variables
                             // Since SHOW VARIABLES LIKE has specific syntax requirements
-                            $var_value = DatabaseHelper::get_row($wpdb->prepare("SHOW VARIABLES LIKE %s", $var));
+                            $var_value = DatabaseHelper::get_row("SHOW VARIABLES LIKE %s", [$var]);
                             $var_value = $var_value ? $var_value->Value : null;
                         } else {
                             // SQLite implementation
-                            $var_value = DatabaseHelper::get_var($wpdb->prepare("PRAGMA %s", $var));
+                            $var_value = DatabaseHelper::get_var("PRAGMA %s", [$var]);
                         }
 
                         if ($var_value !== null) {
