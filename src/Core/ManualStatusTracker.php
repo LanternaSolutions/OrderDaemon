@@ -504,6 +504,11 @@ class ManualStatusTracker
             return false;
         }
 
+        // Check if action exists before processing
+        if (!isset($_REQUEST['action'])) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            return false;
+        }
+
         /**
          * SECURITY JUSTIFICATION: This nonce verification is intentionally not enforced because:
          * 1. This is detection-only code that should not block WooCommerce's AJAX handlers
@@ -516,17 +521,9 @@ class ManualStatusTracker
          * The nonce verification that exists is for monitoring purposes only and does not affect request flow.
          * WooCommerce's own security mechanisms remain fully intact and functional.
          */
-
-        // Check if action exists before processing
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This is detection-only code that should not block WooCommerce's AJAX handlers. See justification above.
-        if (!isset($_REQUEST['action'])) {
-            return false;
-        }
-
         // Verify nonce for AJAX actions when present (detection-only, no enforcement)
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This is detection-only code that should not block WooCommerce's AJAX handlers
         if (isset($_REQUEST['security'])) {
-            // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Detection-only code.
             $security_nonce = is_string($_REQUEST['security']) ? sanitize_text_field(wp_unslash($_REQUEST['security'])) : '';
             $nonce_valid = wp_verify_nonce(
                 $security_nonce,
