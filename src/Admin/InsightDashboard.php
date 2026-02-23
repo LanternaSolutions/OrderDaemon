@@ -963,16 +963,6 @@ class InsightDashboard
                             <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('input', 'debouncedFetchLogs()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                             placeholder="<?php echo esc_attr__('admin.insight_dashboard.filters.search.placeholder', 'order-daemon'); ?>"
                             class="odcm-search-input">
-                        <div class="odcm-filter-group odcm-full-search-toggle">
-                            <label class="odcm-toggle-switch">
-                                <input type="checkbox" 
-                                    <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.full_search'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'debouncedFetchLogs()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                >
-                                <span class="odcm-toggle-slider"></span>
-                                <span class="odcm-toggle-label"><?php echo esc_html__('Full Search (Slower)', 'order-daemon'); ?></span>
-                            </label>
-                        </div>
                     </div>
                 </div>
 
