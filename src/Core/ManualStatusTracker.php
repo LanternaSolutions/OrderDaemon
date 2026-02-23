@@ -505,8 +505,7 @@ class ManualStatusTracker
         }
 
         // Check if action exists before processing
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This is detection-only code.
-        if (!isset($_REQUEST['action'])) {
+        if (!isset($_REQUEST['action'])) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Detection-only code.
             return false;
         }
 
