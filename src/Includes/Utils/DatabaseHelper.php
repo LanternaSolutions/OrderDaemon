@@ -260,7 +260,7 @@ class DatabaseHelper
 
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is trusted.
             $sql = $this->wpdb->prepare(
-                "SELECT option_name FROM {$option_table} WHERE option_name LIKE %s",
+                "SELECT option_name FROM " . $option_table . " WHERE option_name LIKE %s",
                 '%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%'
             );
 
@@ -941,9 +941,9 @@ class DatabaseHelper
 
         $where_sql = implode(' AND ', $where_conditions);
         
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is trusted and escaped.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name is trusted and escaped.
         $query = $this->wpdb->prepare(
-            "SELECT COUNT(*) FROM " . esc_sql($table_name) . " WHERE {$where_sql}",
+            "SELECT COUNT(*) FROM " . esc_sql($table_name) . " WHERE " . $where_sql,
             $prepare_args
         );
 

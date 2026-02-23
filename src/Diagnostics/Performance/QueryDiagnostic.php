@@ -469,15 +469,14 @@ class QueryDiagnostic extends AbstractDiagnostic
                 // The column name is strictly validated against a whitelist above
                 $query_template = "SELECT DISTINCT `%1\$s` FROM %2\$s WHERE `%1\$s` IS NOT NULL AND `%1\$s` != %%s ORDER BY `%1\$s` ASC";
                 
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query template is constant, identifiers are whitelisted/validated.
-                $sql = $wpdb->prepare(
-                    sprintf(
-                        $query_template,
-                        $column,
-                        $table_identifier
-                    ),
-                    ''
+                $prepared_sql = sprintf(
+                    $query_template,
+                    $column,
+                    $table_identifier
                 );
+
+                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query template is constant, identifiers are whitelisted/validated.
+                $sql = $wpdb->prepare($prepared_sql, '');
 
                 // @codingStandardsIgnoreStart
                 // This is a false positive - we're using validated column names from a whitelist

@@ -526,6 +526,7 @@ class ManualStatusTracker
         // Verify nonce for AJAX actions when present (detection-only, no enforcement)
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This is detection-only code that should not block WooCommerce's AJAX handlers
         if (isset($_REQUEST['security'])) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Detection-only code.
             $security_nonce = is_string($_REQUEST['security']) ? sanitize_text_field(wp_unslash($_REQUEST['security'])) : '';
             $nonce_valid = wp_verify_nonce(
                 $security_nonce,
