@@ -354,6 +354,16 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
         $level = $component['level'] ?? '';
         $event_type = $component['event_type'] ?? '';
 
+        // Check for explicit debug_only flag
+        if (!empty($component['debug_only']) && $component['debug_only'] === true) {
+            return true;
+        }
+
+        // Check for _universal_event_debug
+        if ($event_type === '_universal_event_debug') {
+            return true;
+        }
+
         // Check for rule_no_match events specifically
         if ($event_type === 'rule_no_match') {
             return true;

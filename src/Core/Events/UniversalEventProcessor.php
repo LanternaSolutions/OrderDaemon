@@ -482,6 +482,8 @@ class UniversalEventProcessor
             'has_order' => $context->order !== null,
             'has_subscription' => $context->subscription !== null,
             'customer_id' => $context->getCustomerId(),
+            // Add debug_only flag for events without components and no rule matches
+            'debug_only' => !$has_components && !$result,
             // Include components in ProcessLogger structure for proper timeline rendering
             'components' => $eventData['components'] ?? [],
             // Preserve raw data for passing full original context to the UI renderers

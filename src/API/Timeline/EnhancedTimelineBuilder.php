@@ -337,6 +337,11 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
      */
     private function isDebugOnlyEvent(TimelineEvent $timelineEvent): bool
     {
+        // First check for _universal_event_debug events (always debug-only)
+        if ($timelineEvent->event_type === '_universal_event_debug') {
+            return true;
+        }
+
         // First check for explicit debug_only flag (highest priority)
         if (!empty($timelineEvent->raw_payload['debug_only']) && $timelineEvent->raw_payload['debug_only'] === true) {
             return true;

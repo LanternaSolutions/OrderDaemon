@@ -441,6 +441,7 @@ class AdapterRegistry
         // These are events that ARE useful for debugging but hidden by default
         $debugOnlyEvents = [
             'universal_event_processing_debug',  // Shows "no rules matched" outcome with user-friendly titles
+            '_universal_event_debug',            // Captured events for debugging
         ];
 
         // Check if this is a debug-only event type

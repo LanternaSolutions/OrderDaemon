@@ -1337,6 +1337,11 @@ class AuditLogEndpoint extends WP_REST_Controller
             return true;
         }
 
+        // Check for _universal_event_debug
+        if (isset($component['event_type']) && $component['event_type'] === '_universal_event_debug') {
+            return true;
+        }
+
         // Check for specific "Rule Processing Started" flag
         if (!empty($component['is_rule_processing_started']) && $component['is_rule_processing_started'] === true) {
             return true;

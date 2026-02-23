@@ -112,7 +112,7 @@ class DatabaseHelper
         try {
             // WordPress prepare() cannot be used for table names (identifiers).
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $result = $this->query("DROP TABLE IF EXISTS `{$table_name}`");
+            $result = $this->query("DROP TABLE IF EXISTS `" . esc_sql($table_name) . "`");
 
             if ($result === false) {
                 $this->log_error("DatabaseHelper::drop_table failed for table '{$table_name}'");
@@ -362,6 +362,15 @@ class DatabaseHelper
                 );
                 return false;
             }
+            
+            if (empty($prepared_query)) {
+                $this->log_warning(
+                    'DatabaseHelper::query failed to prepare query.',
+                    'query',
+                    ['query' => $query]
+                );
+                return false;
+            }
 
             $this->log_query($query, $sanitized_args);
 
@@ -576,7 +585,8 @@ class DatabaseHelper
         }
 
         try {
-            $result = $this->wpdb->insert($table_name, $data, $format); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+            // Use WordPress insert with proper data validation
+            $result = $this->wpdb->insert($table_name, $data, $format);
 
             if ($result === false) {
                 $this->log_error("DatabaseHelper::insert failed for table '{$table_name}': " . $this->wpdb->last_error);
@@ -613,7 +623,7 @@ class DatabaseHelper
         }
 
         try {
-             // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+            // Use WordPress update with proper data validation
             $result = $this->wpdb->update($table_name, $data, $where, $format, $where_format);
 
             if ($result === false) {
@@ -930,10 +940,14 @@ class DatabaseHelper
         $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
 
         // Build query with trusted table name and prepared WHERE clause
-        $query = "SELECT COUNT(*) FROM {$table_name} {$where_sql}";
+        $query = $this->wpdb->prepare(
+            "SELECT COUNT(*) FROM %s %s",
+            $table_name,
+            $where_sql
+        );
 
         // Use get_var with proper preparation for WHERE conditions
-        return (int) $instance->wpdb->get_var($instance->wpdb->prepare($query, $args));
+        return (int) $this->wpdb->get_var($query);
     }
 
     /**
