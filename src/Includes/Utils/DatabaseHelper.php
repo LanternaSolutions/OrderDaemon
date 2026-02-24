@@ -938,7 +938,7 @@ class DatabaseHelper
 
         $where_sql = implode(' AND ', $where_conditions);
         
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name is trusted/escaped.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.NotPrepared -- Table name is trusted/escaped. Query structure is dynamic but safe.
         $query = $this->wpdb->prepare( "SELECT COUNT(*) FROM " . esc_sql( $table_name ) . " WHERE " . $where_sql, $prepare_args );
 
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above.
