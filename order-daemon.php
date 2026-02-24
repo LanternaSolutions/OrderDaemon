@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Plugin Name: Order Daemon for WooCommerce
  * Plugin URI: https://orderdaemon.com/docs
  * Description: Automate WooCommerce order completion with intelligent rule-based processing. The free version includes basic triggers, conditions, and actions.
- * Version: 1.3.22
+ * Version: 1.3.23
  * Author: Order Daemon
  * Author URI: https://www.orderdaemon.com
  * License: GPL-2.0-or-later
@@ -51,7 +51,7 @@ use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 // Define plugin constants
 // Define plugin version constant, used for database versioning and asset cache-busting.
 if ( ! defined( 'ODCM_VERSION' ) ) {
-    define('ODCM_VERSION', '1.3.22');
+    define('ODCM_VERSION', '1.3.23');
 }
 define('ODCM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('ODCM_PLUGIN_URL', plugin_dir_url(__FILE__));
