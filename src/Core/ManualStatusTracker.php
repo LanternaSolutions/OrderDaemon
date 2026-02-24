@@ -504,14 +504,13 @@ class ManualStatusTracker
             return false;
         }
 
-        $action_name = '';
-
-        // Check if action exists before processing
-        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Detection-only code, no state change.
-        if (isset($_REQUEST['action'])) {
-            $action_name = sanitize_key(wp_unslash($_REQUEST['action']));
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Detection-only code, no state change.
+        if (!isset($_REQUEST['action'])) {
+            return false;
         }
-        // phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Detection-only code.
+        $action_name = sanitize_key(wp_unslash($_REQUEST['action']));
 
         if (empty($action_name)) {
             return false;
