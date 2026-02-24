@@ -330,16 +330,28 @@ class CheckoutCircuitBreaker
             
             // Log to audit trail if available and failure is significant
             if (function_exists('odcm_log_event') && $failure_count >= 2) {
+                // Extract order ID if available
+                $order_id = isset($metadata['order_id']) ? (int)$metadata['order_id'] : null;
+                
+                // Get process_id if possible
+                $process_id = null;
+                if ($order_id && class_exists('OrderDaemon\\CompletionManager\\Core\\ProcessIdManager')) {
+                    $process_id = \OrderDaemon\CompletionManager\Core\ProcessIdManager::instance()->get_or_create_process_id($order_id);
+                }
+
                 odcm_log_event(
                     "Checkout failure detected",
                     array_merge([
                         'failure_count' => $failure_count,
                         'threshold' => self::FAILURE_THRESHOLD,
-                        'context' => $context
+                        'context' => $context,
+                        'process_id' => $process_id
                     ], $metadata),
-                    null,
+                    $order_id,
                     'warning',
-                    'checkout_failure'
+                    'checkout_failure',
+                    false,
+                    $process_id
                 );
             }
         } catch (\Throwable $e) {

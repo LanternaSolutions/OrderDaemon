@@ -351,7 +351,7 @@ class Core
             ]);
             
             // Record failure for circuit breaker
-            $this->record_checkout_failure();
+            $this->record_checkout_failure('payment_complete_exception', ['order_id' => $order_id, 'error' => $e->getMessage()]);
             
             // Emergency fallback processing
             $this->emergency_fallback_processing($order_id);
@@ -1559,7 +1559,7 @@ class Core
             ]);
             
             // Record failure for circuit breaker
-            $this->record_checkout_failure();
+            $this->record_checkout_failure('checkout_processed_exception', ['order_id' => $order_id, 'error' => $e->getMessage()]);
             
             // Emergency fallback processing
             $this->emergency_fallback_processing($order_id);
