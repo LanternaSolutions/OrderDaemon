@@ -505,14 +505,16 @@ class ManualStatusTracker
         }
 
         // Check if action exists before processing
-        $raw_action = null;
-        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Detection-only code.
-        if (isset($_REQUEST['action'])) {
-            $raw_action = $_REQUEST['action'];
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Detection-only code, no state change.
+        if (!isset($_REQUEST['action'])) {
+            return false;
         }
-        // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-        if (empty($raw_action)) {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Detection-only code.
+        $raw_action = $_REQUEST['action'];
+        $action_name = sanitize_key(wp_unslash($raw_action));
+
+        if (empty($action_name)) {
             return false;
         }
 
@@ -539,14 +541,11 @@ class ManualStatusTracker
             if (!$nonce_valid) {
                 // Log suspicious activity but allow WooCommerce to handle security
                 if (defined('WP_DEBUG') && WP_DEBUG) {
-                    $action = sanitize_key(wp_unslash($_REQUEST['action']));
-                    do_action('odcm_log_security_warning', 'Invalid WooCommerce AJAX nonce for: ' . $action);
+                    do_action('odcm_log_security_warning', 'Invalid WooCommerce AJAX nonce for: ' . $action_name);
                 }
             }
         }
 
-        $action = sanitize_key(wp_unslash($raw_action));
-        
         // WooCommerce order management AJAX actions
         $order_ajax_actions = [
             'woocommerce_mark_order_status',
@@ -558,7 +557,7 @@ class ManualStatusTracker
             'woocommerce_delete_order_note',
         ];
 
-        return in_array($action, $order_ajax_actions, true);
+        return in_array($action_name, $order_ajax_actions, true);
     }
 
     /**
