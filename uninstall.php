@@ -24,6 +24,9 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
     exit;
 }
 
+// Initialize WordPress database object
+global $wpdb;
+
 /**
  * Initialize DatabaseHelper
  *
