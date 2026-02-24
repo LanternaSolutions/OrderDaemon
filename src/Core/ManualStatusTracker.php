@@ -505,7 +505,14 @@ class ManualStatusTracker
         }
 
         // Check if action exists before processing
-        if (!isset($_REQUEST['action'])) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Detection-only code.
+        $raw_action = null;
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Detection-only code.
+        if (isset($_REQUEST['action'])) {
+            $raw_action = $_REQUEST['action'];
+        }
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+        if (empty($raw_action)) {
             return false;
         }
 
@@ -538,8 +545,7 @@ class ManualStatusTracker
             }
         }
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This is detection-only code that should not block WooCommerce's AJAX handlers. See justification above.
-        $action = sanitize_key(wp_unslash($_REQUEST['action']));
+        $action = sanitize_key(wp_unslash($raw_action));
         
         // WooCommerce order management AJAX actions
         $order_ajax_actions = [
