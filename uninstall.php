@@ -24,17 +24,17 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
     exit;
 }
 
-// Initialize WordPress database object
-global $wpdb;
-
 /**
  * Initialize DatabaseHelper
  *
  * Ensures our database‑utility class is ready for use within the uninstaller.
  */
 require_once __DIR__ . '/src/Includes/Utils/DatabaseHelper.php';
-DatabaseHelper::initialize($GLOBALS['wpdb']);
 
+// Initialize WordPress database object
+global $wpdb;
+
+DatabaseHelper::initialize($GLOBALS['wpdb']);
 
 /**
  * Check if complete data removal is requested.
