@@ -259,9 +259,10 @@ class DatabaseHelper
             $option_table = $this->wpdb->options;
 
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is trusted.
-            $sql = $this->wpdb->prepare( "SELECT option_name FROM {$option_table} WHERE option_name LIKE %s", '%' . $this->wpdb->esc_like( sanitize_text_field( $pattern ) ) . '%' );
+            $query = "SELECT option_name FROM {$option_table} WHERE option_name LIKE %s";
+            $args  = ['%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%'];
 
-            $options = $this->get_results($sql);
+            $options = $this->get_results($query, $args);
 
             // Add explicit escaping for LIKE queries
             $pattern = $this->wpdb->esc_like($pattern);
@@ -917,7 +918,7 @@ class DatabaseHelper
 
         if (empty($conditions)) {
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is trusted and escaped.
-            return (int) $this->wpdb->get_var("SELECT COUNT(*) FROM " . esc_sql($table_name));
+            return (int) $instance->wpdb->get_var("SELECT COUNT(*) FROM " . esc_sql($table_name));
         }
 
         $where_conditions = [];
@@ -939,10 +940,10 @@ class DatabaseHelper
         $where_sql = implode(' AND ', $where_conditions);
         
         // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.NotPrepared -- Table name is trusted/escaped. Query structure is dynamic but safe.
-        $query = $this->wpdb->prepare( "SELECT COUNT(*) FROM " . esc_sql( $table_name ) . " WHERE " . $where_sql, $prepare_args );
+        $query = $instance->wpdb->prepare( "SELECT COUNT(*) FROM " . esc_sql( $table_name ) . " WHERE " . $where_sql, $prepare_args );
 
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above.
-        return (int) $this->wpdb->get_var($query);
+        return (int) $instance->wpdb->get_var($query);
     }
 
     /**

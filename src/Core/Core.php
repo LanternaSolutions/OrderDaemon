@@ -26,6 +26,23 @@ use WC_Order;
 class Core
 {
     /**
+     * @var Core|null
+     */
+    private static ?Core $instance = null;
+
+    /**
+     * Get the singleton instance.
+     *
+     * @return Core
+     */
+    public static function instance(): Core {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
+    /**
      * Controlled error logging that follows WordPress coding standards
      *
      * This method centralizes all error logging to ensure consistency
