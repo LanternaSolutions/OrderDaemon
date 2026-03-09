@@ -179,7 +179,18 @@ function ruleBuilder() {
             
             // Start silent auto-save cycle
             this.autoSave();
-            
+
+            // ── Form-submit safety net ─────────────────────────────────────────────
+            // WordPress's Publish/Update button submits the classic-editor form via a
+            // standard HTML POST.  Intercept the submit event to forcefully write the
+            // current rule into the hidden field as the very last step, BEFORE the
+            // browser POSTs the data.  This guarantees the latest in-memory state is
+            // always sent even if Alpine's $watch or autoSave skipped an update.
+            const self = this;
+            document.addEventListener('submit', function onFormSubmit() {
+                self._syncHiddenField();
+            }, true /* capture phase - fires before the form is actually submitted */);
+
             this.loading = false;
         },
 
@@ -1659,8 +1670,30 @@ function ruleBuilder() {
                     this.rule.secondaryActions[index].settings[key] = value;
                 }
             }
+
+            // CRITICAL: Directly write the current rule to the hidden form field on
+            // every setting change.  Alpine's $watch('rule', ...) in the PHP template
+            // only fires when the rule *reference* is replaced, NOT on deep property
+            // mutations. autoSave() has a staleness guard that may also skip the
+            // update. Writing here unconditionally guarantees the hidden field is
+            // always in sync before the WordPress Publish/Update form is submitted.
+            this._syncHiddenField();
             
             this.autoSave();
+        },
+
+        // Writes the current rule object to the hidden WordPress form field.
+        // Called unconditionally on every setting mutation to guarantee the form
+        // always submits the latest data regardless of Alpine $watch behaviour.
+        _syncHiddenField() {
+            try {
+                const hiddenField = document.getElementById('odcm_rule_data_field');
+                if (hiddenField) {
+                    hiddenField.value = JSON.stringify(this.rule);
+                }
+            } catch (e) {
+                if (odcmIsDebug()) { console.error('ODCM _syncHiddenField error:', e); }
+            }
         },
 
         updateArraySetting(key, value, checked, componentType, index) {
@@ -1809,7 +1842,11 @@ function ruleBuilder() {
                 return;
             }
 
+            // Mark current data as saved so the next cycle doesn't re-save unnecessarily
+            this.lastSaveData = currentData;
+
             // Update hidden form field for WordPress standard save
+            // (also updated unconditionally by _syncHiddenField on every updateSetting call)
             const hiddenField = document.getElementById('odcm_rule_data_field');
             if (hiddenField) {
                 hiddenField.value = currentData;
@@ -1875,7 +1912,26 @@ function settingsPanel(componentType, index) {
 
         createFieldDefinition(propKey, prop, currentSettings) {
             const enumOptions = prop.items?.enum || prop.enum || {};
-            return {
+
+            // Resolve initial value from live settings, falling back to schema default.
+            // We use a plain property (not Object.defineProperty getter) so that Alpine.js
+            // tracks mutations to fieldDef.value as plain reactive data. Reactivity is
+            // maintained by the bridge methods (updateSetting etc.) which write both to
+            // rule.x.settings AND to this.fields[key].value in the Alpine reactive scope.
+            let initialValue;
+            if (currentSettings && currentSettings[propKey] !== undefined) {
+                initialValue = currentSettings[propKey];
+            } else if (prop.default !== undefined) {
+                initialValue = prop.default;
+            } else if (prop.type === 'integer' || prop.type === 'number') {
+                initialValue = 0;
+            } else if (prop.type === 'array') {
+                initialValue = [];
+            } else {
+                initialValue = '';
+            }
+
+            const fieldDef = {
                 id: `${componentType}_${index !== null ? index + '_' : ''}${propKey}`,
                 key: propKey,
                 title: prop.title || '',
@@ -1890,7 +1946,8 @@ function settingsPanel(componentType, index) {
                     if (p.type === 'number' || p.type === 'integer') return 'number';
                     return 'text';
                 })(prop),
-                value: (currentSettings && currentSettings[propKey] !== undefined) ? currentSettings[propKey] : (prop.default ?? ''),
+                // Plain reactive value property - kept in sync by bridge methods (updateSetting, etc.)
+                value: initialValue,
                 enumOptions: enumOptions,
                 selectedValues: Array.isArray(currentSettings?.[propKey]) ? currentSettings[propKey] : Array.isArray(prop.default) ? prop.default : [],
                 placeholder: prop['ui:placeholder'] || '',
@@ -1898,8 +1955,11 @@ function settingsPanel(componentType, index) {
                 maximum: prop.maximum ?? null,
                 step: prop.step ?? (prop.type === 'integer' ? 1 : null),
                 default: prop.default ?? (prop.type === 'integer' || prop.type === 'number' ? 0 : (prop.type === 'array' ? [] : '')),
-                radioInputs: prop['ui:radio_inputs'] || {}
+                radioInputs: prop['ui:radio_inputs'] || {},
+                inlineGroup: prop['ui:inline_group'] ?? null
             };
+
+            return fieldDef;
         },
 
         getConditionalFieldsFromSchema(schema) {
@@ -1977,11 +2037,84 @@ function settingsPanel(componentType, index) {
             }
         },
 
-        // Bridge update helpers into main component instance
-        updateSetting(key, value, type, idx) { window.ruleBuilderInstance?.updateSetting(key, value, type, idx); },
-        updateArraySetting(key, value, checked, type, idx) { window.ruleBuilderInstance?.updateArraySetting(key, value, checked, type, idx); },
-        updateRadioSetting(key, value, type, idx) { window.ruleBuilderInstance?.updateRadioSetting(key, value, type, idx); },
-        updateSiblingField(parentKey, siblingKey, value, type, idx) { window.ruleBuilderInstance?.updateSiblingField(parentKey, siblingKey, value, type, idx); }
+        // ─── Bridge update helpers ────────────────────────────────────────────
+        // Each bridge writes to the authoritative rule object via ruleBuilderInstance
+        // AND keeps this.fields[key].value in sync so Alpine's reactive `:value`
+        // bindings re-render immediately without relying on deep-proxy tracking of
+        // cross-component state.  The activeGroup sync ensures button_radio_group
+        // widgets (like TimingCondition's comparison_type) correctly show/hide
+        // conditional field groups without depending on $watch bracket-notation paths.
+
+        updateSetting(key, value, type, idx) {
+            // 1. Write to the authoritative rule object
+            window.ruleBuilderInstance?.updateSetting(key, value, type, idx);
+
+            // 2. Mirror the new value into the local Alpine-reactive fields object so
+            //    `:value="field.value"` and `:checked` bindings re-render immediately.
+            if (this.fields && key in this.fields) {
+                this.fields[key].value = value;
+                // Keep selectedValues in sync for array-backed fields
+                if (Array.isArray(value)) {
+                    this.fields[key].selectedValues = [...value];
+                }
+            }
+
+            // 3. If this is the comparison_type controller field, update activeGroup
+            //    directly so conditional field groups show/hide without needing $watch
+            //    (which may not support bracket notation in all Alpine.js v3 builds).
+            if (key === 'comparison_type' && typeof this.activeGroup !== 'undefined') {
+                this.activeGroup = value;
+                if (odcmIsDebug()) { console.log(`🔧 BRIDGE: activeGroup updated to "${value}"`); }
+            }
+        },
+
+        updateArraySetting(key, value, checked, type, idx) {
+            // 1. Write to the authoritative rule object
+            window.ruleBuilderInstance?.updateArraySetting(key, value, checked, type, idx);
+
+            // 2. Mirror the updated array back into fields so `:checked` bindings
+            //    reflect the change without waiting for deep-proxy re-evaluation.
+            if (this.fields && key in this.fields) {
+                // Work from the current selectedValues to avoid async mismatch
+                let arr = Array.isArray(this.fields[key].selectedValues)
+                    ? [...this.fields[key].selectedValues]
+                    : [];
+                if (checked && !arr.includes(value)) {
+                    arr.push(value);
+                } else if (!checked) {
+                    arr = arr.filter(v => v !== value);
+                }
+                this.fields[key].selectedValues = arr;
+                this.fields[key].value = arr;
+            }
+        },
+
+        updateRadioSetting(key, value, type, idx) {
+            // 1. Write to the authoritative rule object
+            window.ruleBuilderInstance?.updateRadioSetting(key, value, type, idx);
+
+            // 2. Mirror into local fields
+            if (this.fields && key in this.fields) {
+                this.fields[key].value = value;
+            }
+
+            // 3. Sync activeGroup for comparison_type controller
+            if (key === 'comparison_type' && typeof this.activeGroup !== 'undefined') {
+                this.activeGroup = value;
+                if (odcmIsDebug()) { console.log(`🔧 BRIDGE: activeGroup updated to "${value}" via updateRadioSetting`); }
+            }
+        },
+
+        updateSiblingField(parentKey, siblingKey, value, type, idx) {
+            // 1. Write to the authoritative rule object
+            window.ruleBuilderInstance?.updateSiblingField(parentKey, siblingKey, value, type, idx);
+
+            // 2. Mirror sibling value into local fields
+            if (this.fields && siblingKey in this.fields) {
+                const numericValue = value === '' ? null : (isNaN(Number(value)) ? value : Number(value));
+                this.fields[siblingKey].value = numericValue;
+            }
+        }
     };
 }
 
