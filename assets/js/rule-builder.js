@@ -1657,16 +1657,23 @@ function ruleBuilder() {
             
             if (componentType === 'trigger') {
                 if (!this.rule.trigger) this.rule.trigger = { id: '', settings: {} };
+                // Guard: PHP json_decode(true) turns {} into [], so settings may arrive as
+                // a JS Array. JSON.stringify silently drops string-keyed array properties,
+                // so we must convert it back to a plain object before writing.
+                if (Array.isArray(this.rule.trigger.settings)) { this.rule.trigger.settings = {}; }
                 this.rule.trigger.settings[key] = value;
             } else if (componentType === 'condition') {
                 if (this.rule.conditions[index]) {
+                    if (Array.isArray(this.rule.conditions[index].settings)) { this.rule.conditions[index].settings = {}; }
                     this.rule.conditions[index].settings[key] = value;
                 }
             } else if (componentType === 'primaryAction') {
                 if (!this.rule.primaryAction) this.rule.primaryAction = { id: '', settings: {} };
+                if (Array.isArray(this.rule.primaryAction.settings)) { this.rule.primaryAction.settings = {}; }
                 this.rule.primaryAction.settings[key] = value;
             } else if (componentType === 'action') {
                 if (this.rule.secondaryActions[index]) {
+                    if (Array.isArray(this.rule.secondaryActions[index].settings)) { this.rule.secondaryActions[index].settings = {}; }
                     this.rule.secondaryActions[index].settings[key] = value;
                 }
             }

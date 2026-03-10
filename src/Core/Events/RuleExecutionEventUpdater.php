@@ -144,13 +144,16 @@ class RuleExecutionEventUpdater
         $transient_keys = wp_cache_get($cache_key, 'odcm_rule_execution');
         
         if (false === $transient_keys) {
-            $transient_keys = DatabaseHelper::get_instance()->get_col($wpdb->prepare(
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $transient_keys = DatabaseHelper::get_col(
                 "SELECT option_name FROM {$wpdb->options}
                 WHERE option_name LIKE %s
                 AND option_name NOT LIKE %s",
-                '_transient_odcm_rule_execution_update_%',
-                '_transient_timeout_odcm_rule_execution_update_%'
-            ));
+                [
+                    '_transient_odcm_rule_execution_update_%',
+                    '_transient_timeout_odcm_rule_execution_update_%',
+                ]
+            );
             
             // Cache for 5 minutes as transients are dynamic
             wp_cache_set($cache_key, $transient_keys, 'odcm_rule_execution', 300);
@@ -166,13 +169,16 @@ class RuleExecutionEventUpdater
         $pending_count = wp_cache_get($cache_key, 'odcm_rule_execution');
         
         if (false === $pending_count) {
-            $pending_count = DatabaseHelper::get_instance()->get_var($wpdb->prepare(
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $pending_count = DatabaseHelper::get_var(
                 "SELECT COUNT(*) FROM {$wpdb->options}
                  WHERE option_name LIKE %s
                  AND option_name NOT LIKE %s",
-                '_transient_odcm_rule_execution_update_%',
-                '_transient_timeout_odcm_rule_execution_update_%'
-            ));
+                [
+                    '_transient_odcm_rule_execution_update_%',
+                    '_transient_timeout_odcm_rule_execution_update_%',
+                ]
+            );
             
             // Cache for 2 minutes as this can change frequently
             wp_cache_set($cache_key, $pending_count, 'odcm_rule_execution', 120);
@@ -198,13 +204,16 @@ class RuleExecutionEventUpdater
         $transient_keys = wp_cache_get($cache_key, 'odcm_rule_execution');
         
         if (false === $transient_keys) {
-            $transient_keys = DatabaseHelper::get_instance()->get_col($wpdb->prepare(
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $transient_keys = DatabaseHelper::get_col(
                 "SELECT option_name FROM {$wpdb->options}
                  WHERE option_name LIKE %s
                  AND option_name NOT LIKE %s",
-                '_transient_odcm_rule_execution_update_%',
-                '_transient_timeout_odcm_rule_execution_update_%'
-            ));
+                [
+                    '_transient_odcm_rule_execution_update_%',
+                    '_transient_timeout_odcm_rule_execution_update_%',
+                ]
+            );
             
             // Cache for 1 minute as this is only used for cleanup operations
             wp_cache_set($cache_key, $transient_keys, 'odcm_rule_execution', 60);

@@ -368,6 +368,16 @@ final class RuleBuilder
         }
 
         $rule_data = json_decode($rule_data_json, true);
+
+        // Normalize: PHP's json_decode(true) cannot distinguish an empty JSON object {}
+        // from an empty JSON array [], so both decode to [].  When re-encoded for the
+        // frontend via wp_localize_script / wp_json_encode, an empty PHP array becomes
+        // the JSON array [] rather than the object {}.  Alpine.js then initialises
+        // rule.conditions[n].settings as a JavaScript Array, and JSON.stringify silently
+        // drops any string-keyed properties written to it — so every updateSetting call
+        // is a no-op for serialisation purposes.  Casting empty arrays to stdClass here
+        // ensures they re-encode as {} and Alpine gets a plain JS object.
+        $rule_data = $this->normalize_empty_settings($rule_data);
         
         // Migration: Convert old structure to new structure
         if (isset($rule_data['action']) && !isset($rule_data['primaryAction'])) {
@@ -536,7 +546,8 @@ final class RuleBuilder
                 $current_settings = [];
                 // If this trigger is currently selected, use its settings
                 if ($rule_data['trigger'] && $rule_data['trigger']['id'] === $trigger_component['id']) {
-                    $current_settings = $rule_data['trigger']['settings'] ?? [];
+                    // Cast to array: normalize_empty_settings() may have converted {} to stdClass
+                    $current_settings = (array)($rule_data['trigger']['settings'] ?? []);
                 }
                 
                 $prepared['trigger_0_' . $trigger_component['id']] = $this->prepare_component_fields(
@@ -567,7 +578,7 @@ final class RuleBuilder
                 if ($condition_component && $condition_component['schema']) {
                     $prepared["condition_{$index}"] = $this->prepare_component_fields(
                         $condition_component['schema'],
-                        $condition['settings'] ?? [],
+                        (array)($condition['settings'] ?? []),
                         'condition',
                         $index
                     );
@@ -581,7 +592,8 @@ final class RuleBuilder
                 $current_settings = [];
                 // If this action is currently selected, use its settings
                 if ($rule_data['primaryAction'] && $rule_data['primaryAction']['id'] === $action_component['id']) {
-                    $current_settings = $rule_data['primaryAction']['settings'] ?? [];
+                    // Cast to array: normalize_empty_settings() may have converted {} to stdClass
+                    $current_settings = (array)($rule_data['primaryAction']['settings'] ?? []);
                 }
                 
                 $prepared['primaryAction_' . $action_component['id']] = $this->prepare_component_fields(
@@ -612,7 +624,7 @@ final class RuleBuilder
                 if ($action_component && $action_component['schema']) {
                     $prepared["action_{$index}"] = $this->prepare_component_fields(
                         $action_component['schema'],
-                        $action['settings'] ?? [],
+                        (array)($action['settings'] ?? []),
                         'action',
                         $index
                     );
@@ -621,6 +633,57 @@ final class RuleBuilder
         }
         
         return $prepared;
+    }
+
+    /**
+     * Normalises settings values after json_decode(, true) to ensure they
+     * re-encode as JSON objects ({}) rather than JSON arrays ([]).
+     *
+     * PHP's json_decode with the assoc flag cannot distinguish an empty JSON
+     * object {} from an empty JSON array [], so both become an empty PHP
+     * array [].  When wp_json_encode (or json_encode) later re-encodes that
+     * empty array it produces the JSON array [], not the object {}.  Alpine.js
+     * receives [] and initialises rule.*.settings as a JavaScript Array; assigning
+     * string-keyed properties to a JS Array works at runtime but JSON.stringify
+     * silently drops those properties, so every updateSetting write is lost.
+     *
+     * Casting the empty array to stdClass forces json_encode to output {} which
+     * Alpine correctly maps to a plain JavaScript object.
+     *
+     * @param array $rule_data The decoded rule data.
+     * @return array The rule data with empty settings normalised.
+     */
+    private function normalize_empty_settings(array $rule_data): array
+    {
+        // Trigger settings
+        if (isset($rule_data['trigger']['settings']) && $rule_data['trigger']['settings'] === []) {
+            $rule_data['trigger']['settings'] = new \stdClass();
+        }
+
+        // Condition settings
+        if (isset($rule_data['conditions']) && is_array($rule_data['conditions'])) {
+            foreach ($rule_data['conditions'] as $i => $condition) {
+                if (isset($condition['settings']) && $condition['settings'] === []) {
+                    $rule_data['conditions'][$i]['settings'] = new \stdClass();
+                }
+            }
+        }
+
+        // Primary action settings
+        if (isset($rule_data['primaryAction']['settings']) && $rule_data['primaryAction']['settings'] === []) {
+            $rule_data['primaryAction']['settings'] = new \stdClass();
+        }
+
+        // Secondary action settings
+        if (isset($rule_data['secondaryActions']) && is_array($rule_data['secondaryActions'])) {
+            foreach ($rule_data['secondaryActions'] as $i => $action) {
+                if (isset($action['settings']) && $action['settings'] === []) {
+                    $rule_data['secondaryActions'][$i]['settings'] = new \stdClass();
+                }
+            }
+        }
+
+        return $rule_data;
     }
 
     /**
@@ -1138,8 +1201,19 @@ final class RuleBuilder
                                             return activeFields.includes(fieldKey);
                                         }
                                      }" 
-                                     x-init="initSettings(getConditionComponent(condition.id)?.schema, condition.settings || {}); 
-                                             $watch('rule.conditions[' + index + '].settings.comparison_type', (val) => { if (val) activeGroup = val; })">
+                                     x-init="$nextTick(() => {
+                                        const doInit = () => {
+                                            const comp = getConditionComponent(condition.id);
+                                            const schema = comp?.schema;
+                                            const settings = rule.conditions[index]?.settings || {};
+                                            initSettings(schema, settings);
+                                            const ct = settings.comparison_type ?? comp?.schema?.properties?.comparison_type?.default;
+                                            if (ct) activeGroup = ct;
+                                        };
+                                        doInit();
+                                        $watch(() => editingConditionIndex, (v) => { if (v === index) doInit(); });
+                                        $watch(() => rule.conditions[index]?.settings?.comparison_type, (val) => { if (val) activeGroup = val; });
+                                     })">
                                     <div class="odcm-settings-form">
                                         <template x-for="(field, fieldKey) in fields" :key="fieldKey">
                                             <div class="odcm-form-group" 
@@ -1274,7 +1348,7 @@ final class RuleBuilder
                                                                 class="odcm-radio-button"
                                                                 :class="{ 'is-active': (rule.conditions[index]?.settings[field.key] ?? field.value) === val }"
                                                                 :aria-pressed="String((rule.conditions[index]?.settings[field.key] ?? field.value) === val)"
-                                                                @click="updateSetting(field.key, val, 'condition', index)"
+                                                                @click="updateRadioSetting(field.key, val, 'condition', index)"
                                                                 x-text="label">
                                                         </button>
                                                     </template>

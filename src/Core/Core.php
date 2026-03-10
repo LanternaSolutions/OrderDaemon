@@ -2323,12 +2323,10 @@ class Core
             // Validate and construct a safe table name - cannot use placeholders for table names
             $table_name_clean = esc_sql($table_name);
 
-            // Direct query is needed for reliable Action Scheduler job detection with proper caching
-            // Prepare the full query with table name sanitization and proper value escaping
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Table name is already sanitized via esc_sql() above; only value placeholders are used in prepare().
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $existing_count = (int) $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM `%s` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s",
-                $table_name_clean,
+                "SELECT COUNT(*) FROM `{$table_name_clean}` WHERE hook = %s AND status IN ('pending', 'in-progress') AND hook_arguments LIKE %s",
                 'odcm_process_checkout_completion',
                 '%' . $wpdb->esc_like('"order_id":' . intval($order_id)) . '%'
             ));
@@ -2356,12 +2354,10 @@ class Core
             $table_name = $wpdb->prefix . 'actionscheduler_actions';
             $table_name_clean = esc_sql($table_name);
 
-            // Direct query is needed for reliable Action Scheduler job detection with proper caching
-            // Create a safe query with proper preparation
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // Table name is already sanitized via esc_sql() above; only value placeholders are used in prepare().
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $job_details = $wpdb->get_results($wpdb->prepare(
-                "SELECT action_id, hook_arguments, status FROM `%s` WHERE hook = %s AND hook_arguments LIKE %s LIMIT 5",
-                $table_name_clean,
+                "SELECT action_id, hook_arguments, status FROM `{$table_name_clean}` WHERE hook = %s AND hook_arguments LIKE %s LIMIT 5",
                 'odcm_process_checkout_completion',
                 '%' . $wpdb->esc_like('"order_id":' . intval($order_id)) . '%'
             ));
