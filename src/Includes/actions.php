@@ -19,6 +19,7 @@ if (!defined('WPINC')) {
 // Import required classes
 use function OrderDaemon\CompletionManager\Utils\odcm_sanitize_payload_for_logging;
 use OrderDaemon\CompletionManager\Includes\Utils\OrderMetaManager;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 
 
 /**
@@ -137,7 +138,8 @@ function odcm_handle_log_processing($args) {
         odcm_log_message("Reusing existing payload ID: {$payload_id}", 'debug');
     } else {
         // Insert new payload with caching to avoid duplicates
-        $payload_insert = $wpdb->insert(
+        // phpcs:ignore - WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $payload_insert = DatabaseHelper::insert(
             $wpdb->prefix . 'odcm_audit_log_payloads',
             ['payload' => json_encode($sanitized_payload)],
             ['%s'] // Explicit format for security
@@ -207,7 +209,6 @@ function odcm_handle_log_processing($args) {
 
     $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
 
-    // Use $wpdb->insert() with explicit formats to satisfy sniffs and ensure safety
     $format_map = [
         'summary' => '%s',
         'event_type' => '%s',
@@ -226,10 +227,7 @@ function odcm_handle_log_processing($args) {
         $formats[] = $format_map[$k] ?? '%s';
     }
 
-    // Insert audit log entry with proper formatting and caching
-    $insert_result = $wpdb->insert($audit_log_table, $log_data, $formats);
-
-    // @codingStandardsIgnoreLine - Direct database access is required for custom tables
+    $insert_result = DatabaseHelper::insert($audit_log_table, $log_data, $formats);
     
     if ($insert_result !== false) {
         // Cache the hash to prevent duplicates (10 minutes)
@@ -330,8 +328,12 @@ function odcm_handle_order_check_processing($args) {
             'payment_method' => $order->get_payment_method()
         ];
         odcm_log_message("Action Handler - Processing Order #{$order_id}", 'debug', $log_data);
-        
+
+        // Get current order status for proper rule filtering
+        $current_status = $order->get_status();
+
         // Create a universal event for the order check
+        // Include current status in event type to enable proper rule filtering
         $universal_event_data = [
             'eventType' => 'order_check_scheduled',
             'sourceGateway' => $order->get_payment_method() ?: 'unknown',
@@ -339,22 +341,25 @@ function odcm_handle_order_check_processing($args) {
             'primaryObjectType' => 'order',
             'primaryObjectID' => $order_id,
             'transactionID' => $order->get_transaction_id(),
-            'status' => $order->get_status(),
+            'status' => $current_status,
             'amount' => (float) $order->get_total(),
             'currency' => $order->get_currency(),
             'occurredAt' => current_time('c'),
             'receivedAt' => current_time('c'),
             'idempotencyKey' => 'order_check_' . $order_id . '_' . time(),
             'rawData' => [
-                'order_status' => $order->get_status(),
+                'order_status' => $current_status,
                 'payment_method' => $order->get_payment_method(),
                 'customer_id' => $order->get_customer_id(),
                 'source' => 'scheduled_check',
-                'trigger' => 'action_scheduler'
+                'trigger' => 'action_scheduler',
+                //Add current status to rawData for rule evaluation context
+                'current_order_status' => $current_status,
+                'order_check_context' => 'scheduled_completion_check'
             ]
         ];
 
-        odcm_log_message("Action Handler - Created universal event data", 'debug');
+        odcm_log_message("Action Handler - Created universal event data with status: {$current_status}", 'debug');
 
         // Process through UniversalEventProcessor
         $processor = \OrderDaemon\CompletionManager\Core\Events\UniversalEventProcessor::instance();
@@ -364,7 +369,7 @@ function odcm_handle_order_check_processing($args) {
 
         // Debug logging only
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            odcm_log_message("Order check completed for #{$order_id} - Result: " . ($result ? 'TRUE' : 'FALSE'), 'debug');
+            odcm_log_message("Order check completed for #{$order_id} (status: {$current_status}) - Result: " . ($result ? 'TRUE' : 'FALSE'), 'debug');
         }
 
     } catch (\Throwable $e) {

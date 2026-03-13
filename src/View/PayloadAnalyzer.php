@@ -4,6 +4,9 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\View;
 
 use OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentRenderer;
+use OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry;
+use OrderDaemon\CompletionManager\API\Timeline\GenericEventAdapter;
+use OrderDaemon\CompletionManager\API\Timeline\DisplayAdapter;
 
 /**
  * Payload Analyzer - The Brain of the Composite Payload Rendering System
@@ -73,6 +76,20 @@ if (!defined('WPINC')) {
 class PayloadAnalyzer
 {
     /**
+     * Analysis cache to avoid repeated processing
+     *
+     * @var array<string, array>
+     */
+    private static array $analysis_cache = [];
+
+    /**
+     * Renderer class cache to avoid repeated instantiation
+     *
+     * @var array<string, PayloadComponentRenderer>
+     */
+    private static array $renderer_cache = [];
+
+    /**
      * Log a debug message using WordPress-compatible logging methods
      *
      * @param string $message The message to log
@@ -104,465 +121,12 @@ class PayloadAnalyzer
             return;
         }
         
-        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-            $debug_file = WP_CONTENT_DIR . '/debug.log';
-            @file_put_contents(
-                $debug_file,
-                '[' . gmdate('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
-                FILE_APPEND
-            );
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file using safe file operation
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+            $debug_file = odcm_get_safe_debug_file_path();
+            odcm_safe_file_put_contents($debug_file, '[' . gmdate('Y-m-d H:i:s') . '] ' . $message . PHP_EOL, FILE_APPEND);
             return;
         }
-    }
-    /**
-     * Analysis cache to avoid repeated processing
-     *
-     * @var array<string, array>
-     */
-    private static array $analysis_cache = [];
-
-    /**
-     * Renderer class cache to avoid repeated instantiation
-     *
-     * @var array<string, PayloadComponentRenderer>
-     */
-    private static array $renderer_cache = [];
-
-    /**
-     * Analyze Payload and Return Component Array
-     *
-     * This is the primary method of the PayloadAnalyzer. It takes a raw payload
-     * and decomposes it into an array of component objects ready for rendering.
-     *
-     * ANALYSIS PROCESS:
-     * ================
-     * 
-     * 1. **Input Validation**: Ensures payload is valid and processable
-     * 2. **Cache Check**: Checks for previously analyzed identical payloads
-     * 3. **Component Detection**: Identifies all component types present
-     * 4. **Data Extraction**: Extracts relevant data for each component
-     * 5. **Priority Ordering**: Sorts components by rendering priority
-     * 6. **Result Caching**: Caches results for future identical requests
-     * 
-     * COMPONENT STRUCTURE:
-     * ===================
-     * 
-     * Each returned component contains:
-     * ```php
-     * [
-     *     'id' => 'component_id',
-     *     'type' => 'component_type',
-     *     'label' => 'Human Readable Label',
-     *     'renderer_class' => 'RendererClassName',
-     *     'css_class' => 'css-class-name',
-     *     'icon' => 'dashicons-icon',
-     *     'priority' => 10,
-     *     'data' => [...] // Component-specific data
-     * ]
-     * ```
-     * 
-     * FALLBACK BEHAVIOR:
-     * =================
-     * 
-     * If no specific components are detected, the analyzer will:
-     * - Return a single fallback component containing all payload data
-     * - Use the FallbackRenderer for generic rendering
-     * - Maintain the existing rendering behavior for compatibility
-     *
-     * @since 1.0.0
-     *
-     * @param array $payload The raw payload data from the audit log entry.
-     *                       Can be any structure - JSON decoded arrays, objects, etc.
-     *
-     * @return array<array> Array of component objects ready for rendering.
-     *                      Each component contains metadata and data for rendering.
-     *
-     * @throws \InvalidArgumentException If payload data is invalid or malformed.
-     * @throws \RuntimeException If component analysis fails due to system issues.
-     *
-     * @example
-     * ```php
-     * $analyzer = new PayloadAnalyzer();
-     * 
-     * // Analyze a complex payload
-     * $payload = [
-     *     'api_request' => ['url' => 'https://api.example.com'],
-     *     'error' => ['message' => 'Connection failed'],
-     *     'performance' => ['execution_time' => 1.5]
-     * ];
-     * 
-     * $components = $analyzer->analyze($payload);
-     * // Returns array with 3 components: error_details, api_call, performance_metrics
-     * 
-     * foreach ($components as $component) {
-     *     $renderer_class = $component['renderer_class'];
-     *     $renderer = new $renderer_class();
-     *     echo $renderer->render($component['data']);
-     * }
-     * ```
-     */
-    public function analyze(array $payload, string $event_type = ''): array
-    {
-        // Input validation
-        if (empty($payload)) {
-            return $this->createFallbackComponent([]);
-        }
-
-        // Generate cache key for this payload
-        $cache_key = $this->generateCacheKey($payload);
-
-        // Check cache first
-        if (isset(self::$analysis_cache[$cache_key])) {
-            return self::$analysis_cache[$cache_key];
-        }
-
-        // Perform component analysis
-        $components = $this->performComponentAnalysis($payload, $event_type);
-
-        // If no components detected, use fallback
-        if (empty($components)) {
-            $components = $this->createFallbackComponent($payload);
-        }
-
-        // Sort components by priority
-        $components = $this->sortComponentsByPriority($components);
-
-        // Cache results
-        self::$analysis_cache[$cache_key] = $components;
-
-        return $components;
-    }
-
-    /**
-     * Perform Component Analysis on Payload - Multi-Stage Detection Strategy
-     *
-     * Implements an optimized three-stage detection strategy for maximum performance:
-     * 1. Fast Path: Registry-based detection using detection_keys (O(1) lookups)
-     * 2. Smart Path: Event type mapping for intelligent component selection
-     * 3. Safety Net: Renderer canHandle() methods for complex detection logic
-     *
-     * This approach minimizes expensive canHandle() calls while ensuring comprehensive
-     * component detection for all payload types.
-     *
-     * @since 1.0.0
-     *
-     * @param array $payload The payload data to analyze.
-     * @param string $event_type Optional event type for intelligent detection.
-     * @return array<array> Array of detected components.
-     */
-    private function performComponentAnalysis(array $payload, string $event_type = ''): array
-    {
-        // Load component registry
-        if (!function_exists('odcm_get_payload_component_types')) {
-            require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
-        }
-
-        $component_types = \odcm_get_payload_component_types_by_priority();
-        $detected_components = [];
-        $payload_keys = array_keys($payload);
-
-        // === STAGE 1: FAST PATH - Registry-based detection ===
-        // Use detection_keys for O(1) component identification
-        $fast_path_detected = $this->fastPathDetection($payload, $payload_keys, $component_types);
-        $detected_components = array_merge($detected_components, $fast_path_detected);
-
-        // === STAGE 2: SMART PATH - Event type mapping ===
-        // Use event type for intelligent component selection
-        if (!empty($event_type)) {
-            $smart_path_detected = $this->smartPathDetection($payload, $event_type, $component_types, $detected_components);
-            $detected_components = array_merge($detected_components, $smart_path_detected);
-        }
-
-        // === STAGE 3: SAFETY NET - Renderer-based detection ===
-        // Use canHandle() methods only for unmatched data
-        $remaining_data = $this->extractRemainingData($payload, $detected_components);
-        if (!empty($remaining_data)) {
-            $safety_net_detected = $this->safetyNetDetection($remaining_data, $component_types, $detected_components);
-            $detected_components = array_merge($detected_components, $safety_net_detected);
-        }
-
-        // Build final component objects
-        return $this->buildComponentObjects($detected_components, $component_types);
-    }
-
-    /**
-     * Fast Path Detection - Registry-based Key Matching
-     *
-     * Uses detection_keys from the component registry for O(1) component identification.
-     * This is the fastest detection method and handles the majority of common cases.
-     *
-     * @since 1.0.0
-     *
-     * @param array $payload Full payload data.
-     * @param array $payload_keys Array of payload keys for efficient intersection.
-     * @param array $component_types Component type definitions from registry.
-     * @return array<string, array> Detected components with their data.
-     */
-    private function fastPathDetection(array $payload, array $payload_keys, array $component_types): array
-    {
-        $detected = [];
-
-        foreach ($component_types as $component_id => $component_def) {
-            // Skip fallback component in fast path detection
-            if ($component_id === 'fallback') {
-                continue;
-            }
-
-            $detection_keys = $component_def['detection_keys'] ?? [];
-            if (empty($detection_keys)) {
-                continue;
-            }
-
-            // Fast intersection check for matching keys
-            $matching_keys = array_intersect($payload_keys, $detection_keys);
-            if (!empty($matching_keys)) {
-                // Extract only the relevant data for this component
-                $component_data = [];
-                foreach ($matching_keys as $key) {
-                    $component_data[$key] = $payload[$key];
-                }
-                $detected[$component_id] = $component_data;
-            }
-        }
-
-        return $detected;
-    }
-
-    /**
-     * Smart Path Detection - Event Type Mapping
-     *
-     * Uses event type mappings to intelligently select appropriate components
-     * based on the log event context. Only processes components not already detected.
-     *
-     * @since 1.0.0
-     *
-     * @param array $payload Full payload data.
-     * @param string $event_type Log event type.
-     * @param array $component_types Component type definitions.
-     * @param array $already_detected Components already detected in previous stages.
-     * @return array<string, array> Newly detected components with their data.
-     */
-    private function smartPathDetection(array $payload, string $event_type, array $component_types, array $already_detected): array
-    {
-        $detected = [];
-
-        // Load event type mappings
-        if (!function_exists('odcm_get_event_type_component_mappings')) {
-            return $detected;
-        }
-
-        $event_mappings = \odcm_get_event_type_component_mappings();
-        $normalized_event_type = $this->normalizeEventType($event_type);
-
-        // Check for direct event type mapping
-        if (isset($event_mappings[$normalized_event_type])) {
-            $component_ids = $event_mappings[$normalized_event_type];
-
-            foreach ($component_ids as $component_id) {
-                // Skip if already detected or component doesn't exist
-                if (isset($already_detected[$component_id]) || !isset($component_types[$component_id])) {
-                    continue;
-                }
-
-                // Extract relevant data for this component type
-                $component_data = $this->extractDataForComponent($payload, $component_types[$component_id]);
-
-                // Only include if meaningful data was found
-                if (!empty($component_data)) {
-                    $detected[$component_id] = $component_data;
-                }
-            }
-        }
-
-        return $detected;
-    }
-
-    /**
-     * Safety Net Detection - Renderer canHandle() Methods
-     *
-     * Uses renderer canHandle() methods as a last resort for complex detection logic.
-     * Only processes remaining unmatched data to minimize expensive method calls.
-     *
-     * @since 1.0.0
-     *
-     * @param array $remaining_data Unmatched payload data.
-     * @param array $component_types Component type definitions.
-     * @param array $already_detected Components already detected in previous stages.
-     * @return array<string, array> Newly detected components with their data.
-     */
-    private function safetyNetDetection(array $remaining_data, array $component_types, array $already_detected): array
-    {
-        $detected = [];
-
-        foreach ($component_types as $component_id => $component_def) {
-            // Skip fallback and already detected components
-            if ($component_id === 'fallback' || isset($already_detected[$component_id])) {
-                continue;
-            }
-
-            $renderer = $this->getRenderer($component_def['renderer_class']);
-            if ($renderer && $renderer->canHandle($remaining_data)) {
-                $detected[$component_id] = $remaining_data;
-                // Note: Don't break here - allow multiple components to handle the same data
-            }
-        }
-
-        return $detected;
-    }
-
-    /**
-     * Build Component Objects from Detection Results
-     *
-     * Converts detection results into complete component objects ready for rendering.
-     *
-     * @since 1.0.0
-     *
-     * @param array $detected_components Detection results from all stages.
-     * @param array $component_types Component type definitions.
-     * @return array<array> Complete component objects.
-     */
-    private function buildComponentObjects(array $detected_components, array $component_types): array
-    {
-        $components = [];
-
-        foreach ($detected_components as $component_id => $component_data) {
-            if (isset($component_types[$component_id])) {
-                $component_def = $component_types[$component_id];
-                $components[] = $this->buildComponentObject($component_def, $component_data);
-            }
-        }
-
-        return $components;
-    }
-
-    /**
-     * Detect Components by Event Type Mapping
-     *
-     * Uses the event type mappings from the component registry to identify components
-     * based on the log event type. This is the highest priority detection method.
-     *
-     * @since 1.0.0
-     *
-     * @param array $payload The full payload data.
-     * @param string $event_type The log event type.
-     * @param array $component_types Component type definitions.
-     * @return array<string, array> Detected components with their data.
-     */
-    private function detectByEventType(array $payload, string $event_type, array $component_types): array
-    {
-        $detected = [];
-
-        // Load event type mappings
-        if (!function_exists('odcm_get_event_type_component_mappings')) {
-            return $detected; // No mappings available
-        }
-
-        $event_mappings = \odcm_get_event_type_component_mappings();
-        
-        // Normalize event type for lookup
-        $normalized_event_type = $this->normalizeEventType($event_type);
-        
-        // Check for direct mapping
-        if (isset($event_mappings[$normalized_event_type])) {
-            $component_ids = $event_mappings[$normalized_event_type];
-            
-            foreach ($component_ids as $component_id) {
-                // Verify component exists in registry
-                if (isset($component_types[$component_id])) {
-                    // Extract relevant data for this specific component type
-                    $component_data = $this->extractDataForComponent($payload, $component_types[$component_id]);
-                    
-                    // Only include component if it has meaningful data
-                    if (!empty($component_data)) {
-                        $detected[$component_id] = $component_data;
-                    }
-                }
-            }
-        }
-
-        return $detected;
-    }
-
-    /**
-     * Normalize Event Type for Mapping Lookup
-     *
-     * Converts various event type formats to standardized lookup keys.
-     *
-     * @since 1.0.0
-     *
-     * @param string $event_type Raw event type string.
-     * @return string Normalized event type.
-     */
-    private function normalizeEventType(string $event_type): string
-    {
-        // Convert to lowercase and replace spaces/special chars with underscores
-        $normalized = strtolower($event_type);
-        $normalized = preg_replace('/[^a-z0-9_]/', '_', $normalized);
-        $normalized = preg_replace('/_+/', '_', $normalized);
-        $normalized = trim($normalized, '_');
-        
-        // Common mappings for existing event types
-        $mappings = [
-            'rule_evaluation_success' => 'rule_evaluation_success',
-            'action_execution_success' => 'action_execution_success',
-            'error_critical' => 'error_critical',
-            'api_response_error' => 'api_response_error',
-            'system_debug_info' => 'system_debug_info',
-            'dev_toolbar_debug_toggle' => 'dev_toolbar_debug_toggle',
-            'dev_toolbar_version_toggle' => 'dev_toolbar_version_toggle',
-            'sample_generation_scheduled' => 'sample_generation_scheduled',
-            'comprehensive_sample_generation' => 'comprehensive_sample_generation',
-            'engine_triggered' => 'engine_triggered',
-            'load_test' => 'load_test',
-            'order_completed' => 'order_completed',
-            'process_order_check_start' => 'process_order_check_start',
-        ];
-        
-        return $mappings[$normalized] ?? $normalized;
-    }
-
-    /**
-     * Detect Components by Explicit Key Matching
-     *
-     * Uses the detection_keys from the component registry to identify components
-     * based on the presence of specific payload keys.
-     *
-     * @since 1.0.0
-     *
-     * @param array $payload The full payload data.
-     * @param array $payload_keys Array of payload keys.
-     * @param array $component_types Component type definitions.
-     * @return array<string, array> Detected components with their data.
-     */
-    private function detectByExplicitKeys(array $payload, array $payload_keys, array $component_types): array
-    {
-        $detected = [];
-
-        foreach ($component_types as $component_id => $component_def) {
-            // Skip fallback component in explicit detection
-            if ($component_id === 'fallback') {
-                continue;
-            }
-
-            $detection_keys = $component_def['detection_keys'] ?? [];
-            if (empty($detection_keys)) {
-                continue;
-            }
-
-            // Check for matching keys
-            $matching_keys = array_intersect($payload_keys, $detection_keys);
-            if (!empty($matching_keys)) {
-                // Extract data for this component
-                $component_data = [];
-                foreach ($matching_keys as $key) {
-                    $component_data[$key] = $payload[$key];
-                }
-                $detected[$component_id] = $component_data;
-            }
-        }
-
-        return $detected;
     }
 
     /**
@@ -729,34 +293,28 @@ class PayloadAnalyzer
      * Create Fallback Component
      *
      * Creates a fallback component for data that couldn't be categorized.
+     * Migrated to use GenericEventAdapter instead of FallbackRenderer.
      *
-     * @since 1.0.0
+     * @since 2.0.0 (Migrated)
      *
      * @param array $payload The payload data to include in fallback.
      * @return array<array> Array containing single fallback component.
      */
     private function createFallbackComponent(array $payload): array
     {
-        if (!function_exists('odcm_get_payload_component_type')) {
-            require_once dirname(__DIR__) . '/Core/PayloadComponentRegistry.php';
-        }
 
-        $fallback_def = \odcm_get_payload_component_type('fallback');
-        if (!$fallback_def) {
-            // Emergency fallback if registry is unavailable
-            return [[
-                'id' => 'fallback',
-                'type' => 'fallback',
-                'label' => 'Additional Data',
-                'renderer_class' => 'OrderDaemon\\CompletionManager\\View\\PayloadRenderer\\FallbackRenderer',
-                'css_class' => 'odcm-fallback-payload',
-                'icon' => 'dashicons-text-page',
-                'priority' => 99,
-                'data' => $payload,
-            ]];
-        }
-
-        return [$this->buildComponentObject($fallback_def, $payload)];
+        // Use GenericEventAdapter for modern fallback handling
+        return [[
+            'id' => 'fallback',
+            'type' => 'fallback',
+            'label' => 'Additional Data',
+            'renderer_class' => GenericEventAdapter::class, // Modern adapter
+            'css_class' => 'odcm-fallback-payload',
+            'theme_class' => 'odcm-component--fallback',
+            'icon' => 'dashicons-text-page',
+            'priority' => 99,
+            'data' => $payload,
+        ]];
     }
 
     /**
@@ -842,5 +400,91 @@ class PayloadAnalyzer
     {
         self::$analysis_cache = [];
         self::$renderer_cache = [];
+    }
+
+    /**
+     * Analyze Payload and Return Component Array
+     *
+     * This is the primary method of the PayloadAnalyzer. It takes a raw payload
+     * and decomposes it into an array of component objects ready for rendering.
+     *
+     * @since 1.0.0
+     *
+     * @param array $payload The raw payload data from the audit log entry.
+     * @param string $event_type Optional event type for intelligent detection.
+     * @return array<array> Array of component objects ready for rendering.
+     */
+    public function analyze(array $payload, string $event_type = ''): array
+    {
+        // Input validation
+        if (empty($payload)) {
+            return $this->createFallbackComponent([]);
+        }
+
+        // Generate cache key for this payload
+        $cache_key = $this->generateCacheKey($payload);
+
+        // Check cache first
+        if (isset(self::$analysis_cache[$cache_key])) {
+            return self::$analysis_cache[$cache_key];
+        }
+
+        // Perform component analysis using adapter-based approach
+        $components = $this->performAdapterBasedAnalysis($payload, $event_type);
+
+        // If no components detected, use fallback
+        if (empty($components)) {
+            $components = $this->createFallbackComponent($payload);
+        }
+
+        // Sort components by priority
+        $components = $this->sortComponentsByPriority($components);
+
+        // Cache results
+        self::$analysis_cache[$cache_key] = $components;
+
+        return $components;
+    }
+
+    /**
+     * Perform Adapter-Based Component Analysis
+     *
+     * Uses AdapterRegistry to get appropriate adapters for payload analysis.
+     * This replaces the legacy registry-based detection system.
+     *
+     * @since 2.0.0 (Migrated from legacy registry system)
+     *
+     * @param array $payload The payload data to analyze.
+     * @param string $event_type Optional event type for intelligent detection.
+     * @return array<array> Array of detected components.
+     */
+    private function performAdapterBasedAnalysis(array $payload, string $event_type = ''): array
+    {
+        $components = [];
+        $adapters = AdapterRegistry::getAvailableAdapters();
+
+        foreach ($adapters as $adapterClass) {
+            try {
+                $adapter = new $adapterClass();
+                if ($adapter->canHandlePayload($payload, $event_type)) {
+                    $components[] = [
+                        'id' => $adapter->getComponentId(),
+                        'type' => $adapter->getComponentType(),
+                        'label' => $adapter->getComponentLabel($payload),
+                        'renderer_class' => GenericEventAdapter::class,
+                        'css_class' => $adapter->getCssClass(),
+                        'icon' => $adapter->getIcon(),
+                        'priority' => $adapter->getPriority(),
+                        'data' => $payload
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // Log error but continue with other adapters
+                $this->logDebugMessage("Failed to process adapter {$adapterClass}: " . $e->getMessage(), 'warning');
+                continue;
+            }
+        }
+
+        return $components;
     }
 }

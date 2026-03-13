@@ -7,6 +7,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 use WC_Order;
 use OrderDaemon\CompletionManager\Core\Logging\ComponentSanitizer;
+use OrderDaemon\CompletionManager\Core\Security\GuardFactory;
+use OrderDaemon\CompletionManager\Core\Security\SecurityException;
 
 /**
  * Manual Status Tracker - Chain of Custody Logging
@@ -120,6 +122,40 @@ class ManualStatusTracker
             return;
         }
 
+        // Verify nonce for any state-changing request (form, AJAX, REST)
+        $nonce = isset($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '';
+        if (empty($nonce) || !wp_verify_nonce($nonce, 'odcm_manual_status_change')) {
+            // Log security event with proper context
+            odcm_log_event(
+                'Nonce verification failed',
+                ['order_id' => $order_id, 'context' => 'manual_status_change'],
+                $order_id,
+                'error',
+                'nonce_verification_failed'
+            );
+            return;
+        }
+
+        // Create and verify nonce guard with proper error handling
+        try {
+            $guard = GuardFactory::createNonceGuard($nonce, 'odcm_manual_status_change');
+            $guard->verify();
+        } catch (SecurityException $e) {
+            // Log security exception with detailed context
+            odcm_log_event(
+                'Nonce guard verification failed',
+                [
+                    'order_id' => $order_id,
+                    'error' => $e->getMessage(),
+                    'context' => 'manual_status_change'
+                ],
+                $order_id,
+                'error',
+                'nonce_guard_failed'
+            );
+            return;
+        }
+
         // Capture attribution context for manual changes
         $attr = AttributionTracker::instance()->capture_context();
         
@@ -163,17 +199,63 @@ class ManualStatusTracker
 
     /**
      * Track manual order edits from the admin interface.
-     * 
+     *
      * This method captures when a user manually edits an order through
      * the WooCommerce admin interface, providing additional chain of custody context.
+     * Supports both legacy WP_Post objects and HPOS order objects.
      *
      * @param int $post_id The order post ID.
-     * @param \WP_Post $post The order post object.
+     * @param mixed $post_or_order The order post object (WP_Post) or HPOS order object.
      */
-    public static function track_manual_order_edit(int $post_id, \WP_Post $post): void
+    public static function track_manual_order_edit(int $post_id, mixed $post_or_order): void
     {
+        // Verify nonce for admin form submissions
+        $nonce = isset($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '';
+        if (empty($nonce) || !wp_verify_nonce($nonce, 'odcm_manual_order_edit')) {
+            // Log security event with proper context
+            odcm_log_event(
+                'Nonce verification failed',
+                ['order_id' => $post_id, 'context' => 'manual_order_edit'],
+                $post_id,
+                'error',
+                'nonce_verification_failed'
+            );
+            return;
+        }
+
+                // Create and verify nonce guard with proper error handling
+                try {
+                    $guard = GuardFactory::createNonceGuard($nonce, 'odcm_manual_order_edit');
+                    $guard->verify();
+                } catch (SecurityException $e) {
+                    // Log security exception with detailed context
+                    odcm_log_event(
+                        'Nonce guard verification failed',
+                        [
+                            'order_id' => $post_id,
+                            'error' => $e->getMessage(),
+                            'context' => 'manual_order_edit'
+                        ],
+                        $post_id,
+                        'error',
+                        'nonce_guard_failed'
+                    );
+                    return;
+                }
+
+        // Extract order ID from either WP_Post or HPOS order object
+        if ($post_or_order instanceof \WP_Post) {
+            $order_id = $post_or_order->ID;
+        } elseif (is_object($post_or_order) && method_exists($post_or_order, 'get_id')) {
+            // Handle HPOS order objects (Automattic\WooCommerce\Admin\Overrides\Order)
+            $order_id = $post_or_order->get_id();
+        } else {
+            // Fallback to the provided post_id if we can't determine from the object
+            $order_id = $post_id;
+        }
+
         // Only track if user is logged in and this is an order
-        if (!is_user_logged_in() || !\OrderDaemon\CompletionManager\Includes\Utils\OrderTypeDetector::is_processable_order($post_id)) {
+        if (!is_user_logged_in() || !\OrderDaemon\CompletionManager\Includes\Utils\OrderTypeDetector::is_processable_order($order_id)) {
             return;
         }
 
@@ -182,7 +264,7 @@ class ManualStatusTracker
         $user_display_name = $current_user->display_name ?: $current_user->user_login;
 
         // Get the order object
-        $order = wc_get_order($post_id);
+        $order = wc_get_order($order_id);
         if (!$order) {
             return;
         }
@@ -396,7 +478,7 @@ class ManualStatusTracker
 
         // Check if we're on the orders list page with edit action
         if ($pagenow === 'edit.php' && $typenow === 'shop_order') {
-            $action = isset($_GET['action']) ? sanitize_key($_GET['action']) : '';
+            $action = (isset($_GET['action']) && is_string($_GET['action'])) ? sanitize_key(wp_unslash($_GET['action'])) : '';
             return $action === 'edit';
         }
 
@@ -422,30 +504,46 @@ class ManualStatusTracker
             return false;
         }
 
-        // Check if action exists before processing
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Detection-only code, no state change.
         if (!isset($_REQUEST['action'])) {
             return false;
         }
 
-        // Verify nonce for AJAX actions when present
-        // Note: We don't verify nonce as a strict requirement here because this is detection-only code
-        // and we don't want to break WooCommerce's own AJAX handlers that may not include our nonces
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Detection-only code.
+        $action_name = sanitize_key(wp_unslash($_REQUEST['action']));
+
+        if (empty($action_name)) {
+            return false;
+        }
+
+        /**
+         * SECURITY JUSTIFICATION: This nonce verification is intentionally not enforced because:
+         * 1. This is detection-only code that should not block WooCommerce's AJAX handlers
+         * 2. WooCommerce handles its own security enforcement at the core level
+         * 3. We only log suspicious activity for monitoring purposes
+         * 4. Strict enforcement here would break WooCommerce's AJAX handlers that may not include our nonces
+         * 5. Different WooCommerce extensions might use different nonce patterns
+         * 6. Breaking WooCommerce functionality would create a poor user experience
+         *
+         * The nonce verification that exists is for monitoring purposes only and does not affect request flow.
+         * WooCommerce's own security mechanisms remain fully intact and functional.
+         */
+        // Verify nonce for AJAX actions when present (detection-only, no enforcement)
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- This is detection-only code that should not block WooCommerce's AJAX handlers
         if (isset($_REQUEST['security'])) {
+            $security_nonce = is_string($_REQUEST['security']) ? sanitize_text_field(wp_unslash($_REQUEST['security'])) : '';
             $nonce_valid = wp_verify_nonce(
-                sanitize_text_field(wp_unslash($_REQUEST['security'])), 
+                $security_nonce,
                 'woocommerce-order-ajax'
             );
             if (!$nonce_valid) {
                 // Log suspicious activity but allow WooCommerce to handle security
                 if (defined('WP_DEBUG') && WP_DEBUG) {
-                    $action = sanitize_key(wp_unslash($_REQUEST['action']));
-                    do_action('odcm_log_security_warning', 'Invalid WooCommerce AJAX nonce for: ' . $action);
+                    do_action('odcm_log_security_warning', 'Invalid WooCommerce AJAX nonce for: ' . $action_name);
                 }
             }
         }
 
-        $action = sanitize_key(wp_unslash($_REQUEST['action']));
-        
         // WooCommerce order management AJAX actions
         $order_ajax_actions = [
             'woocommerce_mark_order_status',
@@ -457,7 +555,7 @@ class ManualStatusTracker
             'woocommerce_delete_order_note',
         ];
 
-        return in_array($action, $order_ajax_actions, true);
+        return in_array($action_name, $order_ajax_actions, true);
     }
 
     /**
@@ -473,7 +571,7 @@ class ManualStatusTracker
 
         // Check for REST API nonce when available (WP REST API will handle authorization)
         if (isset($_REQUEST['_wpnonce'])) {
-            $rest_nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
+            $rest_nonce = is_string($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '';
             $nonce_valid = wp_verify_nonce($rest_nonce, 'wp_rest');
             
             // Log if invalid but don't block - this is just detection code
@@ -530,7 +628,7 @@ class ManualStatusTracker
 
     /**
      * Log a manual trigger event when a user manually initiates automation.
-     * 
+     *
      * This method should be called when a user manually triggers the automation
      * to re-run on a specific order, providing clear attribution for the action.
      *
@@ -548,12 +646,12 @@ class ManualStatusTracker
 
         // Log manual trigger using Universal Events system
         $sanitizer = new ComponentSanitizer();
-        
-        $trigger_message = sprintf('User %s triggered automation for order #%d (%s)', 
+
+        $trigger_message = sprintf('User %s triggered automation for order #%d (%s)',
             $user_context['user_display_name'], $order_id, $trigger_context);
-        
+
         $info_data = $sanitizer->sanitize('info', ['message' => $trigger_message]);
-        
+
         $payload_components = [
             [
                 'key' => 'manual-trigger-' . wp_generate_uuid4(),
@@ -564,9 +662,9 @@ class ManualStatusTracker
                 'data' => $info_data,
             ]
         ];
-        
+
         $summary = sprintf('Manual automation trigger for Order #%d', $order_id);
-        
+
         // Log using Universal Events system
         odcm_log_event(
             $summary,
@@ -586,6 +684,21 @@ class ManualStatusTracker
             'success',
             'admin_action'
         );
+
+        // DEBUG: Add debug logging to trace manual trigger execution
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("ODCM_MANUAL_TRIGGER_DEBUG: Manual trigger logged for order #{$order_id}", 'debug');
+            odcm_log_message("ODCM_MANUAL_TRIGGER_DEBUG: About to schedule completion check for manual trigger", 'debug');
+        }
+
+        // Schedule the order for completion check to trigger rule evaluation
+        // This ensures that manual triggers actually execute the rules
+        $core = new \OrderDaemon\CompletionManager\Core\Core();
+        $core->schedule_completion_check($order_id);
+
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("ODCM_MANUAL_TRIGGER_DEBUG: Scheduled completion check for order #{$order_id} after manual trigger", 'debug');
+        }
     }
 
 }

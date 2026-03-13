@@ -9,8 +9,7 @@ use WC_Order;
 /**
  * A condition that checks the type of products in the order.
  *
- * This is the core feature of the plugin, supporting both free tier
- * (virtual/downloadable) and premium tier (all other product types).
+ * This condition supports all product types available in the free plugin.
  *
  * @package OrderDaemon\CompletionManager\Core\RuleComponents\Conditions
  * @since   1.0.0
@@ -32,22 +31,11 @@ class ProductTypeCondition implements ConditionInterface
         return __('rule_component.condition.product_type.description', 'order-daemon');
     }
 
-    public function get_capability(): string
-    {
-        return 'condition_product_type'; // Free tier - but premium types require higher capability
-    }
 
     public function get_settings_schema(): ?array
     {
         // Get all available product types dynamically
         $product_types = $this->get_available_product_types();
-        
-        // In the free plugin, premium product types are shown but disabled in UI.
-        $can_access_premium = false;
-        
-        // Get the list of premium product types to mark them properly
-        // but don't filter them out - we want to show all types
-        $premium_types = $this->get_premium_product_types();
         
         return [
             'type' => 'object',
@@ -55,19 +43,15 @@ class ProductTypeCondition implements ConditionInterface
                 'types' => [
                     'type' => 'array',
                     'title' => __('rule_component.condition.product_type.field_label', 'order-daemon'),
-                    'description' => $can_access_premium 
-                        ? __('rule_component.condition.product_type.field_description', 'order-daemon')
-                        : __('rule_component.condition.product_type.field_description_free', 'order-daemon'),
+                    'description' => __('rule_component.condition.product_type.field_description', 'order-daemon'),
                     'items' => [
                         'type' => 'string',
-                        'enum' => $product_types, // Include ALL product types, even premium ones
+                        'enum' => $product_types,
                     ],
                     'ui:widget' => 'searchable_checkboxes',
                     'ui:searchable' => true,
                     'ui:placeholder' => __('rule_component.condition.product_type.search_placeholder', 'order-daemon'),
-                    'ui:premium_options' => $can_access_premium ? [] : $this->get_premium_product_types(), // Mark premium options
-                    'ui:show_all_but_disable_premium' => true, // Flag to show all but disable premium options
-                    'default' => ['virtual', 'downloadable'], // Default to free options
+                    'default' => ['virtual', 'downloadable'],
                 ],
                 'match_mode' => [
                     'type' => 'string',
@@ -151,11 +135,11 @@ class ProductTypeCondition implements ConditionInterface
     {
         $types = [];
 
-        // Free tier types (always available)
+        // Core types (always available)
         $types['virtual'] = __('rule_component.condition.product_type.option.virtual', 'order-daemon');
         $types['downloadable'] = __('rule_component.condition.product_type.option.downloadable', 'order-daemon');
 
-        // Get WooCommerce product types (premium tier)
+        // Get WooCommerce product types
         if (function_exists('wc_get_product_types')) {
             $wc_types = wc_get_product_types();
             
@@ -183,39 +167,6 @@ class ProductTypeCondition implements ConditionInterface
     }
 
 
-    /**
-     * Get premium product types (excluding free ones).
-     *
-     * @return array List of premium product type IDs
-     */
-    private function get_premium_product_types(): array
-    {
-        $premium_types = [];
-        
-        // Define free types - only virtual and downloadable are free
-        $free_types = ['virtual', 'downloadable'];
-        
-        // Get WooCommerce product types (premium tier)
-        if (function_exists('wc_get_product_types')) {
-            $wc_types = wc_get_product_types();
-            
-            foreach ($wc_types as $type_id => $type_label) {
-                // Skip virtual/downloadable as they're free
-                if (!in_array($type_id, $free_types)) {
-                    $premium_types[] = $type_id;
-                }
-            }
-        } else {
-            // Fallback for standard WooCommerce types (these are premium)
-            $premium_types = ['simple', 'variable', 'grouped', 'external'];
-        }
-
-        // Add custom product types from plugins (these are premium)
-        $custom_types = array_keys($this->get_custom_product_types());
-        $premium_types = array_merge($premium_types, $custom_types);
-        
-        return array_unique($premium_types);
-    }
 
     /**
      * Get custom product types from plugins.

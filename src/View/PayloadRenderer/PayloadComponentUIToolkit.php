@@ -767,10 +767,12 @@ class PayloadComponentUIToolkit
      *
      * Implements priority logic for determining which status pill to render:
      * 1. Explicit status pill from options (highest priority)
-     * 2. Registry default status pill for component type (medium priority)
+     * 2. Standard status pill configurations
      * 3. No status pill (lowest priority)
      *
-     * @since 1.0.0
+     * Migrated to remove dependency on legacy registry functions.
+     *
+     * @since 2.0.0 (Migrated)
      *
      * @param string $theme   Sanitized theme identifier.
      * @param array  $options Component options that may contain explicit status pill and component_id.
@@ -785,27 +787,76 @@ class PayloadComponentUIToolkit
                 return $this->render_status_pill($explicit_pill['label'], $explicit_pill['type']);
             }
         }
-        
-        // Priority 2: Registry default status pill for component type
-        if (function_exists('odcm_get_payload_component_type')) {
-            try {
-                // Use component_id if provided, otherwise fall back to theme
-                $lookup_id = isset($options['component_id']) ? $options['component_id'] : $theme;
-                $component_metadata = odcm_get_payload_component_type($lookup_id);
-                
-                if ($component_metadata && isset($component_metadata['status_pill']) && is_array($component_metadata['status_pill'])) {
-                    $registry_pill = $component_metadata['status_pill'];
-                    if (isset($registry_pill['label']) && isset($registry_pill['type'])) {
-                        return $this->render_status_pill($registry_pill['label'], $registry_pill['type']);
-                    }
-                }
-            } catch (\Exception $e) {
-                // Silently handle registry errors - component should still render without status pill
-                $lookup_id = isset($options['component_id']) ? $options['component_id'] : $theme;
-                // Failed to retrieve registry metadata for component
-            }
+
+        // Priority 2: Use legacy status pill configurations (migrated from odcm_get_status_pill_config)
+        // These are the actual configurations from the legacy PayloadComponentRegistry
+        $status_pill_configs = [
+            // Process events
+            'rule_execution' => ['label' => 'RULE', 'type' => 'info'],
+            'status_change_processing' => ['label' => 'STATUS', 'type' => 'woocommerce'],
+            'manual_status_change' => ['label' => 'STATUS', 'type' => 'woocommerce'],
+
+            // Rule events
+            'rule_matched' => ['label' => 'MATCHED', 'type' => 'success'],
+            'rule_no_match' => ['label' => 'NOT MATCHED', 'type' => 'notice'],
+            'rule_evaluation_non_canonical' => ['label' => 'DEBUG', 'type' => 'debug'],
+            'condition_passed' => ['label' => 'PASSED', 'type' => 'success'],
+            'condition_failed' => ['label' => 'FAILED', 'type' => 'warning'],
+            'action_executed' => ['label' => 'EXECUTED', 'type' => 'info'],
+
+            // Order events
+            'status_changed' => null, // Dynamic based on status
+            'order_loaded' => ['label' => 'LOADED', 'type' => 'info'],
+            'block_checkout_processed' => ['label' => 'CHECKOUT', 'type' => 'woocommerce'],
+            'checkout_processed' => ['label' => 'CHECKOUT', 'type' => 'woocommerce'],
+            'meta_updated' => ['label' => 'UPDATED', 'type' => 'info'],
+            'woocommerce_data' => ['label' => 'WOOCOMMERCE', 'type' => 'woocommerce'],
+            'order_completion' => ['label' => 'COMPLETED', 'type' => 'success'],
+            'order_completed' => ['label' => 'COMPLETED', 'type' => 'success'],
+            'checkout_completion' => ['label' => 'COMPLETED', 'type' => 'success'],
+            'checkout_completed' => ['label' => 'COMPLETED', 'type' => 'success'],
+            'order_complete' => ['label' => 'COMPLETED', 'type' => 'success'],
+            'checkout_complete' => ['label' => 'COMPLETED', 'type' => 'success'],
+            'order_processed' => ['label' => 'PROCESSED', 'type' => 'success'],
+
+            // Subscription events
+            'subscription_created' => ['label' => 'CREATED', 'type' => 'success'],
+            'subscription_approved' => ['label' => 'APPROVED', 'type' => 'success'],
+            'subscription_cancelled' => ['label' => 'CANCELLED', 'type' => 'error'],
+            'subscription_suspended' => ['label' => 'SUSPENDED', 'type' => 'warning'],
+            'subscription_reactivated' => ['label' => 'REACTIVATED', 'type' => 'success'],
+            'subscription_completed' => ['label' => 'COMPLETED', 'type' => 'success'],
+            'subscription_expired' => ['label' => 'EXPIRED', 'type' => 'error'],
+            'subscription_paused' => ['label' => 'PAUSED', 'type' => 'warning'],
+            'subscription_resumed' => ['label' => 'RESUMED', 'type' => 'success'],
+            'subscription_updated' => ['label' => 'UPDATED', 'type' => 'info'],
+            'trial_ending' => ['label' => 'TRIAL ENDING', 'type' => 'warning'],
+            'renewal_payment_completed' => ['label' => 'RENEWAL PAID', 'type' => 'success'],
+            'renewal_payment_failed' => ['label' => 'RENEWAL FAILED', 'type' => 'error'],
+            'renewal_payment_processing' => ['label' => 'PROCESSING', 'type' => 'info'],
+            'renewal_payment_pending' => ['label' => 'PENDING', 'type' => 'warning'],
+
+            // System events
+            'info' => ['label' => 'INFO', 'type' => 'info'],
+            'warning' => ['label' => 'WARNING', 'type' => 'warning'],
+            'error' => ['label' => 'ERROR', 'type' => 'error'],
+            'metrics' => ['label' => 'METRICS', 'type' => 'info'],
+            'admin_action' => ['label' => 'ADMIN', 'type' => 'notice'],
+            'process_started' => ['label' => 'STARTED', 'type' => 'info'],
+            'action_scheduled' => ['label' => 'SCHEDULED', 'type' => 'pending'],
+
+            // Analysis events
+            'refund_analysis' => ['label' => 'ANALYSIS', 'type' => 'warning'],
+            'woocommerce_analysis' => ['label' => 'IMPACT', 'type' => 'woocommerce'],
+            'dedup' => ['label' => 'DEDUP', 'type' => 'debug'],
+        ];
+
+        $lookup_id = isset($options['component_id']) ? $options['component_id'] : $theme;
+        if (isset($status_pill_configs[$lookup_id]) && $status_pill_configs[$lookup_id] !== null) {
+            $config = $status_pill_configs[$lookup_id];
+            return $this->render_status_pill($config['label'], $config['type']);
         }
-        
+
         // Priority 3: No status pill
         return '';
     }

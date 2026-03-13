@@ -1,2 +1,0 @@
-- final translation strings cleanup for free plugin
-- pass the wordpress plugin checker

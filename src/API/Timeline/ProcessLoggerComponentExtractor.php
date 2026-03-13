@@ -26,8 +26,10 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
                     strpos($event_type, 'order_') !== false || 
                     strpos($event_type, 'complete') !== false ||
                     strpos($event_type, 'completion') !== false) {
-                    error_log('ODCM DEBUG: ProcessLoggerComponentExtractor: Processing order completion event type: ' . $event_type);
-                    error_log('ODCM DEBUG: ProcessLoggerComponentExtractor: Raw payload keys: ' . implode(', ', array_keys($rawPayload)));
+                    odcm_log_message('ODCM DEBUG: ProcessLoggerComponentExtractor: Processing order completion event', 'debug', [
+                        'event_type' => $event_type,
+                        'payload_keys' => array_keys($rawPayload)
+                    ]);
                 }
             }
         }
@@ -39,7 +41,7 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
         
         // For non-ProcessLogger format, we'll handle this in the synthetic component creation
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: ProcessLoggerComponentExtractor: Not a ProcessLogger format payload, will use synthetic component');
+            odcm_log_message('ODCM DEBUG: ProcessLoggerComponentExtractor: Not a ProcessLogger format payload', 'debug');
         }
         return [];
     }
@@ -67,12 +69,13 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             }
             
             if ($is_order_related) {
-                error_log('ODCM DEBUG: isProcessLoggerFormat check for order event: ' . ($is_process_logger ? 'YES' : 'NO'));
-                if (!$is_process_logger) {
-                    error_log('ODCM DEBUG: Missing components key: ' . (!isset($rawPayload['components']) ? 'YES' : 'NO'));
-                    error_log('ODCM DEBUG: Components not array: ' . (isset($rawPayload['components']) && !is_array($rawPayload['components']) ? 'YES' : 'NO'));
-                    error_log('ODCM DEBUG: Empty components: ' . (isset($rawPayload['components']) && is_array($rawPayload['components']) && empty($rawPayload['components']) ? 'YES' : 'NO'));
-                } 
+                $debugData = [
+                    'is_process_logger' => $is_process_logger ? 'YES' : 'NO',
+                    'missing_components_key' => !isset($rawPayload['components']) ? 'YES' : 'NO',
+                    'components_not_array' => isset($rawPayload['components']) && !is_array($rawPayload['components']) ? 'YES' : 'NO',
+                    'empty_components' => isset($rawPayload['components']) && is_array($rawPayload['components']) && empty($rawPayload['components']) ? 'YES' : 'NO'
+                ];
+                odcm_log_message('ODCM DEBUG: isProcessLoggerFormat check for order event', 'debug', $debugData);
             }
         }
         
@@ -173,8 +176,10 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
 
         // Debug log the component structure
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            error_log('ODCM DEBUG: createSyntheticComponent - Creating component for event type: ' . $eventType);
-            error_log('ODCM DEBUG: createSyntheticComponent - Component will have data keys: ' . implode(', ', array_keys($data)));
+            odcm_log_message('ODCM DEBUG: createSyntheticComponent - Creating component for event type', 'debug', [
+                'event_type' => $eventType,
+                'data_keys' => array_keys($data)
+            ]);
         }
         
         // Return properly structured component with 'component_id' for identification
@@ -256,7 +261,9 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             }
             
             if ($is_order_related) {
-                error_log('ODCM DEBUG: extractProcessLoggerComponents processing ' . count($components) . ' components for order event');
+                odcm_log_message('ODCM DEBUG: extractProcessLoggerComponents processing components', 'debug', [
+                    'component_count' => count($components)
+                ]);
             }
         }
 
@@ -264,7 +271,11 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             // Enhanced error reporting for component structure issues
             if (!is_array($component)) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log('ODCM DEBUG: Component #' . $idx . ' is not an array, skipping. Type: ' . gettype($component));
+                    odcm_log_message('ODCM DEBUG: Component validation failed', 'debug', [
+                        'component_index' => $idx,
+                        'type' => gettype($component),
+                        'reason' => 'not an array'
+                    ]);
                 }
                 continue;
             }
@@ -277,11 +288,16 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             // Validate component structure with detailed logging
             if (!$this->isValidComponent($component)) {
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log('ODCM DEBUG: Component #' . $idx . ' has invalid structure');
-                    error_log('ODCM DEBUG: - Missing event_type: ' . (!isset($component['event_type']) ? 'YES' : 'NO'));
-                    error_log('ODCM DEBUG: - Missing data: ' . (!isset($component['data']) ? 'YES' : 'NO'));
-                    error_log('ODCM DEBUG: - Data not array: ' . (isset($component['data']) && !is_array($component['data']) ? 'YES' : 'NO'));
-                    error_log('ODCM DEBUG: - Data empty: ' . (isset($component['data']) && is_array($component['data']) && empty($component['data']) ? 'YES' : 'NO'));
+                    $validationData = [
+                        'missing_event_type' => !isset($component['event_type']) ? 'YES' : 'NO',
+                        'missing_data' => !isset($component['data']) ? 'YES' : 'NO',
+                        'data_not_array' => isset($component['data']) && !is_array($component['data']) ? 'YES' : 'NO',
+                        'data_empty' => isset($component['data']) && is_array($component['data']) && empty($component['data']) ? 'YES' : 'NO'
+                    ];
+                    odcm_log_message('ODCM DEBUG: Component validation failed', 'error', [
+                        'component_index' => $idx,
+                        'validation_data' => $validationData
+                    ]);
                     
                     // For order-related events, show the actual data we received
                     $is_order_related = false;
@@ -295,7 +311,9 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
                     }
                     
                     if ($is_order_related) {
-                        error_log('ODCM DEBUG: Order component that failed validation: ' . json_encode($component));
+                        odcm_log_message('ODCM DEBUG: Order component that failed validation', 'error', [
+                            'component_data' => $component
+                        ]);
                     }
                 }
                 continue;
@@ -319,7 +337,9 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             }
             
             if ($is_order_related) {
-                error_log('ODCM DEBUG: Failed to extract any components for order event. Original component count: ' . count($components));
+                odcm_log_message('ODCM DEBUG: Failed to extract any components for order event', 'error', [
+                    'original_component_count' => count($components)
+                ]);
             }
         }
 
@@ -333,7 +353,32 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
     {
         $level = $component['level'] ?? '';
         $event_type = $component['event_type'] ?? '';
-        
+
+        // Check for explicit debug_only flag
+        if (!empty($component['debug_only']) && $component['debug_only'] === true) {
+            return true;
+        }
+
+        // Check for _universal_event_debug
+        if ($event_type === '_universal_event_debug') {
+            return true;
+        }
+
+        // Check for rule_no_match events specifically
+        if ($event_type === 'rule_no_match') {
+            return true;
+        }
+
+        // Check for rule_no_match in nested data
+        if (isset($component['data']['event_type']) && $component['data']['event_type'] === 'rule_no_match') {
+            return true;
+        }
+
+        // Check for rule_no_match flags
+        if (!empty($component['rule_no_match']) || !empty($component['data']['rule_no_match'])) {
+            return true;
+        }
+
         return ($level === 'debug') || ($event_type === 'process_started');
     }
     
@@ -359,11 +404,15 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             // Enhanced debugging for order components
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 if (!$has_event_type) {
-                    error_log('ODCM DEBUG: Order component validation failed: missing event_type');
+                    odcm_log_message('ODCM DEBUG: Order component validation failed', 'debug', [
+                        'missing_event_type' => 'YES'
+                    ]);
                 }
                 if (!$has_data) {
-                    error_log('ODCM DEBUG: Order component validation failed: missing data key');
-                    error_log('ODCM DEBUG: Order component keys: ' . implode(', ', array_keys($component)));
+                    odcm_log_message('ODCM DEBUG: Order component validation failed', 'debug', [
+                        'missing_data_key' => 'YES',
+                        'component_keys' => array_keys($component)
+                    ]);
                 }
             }
             
@@ -403,7 +452,9 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
         $data = $component['data'] ?? [];
         if (!is_array($data)) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: Component data not array, converting - Type: ' . gettype($data));
+                odcm_log_message('ODCM DEBUG: Component data not array, converting', 'debug', [
+                    'type' => gettype($data)
+                ]);
             }
             // Convert to array if possible, or create empty array with original as __raw_value
             if (is_object($data)) {
@@ -449,7 +500,9 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
                 }
                 
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    error_log('ODCM DEBUG: Created synthetic data structure for order event: ' . $event_type);
+                    odcm_log_message('ODCM DEBUG: Created synthetic data structure for order event', 'debug', [
+                        'event_type' => $event_type
+                    ]);
                 }
             }
         }
@@ -466,7 +519,10 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             $normalizedComponent['parent_id'] = $logEntryContext['parent_id'];
             
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                error_log('ODCM DEBUG: Injected parent_id=' . $logEntryContext['parent_id'] . ' into component: ' . $component['event_type']);
+                odcm_log_message('ODCM DEBUG: Injected parent_id into component', 'debug', [
+                    'parent_id' => $logEntryContext['parent_id'],
+                    'component_event_type' => $component['event_type']
+                ]);
             }
         }
 
@@ -508,9 +564,9 @@ final class ProcessLoggerComponentExtractor implements ComponentExtractorInterfa
             $summaryItems[] = ['key' => 'Event', 'value' => $eventType];
         }
 
-        $orderId = $normalizedComponent['order_id'] ?? ($normalizedComponent['data']['order_id'] ?? null);
-        if (!empty($orderId)) {
-            $summaryItems[] = ['key' => 'Order', 'value' => '#' . (string) $orderId];
+        $OrderId = $normalizedComponent['order_id'] ?? ($normalizedComponent['data']['order_id'] ?? null);
+        if (!empty($OrderId)) {
+            $summaryItems[] = ['key' => 'Order', 'value' => '#' . (string) $OrderId];
         }
 
         if (!empty($summaryItems)) {

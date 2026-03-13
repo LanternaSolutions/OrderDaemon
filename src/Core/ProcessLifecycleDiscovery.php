@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core;
 
+// Include functions.php for helper methods
+require_once __DIR__ . '/../../Includes/functions.php';
+
 /**
  * Auto-discovering registry for Process Lifecycle Consolidation.
  *
@@ -305,16 +308,15 @@ final class ProcessLifecycleDiscovery
             }
             
             // Cache miss - run the query
-            // Use $wpdb->get_col() with a properly prepared query
-            // The WHERE clause uses $wpdb->prepare() for proper value escaping
-            $query = $wpdb->prepare(
-                "SELECT DISTINCT event_type FROM `{$wpdb->prefix}odcm_audit_log` WHERE event_type IS NOT NULL AND event_type != %s",
+            // Use DatabaseHelper for proper database abstraction
+            $query = DatabaseHelper::get_instance()->_prepare(
+                "SELECT DISTINCT event_type FROM %s WHERE event_type IS NOT NULL AND event_type != %s",
+                $wpdb->prefix . 'odcm_audit_log',
                 $empty_value
             );
 
-            // Execute the query with WordPress's database API
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared -- Custom table query, $query is properly prepared above using $wpdb->prepare()
-            $results = $wpdb->get_col($query);
+            // Execute the query with DatabaseHelper
+            $results = DatabaseHelper::get_col($query);
             
             // Process the results
             $types = is_array($results) ? $results : [];
@@ -345,14 +347,17 @@ final class ProcessLifecycleDiscovery
                     }
                     
                     // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-                    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-                        // Write to WordPress debug.log file using WordPress constants
-                        $debug_file = WP_CONTENT_DIR . '/debug.log';
-                        @file_put_contents(
-                            $debug_file,
-                            '[' . gmdate('Y-m-d H:i:s') . '] ODCM: Process type discovery failed: ' . $e->getMessage() . PHP_EOL,
-                            FILE_APPEND
-                        );
+                    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+                        $debug_file = odcm_get_uploads_dir() . '/debug.log';
+                        if (odcm_validate_file_path($debug_file)) {
+                            odcm_safe_file_put_contents(
+                                $debug_file,
+                                '[' . gmdate('Y-m-d H:i:s') . '] ODCM: Process type discovery failed: ' . $e->getMessage() . PHP_EOL,
+                                FILE_APPEND
+                            );
+                        } else {
+                            odcm_critical_log("Invalid debug file path: " . esc_html($debug_file));
+                        }
                     }
                 }
             }

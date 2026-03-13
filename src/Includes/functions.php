@@ -5,321 +5,36 @@ declare(strict_types=1);
 // Prevent direct access to this file
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+// Include DatabaseHelper for database operations
+require_once __DIR__ . '/Utils/DatabaseHelper.php';
+
 /**
- * Global Helper Functions - Entitlement System & Core Utilities
+ * Global Helper Functions - Core Utilities
  *
  * This file contains globally available helper functions that power the
- * Order Daemon For Woocommerce plugin. It serves as the foundation for
- * the plugin's entitlement-aware architecture and provides essential
- * utilities used throughout the codebase.
+ * Order Daemon For Woocommerce plugin. It provides essential utilities used
+ * throughout the codebase.
  *
- * ENTITLEMENT SYSTEM OVERVIEW:
- * ============================
- * 
- * The plugin uses a capability-based entitlement system that controls access
- * to features based on user licensing. This creates a seamless freemium
- * experience where features are dynamically enabled/disabled.
- * 
- * Key Components:
- * - odcm_can_use(): Central entitlement checking function
- * - Capability keys: Unique identifiers for each feature
- * - Tier-based access: Free, Premium, and future Enterprise tiers
- * - Development mode: Testing toggle for premium features
- * 
  * ARCHITECTURE PRINCIPLES:
  * =======================
- * 
- * 1. Single Source of Truth: All entitlement logic in odcm_can_use()
- * 2. Fail-Safe Defaults: Unknown features default to restricted
- * 3. Performance First: Minimal overhead for capability checks
- * 4. Future-Proof: Easy to extend for new licensing systems
- * 5. Developer-Friendly: Clear naming and comprehensive documentation
- * 
+ *
+ * 1. Performance First: Minimal overhead for core operations
+ * 2. Future-Proof: Easy to extend for new functionality
+ * 3. Developer-Friendly: Clear naming and comprehensive documentation
+ *
  * INTEGRATION POINTS:
  * ==================
- * 
- * - OptionRegistry: Each registered option has a capability key
- * - MetaBox UI: Dynamic rendering based on user entitlements
- * - Core Logic: Feature execution gated by capability checks
- * - Admin Interface: Premium features shown as upgrade opportunitiese
- * 
- * DEVELOPMENT WORKFLOW:
- * ====================
- * 
- * 1. Add new capability to odcm_can_use() switch statement
- * 2. Register option with capability in options.php
- * 3. Check capability in UI rendering (MetaBox.php)
- * 4. Gate feature execution in business logic
- * 5. Test with both free and premium scenarios
+ *
+ * - OptionRegistry: Central hub for all triggers, conditions, and actions
+ * - MetaBox UI: Dynamic rendering based on component availability
+ * - Core Logic: Feature execution with proper validation
+ * - Admin Interface: User-friendly management of completion rules
  *
  * @package OrderDaemon\CompletionManager\Includes
  * @since   1.0.0
  * @author  OrderDaemon Development Team
- * @link    https://docs.OrderDaemon.com/completion-manager/entitlements
+ * @link    https://drderdaemon.com/docs
  */
-
-/**
- * Central Entitlement Function - The Heart of the Freemium System
- *
- * This function serves as the single source of truth for all feature access control
- * in the Order Daemon For Woocommerce plugin. It implements a capability-based
- * entitlement system that creates a seamless freemium experience by dynamically
- * enabling/disabling features based on user licensing.
- *
- * ENTITLEMENT ARCHITECTURE:
- * ========================
- * 
- * The system uses a three-tier approach:
- * 1. FREE TIER: Core functionality available to all users
- * 2. PREMIUM TIER: Advanced features requiring paid license
- * 3. ENTERPRISE TIER: Future expansion for high-end features
- * 
- * Each feature is identified by a unique capability key that follows naming
- * conventions to ensure consistency and maintainability.
- * 
- * CAPABILITY NAMING CONVENTIONS:
- * =============================
- * 
- * Format: {type}_{feature}[_{modifier}]
- * 
- * Types:
- * - trigger_*    : When rules should be evaluated
- * - condition_*  : What criteria must be met
- * - action_*     : What happens when rules apply
- * - {feature}_*  : General plugin features
- * 
- * Examples:
- * - trigger_basic           : Basic order status triggers (FREE)
- * - trigger_payment_complete: Advanced payment triggers (PREMIUM)
- * - condition_product_type  : Product type conditions (FREE)
- * - condition_customer_role : Customer role conditions (PREMIUM)
- * - action_basic           : Basic order completion (FREE)
- * - action_send_custom_email: Custom email actions (PREMIUM)
- * - unlimited_rules        : Multiple active rules (PREMIUM)
- * 
- * DEVELOPMENT MODE:
- * ================
- * 
- * For testing premium features during development, add this to wp-config.php:
- * define('ODCM_IS_PREMIUM_DEBUG', true);
- * 
- * This allows developers to test the full feature set without a license.
- * 
- * LICENSING SYSTEM INTEGRATION:
- * ============================
- * 
- * This function is designed to be the only place that needs modification when
- * integrating with real licensing systems. The current implementation uses a
- * simple boolean check, but it can easily accommodate:
- * 
- * - Easy Digital Downloads Software Licensing
- * - Freemius SDK
- * - Custom licensing APIs
- * - Subscription-based models
- * - Time-limited trials
- * 
- * PERFORMANCE CONSIDERATIONS:
- * ==========================
- * 
- * - Function is called frequently during UI rendering
- * - Uses simple switch statement for O(1) lookup performance
- * - No database queries or external API calls
- * - Results can be cached if needed for heavy usage
- * 
- * SECURITY CONSIDERATIONS:
- * =======================
- * 
- * - Unknown capabilities default to false (fail-safe)
- * - No user input validation needed (internal function)
- * - Capability keys are hardcoded (no injection risk)
- * - Debug mode only works with wp-config.php access
- *
- * @since 1.0.0
- *
- * @param string $feature_key {
- *     The unique capability identifier for the feature to check.
- *     Must match one of the predefined capability keys in the switch statement.
- *     
- *     Free Tier Capabilities:
- *     - 'trigger_basic'          : Basic order status triggers
- *     - 'condition_product_type' : Product type conditions
- *     - 'condition_single_category': Single category selection
- *     - 'condition_order_total'  : Order total conditions
- *     - 'action_basic'          : Basic order completion
- *     - 'insight_dashboard'      : Insight dashboard access
- *     
- *     Premium Tier Capabilities:
- *     - 'unlimited_rules'        : Multiple active rules
- *     - 'trigger_on_hold'        : On-hold status triggers
- *     - 'trigger_payment_complete': Payment completion triggers
- *     - 'condition_multi_category': Multiple category selection
- *     - 'condition_customer_role' : Customer role conditions
- *     - 'condition_payment_gateway': Payment gateway conditions
- *     - 'condition_shipping_method': Shipping method conditions
- *     - 'condition_coupon_used'  : Coupon usage conditions
- *     - 'action_send_custom_email': Custom email actions
- *     - 'action_add_custom_note' : Custom order note actions
- *     - 'log_management_settings': Advanced logging controls
- * }
- *
- * @return bool True if the user can access the feature, false otherwise.
- *              Defaults to false for unknown capability keys (fail-safe).
- *
- * @example
- * ```php
- * // Basic usage - check if user can access a feature
- * if (odcm_can_use('unlimited_rules')) {
- *     // User has premium license - allow multiple rules
- *     $this->create_additional_rule();
- * } else {
- *     // Free user - show upgrade prompt
- *     $this->show_upgrade_notice();
- * }
- * 
- * // UI rendering - show/hide features based on entitlements
- * $conditions = $registry->get_conditions();
- * foreach ($conditions as $condition) {
- *     if (odcm_can_use($condition['capability'])) {
- *         // Render functional UI element
- *         echo $this->render_condition_input($condition);
- *     } else {
- *         // Render locked/premium placeholder
- *         echo $this->render_premium_placeholder($condition);
- *     }
- * }
- * 
- * // Feature execution - gate business logic
- * public function execute_custom_email_action($order_id) {
- *     if (!odcm_can_use('action_send_custom_email')) {
- *         throw new Exception('Premium feature not available');
- *     }
- *     
- *     // Execute premium functionality
- *     $this->send_custom_email($order_id);
- * }
- * 
- * // Development testing - enable premium features
- * // Add to wp-config.php: define('ODCM_IS_PREMIUM_DEBUG', true);
- * if (odcm_can_use('condition_customer_role')) {
- *     // This will return true in debug mode
- *     echo 'Premium feature available for testing';
- * }
- * ```
- */
-function odcm_can_use(string $feature_key): bool
-{
-    // CLI Development Bypass - Enable premium features for CLI testing
-    // This allows developers to test CLI features without licensing constraints
-    if ((defined('ODCM_CLI_DEV_BYPASS') && ODCM_CLI_DEV_BYPASS) && 
-        (defined('WP_CLI') && WP_CLI)) {
-        // Allow all premium features when in CLI dev bypass mode
-        if (in_array($feature_key, [
-            'config_management',
-            'health_monitoring',
-            'unlimited_rules',
-            'trigger_on_hold',
-            'trigger_payment_complete',
-            'trigger_pending',
-            'trigger_failed',
-            'trigger_cancelled',
-            'trigger_refunded',
-            'trigger_completed',
-            'trigger_premium',
-            'action_custom_redirect',
-            'action_add_order_note',
-            'action_send_email',
-            'action_change_status_to_processing',
-            'action_change_status_to_on_hold',
-            'log_management_settings',
-            'audit_log_filter_advanced',
-            'audit_log_export',
-            'audit_log_retention_control',
-            'premium_features',
-            'condition_multi_category',
-            'condition_user_role',
-            'condition_payment_gateway',
-            'condition_shipping_method',
-            'condition_coupon_used',
-            'condition_product_type_advanced',
-            'condition_specific_products',
-            'condition_order_item_count'
-        ])) {
-            return true;
-        }
-    }
-    
-    // Premium access is controlled entirely through the 'odcm_is_premium_user' filter.
-    // The DevToolbar and real licensing systems hook into this filter to enable premium features.
-    // Default: FREE mode (false) when no filter is applied.
-    $is_premium_user = apply_filters('odcm_is_premium_user', false);
-
-    // Feature capability switch
-    switch ($feature_key) {
-        // --- PREMIUM TIER 1: Features requiring any premium license ---
-        case 'unlimited_rules':
-        case 'health_monitoring':           // Health monitoring and optimization
-        case 'trigger_on_hold':
-        case 'trigger_payment_complete':
-        case 'trigger_pending':
-        case 'trigger_failed':
-        case 'trigger_cancelled':
-        case 'trigger_refunded':
-        case 'trigger_completed':
-        case 'trigger_premium':             // Any Status Change trigger (premium)
-        case 'action_custom_redirect':
-        case 'action_add_order_note':
-        case 'action_send_email':
-        case 'action_change_status_to_processing': // Premium primary action: Processing
-        case 'action_change_status_to_on_hold':    // Premium primary action: On Hold
-        case 'log_management_settings':
-        case 'audit_log_filter_advanced':   // Advanced filtering (date range, status, etc.)
-        case 'audit_log_export':            // Export functionality
-        case 'audit_log_retention_control': // Custom retention settings
-        case 'premium_features':            // General premium component access
-        return $is_premium_user;
-
-            break;
-
-        // --- PREMIUM TIER 2: Example of a more granular feature ---
-        // This case demonstrates future-proofing for different license tiers.
-        case 'condition_multi_category':
-        case 'condition_user_role':
-        case 'condition_payment_gateway':
-        case 'condition_shipping_method':
-        case 'condition_coupon_used':
-        case 'condition_product_type_advanced': // All product types beyond Virtual/Downloadable
-        case 'condition_specific_products':
-        case 'condition_order_item_count':
-            // For now, this is also tied to the simple premium check.
-            // In the future, this is where you would add a check for a specific license plan.
-        return $is_premium_user;
-
-            break;
-
-        // --- FREE TIER: Features available to everyone ---
-        // These cases explicitly return true for clarity.
-        case 'condition_product_type':
-        case 'condition_single_category':
-        case 'condition_order_total':
-        case 'trigger_basic':
-        case 'action_basic':
-        case 'insight_dashboard':          // Basic dashboard access (renamed from audit_trail_ui)
-        case 'audit_log_basic_search':
-        case 'audit_log_bulk_actions':
-        return true;
-
-            break;
-
-        // --- Default Case ---
-        // If an unknown feature key is passed, default to false for security.
-        default:
-        return false;
-    }//end switch
-
-}//end odcm_can_use()
-
-
-
 
 /**
  * Helper function to check user capability and handle permission denied responses.
@@ -364,9 +79,6 @@ function odcm_check_user_capability(string $capability='manage_woocommerce', str
     return false;
 
 }//end odcm_check_user_capability()
-
-
-
 
 /**
  * Helper function to schedule Action Scheduler tasks with duplicate prevention.
@@ -453,27 +165,23 @@ function odcm_log_message(string $message, string $level='notice'): void
     ];
 
     $prefix = ($level_prefixes[$level] ?? '[ODCM NOTICE]');
-    
+
     // Use WordPress debug log function if available
     if (function_exists('wp_debug_log')) {
         wp_debug_log("{$prefix} {$message}");
         return;
     }
-    
+
     // Use WordPress action hook if available for centralized error handling
     if (function_exists('do_action')) {
         do_action('odcm_log_' . $level, $message);
         return;
     }
-    
-    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-        $debug_file = WP_CONTENT_DIR . '/debug.log';
-        @file_put_contents(
-            $debug_file,
-            '[' . gmdate('Y-m-d H:i:s') . '] ' . $prefix . ' ' . $message . PHP_EOL,
-            FILE_APPEND
-        );
+
+    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file using safe file operation
+    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+        $debug_file = odcm_get_safe_debug_file_path();
+        odcm_safe_file_put_contents($debug_file, '[' . gmdate('Y-m-d H:i:s') . '] ' . $prefix . ' ' . $message . PHP_EOL, FILE_APPEND);
         return;
     }
 
@@ -481,10 +189,10 @@ function odcm_log_message(string $message, string $level='notice'): void
 
 /**
  * Log critical errors that must be recorded regardless of debug mode
- * 
+ *
  * This function ensures critical errors are always logged but uses
  * WordPress-compliant methods rather than direct error_log() calls.
- * 
+ *
  * @since 1.0.0
  * @param string $message The error message to log
  * @return void
@@ -493,115 +201,87 @@ function odcm_critical_log(string $message): void
 {
     // Format the message for visibility
     $formatted_message = "[ODCM CRITICAL] {$message}";
-    
+
     // Use WordPress logging function if available
     if (function_exists('wp_debug_log')) {
         wp_debug_log($formatted_message);
         return;
     }
-    
+
     // Use WordPress action hook if available for centralized error handling
     if (function_exists('do_action')) {
         do_action('odcm_log_error', $message);
         return;
     }
-    
-    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-        $debug_file = WP_CONTENT_DIR . '/debug.log';
-        @file_put_contents(
-            $debug_file,
-            '[' . gmdate('Y-m-d H:i:s') . '] ' . $formatted_message . PHP_EOL,
-            FILE_APPEND
-        );
+
+    // If WP_DEBUG_LOG is enabled, write directly to the debug.log file using safe file operation
+    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+        $debug_file = odcm_get_safe_debug_file_path();
+        odcm_safe_file_put_contents($debug_file, '[' . gmdate('Y-m-d H:i:s') . '] ' . $formatted_message . PHP_EOL, FILE_APPEND);
         return;
-    }
-    
-    // As a last resort, use error_log() inside a condition the plugin checker won't flag
-    // This ensures critical errors are always logged
-    if (1 === 1) {
-        // This condition will always evaluate to true, but doesn't trigger plugin checker
-        // The plugin checker specifically looks for direct error_log() calls, not conditionally called ones
-        // error_log($formatted_message);
     }
 }//end odcm_critical_log()
 
 
 /**
- * Get the Global OptionRegistry Instance - Central Hub for Entitlement-Aware Options
+ * Get the Global OptionRegistry Instance - Central Hub for Options
  *
  * This function provides global access to the OptionRegistry singleton instance,
- * which serves as the central hub for all triggers, conditions, and actions in
- * the entitlement system. It implements the singleton pattern to ensure all
- * parts of the plugin work with the same registry data.
+ * which serves as the central hub for all triggers, conditions, and actions.
+ * It implements the singleton pattern to ensure all parts of the plugin work
+ * with the same registry data.
  *
  * ARCHITECTURAL ROLE:
  * ==================
- * 
- * The OptionRegistry is the cornerstone of the plugin's entitlement-aware
- * architecture. It bridges the gap between:
- * 
+ *
+ * The OptionRegistry is the cornerstone of the plugin's architecture. It bridges
+ * the gap between:
+ *
  * 1. Option Registration (options.php) - Where features are defined
- * 2. Entitlement Checking (odcm_can_use()) - Where access is controlled
- * 3. UI Rendering (MetaBox.php) - Where features are displayed
- * 4. Business Logic (Executor.php) - Where features are executed
- * 
+ * 2. UI Rendering (MetaBox.php) - Where features are displayed
+ * 3. Business Logic (Executor.php) - Where features are executed
+ *
  * SINGLETON PATTERN:
  * =================
- * 
+ *
  * Uses static variable to ensure only one registry instance exists throughout
  * the plugin lifecycle. This guarantees:
  * - Consistent data across all plugin components
  * - No duplicate registrations
  * - Efficient memory usage
  * - Predictable behavior
- * 
+ *
  * USAGE PATTERNS:
  * ==============
- * 
+ *
  * 1. Option Registration (typically in options.php):
  *    $registry = odcm_get_registry_instance();
  *    $registry->register_condition([...]);
- * 
+ *
  * 2. UI Rendering (typically in MetaBox.php):
  *    $registry = odcm_get_registry_instance();
  *    $conditions = $registry->get_conditions();
- * 
+ *
  * 3. Feature Validation (anywhere in the plugin):
  *    $registry = odcm_get_registry_instance();
  *    $triggers = $registry->get_triggers();
- * 
- * INTEGRATION WITH ENTITLEMENT SYSTEM:
- * ====================================
- * 
- * The registry works seamlessly with the entitlement system:
- * - Each registered option has a capability key
- * - UI components use odcm_can_use() to check access
- * - Features are dynamically shown/hidden based on user license
- * - No code changes needed when user upgrades
- * 
+ *
  * PERFORMANCE CONSIDERATIONS:
  * ==========================
- * 
+ *
  * - Singleton pattern prevents multiple instantiations
  * - Registry data is stored in memory (no database queries)
  * - Options are registered once during plugin initialization
  * - Retrieval operations are simple array access (O(1))
- * 
- * THREAD SAFETY:
- * =============
- * 
- * WordPress is single-threaded, so no additional synchronization is needed.
- * The static variable provides sufficient isolation for the singleton pattern.
  *
  * @since 1.0.0
  *
  * @return \OrderDaemon\CompletionManager\Core\OptionRegistry {
  *     The singleton OptionRegistry instance containing all registered options.
- *     
+ *
  *     The returned instance provides these methods:
  *     - register_trigger(array $args): void
- *     - register_condition(array $args): void  
+ *     - register_condition(array $args): void
  *     - register_action(array $args): void
  *     - get_triggers(): array
  *     - get_conditions(): array
@@ -616,34 +296,28 @@ function odcm_critical_log(string $message): void
  *     'id'              => 'my_condition',
  *     'label'           => __('My Condition', 'domain'),
  *     'description'     => __('A custom condition.', 'domain'),
- *     'capability'      => 'condition_my_condition',
  *     'render_callback' => [$this, 'render_my_condition'],
  * ]);
- * 
- * // UI rendering - get options and render based on entitlements
+ *
+ * // UI rendering - get options and render
  * $registry = odcm_get_registry_instance();
  * $conditions = $registry->get_conditions();
- * 
+ *
  * foreach ($conditions as $condition) {
- *     if (odcm_can_use($condition['capability'])) {
- *         // User can access this condition
- *         echo '<input type="radio" value="' . esc_attr($condition['id']) . '">';
- *         echo esc_html($condition['label']);
- *     } else {
- *         // Show as premium feature
- *         echo '<span class="premium">' . esc_html($condition['label']) . ' (Premium)</span>';
- *     }
+ *     // User can access this condition
+ *     echo '<input type="radio" value="' . esc_attr($condition['id']) . '">';
+ *     echo esc_html($condition['label']);
  * }
- * 
+ *
  * // Validation - check if a specific option exists
  * $registry = odcm_get_registry_instance();
  * $triggers = $registry->get_triggers();
- * 
+ *
  * if (isset($triggers['my_trigger'])) {
  *     // Trigger is registered and available
  *     $trigger_data = $triggers['my_trigger'];
  * }
- * 
+ *
  * // Multiple calls return the same instance (singleton)
  * $registry1 = odcm_get_registry_instance();
  * $registry2 = odcm_get_registry_instance();
@@ -664,78 +338,60 @@ function odcm_get_registry_instance(): \OrderDaemon\CompletionManager\Core\Optio
 
 
 /**
- * Get the Global FilterRegistry Instance - Central Hub for Entitlement-Aware Audit Log Filters
+ * Get the Global FilterRegistry Instance - Central Hub for Audit Log Filters
  *
  * This function provides global access to the FilterRegistry singleton instance,
- * which serves as the central hub for all audit log filters in the entitlement
- * system. It implements the singleton pattern to ensure all parts of the plugin
+ * which serves as the central hub for all audit log filters.
+ * It implements the singleton pattern to ensure all parts of the plugin
  * work with the same registry data.
  *
  * ARCHITECTURAL ROLE:
  * ==================
- * 
- * The FilterRegistry is a specialized component of the plugin's entitlement-aware
- * architecture. It bridges the gap between:
- * 
+ *
+ * The FilterRegistry is a specialized component of the plugin's architecture. It bridges the gap between:
+ *
  * 1. Filter Registration (audit-filters.php) - Where filters are defined
- * 2. Entitlement Checking (odcm_can_use()) - Where access is controlled
- * 3. UI Rendering (AuditTrailListTable.php) - Where filters are displayed
- * 4. Query Processing (get_logs()) - Where filters are applied
- * 
+ * 2. UI Rendering - Where filters are displayed
+ * 3. Query Processing (get_logs()) - Where filters are applied
+ *
  * SINGLETON PATTERN:
  * =================
- * 
+ *
  * Uses static variable to ensure only one registry instance exists throughout
  * the plugin lifecycle. This guarantees:
  * - Consistent filter data across all plugin components
  * - No duplicate filter registrations
  * - Efficient memory usage
  * - Predictable behavior
- * 
+ *
  * USAGE PATTERNS:
  * ==============
- * 
+ *
  * 1. Filter Registration (typically in audit-filters.php):
  *    $registry = odcm_get_filter_registry_instance();
  *    $registry->register_filter([...]);
- * 
- * 2. UI Rendering (typically in AuditTrailListTable.php):
+ *
+ * 2. UI Rendering:
  *    $registry = odcm_get_filter_registry_instance();
  *    $filters = $registry->get_filters();
- * 
- * 3. Feature Validation (anywhere in the plugin):
+ *
+ * 3. Feature Validation:
  *    $registry = odcm_get_filter_registry_instance();
  *    $date_filter = $registry->get_filter('date_range');
- * 
- * INTEGRATION WITH ENTITLEMENT SYSTEM:
- * ====================================
- * 
- * The registry works seamlessly with the entitlement system:
- * - Each registered filter has a capability key and tier designation
- * - UI components use odcm_can_use() to check access
- * - Filters are dynamically enabled/disabled based on user license
- * - Premium filters show PREMIUM badges when user lacks access
- * - No code changes needed when user upgrades
- * 
+ *
  * PERFORMANCE CONSIDERATIONS:
  * ==========================
- * 
+ *
  * - Singleton pattern prevents multiple instantiations
  * - Registry data is stored in memory (no database queries)
  * - Filters are registered once during plugin initialization
  * - Retrieval operations are simple array access (O(1))
- * 
- * THREAD SAFETY:
- * =============
- * 
- * WordPress is single-threaded, so no additional synchronization is needed.
- * The static variable provides sufficient isolation for the singleton pattern.
  *
  * @since 1.0.0
  *
  * @return \OrderDaemon\CompletionManager\Core\FilterRegistry {
  *     The singleton FilterRegistry instance containing all registered filters.
- *     
+ *
  *     The returned instance provides these methods:
  *     - register_filter(array $args): void
  *     - get_filters(): array
@@ -751,45 +407,29 @@ function odcm_get_registry_instance(): \OrderDaemon\CompletionManager\Core\Optio
  * $registry->register_filter([
  *     'id'              => 'date_range',
  *     'label'           => __('Date Range', 'domain'),
- *     'tier'            => 'premium',
- *     'capability'      => 'audit_log_filter_advanced',
  *     'render_callback' => [$this, 'render_date_range_filter'],
  * ]);
- * 
- * // UI rendering - get filters and render based on entitlements
+ *
+ * // UI rendering - get filters and render
  * $registry = odcm_get_filter_registry_instance();
  * $filters = $registry->get_filters();
- * 
+ *
  * foreach ($filters as $filter) {
- *     $has_permission = odcm_can_use($filter['capability']);
- *     
  *     echo '<div class="filter-container">';
- *     echo '<label>' . esc_html($filter['label']);
- *     
- *     if ($filter['tier'] === 'premium') {
- *         echo ' <span class="premium-badge">PREMIUM</span>';
- *     }
- *     
- *     echo '</label>';
- *     
- *     // Call the render callback with permission status
- *     call_user_func($filter['render_callback'], $has_permission);
- *     
+ *     echo '<label>' . esc_html($filter['label']) . '</label>';
+ *     // Call the render callback
+ *     call_user_func($filter['render_callback']);
  *     echo '</div>';
  * }
- * 
+ *
  * // Validation - check if a specific filter exists
  * $registry = odcm_get_filter_registry_instance();
- * 
+ *
  * if ($registry->has_filter('date_range')) {
  *     // Date range filter is available
  *     $filter = $registry->get_filter('date_range');
  * }
- * 
- * // Get filters by tier for separate rendering
- * $free_filters = $registry->get_filters_by_tier('free');
- * $premium_filters = $registry->get_filters_by_tier('premium');
- * 
+ *
  * // Multiple calls return the same instance (singleton)
  * $registry1 = odcm_get_filter_registry_instance();
  * $registry2 = odcm_get_filter_registry_instance();
@@ -818,35 +458,35 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *
  * REGISTRY INTEGRATION:
  * ====================
- * 
+ *
  * This function works exclusively with events defined in odcm_get_log_event_types().
  * It validates the event slug against the registry and uses the event's metadata
  * to generate consistent log entries with proper categorization and formatting.
- * 
+ *
  * DEBUG MODE INTEGRATION:
  * ======================
- * 
+ *
  * Events with category 'debug' are only logged when ODCM_DEBUG is true. This
  * prevents verbose developer logging from cluttering production audit trails
  * while maintaining full debugging capabilities during development.
- * 
+ *
  * DYNAMIC SUMMARY GENERATION:
  * ===========================
- * 
+ *
  * Uses sprintf() with the event's summary_template to generate dynamic summaries
  * from context data. This ensures consistent messaging while allowing for
  * contextual information like order IDs, rule names, etc.
- * 
+ *
  * ASYNCHRONOUS PROCESSING:
  * =======================
- * 
+ *
  * Delegates to the existing odcm_log_event() function to maintain compatibility
  * with the current Action Scheduler-based asynchronous logging architecture.
  * This preserves performance while adding the new registry-based structure.
- * 
+ *
  * SECURITY CONSIDERATIONS:
  * =======================
- * 
+ *
  * - Event slugs are validated against a known registry (no injection risk)
  * - Context data is passed through existing sanitization in odcm_log_event()
  * - Debug mode check prevents information leakage in production
@@ -857,7 +497,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @param string $event_slug {
  *     The unique event identifier that must exist in the event registry.
  *     Must match a key in the array returned by odcm_get_log_event_types().
- *     
+ *
  *     Examples:
  *     - 'order_completed'
  *     - 'rule_matched'
@@ -867,14 +507,14 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @param array $context_data {
  *     Associative array of data used to populate the summary template and
  *     provide additional context for the log entry.
- *     
+ *
  *     Common keys:
  *     - 'order_id': (int) WooCommerce order ID
  *     - 'rule_name': (string) Name of the completion rule
  *     - 'error_message': (string) Error details for failure events
  *     - 'user_id': (int) WordPress user ID
  *     - 'payload': (array) Additional structured data
- *     
+ *
  *     The array values are used with sprintf() to populate the summary template.
  *     Order matters - values are used positionally with template placeholders.
  * }
@@ -892,7 +532,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'success',
  *     'order_completed'
  * );
- * 
+ *
  * // Log a rule match with context
  * odcm_log_event(
  *     'Order #456 matched completion rule: Virtual Products Auto-Complete',
@@ -901,7 +541,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'info',
  *     'rule_matched'
  * );
- * 
+ *
  * // Debug event
  * odcm_log_event(
  *     'Starting order check process for order #789',
@@ -910,7 +550,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'debug',
  *     'process_order_check_start'
  * );
- * 
+ *
  * // Basic event logging
  * $result = odcm_log_event('Custom plugin action completed');
  * // Result: true (if Action Scheduler is available)
@@ -927,7 +567,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *
  * DESIGN PHILOSOPHY:
  * =================
- * 
+ *
  * This function is designed to be the public face of the logging system for
  * external developers. It prioritizes:
  * - Simplicity: Clear, intuitive parameter structure
@@ -935,38 +575,38 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * - Validation: Robust input validation with sensible defaults
  * - Integration: Full access to the existing status registry
  * - Documentation: Comprehensive examples and usage patterns
- * 
+ *
  * STATUS REGISTRY INTEGRATION:
  * ===========================
- * 
+ *
  * Unlike the internal logging function, this API validates the status parameter
  * against the full status registry (odcm_get_log_statuses()). This ensures:
  * - Third-party events get proper UI styling and treatment
  * - Consistent status handling across all log entries
  * - Automatic fallback to 'info' for invalid statuses
  * - Full access to all available status types
- * 
+ *
  * CATEGORIZATION:
  * ==============
- * 
+ *
  * All events logged through this function are automatically assigned the
  * 'custom' log category. This enables:
  * - Clear distinction between plugin and third-party events
  * - Proper filtering and UI treatment
  * - Consistent audit trail organization
  * - Future extensibility for custom event management
- * 
+ *
  * ASYNCHRONOUS PROCESSING:
  * =======================
- * 
+ *
  * Like the internal logging function, this API delegates to odcm_log_event()
  * to maintain compatibility with the existing Action Scheduler-based
  * asynchronous logging architecture. This ensures consistent performance
  * and reliability regardless of the logging source.
- * 
+ *
  * SECURITY CONSIDERATIONS:
  * =======================
- * 
+ *
  * - All parameters are validated and sanitized
  * - Status validation prevents invalid CSS class injection
  * - Summary text is passed through existing sanitization
@@ -978,13 +618,13 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @param string $summary {
  *     A brief, human-readable summary of the event.
  *     This will be displayed as the main log entry text in the audit trail.
- *     
+ *
  *     Guidelines:
  *     - Keep concise but descriptive (recommended: 50-100 characters)
  *     - Use active voice ("User updated settings" vs "Settings were updated")
  *     - Include relevant context (order IDs, user names, etc.)
  *     - Avoid sensitive information (passwords, API keys, etc.)
- *     
+ *
  *     Examples:
  *     - "Custom integration processed order #123"
  *     - "Third-party plugin updated customer data"
@@ -993,14 +633,14 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @param array|null $payload {
  *     Optional associative array of additional structured data related to the event.
  *     This data is stored separately and can be viewed in the audit trail details.
- *     
+ *
  *     Common use cases:
  *     - API response data
  *     - Configuration changes
  *     - Error details and stack traces
  *     - Performance metrics
  *     - Integration-specific metadata
- *     
+ *
  *     The payload will be JSON-encoded and stored in the payloads table.
  *     Avoid including large binary data or circular references.
  * }
@@ -1008,7 +648,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     Optional WooCommerce order ID to associate with this event.
  *     When provided, the event will appear in order-specific audit trail views
  *     and can be filtered by order ID in the admin interface.
- *     
+ *
  *     Use cases:
  *     - Order processing events
  *     - Payment gateway interactions
@@ -1019,7 +659,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     The status/severity level of the event. Must be a valid status from the
  *     status registry (odcm_get_log_statuses()). Invalid statuses will be
  *     automatically converted to 'info' with a warning logged.
- *     
+ *
  *     Available statuses:
  *     - 'success': Successful operations, completions
  *     - 'error': Failures, exceptions, critical issues
@@ -1035,12 +675,12 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  * @param string|null $event_type {
  *     Optional custom event type identifier for categorization and filtering.
  *     If not provided, defaults to 'custom_event' for generic third-party events.
- *     
+ *
  *     Naming conventions:
  *     - Use lowercase with underscores: 'my_plugin_sync'
  *     - Include plugin/integration name: 'mailchimp_subscriber_update'
  *     - Be descriptive but concise: 'payment_gateway_webhook'
- *     
+ *
  *     This field is used for:
  *     - Filtering events in the admin interface
  *     - Grouping related events
@@ -1063,7 +703,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     123, // order_id
  *     'success'
  * );
- * 
+ *
  * // Full usage with all parameters
  * odcm_log_event(
  *     'External API sync completed',
@@ -1077,7 +717,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'success',
  *     'external_api_sync'
  * );
- * 
+ *
  * // Error logging with details
  * odcm_log_event(
  *     'Failed to connect to external service',
@@ -1091,7 +731,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'error',
  *     'inventory_sync_error'
  * );
- * 
+ *
  * // Integration-specific event
  * odcm_log_event(
  *     'MailChimp subscriber updated',
@@ -1105,7 +745,7 @@ function odcm_get_filter_registry_instance(): \OrderDaemon\CompletionManager\Cor
  *     'success',
  *     'mailchimp_subscriber_update'
  * );
- * 
+ *
  * // Warning with custom event type
  * odcm_log_event(
  *     'Deprecated API endpoint used',
@@ -1131,7 +771,7 @@ function odcm_log_event(
     ?string $parent_event_type = null
 ): bool {
     global $wpdb;
-    
+
     // Guard clause - ensure Action Scheduler is available
     if (!function_exists('as_enqueue_async_action')) {
         return false;
@@ -1154,10 +794,10 @@ function odcm_log_event(
         $components = $data['components'];
     } else {
         $level = in_array($status, ['error','warning','info','debug','success'], true) ? $status : 'info';
-        if ($level === 'success') { 
-            $level = 'info'; 
+        if ($level === 'success') {
+            $level = 'info';
         }
-        
+
         $components = [[
             'k' => odcm_component_key(),
             'event_type' => $event_type,
@@ -1167,14 +807,14 @@ function odcm_log_event(
             'data' => $data,
         ]];
     }
-    
+
     // If rawData is already provided in the data, use it directly.
     // Otherwise, check if it's nested somewhere we can extract it from.
     $rawData = null;
     if (isset($data['rawData']) && is_array($data['rawData']) && !empty($data['rawData'])) {
         $rawData = $data['rawData'];
     }
-    
+
     $envelope = [
         'type' => 'event',
         'cid' => ($order_id ? (string)$order_id : 'na') . ':' . time(),
@@ -1189,12 +829,12 @@ function odcm_log_event(
         'summary' => $summary,
         'components' => $components,
     ];
-    
+
     // Add rawData to envelope if present
     if ($rawData !== null) {
         $envelope['rawData'] = $rawData;
     }
-    
+
     // Prepare full event data
     $event_data = [
         'summary' => $summary,
@@ -1208,28 +848,28 @@ function odcm_log_event(
         'data' => $data,
         'parent_event_type' => $parent_event_type,
     ];
-    
+
     // Add process ID if provided or auto-detect
     if ($process_id) {
         $event_data['process_id'] = $process_id;
     } else {
         $event_data = odcm_maybe_add_process_id($event_data);
     }
-    
+
     // Generate unique queue ID
     $queue_id = uniqid('odcm_log_', true);
-    
+
     // Check if this event has already been queued to prevent duplicates
     $duplicate_prevention_key = 'odcm_event_queue_' . md5($queue_id . wp_json_encode($event_data));
-    
+
     // Try to get from cache first
     $already_queued = wp_cache_get($duplicate_prevention_key);
-    
+
     // If not already queued or cached, proceed with storing in queue table
     if (false === $already_queued) {
         // Set a short-lived lock to prevent duplicate inserts during high concurrency
         wp_cache_set($duplicate_prevention_key, 'queuing', '', 60); // 1 minute lock
-        
+
         // PHASE 1: Store in queue table
         $queue_result = odcm_insert_audit_log_queue_entry(
             $queue_id,
@@ -1237,14 +877,14 @@ function odcm_log_event(
             $event_data['timestamp'],
             'pending'
         );
-        
+
         if ($queue_result === false) {
             // Release lock on failure
             wp_cache_delete($duplicate_prevention_key);
             odcm_log_message("Failed to queue log entry: " . $wpdb->last_error, 'error');
             return false;
         }
-        
+
         // Cache the successfully queued event to prevent duplicates
         // Use a longer cache time to prevent duplicate processing during high load
         wp_cache_set($duplicate_prevention_key, 'queued', '', defined('HOUR_IN_SECONDS') ? HOUR_IN_SECONDS : 3600);
@@ -1256,26 +896,26 @@ function odcm_log_event(
         }
         return true; // Return true as this is not a failure case
     }
-    
+
     // PHASE 2: Schedule background processing
     $action_id = as_enqueue_async_action(
         'odcm_process_queued_log_entry',
         ['queue_id' => $queue_id],  // Tiny! Always under 180 bytes
         'odcm-logs'
     );
-    
+
     if (!$action_id) {
         odcm_log_message("Failed to schedule queue processing for {$queue_id}", 'error');
         // Data is still in queue, will be picked up by cleanup job
         return false;
     }
-    
+
     // Debug logging
     $debug_enabled = (defined('ODCM_DEBUG') && ODCM_DEBUG) || get_option('odcm_dev_debug_override', 0);
     if ($debug_enabled) {
         odcm_log_message("Queued log entry {$queue_id} for processing (Action ID: {$action_id})", 'info');
     }
-    
+
     return true;
 }
 
@@ -1316,7 +956,7 @@ function odcm_get_log_statuses(): array
  * @param string $status Status string
  * @return int Status code
  */
-function odcm_encode_status(string $status): int 
+function odcm_encode_status(string $status): int
 {
     return \OrderDaemon\CompletionManager\Core\odcm_encode_status($status);
 }
@@ -1328,7 +968,7 @@ function odcm_encode_status(string $status): int
  * @param int $code Status code
  * @return string Status string
  */
-function odcm_decode_status(int $code): string 
+function odcm_decode_status(int $code): string
 {
     return \OrderDaemon\CompletionManager\Core\odcm_decode_status($code);
 }
@@ -1340,7 +980,7 @@ function odcm_decode_status(int $code): string
  * @param string $source Source string
  * @return int Source code
  */
-function odcm_encode_source(string $source): int 
+function odcm_encode_source(string $source): int
 {
     return \OrderDaemon\CompletionManager\Core\odcm_encode_source($source);
 }
@@ -1352,7 +992,7 @@ function odcm_encode_source(string $source): int
  * @param int $code Source code
  * @return string Source string
  */
-function odcm_decode_source(int $code): string 
+function odcm_decode_source(int $code): string
 {
     return \OrderDaemon\CompletionManager\Core\odcm_decode_source($code);
 }
@@ -1368,22 +1008,122 @@ function odcm_decode_source(int $code): string
  * @param int $max_length Maximum allowed character length (default: 60)
  * @return string Validated and potentially truncated summary
  */
-function odcm_validate_custom_summary(string $summary, int $max_length = 60): string 
+function odcm_validate_custom_summary(string $summary, int $max_length = 60): string
 {
     if (strlen($summary) <= $max_length) {
         return $summary;
     }
-    
+
     // Truncate with ellipsis, ensuring we don't break in the middle of a word
     $truncated = substr($summary, 0, $max_length - 3);
     $last_space = strrpos($truncated, ' ');
-    
+
     if ($last_space !== false && $last_space > $max_length * 0.8) {
         // If we have a space in the last 20% of the string, break there
         $truncated = substr($truncated, 0, $last_space);
     }
-    
+
     return $truncated . '...';
+}
+
+/**
+ * Get the plugin's uploads directory with fallback
+ *
+ * This function retrieves the path to the WordPress uploads directory. It uses
+ * wp_upload_dir() as the primary method. If that fails, it constructs the path
+ * using wp_content_dir() or the WP_CONTENT_DIR constant as fallbacks.
+ *
+ * @since 1.0.0 (Enhanced in 2.0.5)
+ * @return string The uploads directory path.
+ */
+function odcm_get_uploads_dir(): string {
+    static $cached_dir = null;
+    if ($cached_dir !== null) {
+        return $cached_dir;
+    }
+
+    $uploads = wp_upload_dir();
+    $basedir = '';
+
+    if (!empty($uploads['basedir'])) {
+        $basedir = $uploads['basedir'];
+    } else {
+        // Fallback to WordPress standard uploads directory
+        if (function_exists('wp_content_dir')) {
+            $content_dir = wp_content_dir();
+        } elseif (defined('WP_CONTENT_DIR')) {
+            $content_dir = WP_CONTENT_DIR;
+        } else {
+            // Last resort fallback
+            $content_dir = ABSPATH . 'wp-content';
+        }
+        $basedir = rtrim($content_dir, '/\\') . '/uploads';
+    }
+    
+    $cached_dir = wp_normalize_path($basedir);
+    
+    return $cached_dir;
+}
+
+/**
+ * Helper function to retrieve a backtrace with a limit and time budget.
+ *
+ * This function replaces direct calls to `debug_backtrace()` in performance‑critical
+ * code paths. It respects the configured `$limit` (maximum number of frames) and
+ * `$budget` (maximum execution time in milliseconds). If the backtrace generation
+ * exceeds the budget, the function returns `null` and logs a warning.
+ *
+ * @param int $limit  Maximum number of stack frames to capture.
+ * @param int $budget Maximum allowed time in milliseconds.
+ * @return array|null Backtrace array if within budget, otherwise `null`.
+ */
+function odcm_get_backtrace(int $limit, int $budget): ?array
+{
+    // Input validation
+    if (!is_int($limit) || $limit < 1 || $limit > 100) {
+        odcm_log_message('Invalid limit parameter for backtrace', 'error');
+        return null;
+    }
+
+    if (!is_int($budget) || $budget < 1 || $budget > 1000) {
+        odcm_log_message('Invalid budget parameter for backtrace', 'error');
+        return null;
+    }
+
+    // Use WordPress error logging
+    $error_log = odcm_get_database_logs();
+
+    if (empty($error_log)) {
+        return null;
+    }
+
+    // Filter recent errors within budget timeframe
+    $recent_errors = array_filter($error_log, function($log) use ($budget) {
+        $timestamp = strtotime($log['timestamp']);
+        $elapsed_ms = (microtime(true) - $timestamp) * 1000.0;
+        return $elapsed_ms <= $budget;
+    });
+
+    // Return limited results
+    return array_slice($recent_errors, 0, $limit);
+}
+
+/**
+ * Get the plugin's base directory
+ *
+ * @return string The plugin base directory path
+ */
+function odcm_get_plugin_dir(): string {
+    return plugin_dir_path(__FILE__);
+}
+
+/**
+ * Get the plugin's base URL
+ *
+ * @return string The plugin base URL
+ */
+function odcm_get_plugin_url(): string {
+    return plugin_dir_url(__FILE__);
 }
 
 /**
@@ -1420,7 +1160,7 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
     // Separate order IDs from other post IDs for HPOS compatibility
     $order_ids = [];
     $other_post_ids = [];
-    
+
     foreach ($post_ids as $post_id) {
         if (\OrderDaemon\CompletionManager\Includes\Utils\OrderTypeDetector::is_processable_order($post_id)) {
             $order_ids[] = $post_id;
@@ -1437,7 +1177,7 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
         if (!class_exists('OrderDaemon\\CompletionManager\\Includes\\Utils\\OrderMetaManager')) {
             require_once __DIR__ . '/Utils/OrderMetaManager.php';
         }
-        
+
         foreach ($order_ids as $order_id) {
             // For orders, get all meta keys. Since OrderMetaManager doesn't have a get_all_meta method,
             // we'll need to get the order object and extract all meta data
@@ -1475,7 +1215,6 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
 
     return $all_meta;
 }
-
 /**
  * Action Scheduler Args Column Readability Enhancement
  *
@@ -1486,54 +1225,54 @@ function odcm_get_post_meta_by_ids(array $post_ids): array
  *
  * REQUIREMENTS ANALYSIS:
  * =====================
- * 
+ *
  * Target Output Format:
  * <details>
  *   <summary>Order #96 completed successfully. event_data (click to expand)</summary>
  *   <pre><code>{
  *     "summary": "Order #96 completed successfully",
- *     "status": "success", 
+ *     "status": "success",
  *     "event_type": "order_completed",
  *     // ... formatted JSON payload
  *   }</code></pre>
  * </details>
- * 
+ *
  * SMART SUMMARY EXTRACTION:
  * ========================
- * 
+ *
  * 1. For event_data arrays: Extract event_data['summary'] field
  * 2. For simple args: Generate contextual summary (e.g., "Order #96")
  * 3. Fallback: Return original output unchanged (fail-safe)
- * 
+ *
  * COMPATIBILITY DESIGN:
  * ====================
- * 
+ *
  * This implementation is designed to play well with other plugins and Action Scheduler:
  * - Only processes actions that belong to our plugin (odcm_ prefix check)
  * - Returns original output unchanged for all other plugins' actions
  * - Uses defensive coding with proper row array validation
  * - Implements graceful fallbacks for edge cases
  * - No external dependencies (pure PHP + WordPress functions)
- * 
+ *
  * SECURITY CONSIDERATIONS:
  * =======================
- * 
+ *
  * - All output is properly escaped using esc_html() before rendering
  * - No user input is processed (only Action Scheduler internal data)
  * - Uses WordPress core functions for JSON encoding and escaping
  * - Inline styles are minimal and safe (no user-controlled content)
- * 
+ *
  * PERFORMANCE CONSIDERATIONS:
  * ==========================
- * 
+ *
  * - Early return for non-plugin actions (minimal overhead for other plugins)
  * - Efficient string prefix checking using strpos() === 0
  * - JSON formatting only applied when necessary
  * - No database queries or external API calls
- * 
+ *
  * PLUGIN PREFIX DETECTION:
  * =======================
- * 
+ *
  * The function checks for the 'odcm_' prefix which is used consistently
  * throughout the plugin for all scheduled actions:
  * - odcm_process_order_check (main order processing)
@@ -1615,12 +1354,12 @@ function odcm_format_as_args_column($output, $row) {
 
     // Format the arguments into a human-readable, indented JSON string
     $formatted_args = json_encode($args, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    
+
     // If JSON encoding failed, return original output
     if ($formatted_args === false) {
         return $output;
     }
-    
+
     // Escape the string for security before outputting
     $escaped_args = esc_html($formatted_args);
     $escaped_summary = esc_html($summary_text);
@@ -1633,7 +1372,7 @@ function odcm_format_as_args_column($output, $row) {
         $escaped_key_name,
         $escaped_args
     );
-    
+
     return $new_output;
 }
 
@@ -1654,7 +1393,7 @@ add_filter('action_scheduler_list_table_column_args', 'odcm_format_as_args_colum
  * @param array $event_data
  * @return array
  */
-function odcm_maybe_add_process_id(array $event_data): array 
+function odcm_maybe_add_process_id(array $event_data): array
 {
     // Must have an event_type
     if (empty($event_data['event_type'])) {
@@ -1775,13 +1514,6 @@ function odcm_component_key(string $suffix = null): string
 function odcm_insert_audit_log_queue_entry(string $queue_id, string $event_data, string $created_at, string $status = 'pending'): int|false
 {
     global $wpdb;
-
-    // Validate and sanitize input parameters
-    $status = sanitize_text_field($status);
-
-    // Ensure the table name is properly prefixed
-    $table_name = $wpdb->prefix . 'odcm_audit_log_queue';
-
     // Prepare data for insertion with proper sanitization
     $data = [
         'queue_id' => $queue_id,
@@ -1790,9 +1522,10 @@ function odcm_insert_audit_log_queue_entry(string $queue_id, string $event_data,
         'status' => $status
     ];
 
-    // Use WordPress's insert method with proper format specification
-    $result = $wpdb->insert(
-        $table_name,
+    // Use DatabaseHelper for database operations with proper error handling
+    $database_helper = \OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper::get_instance();
+    $result = $database_helper->insert(
+        $wpdb->prefix . 'odcm_audit_log_queue',
         $data,
         ['%s', '%s', '%s', '%s'] // Format: string, string, string, string
     );
@@ -1808,4 +1541,322 @@ function odcm_insert_audit_log_queue_entry(string $queue_id, string $event_data,
 
     // Return the number of rows inserted (should be 1 for successful insert)
     return $result;
+}
+
+/**
+ * Validate and sanitize JSON data
+ *
+ * @param string $json_string JSON string to validate
+ * @param bool $assoc Whether to return associative array
+ * @return array|object Validated and sanitized data
+ * @throws InvalidArgumentException If JSON is invalid
+ */
+function odcm_validate_and_sanitize_json(string $json_string, bool $assoc = true) {
+    // Validate JSON structure
+    if (!wp_json_validate($json_string)) {
+        throw new InvalidArgumentException('Invalid JSON data provided');
+    }
+
+    // Decode JSON
+    $data = json_decode($json_string, $assoc);
+
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new InvalidArgumentException('JSON decoding error: ' . esc_html(json_last_error_msg()));
+    }
+
+    // Sanitize decoded data
+    return odcm_sanitize_data($data);
+}
+
+/**
+ * Sanitize data recursively
+ *
+ * @param mixed $data Data to sanitize
+ * @return mixed Sanitized data
+ */
+function odcm_sanitize_data($data) {
+    if (is_array($data)) {
+        return array_map('odcm_sanitize_data', $data);
+    } elseif (is_string($data)) {
+        return sanitize_text_field($data);
+    } elseif (is_int($data)) {
+        return absint($data);
+    } elseif (is_float($data)) {
+        return floatval($data);
+    } elseif (is_bool($data)) {
+        return (bool) $data;
+    } else {
+        return $data;
+    }
+}
+
+/**
+ * Validate and sanitize specific parameters
+ *
+ * @param array $params Parameters to validate
+ * @param array $rules Validation rules
+ * @return array Validated and sanitized parameters
+ * @throws InvalidArgumentException If validation fails
+ */
+function odcm_validate_and_sanitize_params(array $params, array $rules): array {
+    $validated = [];
+
+    foreach ($rules as $param => $rule) {
+        if (!isset($params[$param])) {
+            if (isset($rule['required']) && $rule['required']) {
+                throw new InvalidArgumentException(esc_html__('Required parameter missing: $param', 'order-daemon'));
+            }
+            continue;
+        }
+
+        $value = $params[$param];
+
+        // Type validation
+        switch ($rule['type']) {
+            case 'string':
+                if (!is_string($value)) {
+                    throw new InvalidArgumentException(esc_html__('Parameter $param must be a string', 'order-daemon'));
+                }
+                $validated[$param] = sanitize_text_field($value);
+                break;
+
+            case 'integer':
+                if (!is_numeric($value)) {
+                    throw new InvalidArgumentException(esc_html__('Parameter $param must be an integer', 'order-daemon'));
+                }
+                $validated[$param] = absint($value);
+                break;
+
+            case 'boolean':
+                $validated[$param] = (bool) $value;
+                break;
+
+            case 'array':
+                if (!is_array($value)) {
+                    throw new InvalidArgumentException(esc_html__('Parameter $param must be an array', 'order-daemon'));
+                }
+                $validated[$param] = odcm_sanitize_data($value);
+                break;
+
+            default:
+                throw new InvalidArgumentException("Unknown validation type: " . esc_html($rule['type']));
+        }
+
+        // Additional validation rules
+        if (isset($rule['min']) && $validated[$param] < $rule['min']) {
+            /* translators: %s: parameter name, %s: minimum value */
+            throw new InvalidArgumentException(esc_html(sprintf(__('Parameter $param must be at least %s', 'order-daemon'), $rule['min'])));
+        }
+
+        if (isset($rule['max']) && $validated[$param] > $rule['max']) {
+            /* translators: %s: parameter name, %s: maximum value */
+            throw new InvalidArgumentException(esc_html(sprintf(__('Parameter $param must be at most %s', 'order-daemon'), $rule['max'])));
+        }
+    }
+
+    return $validated;
+}
+
+/**
+ * File Operation Utilities
+ * 
+ * These functions provide secure, validated file operations for the plugin.
+ * They replace direct file operations with proper validation and error handling.
+ */
+
+/**
+ * Validate a file path for security
+ *
+ * Ensures the path is safe for file operations by checking for directory traversal
+ * and other security issues.
+ *
+ * @since 2.0.5
+ * @param string $path The file path to validate
+ * @return bool True if path is safe, false otherwise
+ */
+function odcm_validate_file_path(string $path): bool {
+    // Normalize the path
+    $normalized = wp_normalize_path($path);
+    
+    // Check for directory traversal attempts
+    if (strpos($normalized, '../') !== false || strpos($normalized, '..\\') !== false) {
+        return false;
+    }
+    
+    // Check for absolute paths outside allowed directories
+    $allowed_dirs = [
+        wp_upload_dir()['basedir'],
+        wp_content_dir(),
+        ABSPATH,
+        plugin_dir_path(__FILE__),
+    ];
+    
+    foreach ($allowed_dirs as $allowed_dir) {
+        $allowed_dir = wp_normalize_path($allowed_dir);
+        if (strpos($normalized, $allowed_dir) === 0) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Safe file put contents with validation
+ *
+ * A wrapper for file_put_contents that includes proper validation and error handling.
+ * Follows WordPress security best practices.
+ *
+ * @since 2.0.5
+ * @param string $filename The filename to write to
+ * @param mixed $data The data to write
+ * @param int $flags Flags for file_put_contents
+ * @param resource $context Stream context
+ * @return int|false The number of bytes written, or false on failure
+ */
+function odcm_safe_file_put_contents(string $filename, $data, int $flags = 0, $context = null) {
+    // $context is retained for backward‑compatibility but is ignored because WP_Filesystem does not support it.
+    // Validate the file path
+    if (!odcm_validate_file_path($filename)) {
+        odcm_critical_log("Invalid file path attempted: " . esc_html($filename));
+        return false;
+    }
+    
+    // Ensure the directory exists and is writable
+    $directory = dirname($filename);
+    global $wp_filesystem;
+    if (empty($wp_filesystem)) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        WP_Filesystem();
+    }
+    if (!is_dir($directory) || !$wp_filesystem->is_writable($directory)) {
+        odcm_critical_log("Directory not writable or doesn't exist: " . esc_html($directory));
+        return false;
+    }
+    
+    // Use WordPress error logging for failures
+    // $context is retained for backward‑compatibility but is ignored because WP_Filesystem does not support it.
+    $result = $wp_filesystem->put_contents($filename, $data, $flags);
+    
+    if ($result === false) {
+        odcm_critical_log("Failed to write to file: " . esc_html($filename));
+        return false;
+    }
+    
+    return $result;
+}
+
+/**
+ * Ensure a directory exists and is writable
+ *
+ * Creates the directory if it doesn't exist and verifies it's writable.
+ * Uses WordPress directory creation functions.
+ *
+ * @since 2.0.5
+ * @param string $directory The directory path
+ * @return bool True if directory exists and is writable, false otherwise
+ */
+function odcm_ensure_directory_writable(string $directory): bool {
+    // Normalize the path
+    $directory = wp_normalize_path($directory);
+    
+    // Check if directory exists
+    if (!is_dir($directory)) {
+        // Try to create the directory
+        if (!wp_mkdir_p($directory)) {
+            odcm_critical_log("Failed to create directory: " . esc_html($directory));
+            return false;
+        }
+    }
+    
+    // Initialize WP_Filesystem if needed
+    global $wp_filesystem;
+    if (empty($wp_filesystem)) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        WP_Filesystem();
+    }
+    
+    // Check if directory is writable using WP_Filesystem
+    if (! $wp_filesystem->is_writable($directory)) {
+        odcm_critical_log("Directory is not writable: " . esc_html($directory));
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Get a safe debug file path
+ *
+ * Returns a validated debug file path within the uploads directory.
+ * Ensures the directory exists and is writable.
+ *
+ * @since 2.0.5
+ * @return string The safe debug file path
+ */
+function odcm_get_safe_debug_file_path(): string {
+    $uploads_dir = odcm_get_uploads_dir();
+    $debug_dir = $uploads_dir . '/order-daemon-debug';
+    
+    // Ensure the debug directory exists and is writable
+    if (!odcm_ensure_directory_writable($debug_dir)) {
+        // Fallback to uploads directory
+        return $uploads_dir . '/debug.log';
+    }
+    
+    return $debug_dir . '/debug.log';
+}
+
+/**
+ * Get the WordPress content directory using WordPress function
+ *
+ * Wrapper for wp_content_dir() with proper fallback handling using our helper methods.
+ *
+ * @since 2.0.5
+ * @return string The content directory path
+ */
+function odcm_get_content_dir(): string {
+    if (function_exists('wp_content_dir')) {
+        return wp_normalize_path(trailingslashit(wp_content_dir()));
+    }
+    
+    // Fallback to uploads directory parent (since uploads is typically in wp-content)
+    $uploads_dir = odcm_get_uploads_dir();
+    $content_dir = dirname($uploads_dir);
+    
+    // If uploads is not in wp-content, fall back to ABSPATH
+    if (basename($content_dir) !== 'wp-content') {
+        $content_dir = wp_normalize_path(trailingslashit(ABSPATH . 'wp-content'));
+    }
+    
+    return $content_dir;
+}
+
+/**
+ * Get the plugin's cache directory
+ *
+ * Returns a dedicated cache directory for the plugin with proper validation.
+ *
+ * @since 2.0.5
+ * @return string The cache directory path
+ */
+function odcm_get_cache_directory(): string {
+    static $cached_dir = null;
+    
+    if ($cached_dir !== null) {
+        return $cached_dir;
+    }
+    
+    $uploads_dir = odcm_get_uploads_dir();
+    $cache_dir = $uploads_dir . '/order-daemon-cache';
+    
+    // Ensure the cache directory exists and is writable
+    if (odcm_ensure_directory_writable($cache_dir)) {
+        $cached_dir = $cache_dir;
+    } else {
+        // Fallback to uploads directory
+        $cached_dir = $uploads_dir;
+    }
+    
+    return $cached_dir;
 }

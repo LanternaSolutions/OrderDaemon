@@ -681,7 +681,7 @@
 
 /* Button-style Radio Groups */
 .odcm-button-radio-group {
-    display: flex;
+    display: block;
     border: 1px solid var(--odcm-component-border-color);
     border-radius: var(--odcm-component-border-radius);
     overflow: hidden;
@@ -776,89 +776,6 @@
 
 .odcm-checkbox-label.odcm-disabled:hover {
     background-color: transparent;
-}
-
-/* ==========================================================================
-   PREMIUM BADGE EXTENSIONS FOR RULE BUILDER
-   ========================================================================== */
-
-/* Extend the existing shared premium badge for inline use in searchable lists */
-.odcm-premium-badge--inline {
-    position: static;
-    margin-left: auto;
-    flex-shrink: 0;
-    /* Inherit all other styles from the shared .odcm-premium-badge class */
-}
-
-/* Premium badge in component summaries */
-.odcm-premium-badge--summary {
-    display: inline-block;
-    padding: 0.25em 0.6em;
-    font-size: var(--odcm-theme-font-size-xs);
-    border-radius: var(--odcm-component-border-radius);
-    background-color: var(--odcm-theme-grey-600);
-    color: var(--odcm-theme-white);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: calc(var(--odcm-theme-spacing-xs) / 8);
-    margin-left: var(--odcm-theme-spacing-sm);
-    vertical-align: middle;
-}
-
-/* Override the shared premium badge color for middle grey in rule builder context */
-.odcm-searchable-list .odcm-premium-badge,
-.odcm-checkbox-label .odcm-premium-badge {
-    background: var(--odcm-theme-grey-600);
-    color: var(--odcm-theme-white);
-}
-
-/* Checkbox Content Layout for Premium Pills */
-.odcm-checkbox-content {
-    display: flex;
-    justify-content: space-between; /* Space between text and badge */
-    width: 100%;
-    min-width: 0; /* Allow text to shrink */
-}
-
-.odcm-checkbox-text {
-    flex: 1;
-    min-width: 0; /* Allow text to shrink */
-    text-align: left; /* Ensure text stays left-aligned */
-    margin-right: 8px;
-}
-
-.odcm-checkbox-content .odcm-premium-badge--inline {
-    margin-left: auto; /* Push premium badge to the right when present */
-    margin-right: 0;
-    flex-shrink: 0;
-}
-
-/* More specific selectors to override any inherited centering */
-.odcm-searchable-checkboxes .odcm-checkbox-label {
-    text-align: left;
-}
-
-.odcm-searchable-checkboxes .odcm-checkbox-content {
-    display: flex;
-    justify-content: space-between;
-    text-align: left;
-}
-
-.odcm-searchable-checkboxes .odcm-checkbox-text {
-    text-align: left;
-    flex: 1;
-    min-width: 0;
-}
-
-/* Override any WordPress admin centering styles */
-.odcm-settings-panel .odcm-searchable-checkboxes .odcm-checkbox-label,
-.odcm-settings-panel .odcm-searchable-checkboxes .odcm-checkbox-content,
-.odcm-settings-panel .odcm-searchable-checkboxes .odcm-checkbox-text {
-    text-align: left;
-}
-
-.odcm-settings-panel .odcm-searchable-checkboxes .odcm-checkbox-content {
-    justify-content: space-between;
 }
 
 /* ==========================================================================
@@ -1644,7 +1561,7 @@
 }
 
 .odcm-rule-row.odcm-component-inaccessible .odcm-component-summary::after {
-    content: "🔒 REQUIRES PRO";
+    content: "UNKNOWN COMPONENT";
     background: var(--odcm-theme-grey-600);
     color: var(--odcm-theme-white);
     padding: 2px 6px;
@@ -1664,4 +1581,413 @@
 .odcm-rule-row.odcm-component-inaccessible:hover::after {
     opacity: 0;
     display: none;
+}
+
+/* ==========================================================================
+   CONDITIONAL FIELD RENDERING
+   ========================================================================== */
+
+/* Conditional field groups */
+.odcm-field-group {
+    border: 1px solid var(--odcm-theme-grey-200);
+    border-radius: var(--odcm-component-border-radius);
+    padding: var(--odcm-theme-spacing-sm);
+    margin-bottom: var(--odcm-theme-spacing-md);
+    background-color: var(--odcm-theme-white);
+    transition: all 0.2s ease;
+}
+
+.odcm-field-group-header {
+    font-weight: var(--odcm-theme-font-weight-str);
+    margin-bottom: var(--odcm-theme-spacing-xs);
+    color: var(--odcm-component-text-color-header);
+    font-size: var(--odcm-theme-font-size-md);
+    padding-bottom: var(--odcm-theme-spacing-xs);
+    border-bottom: 1px solid var(--odcm-theme-grey-200);
+}
+
+/* Non-conditional fields container */
+.odcm-non-conditional-fields {
+    margin-bottom: var(--odcm-theme-spacing-md);
+    padding-bottom: var(--odcm-theme-spacing-md);
+    border-bottom: 1px dashed var(--odcm-theme-grey-200);
+}
+
+/* Conditional field groups container */
+.odcm-conditional-field-groups {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-sm);
+}
+
+/* Smooth transitions for conditional groups */
+.odcm-field-group {
+    opacity: 1;
+    max-height: 1000px;
+    overflow: hidden;
+    transition: opacity 0.3s ease, max-height 0.3s ease;
+}
+
+.odcm-field-group[style*="display: none"] {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+}
+
+/* Visual grouping improvements */
+.odcm-settings-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-form-group {
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+/* Horizontal field groups for related options */
+.odcm-horizontal-field-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--odcm-theme-spacing-sm);
+    align-items: flex-end;
+    width: 100%;
+}
+
+.odcm-horizontal-field-group .odcm-form-group {
+    flex: 1;
+    min-width: 150px;
+    margin-bottom: 0;
+}
+
+/* Ensure inline group containers display horizontally */
+.odcm-horizontal-field-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--odcm-theme-spacing-md);
+    align-items: center;
+    width: 100%;
+}
+
+/* Make sure fields within horizontal groups don't wrap */
+.odcm-horizontal-field-group > * {
+    flex: 1;
+    min-width: 120px;
+    margin-bottom: 0;
+}
+
+/* Specific styling for date and time pickers in horizontal groups */
+.odcm-horizontal-field-group .odcm-date-picker,
+.odcm-horizontal-field-group .odcm-time-picker {
+    min-width: 160px;
+    max-width: 200px;
+}
+
+/* Specific styling for number inputs in horizontal groups */
+.odcm-horizontal-field-group .odcm-number-input {
+    min-width: 80px;
+    max-width: 120px;
+    text-align: center;
+}
+
+/* Flexible width for number inputs in horizontal groups */
+.odcm-horizontal-field-group .odcm-form-input[type="number"] {
+    width: auto;
+    min-width: 100px;
+}
+
+/* Specific styling for inline groups to ensure proper horizontal layout */
+.odcm-inline-group {
+    display: inline-flex;
+    flex-direction: column;
+    min-width: 120px;
+    max-width: 250px;
+    margin-right: var(--odcm-theme-spacing-md);
+    margin-bottom: var(--odcm-theme-spacing-sm);
+    vertical-align: top;
+}
+
+/* Ensure inline groups within horizontal containers work correctly */
+.odcm-horizontal-field-group .odcm-inline-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 100px;
+    margin-right: 0;
+    margin-bottom: 0;
+}
+
+/* Debug styling to make inline groups more visible during development */
+.odcm-inline-group--absolute_date {
+    border: 1px dashed #ccc;
+    padding: 5px;
+}
+
+.odcm-inline-group--relative_inputs {
+    border: 1px dashed #ccc;
+    padding: 5px;
+}
+
+.odcm-inline-group--date_range {
+    border: 1px dashed #ccc;
+    padding: 5px;
+}
+
+.odcm-inline-group--time_of_day {
+    border: 1px dashed #ccc;
+    padding: 5px;
+}
+
+/* Time range specific styling */
+.odcm-time-range-group {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-time-range-separator {
+    font-size: var(--odcm-theme-font-size-md);
+    color: var(--odcm-theme-grey-600);
+    font-weight: bold;
+}
+
+/* Date range specific styling */
+.odcm-date-range-group {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-date-range-separator {
+    font-size: var(--odcm-theme-font-size-md);
+    color: var(--odcm-theme-grey-600);
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* Conditional field group transitions */
+.odcm-field-group {
+    opacity: 1;
+    max-height: 1000px;
+    overflow: hidden;
+    transition: opacity 0.3s ease, max-height 0.3s ease;
+}
+
+.odcm-field-group[style*="display: none"] {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+}
+
+/* Ensure conditional groups have proper spacing */
+.odcm-conditional-field-groups {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-theme-spacing-md);
+}
+
+/* Active conditional group styling */
+.odcm-field-group.odcm-active {
+    border-color: var(--odcm-theme-blue-700);
+    background-color: var(--odcm-theme-blue-200);
+    box-shadow: 0 2px 4px rgba(0, 124, 186, 0.1);
+}
+
+/* Inactive conditional group styling */
+.odcm-field-group:not(.odcm-active) {
+    opacity: 0.7;
+    border-style: dashed;
+    border-color: var(--odcm-theme-grey-300);
+}
+
+/* ==========================================================================
+   DATE AND TIME PICKER WIDGETS
+   ========================================================================== */
+
+/* Date and Time Input Styling */
+.odcm-date-picker,
+.odcm-time-picker {
+    /* Standard input sizing */
+    min-width: 160px;
+    max-width: 200px;
+    padding: var(--odcm-theme-spacing-sm) var(--odcm-theme-spacing-md);
+    font-family: inherit;
+    font-size: var(--odcm-theme-font-size-md);
+    line-height: 1.4;
+    color: var(--odcm-component-text-color-body);
+    background-color: var(--odcm-theme-white);
+    border: 1px solid var(--odcm-theme-grey-300);
+    border-radius: var(--odcm-component-border-radius);
+    transition: var(--odcm-component-transition);
+}
+
+.odcm-date-picker:hover,
+.odcm-time-picker:hover {
+    border-color: var(--odcm-theme-grey-400);
+}
+
+.odcm-date-picker:focus,
+.odcm-time-picker:focus {
+    outline: none;
+    border-color: var(--odcm-theme-blue-700);
+    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.15);
+}
+
+/* Time picker specific - narrower */
+.odcm-time-picker {
+    min-width: 120px;
+    max-width: 140px;
+}
+
+/* Number input specific styling */
+.odcm-number-input {
+    min-width: 80px;
+    max-width: 120px;
+    text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .odcm-date-picker,
+    .odcm-time-picker {
+        width: 100%;
+        max-width: none;
+    }
+}
+
+/* ==========================================================================
+   INLINE FIELD GROUPS (Horizontal Layout)
+   ========================================================================== */
+
+/* Horizontal field group for related fields displayed side-by-side */
+.odcm-inline-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--odcm-theme-spacing-md);
+    align-items: flex-end;
+    margin-bottom: var(--odcm-theme-spacing-md);
+}
+
+.odcm-inline-fields .odcm-form-group {
+    flex: 1;
+    min-width: 120px;
+    max-width: 250px;
+    margin-bottom: 0;
+}
+
+/* Compact inline field groups */
+.odcm-inline-fields--compact {
+    gap: var(--odcm-theme-spacing-sm);
+}
+
+.odcm-inline-fields--compact .odcm-form-group {
+    min-width: 100px;
+    max-width: 180px;
+}
+
+/* Full width inline override */
+.odcm-inline-fields .odcm-form-group--full-width {
+    flex: 1 1 100%;
+    max-width: none;
+}
+
+/* Inline separator text (e.g., "to", "and") */
+.odcm-inline-separator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--odcm-theme-spacing-xs);
+    font-size: var(--odcm-theme-font-size-md);
+    color: var(--odcm-theme-grey-600);
+    font-weight: 500;
+    min-height: 36px; /* Match input height */
+}
+
+/* Inline field labels - smaller when in inline mode */
+.odcm-inline-fields .odcm-form-label {
+    font-size: var(--odcm-theme-font-size-sm);
+    margin-bottom: var(--odcm-theme-spacing-xxs);
+}
+
+/* Stack on mobile */
+@media (max-width: 480px) {
+    .odcm-inline-fields {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .odcm-inline-fields .odcm-form-group {
+        max-width: none;
+    }
+    
+    .odcm-inline-separator {
+        padding: var(--odcm-theme-spacing-xs) 0;
+        justify-content: flex-start;
+    }
+}
+
+/* ==========================================================================
+   INLINE GROUP LAYOUT (Dynamic Schema-Driven)
+   ========================================================================== */
+
+/* Base inline group styles */
+.odcm-form-group.odcm-inline-group {
+    display: inline-flex;
+    flex-direction: column;
+    min-width: 120px;
+    max-width: 250px;
+    margin-right: var(--odcm-theme-spacing-md);
+    margin-bottom: var(--odcm-theme-spacing-sm);
+    vertical-align: top;
+}
+
+/* Force consecutive inline groups to display horizontally using CSS */
+.odcm-settings-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--odcm-theme-spacing-sm);
+    align-items: flex-start;
+}
+
+/* Non-inline groups take full width */
+.odcm-settings-form > .odcm-form-group:not(.odcm-inline-group) {
+    flex: 1 1 100%;
+    max-width: 100%;
+}
+
+/* Inline groups share row space */
+.odcm-settings-form > .odcm-form-group.odcm-inline-group {
+    flex: 0 1 auto;
+}
+
+/* Specific inline group styling - relative time inputs */
+.odcm-inline-group--relative_inputs {
+    min-width: 80px;
+    max-width: 150px;
+}
+
+.odcm-inline-group--relative_inputs .odcm-form-input {
+    width: 100%;
+}
+
+/* Date range inline group */
+.odcm-inline-group--date_range {
+    min-width: 140px;
+    max-width: 200px;
+}
+
+/* Time of day inline group */
+.odcm-inline-group--time_of_day {
+    min-width: 100px;
+    max-width: 160px;
+}
+
+/* Responsive stacking */
+@media (max-width: 600px) {
+    .odcm-form-group.odcm-inline-group {
+        flex: 1 1 100%;
+        max-width: none;
+        margin-right: 0;
+    }
 }

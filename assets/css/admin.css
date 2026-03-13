@@ -20,7 +20,6 @@
     --odcm-color-bg-disabled: #f0f0f1;
     --odcm-color-bg-hover: #f1f1f1;
     --odcm-color-bg-selected: #f0f7ff;
-    --odcm-color-bg-premium: #eeeeee;
     --odcm-color-bg-payload-widget: #efe9e9;
     
     /* Text Colors */
@@ -210,30 +209,6 @@
     background-color: var(--odcm-color-bg-lighter); /* A subtle background to differentiate it */
 }
 
-/* Premium Features */
-.odcm-premium-badge {
-    display: inline-block;
-    background: #f0c33c;
-    color: #000;
-    font-size: 11px;
-    line-height: 1.2;
-    padding: 2px 6px;
-    border-radius: 3px;
-    margin-left: 5px;
-    font-weight: 600;
-    text-transform: uppercase;
-    vertical-align: middle;
-}
-
-.odcm-premium-option {
-    opacity: 0.75;
-    position: relative;
-    cursor: not-allowed;
-}
-
-.odcm-premium-option:hover {
-    opacity: 0.9;
-}
 /* Meta Box Container */
 .odcm-meta-box-container {
     margin: 15px 0;
@@ -443,101 +418,6 @@
     content: "";
     display: block;
     clear: both;
-}
-
-/* Premium Features */
-.odcm-premium-features {
-    margin-top: 30px;
-    padding: 15px;
-    background: #f9f9f9;
-    border: 1px solid #e5e5e5;
-    border-left: 4px solid #00a0d2;
-}
-
-.odcm-premium-features h4 {
-    margin-top: 0;
-    color: #23282d;
-}
-
-/* Premium Feature Container (New Style) */
-.odcm-premium-feature-container {
-    position: relative;
-    margin-bottom: 15px;
-    padding: 15px;
-    background: #f1f1f1;
-    border: 1px solid #e0e0e0;
-    border-radius: 3px;
-    opacity: 0.7;
-}
-
-.odcm-premium-feature-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.odcm-premium-feature-title {
-    font-weight: 600;
-    flex-grow: 1;
-}
-
-.odcm-premium-lock-icon {
-    margin-left: 5px;
-    color: #00a0d2;
-}
-
-.odcm-premium-feature-description {
-    margin-top: 10px;
-    padding: 10px;
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-}
-
-.odcm-premium-feature {
-    position: relative;
-    margin-bottom: 15px;
-    padding-bottom: 15px;
-    border-bottom: 1px dotted #e5e5e5;
-    opacity: 0.7;
-}
-
-.odcm-premium-feature:last-child {
-    margin-bottom: 0;
-    padding-bottom: 0;
-    border-bottom: none;
-}
-
-.odcm-premium-label {
-    display: block;
-    cursor: not-allowed;
-}
-
-.odcm-premium-label input {
-    margin-right: 5px;
-}
-
-.odcm-premium-badge {
-    display: inline-block;
-    margin-left: 10px;
-    padding: 2px 6px;
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1;
-    color: #fff;
-    background-color: #00a0d2;
-    border-radius: 3px;
-    text-transform: uppercase;
-}
-
-/* Premium features have descriptions directly below them */
-
-.odcm-premium-cta {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid #eee;
-    font-weight: 600;
-    color: #00a0d2;
 }
 
 /* Two-column layout for primary condition */

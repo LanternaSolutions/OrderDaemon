@@ -227,9 +227,7 @@ final class UniversalEvent
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $this->logDebugMessage("Processing idempotencyKey: " . $this->formatDebugValue($data['idempotencyKey'] ?? ''));
             }
-            $this->idempotencyKey = !empty($data['idempotencyKey']) 
-                ? sanitize_text_field((string) $data['idempotencyKey'])
-                : $this->generateIdempotencyKey();
+            $this->idempotencyKey = $this->validateIdempotencyKey($data['idempotencyKey'] ?? null);
                 
             // Sanitize raw data
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -441,6 +439,42 @@ final class UniversalEvent
     }
 
     /**
+     * Validate source gateway
+     * 
+     * @param string|null $sourceGateway
+     * @return string|null
+     * @throws \InvalidArgumentException
+     */
+    private function validateSourceGateway(?string $sourceGateway): ?string
+    {
+        if ($sourceGateway === null) {
+            return null;
+        }
+
+        $sanitized = sanitize_text_field($sourceGateway);
+        if ($sanitized === '') {
+            throw new \InvalidArgumentException('Source gateway cannot be empty');
+        }
+        return $sanitized;
+    }
+
+    /**
+     * Validate idempotency key
+     * 
+     * @param string|null $idempotencyKey
+     * @return string
+     * @throws \InvalidArgumentException
+     */
+    private function validateIdempotencyKey(?string $idempotencyKey): string
+    {
+        if (empty($idempotencyKey)) {
+            throw new \InvalidArgumentException('Idempotency key is required');
+        }
+
+        return sanitize_text_field((string) $idempotencyKey);
+    }
+
+    /**
      * Validate channel
      * 
      * @param string $channel
@@ -635,14 +669,10 @@ final class UniversalEvent
             return;
         }
         
-        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-            $debug_file = WP_CONTENT_DIR . '/debug.log';
-            @file_put_contents(
-                $debug_file,
-                '[' . gmdate('Y-m-d H:i:s') . '] ' . $prefix . $message . PHP_EOL,
-                FILE_APPEND
-            );
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file using safe file operation
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+            $debug_file = odcm_get_safe_debug_file_path();
+            odcm_safe_file_put_contents($debug_file, '[' . gmdate('Y-m-d H:i:s') . '] ' . $prefix . $message . PHP_EOL, FILE_APPEND);
         }
     }
     

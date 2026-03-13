@@ -29,10 +29,6 @@ class CompleteOrderAction implements ActionInterface
         return __('rule_component.action.complete_order.description', 'order-daemon');
     }
 
-    public function get_capability(): string
-    {
-        return 'action_basic'; // Free tier - the only status-changing action available to free users
-    }
 
     public function get_settings_schema(): ?array
     {

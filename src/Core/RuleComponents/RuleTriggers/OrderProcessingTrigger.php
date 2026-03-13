@@ -39,10 +39,6 @@ class OrderProcessingTrigger implements TriggerInterface
         return __('rule_component.trigger.order_processing.description', 'order-daemon');
     }
 
-    public function get_capability(): string
-    {
-        return 'trigger_basic'; // Corresponds to the free tier
-    }
 
     public function get_settings_schema(): ?array
     {

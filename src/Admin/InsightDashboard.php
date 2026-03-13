@@ -6,12 +6,12 @@ namespace OrderDaemon\CompletionManager\Admin;
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
-use OrderDaemon\CompletionManager\Includes\Odcm_Strings;
-use OrderDaemon\CompletionManager\Includes\DependencyChecker;
+use OrderDaemon\CompletionManager\View\DashboardComponents\DashboardComponentUIToolkit;
 use OrderDaemon\CompletionManager\View\DashboardComponents\UnifiedHeaderRenderer;
 use OrderDaemon\CompletionManager\View\DashboardComponents\FilterPaneRenderer;
 use OrderDaemon\CompletionManager\View\DashboardComponents\LogStreamRenderer;
 use OrderDaemon\CompletionManager\View\DashboardComponents\DetailPaneRenderer;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 
 /**
  * Insight Dashboard Admin Page
@@ -74,14 +74,14 @@ class InsightDashboard
         // Register AJAX handlers for settings
         add_action('wp_ajax_odcm_update_per_page', [$this, 'handle_update_per_page_ajax']);
         add_action('wp_ajax_odcm_save_debug_settings', [$this, 'handle_debug_settings_ajax']);
+        add_action('wp_ajax_odcm_save_uninstall_data_setting', [$this, 'handle_uninstall_data_setting_ajax']);
         add_action('wp_ajax_odcm_reprocess_pending_orders', [$this, 'handle_reprocess_pending_orders_ajax']);
 
         // Register AJAX handlers for onboarding
         add_action('wp_ajax_odcm_check_welcome_scenario', [$this, 'handle_welcome_scenario_check']);
 
-        // Register admin-post handlers for file downloads (WordPress way)
-        add_action('admin_post_odcm_export_logs_csv', [$this, 'handle_export_csv']);
-        add_action('admin_post_odcm_export_logs_json', [$this, 'handle_export_json']);
+        // Register AJAX handler for Alpine.js failure logging
+        add_action('wp_ajax_odcm_log_alpine_failure', [$this, 'handle_log_alpine_failure_ajax']);
     }
 
     /**
@@ -233,6 +233,13 @@ class InsightDashboard
             return $tag;
         }, 10, 2);
 
+        // Alpine.js fallback system - enhanced detection and user-friendly error handling
+        wp_add_inline_script(
+            'alpine-js',
+            $this->get_alpine_fallback_script(),
+            'after'
+        );
+
         // Enqueue shared toast system
         wp_enqueue_script(
             'odcm-shared-toasts',
@@ -274,7 +281,7 @@ class InsightDashboard
         // CSS loading validation and emergency fallback styles
         wp_add_inline_script(
             'odcm-insight-dashboard-js',
-            "(function(){try{var r=document.documentElement;var v=getComputedStyle(r).getPropertyValue('--odcm-theme-grey-100');if(!v||v.trim()===''){var s=document.createElement('style');s.setAttribute('data-odcm-inline-fallback','1');s.textContent='/* ODCM minimal fallback */ .odcm-insight-dashboard{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:#222;background:#fff;} .odcm-insight-dashboard .odcm-unified-header{position:sticky;top:0;background:#fff;border-bottom:1px solid #ddd;padding:8px;z-index:10;} .odcm-insight-dashboard .odcm-content-grid{display:flex;gap:8px;margin-top:8px;} .odcm-insight-dashboard .odcm-filter-pane,.odcm-insight-dashboard .odcm-log-stream,.odcm-insight-dashboard .odcm-detail-pane{border:1px solid #ddd;border-radius:4px;background:#fff;min-height:200px;padding:8px;flex:1;} @media(max-width:782px){.odcm-insight-dashboard .odcm-content-grid{flex-direction:column;}} .odcm-css-warning{border:1px solid #f0c36d;background:#fff8e5;color:#5f3b00;padding:8px;border-radius:4px;margin:8px 0;font-size:13px;} .odcm-badge--error{display:inline-block;background:#dc3545;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;} .odcm-premium-filter-group input:disabled,.odcm-premium-filter-group select:disabled{background:#eee;cursor:not-allowed;opacity:.7;}';document.head.appendChild(s);var b=document.createElement('div');b.className='odcm-css-warning';b.textContent='Order Daemon: Some styles failed to load. Using minimal fallback for safe display.';var c=document.getElementById('odcm-insight-dashboard');if(c){c.insertBefore(b,c.firstChild);}document.body.classList.add('odcm-css-fallback-mode');}}catch(e){}})();",
+            "(function(){try{var r=document.documentElement;var v=getComputedStyle(r).getPropertyValue('--odcm-theme-grey-100');if(!v||v.trim()===''){var s=document.createElement('style');s.setAttribute('data-odcm-inline-fallback','1');s.textContent='/* ODCM minimal fallback */ .odcm-insight-dashboard{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:#222;background:#fff;} .odcm-insight-dashboard .odcm-unified-header{position:sticky;top:0;background:#fff;border-bottom:1px solid #ddd;padding:8px;z-index:10;} .odcm-insight-dashboard .odcm-content-grid{display:flex;gap:8px;margin-top:8px;} .odcm-insight-dashboard .odcm-filter-pane,.odcm-insight-dashboard .odcm-log-stream,.odcm-insight-dashboard .odcm-detail-pane{border:1px solid #ddd;border-radius:4px;background:#fff;min-height:200px;padding:8px;flex:1;} @media(max-width:782px){.odcm-insight-dashboard .odcm-content-grid{flex-direction:column;}} .odcm-css-warning{border:1px solid #f0c36d;background:#fff8e5;color:#5f3b00;padding:8px;border-radius:4px;margin:8px 0;font-size:13px;} .odcm-badge--error{display:inline-block;background:#dc3545;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;} .odcm-advanced-filter-group input:disabled,.odcm-advanced-filter-group select:disabled{background:#eee;cursor:not-allowed;opacity:.7;}';document.head.appendChild(s);var b=document.createElement('div');b.className='odcm-css-warning';b.textContent='Order Daemon: Some styles failed to load. Using minimal fallback for safe display.';var c=document.getElementById('odcm-insight-dashboard');if(c){c.insertBefore(b,c.firstChild);}document.body.classList.add('odcm-css-fallback-mode');}}catch(e){}})();",
             'before'
         );
 
@@ -299,7 +306,6 @@ class InsightDashboard
             'adminPostUrl' => admin_url('admin-post.php'),
             'nonce' => wp_create_nonce('wp_rest'),
             'restNonce' => wp_create_nonce('wp_rest'),
-            'premium_access' => (bool) apply_filters('odcm_is_premium_user', false),
             'perPage' => $this->get_user_per_page_setting(),
             'autoRefreshInterval' => 5000, // 5 seconds
             'debug' => self::is_global_debug_active(),
@@ -407,23 +413,165 @@ class InsightDashboard
     }
 
     /**
+     * Get the Alpine.js fallback script for graceful degradation
+     * 
+     * This script provides comprehensive detection and user-friendly error handling
+     * when Alpine.js fails to load due to network issues, CSP restrictions, or other problems.
+     * 
+     * @return string The JavaScript fallback code
+     */
+    private function get_alpine_fallback_script(): string
+    {
+        $ajax_url = esc_js(admin_url('admin-ajax.php'));
+        $nonce = wp_create_nonce('wp_rest');
+        
+        return "(function setupODCMAlpineFallback() {
+    // Only run once
+    if (window.__odcmAlpineFallbackInstalled) return;
+    window.__odcmAlpineFallbackInstalled = true;
+
+    // Check if Alpine.js is available
+    function checkAlpineAvailability() {
+        try {
+            if (typeof Alpine !== 'undefined' && typeof Alpine.data === 'function') {
+                return true;
+            }
+            var alpineScript = document.querySelector('script[src*=\"alpine\"]');
+            if (alpineScript && !alpineScript.hasAttribute('data-loaded')) {
+                return 'loading';
+            }
+            return false;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Enhanced Alpine.js detection with multiple checks
+    function checkAlpineJS() {
+        var alpineStatus = checkAlpineAvailability();
+        if (alpineStatus === true) {
+            if (typeof window.ODCM_DEBUG !== 'undefined' && window.ODCM_DEBUG) {
+                console.log('ODCM: Alpine.js loaded successfully');
+            }
+            return true;
+        }
+        if (alpineStatus === 'loading') {
+            setTimeout(checkAlpineJS, 500);
+            return false;
+        }
+        console.error('ODCM: Alpine.js failed to load. Dashboard interactivity will be limited.');
+        showAlpineFallbackUI();
+        logAlpineLoadFailure();
+        return false;
+    }
+
+    // Show user-friendly fallback UI
+    function showAlpineFallbackUI() {
+        try {
+            var dashboard = document.getElementById('odcm-insight-dashboard');
+            if (!dashboard) return;
+            if (dashboard.querySelector('.odcm-alpine-fallback')) return;
+
+            var fallbackNotice = document.createElement('div');
+            fallbackNotice.className = 'odcm-alpine-fallback';
+            fallbackNotice.setAttribute('role', 'alert');
+            fallbackNotice.setAttribute('aria-live', 'assertive');
+            fallbackNotice.style.cssText = 'background:#fff8e5;border:2px solid #f0c36d;border-radius:6px;padding:20px;margin:20px;position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.1);';
+            fallbackNotice.innerHTML = '<div style=\"display:flex;align-items:start;gap:15px;\"><div style=\"flex-shrink:0;\"><span class=\"dashicons dashicons-warning\" style=\"color:#d63638;font-size:32px;\"></span></div><div style=\"flex:1;\"><h3 style=\"margin:0 0 10px 0;color:#d63638;\">Dashboard Loading Issue</h3><p style=\"margin:0 0 15px 0;line-height:1.5;\">The dashboard framework failed to load. This prevents interactive features from working properly.</p><div style=\"background:#fff;border:1px solid #ddd;border-radius:4px;padding:15px;margin-bottom:15px;\"><strong>Common causes:</strong><ul style=\"margin:8px 0 0 20px;padding:0;\"><li>Browser extensions blocking scripts</li><li>Content Security Policy (CSP) restrictions</li><li>Network connectivity issues</li><li>JavaScript errors from other plugins</li></ul></div><div style=\"display:flex;gap:10px;margin-top:15px;\"><button onclick=\"window.location.reload()\" style=\"padding:8px 16px;background:#2271b1;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:500;\">🔄 Refresh Page</button><button onclick=\"this.parentNode.parentNode.parentNode.parentNode.style.display=\\'none\\'\" style=\"padding:8px 16px;background:#6c757d;color:white;border:none;border-radius:4px;cursor:pointer;font-weight:500;\">Hide This Message</button></div></div></div>';
+            dashboard.insertBefore(fallbackNotice, dashboard.firstChild);
+            addFallbackCSS();
+        } catch (error) {
+            console.error('ODCM: Error showing Alpine.js fallback UI:', error);
+        }
+    }
+
+    // Add additional CSS for fallback UI
+    function addFallbackCSS() {
+        try {
+            var styleId = 'odcm-alpine-fallback-css';
+            if (document.getElementById(styleId)) return;
+            var style = document.createElement('style');
+            style.id = styleId;
+            style.textContent = '.odcm-alpine-fallback{animation:odcm-fadeIn 0.5s ease;}@keyframes odcm-fadeIn{from{opacity:0;transform:translateY(-10px);}to{opacity:1;transform:translateY(0);}}.odcm-alpine-fallback ~ .odcm-unified-header,.odcm-alpine-fallback ~ .odcm-content-grid{opacity:0.7;pointer-events:none;user-select:none;}';
+            document.head.appendChild(style);
+        } catch (error) {
+            console.error('ODCM: Error adding fallback CSS:', error);
+        }
+    }
+
+    // Log detailed information about Alpine.js load failure
+    function logAlpineLoadFailure() {
+        try {
+            var envInfo = {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                online: navigator.onLine,
+                timestamp: new Date().toISOString()
+            };
+            var issues = [];
+            var scripts = document.querySelectorAll('script');
+            var alpineScriptFound = false;
+            scripts.forEach(function(script) {
+                if (script.src && script.src.indexOf('alpine') !== -1) {
+                    alpineScriptFound = true;
+                }
+            });
+            if (!alpineScriptFound) {
+                issues.push('Alpine.js script tag not found');
+            }
+            try {
+                var metaCSP = document.querySelector('meta[http-equiv=\"Content-Security-Policy\"]');
+                if (metaCSP) {
+                    issues.push('Content Security Policy (CSP) meta tag found - may be blocking Alpine.js');
+                }
+            } catch (e) {}
+            console.groupCollapsed('ODCM Alpine.js Load Failure Details');
+            console.log('Environment:', envInfo);
+            console.log('Potential Issues:', issues.length > 0 ? issues : ['None detected']);
+            console.groupEnd();
+            if (typeof odcmInsightConfig !== 'undefined' && odcmInsightConfig.debug) {
+                try {
+                    fetch('" . $ajax_url . "', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: new URLSearchParams({
+                            action: 'odcm_log_alpine_failure',
+                            _wpnonce: '" . $nonce . "',
+                            env: JSON.stringify(envInfo),
+                            issues: JSON.stringify(issues)
+                        })
+                    }).catch(function() {});
+                } catch (e) {}
+            }
+        } catch (error) {
+            console.error('ODCM: Error in Alpine.js failure logging:', error);
+        }
+    }
+
+    // Check Alpine.js availability after a delay to allow for loading
+    setTimeout(checkAlpineJS, 2000);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', checkAlpineJS);
+    } else {
+        checkAlpineJS();
+    }
+})();";
+    }
+
+    /**
      * Handle AJAX request to check welcome scenario
      */
     public function handle_welcome_scenario_check(): void
     {
         // Verify nonce
         if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
-            wp_die(esc_html__('upgrade_prompts.ajax.security_check_failed', 'order-daemon'));
+            wp_die(esc_html__('Security check failed', 'order-daemon'));
         }
 
         // Check user capabilities - use WooCommerce standard for reports (allows Shop Managers)
         if (!current_user_can('view_woocommerce_reports') && !current_user_can('manage_woocommerce')) {
             wp_send_json_error(__('admin.insight_dashboard.permission.insufficient_permissions', 'order-daemon'));
-        }
-
-        // Check if user has access to insight dashboard (defensive check)
-        if (function_exists('odcm_can_use') && !odcm_can_use('insight_dashboard')) {
-            wp_send_json_error(__('admin.insight_dashboard.ajax.feature_not_available', 'order-daemon'));
         }
 
         try {
@@ -449,9 +597,9 @@ class InsightDashboard
     /**
      * Static cache for welcome scenario data
      *
-     * @var array|null
+     * @var bool|null
      */
-    private static $welcome_scenario_cache = null;
+    private static ?bool $welcome_scenario_cache = null;
 
     /**
      * Determine if this is a welcome scenario (no logs available)
@@ -461,12 +609,12 @@ class InsightDashboard
     private function determine_welcome_scenario(): bool
     {
         global $wpdb;
-        
+
         // Use static variable for in-memory caching during this request
         if (self::$welcome_scenario_cache !== null) {
             return self::$welcome_scenario_cache;
         }
-        
+
         // Check persistent cache first
         $cache_key = 'odcm_welcome_scenario';
         $cached_result = wp_cache_get($cache_key);
@@ -485,7 +633,8 @@ class InsightDashboard
         if ($table_exists === false) {
             // Use WordPress recommended method to check if table exists
             // Check if the table exists by querying it directly with a safe query
-            $table_exists = $wpdb->get_var(
+            $database_helper = DatabaseHelper::get_instance();
+            $table_exists = $database_helper->get_var(
                 $wpdb->prepare(
                     "SHOW TABLES LIKE %s",
                     $audit_log_table
@@ -511,7 +660,8 @@ class InsightDashboard
 
         if ($log_count === false) {
             $log_table_escaped = esc_sql($wpdb->prefix . 'odcm_audit_log');
-            $log_count = $wpdb->get_var("SELECT COUNT(*) FROM `{$log_table_escaped}`");
+            $database_helper = DatabaseHelper::get_instance();
+            $log_count = $database_helper->get_var("SELECT COUNT(*) FROM `{$log_table_escaped}`");
 
             // Cache the result for 5 minutes - log count may change more frequently
             wp_cache_set($log_count_cache_key, $log_count, '', 5 * MINUTE_IN_SECONDS);
@@ -624,14 +774,6 @@ class InsightDashboard
             wp_die(esc_html__('admin.insight_dashboard.permission.insufficient_permissions', 'order-daemon'));
         }
 
-        // Check if user has access to audit trail functionality
-        // Since insight dashboard is a free feature, only restrict if function explicitly denies access
-        if (function_exists('odcm_can_use') && !odcm_can_use('insight_dashboard')) {
-            // This should not happen for free features, but provide fallback
-            $this->render_upgrade_notice();
-            return;
-        }
-
         if ($this->use_component_dashboard()) {
             $this->initializeComponents();
             $this->render_dashboard_html_components();
@@ -659,6 +801,10 @@ class InsightDashboard
      */
     private function render_unified_header(): void
     {
+        $refresh_text  = esc_js(__('Refresh', 'order-daemon'));
+        $every_text    = esc_js(__('every', 'order-daemon'));
+        $seconds_text  = esc_js(__('seconds', 'order-daemon'));
+
         ?>
         <div class="odcm-unified-header-content">
             <!-- Filter Header with Icon Buttons -->
@@ -668,36 +814,34 @@ class InsightDashboard
                     <div class="odcm-pane-icon-buttons">
                         <!-- Left arrow: close current pane (visible only when pane is open) -->
                         <button type="button"
-                                class="odcm-pane-icon-button"
-                                x-show="filterPaneVisible"
-                                @click="closeFilterPane()"
+                                <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('filterPaneVisible'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'closeFilterPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-pane-icon-button']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                 title="<?php echo esc_attr__('admin.insight_dashboard.pane.close', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-arrow-left-alt"></span>
                         </button>
-                        
+
                         <!-- Right arrow: open last opened pane (visible only when pane is closed) -->
                         <button type="button"
-                                class="odcm-pane-icon-button"
-                                x-show="!filterPaneVisible"
-                                @click="openLastOpenedPane()"
+                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-pane-icon-button']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!filterPaneVisible'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'openLastOpenedPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                 title="<?php echo esc_attr__('admin.insight_dashboard.pane.open_last', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-arrow-right-alt"></span>
                         </button>
-                        
+
                         <!-- Filters tab button -->
                         <button type="button"
-                                class="odcm-pane-icon-button"
-                                @click="showFiltersPane()"
-                                :aria-pressed="activeFilterTab === 'filters' && filterPaneVisible"
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'showFiltersPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-pane-icon-button', 'odcm-active' => 'activeFilterTab === "filters" && filterPaneVisible']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                 title="<?php echo esc_attr__('admin.insight_dashboard.filters', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-search"></span>
                         </button>
-                        
+
                         <!-- Settings tab button -->
                         <button type="button"
-                                class="odcm-pane-icon-button"
-                                @click="showSettingsPane()"
-                                :aria-pressed="activeFilterTab === 'settings' && filterPaneVisible"
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'showSettingsPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-pane-icon-button', 'odcm-active' => 'activeFilterTab === "settings" && filterPaneVisible']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                 title="<?php echo esc_attr__('admin.insight_dashboard.settings.title', 'order-daemon'); ?>">
                             <span class="dashicons dashicons-admin-generic"></span>
                         </button>
@@ -721,29 +865,31 @@ class InsightDashboard
                 </div>
                 <div class="odcm-stream-controls">
                     <div class="odcm-refresh-controls">
-                        <button type="button" 
-                                class="odcm-refresh-button button"
-                                @click="manualRefresh()"
-                                :disabled="loading">
-                            <span class="dashicons dashicons-update" :class="{ 'is-spinning': isRefreshing }"></span>
-                            <span class="odcm-button-text" x-text="autoRefreshEnabled ? '<?php echo esc_js(__('Refresh', 'order-daemon')); ?>' : '<?php echo esc_js(__('Refresh', 'order-daemon')); ?>'"></span>
+                        <button type="button"
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'manualRefresh()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-refresh-button', 'odcm-button', 'is-disabled' => 'loading']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('loading'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                            <span <?php echo DashboardComponentUIToolkit::createClassAttribute(['dashicons', 'dashicons-update', 'is-spinning' => 'loading']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+                            <span class="odcm-button-text" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding("'" . esc_js($refresh_text) . "'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
                         </button>
-                        <span x-text="autoRefreshEnabled ? '<?php echo esc_html__('every', 'order-daemon'); ?>' : ''"></span>
+
+                        <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('autoRefreshEnabled ? "' . $every_text . '" : ""'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
 
                         <template x-if="autoRefreshEnabled">
-                            <input type="number" 
-                                    x-model="refreshInterval" 
-                                    min="1" 
-                                    max="60" 
-                                    class="odcm-interval-input"
-                                    @click.stop>
+                            <input type="number"
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('refreshInterval'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                min="1"
+                                max="60"
+                                class="odcm-interval-input"
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', '$event.stopPropagation()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                         </template>
+
                         <template x-if="autoRefreshEnabled">
-                            <span><?php echo esc_html__('seconds', 'order-daemon'); ?></span>
+                            <span><?php echo esc_html($seconds_text); ?></span>
                         </template>
 
                         <label class="odcm-toggle-switch">
-                            <input type="checkbox" x-model="autoRefreshEnabled">
+                            <input type="checkbox" <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('autoRefreshEnabled'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             <span class="odcm-toggle-slider"></span>
                             <span class="odcm-toggle-label"><?php echo esc_html__('admin.insight_dashboard.actions.auto_refresh', 'order-daemon'); ?></span>
                         </label>
@@ -752,19 +898,26 @@ class InsightDashboard
             </div>
 
             <!-- Detail Header -->
-            <div class="odcm-unified-header-section odcm-unified-header-details" x-show="selectedLog">
+            <div class="odcm-unified-header-section odcm-unified-header-details" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('selectedLog'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                 <h3><?php echo esc_html__('admin.insight_dashboard.detail_pane.events_timeline', 'order-daemon'); ?></h3>
                 <div class="odcm-detail-pane-header-actions">
-                    <button type="button" 
+                    <button type="button"
                             class="odcm-detail-pane-expand-toggle"
-                            @click="toggleDetailPaneExpansion()"
-                            :title="detailPaneExpanded ? '<?php echo esc_attr__('admin.insight_dashboard.detail_pane.contract_details_pane', 'order-daemon'); ?>' : '<?php echo esc_attr__('admin.insight_dashboard.detail_pane.expand_details_pane', 'order-daemon'); ?>'">
+                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleDetailPaneExpansion()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                            <?php
+                            echo DashboardComponentUIToolkit::createAlpineTitleBinding( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                                'detailPaneExpanded ? ' .
+                                wp_json_encode(esc_attr__('admin.insight_dashboard.detail_pane.contract_details_pane', 'order-daemon')) .
+                                ' : ' .
+                                wp_json_encode(esc_attr__('admin.insight_dashboard.detail_pane.expand_details_pane', 'order-daemon'))
+                            );
+                            ?>>
                         <span class="dashicons dashicons-arrow-left-alt icon-expand"></span>
                         <span class="dashicons dashicons-arrow-right-alt icon-collapse"></span>
                     </button>
-                    <button type="button" 
+                    <button type="button"
                             class="odcm-close-pane"
-                            @click="closeDetails()">
+                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'closeDetails()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                         <span class="dashicons dashicons-no-alt"></span>
                     </button>
                 </div>
@@ -781,12 +934,12 @@ class InsightDashboard
         ?>
         <div class="odcm-filter-pane-content">
             <!-- Filters Tab Content -->
-            <div x-show="activeFilterTab === 'filters'" class="odcm-tab-content">
+            <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('activeFilterTab === "filters"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> class="odcm-tab-content">
                 <?php $this->render_filters_tab_content(); ?>
             </div>
             
             <!-- Settings Tab Content -->
-            <div x-show="activeFilterTab === 'settings'" class="odcm-settings-pane-content">
+            <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('activeFilterTab === "settings"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> class="odcm-settings-pane-content">
                 <?php $this->render_settings_tab_content(); ?>
             </div>
         </div>
@@ -799,30 +952,28 @@ class InsightDashboard
     private function render_filters_tab_content(): void
     {
         ?>
-        <form class="odcm-filter-form" @submit.prevent="applyFilters()">
+        <form class="odcm-filter-form" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('submit', 'applyFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                 <!-- Omni Search (Free) -->
                 <div class="odcm-filter-section">
                     <div class="odcm-search-filter-group">
                         <label for="filter-search" class="odcm-filter-section-title"><?php echo esc_html__('admin.insight_dashboard.filters.search.label', 'order-daemon'); ?></label>
-                        <input type="text" 
+                        <input type="text"
                             id="filter-search"
-                            x-model="filters.search"
+                            <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.search'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('input', 'debouncedFetchLogs()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                             placeholder="<?php echo esc_attr__('admin.insight_dashboard.filters.search.placeholder', 'order-daemon'); ?>"
                             class="odcm-search-input">
                     </div>
                 </div>
 
-                <!-- Premium Filters Group -->
-                <div class="odcm-premium-filter-group" :class="{ 'is-disabled': !canUsePremiumFilters }">
-                    <div class="odcm-premium-badge odcm-premium-badge--absolute"><?php echo esc_html__('admin.insight_dashboard.premium.badge', 'order-daemon'); ?></div>
-                    <div class="odcm-premium-overlay" x-show="!canUsePremiumFilters" @click.prevent.stop="if (config?.upgrade?.enabled) { showToast(config.upgrade.message, 'info'); }" :title="config?.upgrade?.enabled ? config.upgrade.message : ''" aria-hidden="true"></div>
+                <!-- Advanced Filters Group -->
+                <div class="odcm-advanced-filter-group">
                     
                     <!-- Status Filter -->
                     <div class="odcm-filter-group">
                         <label for="filter-status"><?php echo esc_html__('admin.insight_dashboard.filters.status.label', 'order-daemon'); ?></label>
                         <select id="filter-status" 
-                                x-model="filters.status"
-                                :disabled="!canUsePremiumFilters">
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.status'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.status.all', 'order-daemon'); ?></option>
                             <option value="success"><?php echo esc_html__('status.success', 'order-daemon'); ?></option>
                             <option value="error"><?php echo esc_html__('status.error', 'order-daemon'); ?></option>
@@ -835,8 +986,7 @@ class InsightDashboard
                     <div class="odcm-filter-group">
                         <label for="filter-event-type"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.label', 'order-daemon'); ?></label>
                         <select id="filter-event-type" 
-                                x-model="filters.event_type"
-                                :disabled="!canUsePremiumFilters">
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.event_type'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.event_type.all', 'order-daemon'); ?></option>
                             <option value="rule_check"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.rule_check', 'order-daemon'); ?></option>
                             <option value="order_completion"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.order_completion', 'order-daemon'); ?></option>
@@ -851,8 +1001,7 @@ class InsightDashboard
                     <div class="odcm-filter-group">
                         <label for="filter-source"><?php echo esc_html__('admin.insight_dashboard.filters.source.label', 'order-daemon'); ?></label>
                         <select id="filter-source" 
-                                x-model="filters.source"
-                                :disabled="!canUsePremiumFilters">
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.source'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.source.all', 'order-daemon'); ?></option>
                             <option value="manual"><?php echo esc_html__('admin.insight_dashboard.filters.source.manual', 'order-daemon'); ?></option>
                             <option value="scheduled"><?php echo esc_html__('admin.insight_dashboard.filters.source.scheduled', 'order-daemon'); ?></option>
@@ -867,13 +1016,11 @@ class InsightDashboard
                         <label><?php echo esc_html__('admin.insight_dashboard.filters.date_range.label', 'order-daemon'); ?></label>
                         <div class="odcm-date-range">
                             <input type="date" 
-                                   x-model="filters.date_start"
-                                   :disabled="!canUsePremiumFilters"
+                                   <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.date_start'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                    class="regular-text">
                             <span>–</span>
                             <input type="date" 
-                                   x-model="filters.date_end"
-                                   :disabled="!canUsePremiumFilters"
+                                   <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.date_end'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                    class="regular-text">
                         </div>
                     </div>
@@ -885,13 +1032,13 @@ class InsightDashboard
                         <div class="odcm-checkbox-item">
                             <input type="checkbox" 
                                    id="filter-include-tests"
-                                   x-model="filters.include_tests">
+                                   <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.include_tests'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             <label for="filter-include-tests"><?php echo esc_html__('admin.insight_dashboard.filters.include_test_logs', 'order-daemon'); ?></label>
                         </div>
                         <div class="odcm-checkbox-item">
                             <input type="checkbox" 
                                    id="filter-include-debug"
-                                   x-model="filters.include_debug">
+                                   <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.include_debug'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             <label for="filter-include-debug"><?php echo esc_html__('Include Debug Logs', 'order-daemon'); ?></label>
                         </div>
                     </div>
@@ -902,7 +1049,7 @@ class InsightDashboard
                     <button type="submit" class="button button-primary">
                         <?php echo esc_html__('admin.insight_dashboard.filters.apply_filters', 'order-daemon'); ?>
                     </button>
-                    <button type="button" class="button" @click="clearFilters()">
+                    <button type="button" class="button" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'clearFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                         <?php echo esc_html__('admin.insight_dashboard.filters.clear_all', 'order-daemon'); ?>
                     </button>
                 </div>
@@ -919,7 +1066,10 @@ class InsightDashboard
         // Get current setting values
         $detailed_notes = get_option('odcm_detailed_notes', false);
         $global_debug = self::is_global_debug_active(); // Use the override-aware method
-        
+
+        $processing_text = esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon'));
+        $reprocess_text  = esc_js(__('admin.insight_dashboard.settings.reprocess_orders.label', 'order-daemon'));
+
         ?>
         <div class="odcm-tab-content">
             <!-- Display Settings Section -->
@@ -929,12 +1079,15 @@ class InsightDashboard
                     <div class="odcm-setting-row">
                         <label class="odcm-setting-label">Timestamp Display Format</label>
                         <div class="odcm-setting-control">
-                            <button type="button" 
+                            <button type="button"
                                     class="odcm-timestamp-toggle button"
-                                    @click="toggleTimestampMode()"
-                                    :title="'Current: ' + (timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime)">
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleTimestampMode()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineTitleBinding("'Current: ' + (timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime)"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                                 <span class="dashicons dashicons-clock"></span>
-                                <span class="odcm-button-text" x-text="timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime"></span>
+                                <span class="odcm-button-text"
+                                      <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('timestampDisplayMode === "timeOnly" ? i18n.timeOnly : timestampDisplayMode === "relative" ? i18n.relativeTime : i18n.dateAndTime'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                                    <?php echo esc_html__('Date & Time', 'order-daemon'); ?>
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -943,8 +1096,8 @@ class InsightDashboard
                         <div class="odcm-setting-control">
                             <input type="number" 
                                 id="odcm_logs_per_page"
-                                x-model="perPage"
-                                @change="updatePerPageSetting()"
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('perPage'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'updatePerPageSetting()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                 min="10" 
                                 max="200" 
                                 class="small-text">
@@ -961,22 +1114,17 @@ class InsightDashboard
                         <label class="odcm-setting-label">Reprocess Pending Orders</label>
                         <div class="odcm-setting-control">
                             <span class="odcm-setting-hint">Batch operation to reprocess orders with processing/on-hold statuses. (Useful after payment system failures and rule changes.)</span>
-                            <button type="button" 
-                                    class="odcm-refresh-button button"
-                                    @click="reprocessPendingOrders()"
-                                    :disabled="isReprocessing">
-                                <span class="dashicons dashicons-update" :class="{ 'is-spinning': isReprocessing }"></span>
-                                <span class="odcm-button-text" x-text="isReprocessing ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.settings.reprocess_orders.label', 'order-daemon')); ?>'"></span>
+                            <button type="button"
+                                    class="odcm-refresh-button odcm-button"
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'reprocessPendingOrders()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('isReprocessing'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                                <span <?php echo DashboardComponentUIToolkit::createClassAttribute(['dashicons', 'dashicons-update', 'is-spinning' => 'isReprocessing']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+                                <span class="odcm-button-text" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('isReprocessing ? "' . esc_js($processing_text) . '" : "' . esc_js($reprocess_text) . '"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <?php
-            // Allow pro plugin to add additional settings sections
-            do_action('odcm_insight_dashboard_settings_sections');
-            ?>
 
             <!-- Debug Settings Section -->
             <div class="odcm-settings-section">
@@ -984,22 +1132,22 @@ class InsightDashboard
                     <div class="odcm-setting-row">
                         <h3 class="odcm-settings-section-title">Debug</h3>
                         <label for="odcm_global_debug" class="odcm-setting-label">
-                            <input type="checkbox" 
-                                   name="odcm_global_debug" 
-                                   id="odcm_global_debug" 
+                            <input type="checkbox"
+                                   name="odcm_global_debug"
+                                   id="odcm_global_debug"
                                    <?php checked($global_debug); ?>
-                                   @change="saveDebugSetting('odcm_global_debug', $event.target.checked)">
+                                   <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'saveDebugSetting(\'odcm_global_debug\', $event.target.checked)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             Toggle Global ODCM Debug Mode
                         </label>
                         <span class="odcm-setting-hint">Enable server-wide debug logging (use with caution)</span>
                     </div>
                     <div class="odcm-setting-row">
                         <label for="odcm_detailed_notes" class="odcm-setting-label">
-                            <input type="checkbox" 
-                                   name="odcm_detailed_notes" 
-                                   id="odcm_detailed_notes" 
+                            <input type="checkbox"
+                                   name="odcm_detailed_notes"
+                                   id="odcm_detailed_notes"
                                    <?php checked($detailed_notes); ?>
-                                   @change="saveDebugSetting('odcm_detailed_notes', $event.target.checked)">
+                                   <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'saveDebugSetting(\'odcm_detailed_notes\', $event.target.checked)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             Add Detailed Order Notes
                         </label>
                         <span class="odcm-setting-hint">Add debug info to order notes when rules don't match</span>
@@ -1007,99 +1155,29 @@ class InsightDashboard
                 </div>
             </div>
 
-            <!-- Data Management Section -->
+            <!-- DANGER ZONE Settings Section -->
             <div class="odcm-settings-section">
                 <div class="odcm-settings-group">
-                    <?php
-                    $is_premium = (bool) apply_filters('odcm_is_premium_user', false);
-                    $pro_plugin_active = defined('ODCM_PRO_VERSION');
-                    $pro_plugin_installed = file_exists(WP_PLUGIN_DIR . '/order-daemon-pro/order-daemon-pro.php');
-                    ?>
-
-                    <h3 class="odcm-settings-section-title">Data Management</h3>
-                    
-                    <!-- Export Logs Feature -->
-                    <?php if (!$is_premium): ?>
-                        <div class="odcm-setting-row odcm-premium-notice-small">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
-                            <p><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
-                            <a href="https://orderdaemon.com/pricing" class="button-secondary odcm-button-small" target="_blank">
-                                <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
-                            </a>
-                        </div>
-                    <?php else: ?>
-                        <!-- Premium Export Logs Feature - Active -->
-                        <div class="odcm-setting-row">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.label', 'order-daemon'); ?></label>
-                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.export_logs.description', 'order-daemon'); ?></p>
-                            <div class="odcm-export-controls">
-                                <button type="button" 
-                                        class="button"
-                                        @click="exportLogs('csv')"
-                                        :disabled="isExporting && exportFormat === 'csv'">
-                                    <span class="dashicons dashicons-download"></span>
-                                    <span x-text="isExporting && exportFormat === 'csv' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export CSV', 'order-daemon')); ?>'"></span>
-                                </button>
-                                <button type="button" 
-                                        class="button"
-                                        @click="exportLogs('json')"
-                                        :disabled="isExporting && exportFormat === 'json'">
-                                    <span class="dashicons dashicons-download"></span>
-                                    <span x-text="isExporting && exportFormat === 'json' ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('Export JSON', 'order-daemon')); ?>'"></span>
-                                </button>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Log Retention Policy Feature -->
-                    <?php if (!$is_premium): ?>
-                        <div class="odcm-setting-row odcm-danger-section">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
-                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
-                            <a href="https://orderdaemon.com/pricing" class="button-secondary odcm-button-small" target="_blank">
-                                <?php echo esc_html__('Upgrade to Pro', 'order-daemon'); ?>
-                            </a>
-                        </div>
-                    <?php else: ?>
-                        <!-- Premium Log Retention Policy Feature - Active -->
-                        <div class="odcm-setting-row odcm-danger-section">
-                            <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.label', 'order-daemon'); ?></label>
-                            <p class="description"><?php echo esc_html__('admin.insight_dashboard.settings.log_retention.description', 'order-daemon'); ?></p>
-                            <div class="odcm-retention-controls">
-                                <div>
-                                    <label for="retention-days"><?php echo esc_html__('Retention Period:', 'order-daemon'); ?></label>
-                                    <div class="odcm-retention-setting">
-                                        <input type="number"
-                                               id="retention-days"
-                                               x-model="retentionDays"
-                                               min="1"
-                                               max="365"
-                                               class="small-text"
-                                               @click.stop>
-                                        <span><?php echo esc_html__('days', 'order-daemon'); ?></span>
-                                        <button type="button"
-                                                class="button button-small"
-                                                @click="updateRetentionPolicy()"
-                                                :disabled="isUpdatingRetention">
-                                            <span x-text="isUpdatingRetention ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.updating', 'order-daemon')); ?>' : '<?php echo esc_js(__('Update Policy', 'order-daemon')); ?>'"></span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="odcm-cleanup-section">
-                                    <button type="button" 
-                                            class="button button-secondary odcm-danger-button"
-                                            @click="cleanupOldLogs()"
-                                            :disabled="isCleaningUp">
-                                        <span class="dashicons dashicons-trash"></span>
-                                        <span x-text="isCleaningUp ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.cleaning', 'order-daemon')); ?>' : '<?php echo esc_js(__('Cleanup Now', 'order-daemon')); ?>'"></span>
-                                    </button>
-                                    <p class="description"><?php echo esc_html__('This will remove all event logs older than the retention period.', 'order-daemon'); ?></p>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endif; ?>
+                    <div class="odcm-setting-row">
+                        <h3 class="odcm-settings-section-title">DANGER ZONE</h3>
+                        <label for="odcm_remove_all_data_on_uninstall" class="odcm-setting-label">
+                            <input type="checkbox"
+                                name="odcm_remove_all_data_on_uninstall"
+                                id="odcm_remove_all_data_on_uninstall"
+                                <?php checked(get_option('odcm_remove_all_data_on_uninstall', false)); ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'saveUninstallDataSetting($event.target.checked)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                            Uninstall Removes All Order Daemon Data
+                        </label>
+                        <span class="odcm-setting-hint">When this plugin is uninstalled, also remove all audit log tables, options, and rules. This cannot be undone.</span>
+                    </div>
                 </div>
             </div>
+
+            <?php
+            // Allow extension plugins to add additional settings sections
+            // Placed at the bottom to maintain UI consistency - extensions should appear after core settings
+            do_action('odcm_insight_dashboard_settings_sections');
+            ?>
         </div>
         <?php
     }
@@ -1117,7 +1195,7 @@ class InsightDashboard
 
         // Verify nonce
         if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
-            wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
         }
 
         // Get and validate input
@@ -1158,8 +1236,8 @@ class InsightDashboard
 
         // Verify nonce
         if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
-            wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
-        } 
+            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
+        }
 
         // Get and validate input - only process the setting that was sent
         $updated_settings = [];
@@ -1176,6 +1254,12 @@ class InsightDashboard
             $updated_settings['detailed_notes'] = $detailed_notes;
         }
 
+        if (isset($_POST['odcm_remove_all_data_on_uninstall'])) {
+            $remove_all_data = $_POST['odcm_remove_all_data_on_uninstall'] === '1';
+            update_option('odcm_remove_all_data_on_uninstall', $remove_all_data, 'no');
+            $updated_settings['remove_all_data_on_uninstall'] = $remove_all_data;
+        }
+
         // Log the debug setting change
         if (isset($updated_settings['global_debug'])) {
             $this->log_debug_mode_change($updated_settings['global_debug']);
@@ -1185,6 +1269,73 @@ class InsightDashboard
             'message' => __('admin.insight_dashboard.ajax.debug_settings_saved', 'order-daemon'),
             'updated_settings' => $updated_settings
         ]);
+    }
+
+    /**
+     * Handle AJAX request to save uninstall data removal setting
+     * 
+     * This endpoint specifically handles the "Remove all Order Daemon data on uninstall" checkbox.
+     * It provides dedicated toast responses for success/failure of this specific setting.
+     */
+    public function handle_uninstall_data_setting_ajax(): void
+    {
+        // Check user capabilities - require manage_woocommerce for settings changes
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error([
+                'message' => __('admin.insight_dashboard.ajax.permission_denied', 'order-daemon'),
+                'type' => 'error',
+                'toast' => true
+            ]);
+        }
+
+        // Verify nonce
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
+            wp_send_json_error([
+                'message' => __('Security check failed', 'order-daemon'),
+                'type' => 'error',
+                'toast' => true
+            ]);
+        }
+
+        // Get and validate input
+        if (!isset($_POST['odcm_remove_all_data_on_uninstall'])) {
+            wp_send_json_error([
+                'message' => __('Missing required parameter: odcm_remove_all_data_on_uninstall', 'order-daemon'),
+                'type' => 'error',
+                'toast' => true
+            ]);
+        }
+
+        $remove_all_data = $_POST['odcm_remove_all_data_on_uninstall'] === '1';
+
+        try {
+            // Update the option
+            $updated = update_option('odcm_remove_all_data_on_uninstall', $remove_all_data, 'no');
+
+            if ($updated !== false) {
+                wp_send_json_success([
+                    'message' => $remove_all_data 
+                        ? __('admin.insight_dashboard.ajax.uninstall_data_enabled', 'order-daemon')
+                        : __('admin.insight_dashboard.ajax.uninstall_data_disabled', 'order-daemon'),
+                    'type' => 'success',
+                    'toast' => true,
+                    'setting' => 'odcm_remove_all_data_on_uninstall',
+                    'value' => $remove_all_data
+                ]);
+            } else {
+                wp_send_json_error([
+                    'message' => __('admin.insight_dashboard.ajax.failed_to_update_uninstall_setting', 'order-daemon'),
+                    'type' => 'error',
+                    'toast' => true
+                ]);
+            }
+        } catch (\Exception $e) {
+            wp_send_json_error([
+                'message' => sprintf(__('admin.insight_dashboard.ajax.uninstall_setting_error', 'order-daemon'), $e->getMessage()),
+                'type' => 'error',
+                'toast' => true
+            ]);
+        }
     }
 
     /**
@@ -1293,8 +1444,6 @@ class InsightDashboard
         }
     }
 
-
-
     /**
      * Handle AJAX request to reprocess pending orders
      * 
@@ -1310,7 +1459,7 @@ class InsightDashboard
 
         // Verify nonce
         if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
-            wp_send_json_error(['message' => __('upgrade_prompts.ajax.security_check_failed', 'order-daemon')]);
+            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
         }
 
         try {
@@ -1348,7 +1497,6 @@ class InsightDashboard
         }
     }
 
-
     /**
      * Log the reprocess action to the audit trail (AJAX version)
      * 
@@ -1369,116 +1517,6 @@ class InsightDashboard
     }
 
     /**
-     * Handle CSV export via admin-post.php (WordPress way)
-     * This is called by the admin_post_odcm_export_logs_csv action
-     */
-    public function handle_export_csv(): void
-    {
-        $this->handle_export_request('csv');
-    }
-
-    /**
-     * Handle JSON export via admin-post.php (WordPress way)
-     * This is called by the admin_post_odcm_export_logs_json action
-     */
-    public function handle_export_json(): void
-    {
-        $this->handle_export_request('json');
-    }
-
-    /**
-     * Handle export requests via admin-post.php (WordPress way)
-     * This method is called by admin-post handlers, which don't load the admin UI
-     * 
-     * Note: Export requires manage_woocommerce (Administrator only) as this is
-     * a data export operation that could contain sensitive information.
-     * 
-     * @param string $format Export format ('csv' or 'json')
-     */
-    private function handle_export_request(string $format): void
-    {
-        // Clear any existing output buffers immediately to ensure clean headers
-        // This is critical to prevent "headers already sent" errors or inline display
-        while (ob_get_level() > 0) {
-            ob_end_clean();
-        }
-
-        try {
-            // Check if headers have already been sent, which would break the download
-            if (headers_sent($file, $line)) {
-                if (self::is_global_debug_active() && function_exists('odcm_log_message')) {
-                    odcm_log_message(sprintf('Export: Headers already sent in %s:%d', $file, $line), 'error');
-                }
-                // If headers are sent, we can't force a download. Output a plain error.
-                http_response_code(500);
-                echo esc_html( sprintf(
-                                    /* translators: 1: file name, 2: line number */
-                                    __( 'Error: Output started in %1$s:%2$d. Cannot start file download.', 'order-daemon' ),
-                                    $file,
-                                    $line
-                                ) );
-                exit;
-            }
-
-            // Check user capabilities - require manage_woocommerce for data export
-            if (!current_user_can('manage_woocommerce')) {
-                wp_die(esc_html__('admin.insight_dashboard.ajax.permission_denied', 'order-daemon'), 403);
-            }
-
-            // Verify nonce
-            $nonce = isset($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '';
-            if (!wp_verify_nonce($nonce, 'wp_rest')) {
-                if (self::is_global_debug_active()) {
-                    odcm_log_message('ODCM Export: Nonce verification failed. Nonce: ' . $nonce, 'error');
-                }
-                wp_die(esc_html__('upgrade_prompts.ajax.security_check_failed', 'order-daemon'), 403);
-            }
-
-            // Check premium access
-            if (!apply_filters('odcm_is_premium_user', false)) {
-                wp_die(esc_html__('This is a premium feature. Please upgrade to access log export.', 'order-daemon'), 403);
-            }
-
-            // Check if LogExporter class exists (pro plugin must be active)
-            if (!class_exists('OrderDaemon\CompletionManager\Pro\Admin\LogExporter')) {
-                wp_die(esc_html__('Export functionality is not available. Please ensure the Pro plugin is active.', 'order-daemon'), 500);
-            }
-
-            if (self::is_global_debug_active()) {
-                // Use WordPress debug logging instead of error_log for production compliance
-                if (function_exists('odcm_log_message')) {
-                    odcm_log_message('Starting export via admin-post.php - Format: ' . $format, 'debug');
-                    odcm_log_message('Request parameters: ' . wp_json_encode($_REQUEST), 'debug');
-                }
-            }
-
-            // Initialize LogExporter
-            global $wpdb;
-            $exporter = new \OrderDaemon\CompletionManager\Pro\Admin\LogExporter($wpdb);
-
-            // Call the appropriate export method based on format
-            if ($format === 'csv') {
-                $exporter->export_csv();
-            } else {
-                $exporter->export_json();
-            }
-
-            // Note: export methods call exit, so execution stops here
-
-        } catch (\Exception $e) {
-            if (self::is_global_debug_active()) {
-                // Use WordPress debug logging instead of error_log for production compliance
-                if (function_exists('odcm_log_message')) {
-                    odcm_log_message('Export Error: ' . $e->getMessage(), 'error');
-                    odcm_log_message('Export Stack Trace: ' . $e->getTraceAsString(), 'error');
-                }
-            }
-            wp_die('Export failed: ' . esc_html($e->getMessage()), 500);
-        }
-    }
-
-
-    /**
      * Render the log stream content
      */
     private function render_log_stream(): void
@@ -1487,36 +1525,36 @@ class InsightDashboard
         <div class="odcm-log-stream-content">
 
             <!-- Loading State -->
-            <div class="odcm-loading-state" x-show="loading && logs.length === 0">
+            <div class="odcm-loading-state" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('loading && logs.length === 0'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                 <span class="spinner is-active"></span>
-                <span x-text="i18n.loading"></span>
+                <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('i18n.loading'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
             </div>
 
             <!-- Error State - Only render when there's actually an error -->
-            <template x-if="error && logs.length === 0">
+            <template <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('error && logs.length === 0'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                 <div class="odcm-error-state">
                     <span class="dashicons dashicons-warning"></span>
-                    <span x-text="error"></span>
-                    <button type="button" class="button" @click="fetchLogs()">
+                    <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('error'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+                    <button type="button" class="button" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'fetchLogs()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                         <?php echo esc_html__('admin.insight_dashboard.actions.retry', 'order-daemon'); ?>
                     </button>
                 </div>
             </template>
 
             <!-- Empty State with Context Awareness - Only render when appropriate -->
-            <template x-if="!loading && !error && logs.length === 0 && !initialLoad">
+            <template <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!loading && !error && logs.length === 0 && !initialLoad'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                 <div class="odcm-empty-state">
                     <!-- Filtered Empty State (No results match current filters/search) -->
-                    <template x-if="hasActiveFilters">
+                    <template <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('hasActiveFilters'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                         <div class="odcm-filtered-empty-state">
                             <span class="dashicons dashicons-filter"></span>
                             <h4><?php echo esc_html__('No results match your current filters', 'order-daemon'); ?></h4>
                             <p><?php echo esc_html__('Try adjusting your filters or clear them to see all activity.', 'order-daemon'); ?></p>
                             <div class="odcm-empty-actions">
-                                <button type="button" class="button" @click="clearFilters()">
+                                <button type="button" class="button" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'clearFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                                     <?php echo esc_html__('Clear filters', 'order-daemon'); ?>
                                 </button>
-                                <button type="button" class="button button-secondary" @click="fetchLogs()">
+                                <button type="button" class="button button-secondary" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'fetchLogs()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                                     <?php echo esc_html__('Refresh', 'order-daemon'); ?>
                                 </button>
                             </div>
@@ -1524,7 +1562,7 @@ class InsightDashboard
                     </template>
 
                     <!-- Welcome State (Fresh Installation) -->
-                    <template x-if="!hasActiveFilters && isWelcomeScenario">
+                    <template <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!hasActiveFilters && isWelcomeScenario'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                         <div class="odcm-welcome-state">
                             <div class="odcm-welcome-icon">
                                 <span class="dashicons dashicons-chart-line"></span>
@@ -1559,13 +1597,13 @@ class InsightDashboard
                     </template>
 
                     <!-- Regular Empty State (Rules exist, no recent activity) -->
-                    <template x-if="!hasActiveFilters && !isWelcomeScenario">
+                    <template <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!hasActiveFilters && !isWelcomeScenario'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                         <div class="odcm-regular-empty-state">
                             <span class="dashicons dashicons-admin-post"></span>
                             <h4><?php echo esc_html__('admin.insight_dashboard.empty.no_activity.title', 'order-daemon'); ?></h4>
                             <p><?php echo esc_html__('admin.insight_dashboard.empty.no_activity.description', 'order-daemon'); ?></p>
                             <div class="odcm-empty-actions">
-                                <button type="button" class="button" @click="fetchLogs()">
+                                <button type="button" class="button" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'fetchLogs()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                                     <?php echo esc_html__('Refresh', 'order-daemon'); ?>
                                 </button>
                                 <a href="<?php echo esc_url(admin_url('edit.php?post_type=odcm_order_rule')); ?>" class="button button-secondary">
@@ -1579,85 +1617,94 @@ class InsightDashboard
 
 
             <!-- Log Entries -->
-            <div class="odcm-log-entries" x-show="logs.length > 0">
+            <div class="odcm-log-entries" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('logs.length > 0'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                 <!-- Log Entries Controls Wrapper -->
                 <div class="odcm-log-entries-controls">
                     <!-- Batch Selection Controls -->
                     <div class="odcm-batch-controls">
                         <div class="odcm-select-all-container">
-                            <input type="checkbox" 
+                            <input type="checkbox"
                                    id="select-all-logs"
-                                   x-model="selectAll"
-                                   @change="toggleSelectAll()"
+                                    <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('selectAll'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'toggleSelectAll($event.target.checked)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                    class="odcm-select-all-checkbox">
                             <label for="select-all-logs" class="odcm-select-all-label">
                                 <?php echo esc_html__('admin.insight_dashboard.log_stream.select_all', 'order-daemon'); ?>
                             </label>
                         </div>
-                        <div class="odcm-batch-actions" x-show="hasSelection">
-                            <span class="odcm-selection-count" x-text="selectedCount + ' <?php echo esc_js(__('selected', 'order-daemon')); ?>'"></span>
+                        <div class="odcm-batch-actions" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('hasSelection'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                            <span class="odcm-selection-count" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('selectedCount + " ' . esc_js(__('selected', 'order-daemon')) . '"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
                             <button type="button" 
                                     class="odcm-delete-selected button button-secondary"
-                                    @click="deleteSelectedLogs()"
-                                    :disabled="isDeleting">
-                                <span class="dashicons dashicons-trash" :class="{ 'is-spinning': isDeleting }"></span>
-                                <span x-text="isDeleting ? '<?php echo esc_js(__('admin.insight_dashboard.log_stream.deleting', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.insight_dashboard.log_stream.delete_selected', 'order-daemon')); ?>'"></span>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'deleteSelectedLogs()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('isDeleting'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                                <span <?php echo DashboardComponentUIToolkit::createClassAttribute(['dashicons', 'dashicons-trash', 'is-spinning' => 'isDeleting']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+                                <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('isDeleting ? "' . esc_js(__('admin.insight_dashboard.log_stream.deleting', 'order-daemon')) . '" : "' . esc_js(__('admin.insight_dashboard.log_stream.delete_selected', 'order-daemon')) . '"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
                             </button>
                         </div>
                         <div class="odcm-controls-divider" aria-hidden="true"></div>
                         <div class="odcm-stream-view-toggle odcm-segmented" role="radiogroup" aria-label="Toggle view mode">
                             <div class="odcm-segmented-track">
-                                <div class="odcm-segmented-thumb" :class="viewMode === 'flat' ? 'is-right' : 'is-left'"></div>
+                                <div class="odcm-segmented-thumb"
+                                        <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{ 'is-right': viewMode === 'flat', 'is-left': viewMode !== 'flat' }"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                                </div>
+
                                 <button type="button"
                                         class="odcm-segmented-option"
                                         role="radio"
-                                        :aria-checked="viewMode === 'consolidated'"
-                                        :class="{ 'is-active': viewMode === 'consolidated' }"
-                                        @click="setViewMode('consolidated')">
+                                        <?php echo DashboardComponentUIToolkit::createAlpineBind('aria-checked', 'viewMode === "consolidated"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                        <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{ 'is-active': viewMode === 'consolidated' }"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                        <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'setViewMode(\'consolidated\')'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                                     <?php echo esc_html__('Grouped', 'order-daemon'); ?>
                                 </button>
+
                                 <button type="button"
                                         class="odcm-segmented-option"
                                         role="radio"
-                                        :aria-checked="viewMode === 'flat'"
-                                        :class="{ 'is-active': viewMode === 'flat' }"
-                                        @click="setViewMode('flat')"
+                                        <?php echo DashboardComponentUIToolkit::createAlpineBind('aria-checked', 'viewMode === "flat"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                        <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{ 'is-active': viewMode === 'flat' }"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                        <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'setViewMode(\'flat\')'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                         title="<?php echo esc_attr__('Shows all events ungrouped, in strict chronological order', 'order-daemon'); ?>">
                                     <?php echo esc_html__('Individual', 'order-daemon'); ?>
                                 </button>
+                                
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <template x-for="(log, index) in logs" :key="log?.id || ('invalid-' + index)">
-                    <div x-show="log && log.id"
-                         :class="log ? getLogEntryClasses(log) : 'odcm-log-entry'">
-                        
-                        <div class="odcm-log-entry-checkbox" x-show="log && log.id">
-                            <input type="checkbox" 
-                                   :id="'log-checkbox-' + (log?.id || 'invalid')"
-                                   :checked="log?.id && isLogSelected(log.id)"
-                                   @change="log?.id && toggleLogSelection(log.id)"
-                                   @click.stop
-                                   class="odcm-log-checkbox">
-                            <label :for="'log-checkbox-' + (log?.id || 'invalid')" class="odcm-log-checkbox-label">
+                    <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('log && log.id'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                            <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("log ? getLogEntryClasses(log) : 'odcm-log-entry'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+
+                        <div class="odcm-log-entry-checkbox" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('log && log.id'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                            <input type="checkbox"
+                                <?php echo DashboardComponentUIToolkit::createAlpineBind('id', "'log-checkbox-' + (log?.id || 'invalid')"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineCheckedBinding('isLogSelected(log.id)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleLogSelection(log.id)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                class="odcm-log-checkbox">
+                            <label <?php echo DashboardComponentUIToolkit::createAlpineBind('for', "'log-checkbox-' + (log?.id || 'invalid')"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                    class="odcm-log-checkbox-label">
                                 <span class="screen-reader-text"><?php echo esc_html__('admin.insight_dashboard.log_stream.select_log_entry', 'order-daemon'); ?></span>
                             </label>
                         </div>
-                        
-                        <div class="odcm-log-entry-content" @click="log && selectLog(log)">
+
+                        <div class="odcm-log-entry-content" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'log && selectLog(log)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             <div class="odcm-log-entry-header">
-                                <div class="odcm-log-timestamp js-format-timestamp" x-text="formatTimestamp(log?.timestamp, $el)"></div>
-                                <div x-show="log?.order_id">
-                                    Order #<span x-text="log.order_id"></span>
+                                <div class="odcm-log-timestamp js-format-timestamp" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('formatTimestamp(log?.timestamp, $el)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></div>
+
+                                <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('log?.order_id'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                                    Order #<span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('log.order_id'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
                                 </div>
+
                                 <div class="odcm-log-summary">
-                                    <span x-text="log?.summary || '<?php echo esc_js(__('admin.insight_dashboard.log_stream.no_summary', 'order-daemon')); ?>'"></span>
+                                    <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('log?.summary || "' . esc_js(__('admin.insight_dashboard.log_stream.no_summary', 'order-daemon')) . '"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
                                 </div>
-                                <span class="odcm-status-pill" 
-                                      :class="'odcm-status-pill--' + ((log?.status && typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')"
-                                      x-text="log?.status || '<?php echo esc_js(__('admin.insight_dashboard.log_stream.unknown_status', 'order-daemon')); ?>'"></span>
+
+                                <span class="odcm-status-pill"
+                                        <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("'odcm-status-pill odcm-status-pill--' + ((log?.status && typeof log.status === 'string') ? log.status.toLowerCase() : 'unknown')"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                        <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('log?.status || "' . esc_js(__('admin.insight_dashboard.log_stream.unknown_status', 'order-daemon')) . '"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                                    </span>
                             </div>
                         </div>
                     </div>
@@ -1665,41 +1712,113 @@ class InsightDashboard
             </div>
 
             <!-- Pagination -->
-            <div class="odcm-pagination" x-show="totalPages > 1">
+            <div class="odcm-pagination" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('totalPages > 1'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                 <div class="tablenav-pages">
-                    <span class="displaying-num" x-text="paginationText"></span>
+                    <span class="displaying-num" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('paginationText'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
                     <span class="pagination-links">
                         <button type="button" 
                                 class="button first-page"
-                                :disabled="currentPage === 1"
-                                @click="goToPage(1)">‹‹</button>
+                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('currentPage === 1'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'goToPage(1)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>‹‹</button>
                         <button type="button" 
                                 class="button prev-page"
-                                :disabled="currentPage === 1"
-                                @click="goToPage(currentPage - 1)">‹</button>
+                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('currentPage === 1'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'goToPage(currentPage - 1)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>‹</button>
                         <span class="paging-input">
                             <input type="number" 
-                                   x-model="currentPage"
-                                   @change="goToPage(currentPage)"
-                                   :min="1"
-                                   :max="totalPages"
+                                   <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('currentPage'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                   <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'goToPage(currentPage)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                   <?php echo DashboardComponentUIToolkit::createAlpineMinBinding('1'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                   <?php echo DashboardComponentUIToolkit::createAlpineAttrBinding('max', 'totalPages'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                    class="current-page">
                             <?php echo esc_html__('admin.insight_dashboard.pagination.of', 'order-daemon'); ?>
-                            <span class="total-pages" x-text="totalPages"></span>
+                            <span class="total-pages" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('totalPages'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
                         </span>
                         <button type="button" 
                                 class="button next-page"
-                                :disabled="currentPage === totalPages"
-                                @click="goToPage(currentPage + 1)">›</button>
+                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('currentPage === totalPages'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'goToPage(currentPage + 1)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>›</button>
                         <button type="button" 
                                 class="button last-page"
-                                :disabled="currentPage === totalPages"
-                                @click="goToPage(totalPages)">››</button>
+                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('currentPage === totalPages'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'goToPage(totalPages)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>››</button>
                     </span>
                 </div>
             </div>
         </div>
         <?php
+    }
+
+    /**
+     * Handle AJAX request to log Alpine.js failure
+     * 
+     * This endpoint logs client-side Alpine.js loading failures for debugging.
+     */
+    public function handle_log_alpine_failure_ajax(): void
+    {
+        // Verify nonce
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
+            wp_send_json_error(['message' => __('Security check failed', 'order-daemon')]);
+        }
+
+        // Check user capabilities - use WooCommerce standard for reports (allows Shop Managers)
+        if (!current_user_can('view_woocommerce_reports') && !current_user_can('manage_woocommerce')) {
+            wp_send_json_error(['message' => __('Permission denied', 'order-daemon')]);
+        }
+
+        // Get raw data
+        $env_raw = isset($_POST['env']) ? sanitize_text_field(wp_unslash($_POST['env'])) : '';
+        $issues_raw = isset($_POST['issues']) ? sanitize_text_field(wp_unslash($_POST['issues'])) : '';
+
+        // Validate and sanitize the JSON
+        try {
+            $env = odcm_validate_and_sanitize_json($env_raw, true);
+            $issues = odcm_validate_and_sanitize_json($issues_raw, true);
+        } catch (InvalidArgumentException $e) {
+            // Log error and provide fallback
+            odcm_log_message("JSON validation error: " . $e->getMessage(), 'error');
+            $env = [];
+            $issues = [];
+        }
+
+        // Additional sanitization for array values
+        $env = array_map('sanitize_text_field', $env);
+        $issues = array_map('sanitize_text_field', $issues);
+
+        // Log the failure for debugging
+        $log_data = [
+            'type' => 'alpine_js_failure',
+            'timestamp' => current_time('mysql'),
+            'user_id' => get_current_user_id(),
+            'environment' => is_array($env) ? $env : [],
+            'potential_issues' => is_array($issues) ? $issues : [],
+            'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : 'unknown',
+            'referer' => isset($_SERVER['HTTP_REFERER']) ? esc_url_raw(wp_unslash($_SERVER['HTTP_REFERER'])) : 'unknown'
+        ];
+
+        // Log using the plugin's logging system if available
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
+                'Alpine.js framework failed to load',
+                $log_data,
+                null,
+                'error',
+                'frontend_error'
+            );
+        }
+
+        // Also log to WordPress debug log
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            // Use WordPress-friendly logging
+            if (function_exists('odcm_log_message')) {
+                odcm_log_message('ODCM Alpine.js Load Failure: ' . wp_json_encode($log_data), 'error');
+            }
+        }
+
+        wp_send_json_success([
+            'message' => 'Alpine.js failure logged',
+            'logged' => true
+        ]);
     }
 
     /**
@@ -1710,21 +1829,21 @@ class InsightDashboard
         ?>
         <div class="odcm-detail-pane-content">
             <!-- Loading State -->
-            <div class="odcm-detail-loading" x-show="detailLoading">
+            <div class="odcm-detail-loading" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('detailLoading'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                 <span class="spinner is-active"></span>
-                <span x-text="i18n.loading"></span>
+                <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('i18n.loading'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
             </div>
 
             <!-- Detail Content -->
             <div class="odcm-detail-content" 
-                 x-show="!detailLoading && selectedLog"
-                 x-html="detailHtml">
+                 <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!detailLoading && selectedLog'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                 <?php echo DashboardComponentUIToolkit::createAlpineHtmlBinding('detailHtml'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
             </div>
 
             <!-- Empty State -->
-            <div class="odcm-detail-empty" x-show="!detailLoading && !selectedLog">
+            <div class="odcm-detail-empty" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!detailLoading && !selectedLog'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                 <span class="dashicons dashicons-info"></span>
-                <span x-text="i18n.selectLog"></span>
+                <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('i18n.selectLog'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
             </div>
         </div>
         <?php

@@ -52,11 +52,15 @@ document.addEventListener('DOMContentLoaded', function() {
             noticeDiv.style.opacity = '0';
             setTimeout(() => noticeDiv.remove(), 500);
 
-            // Use the properly localized AJAX URL, with fallback to global ajaxurl
-            const ajaxUrl = (typeof odcm_ajax !== 'undefined' && odcm_ajax.ajaxurl) 
-                ? odcm_ajax.ajaxurl 
-                : (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php');
-            
+            // Use the properly localized AJAX URL
+            const ajaxUrl = odcm_ajax.ajaxurl;
+
+            // Verify the AJAX URL is properly localized
+            if (!odcm_ajax || !odcm_ajax.ajaxurl) {
+                console.error('ODCM Admin Notices: AJAX URL not properly localized');
+                return;
+            }
+
             if (odcmIsDebug()) { console.log('ODCM Admin Notices: Using AJAX URL:', ajaxUrl); }
 
             // Send the request to the server to delete the transient

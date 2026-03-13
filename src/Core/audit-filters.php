@@ -2,38 +2,27 @@
 declare(strict_types=1);
 
 /**
- * Audit Log Filter Definitions - Entitlement-Aware Filter Registry
+ * Audit Log Filter Definitions
  *
  * This file contains all filter registrations for the audit log interface.
- * It follows the same pattern as options.php but is specifically designed
- * for audit log filtering capabilities.
+ * It provides comprehensive filtering capabilities for the audit log system.
  *
  * FILTER ARCHITECTURE:
  * ===================
- * 
+ *
  * Each filter is registered with:
  * - id: Unique identifier (e.g., 'date_range')
  * - label: Human-readable name for UI
- * - tier: Product tier ('free' or 'premium')
- * - capability: Entitlement key for access control
  * - render_callback: Function to render filter input UI
- * 
- * ENTITLEMENT INTEGRATION:
- * =======================
- * 
- * Filters are automatically integrated with the entitlement system:
- * - Free filters are always available
- * - Premium filters show PREMIUM badges
- * - Disabled state for users without access
- * - Server-side validation prevents bypass attempts
- * 
+ *
  * RENDER CALLBACKS:
  * ================
- * 
- * Each filter has a render callback that receives permission status:
- * - $has_permission (bool): Whether user can use this filter
- * - Callback should render appropriate UI (enabled/disabled)
- * - Premium filters should show upgrade prompts when disabled
+ *
+ * Each filter has a render callback that receives:
+ * - $filter: Filter configuration array
+ * - $has_permission: Whether user can use this filter
+ * - $current_value: Current filter value
+ * - Callback should render appropriate UI based on permission status
  *
  * @package OrderDaemon\CompletionManager\Core
  * @since   1.0.0
@@ -60,39 +49,27 @@ function odcm_register_audit_filters(): void
 {
     $registry = odcm_get_filter_registry_instance();
 
-    // ============================================================================
-    // FREE TIER FILTERS - Available to all users
-    // ============================================================================
-
     /**
      * Basic Search Filter
      * 
      * Provides text-based search across log summaries, event types, and sources.
-     * This is the core search functionality available to all users.
+     * This is the core search functionality.
      */
     $registry->register_filter([
         'id'              => 'basic_search',
         'label'           => __('admin.insight_dashboard.filters.search.label', 'order-daemon'),
-        'tier'            => 'free',
-        'capability'      => 'audit_log_basic_search',
         'render_callback' => 'odcm_render_basic_search_filter',
     ]);
-
-    // ============================================================================
-    // PREMIUM TIER FILTERS - Require premium license
-    // ============================================================================
 
     /**
      * Date Range Filter
      * 
      * Allows filtering by specific date ranges using date pickers.
-     * Premium feature that provides precise temporal filtering.
+     * Provides precise temporal filtering.
      */
     $registry->register_filter([
         'id'              => 'date_range',
         'label'           => __('admin.insight_dashboard.filters.date_range.label', 'order-daemon'),
-        'tier'            => 'premium',
-        'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_date_range_filter',
     ]);
 
@@ -105,8 +82,6 @@ function odcm_register_audit_filters(): void
     $registry->register_filter([
         'id'              => 'status',
         'label'           => __('admin.insight_dashboard.filters.status.label', 'order-daemon'),
-        'tier'            => 'premium',
-        'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_status_filter',
     ]);
 
@@ -119,8 +94,6 @@ function odcm_register_audit_filters(): void
     $registry->register_filter([
         'id'              => 'event_type',
         'label'           => __('admin.insight_dashboard.filters.event_type.label', 'order-daemon'),
-        'tier'            => 'premium',
-        'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_event_type_filter',
     ]);
 
@@ -134,8 +107,6 @@ function odcm_register_audit_filters(): void
     $registry->register_filter([
         'id'              => 'source',
         'label'           => __('admin.insight_dashboard.filters.source.label', 'order-daemon'),
-        'tier'            => 'premium',
-        'capability'      => 'audit_log_filter_advanced',
         'render_callback' => 'odcm_render_source_filter',
     ]);
 }
@@ -145,10 +116,9 @@ function odcm_register_audit_filters(): void
 // ============================================================================
 
 /**
- * Render Basic Search Filter Input
+ * Render Search Filter Input
  * 
- * Renders a simple text input for basic search functionality.
- * Always enabled for free users.
+ * Renders a text input for search functionality.
  * 
  * @since 1.0.0
  * @param array $filter Filter configuration array
@@ -179,7 +149,6 @@ function odcm_render_basic_search_filter(array $filter, bool $has_permission, st
  * Render Date Range Filter Inputs
  * 
  * Renders date picker inputs for start and end dates.
- * Shows as disabled for free users.
  * 
  * @since 1.0.0
  * @param array $filter Filter configuration array
@@ -190,6 +159,7 @@ function odcm_render_basic_search_filter(array $filter, bool $has_permission, st
 function odcm_render_date_range_filter(array $filter, bool $has_permission, string $current_value): void
 {
     // Verify nonce if this is a form submission
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce is verified immediately after this line.
     $is_valid_request = false;
     if (isset($_REQUEST['_wpnonce'])) {
         $is_valid_request = wp_verify_nonce(sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])), 'odcm_audit_filter_action');
@@ -252,6 +222,7 @@ function odcm_render_date_range_filter(array $filter, bool $has_permission, stri
 function odcm_render_status_filter(array $filter, bool $has_permission, string $current_value): void
 {
     // Verify nonce if this is a form submission
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce is verified immediately after this line.
     if (!empty($_REQUEST) && isset($_REQUEST['_wpnonce'])) {
         $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
         if (!wp_verify_nonce($nonce, 'odcm_audit_filter_action')) {
@@ -287,9 +258,9 @@ function odcm_render_status_filter(array $filter, bool $has_permission, string $
 
 /**
  * Render Event Type Filter Dropdown
- * 
+ *
  * Renders a select dropdown with available event types.
- * 
+ *
  * @since 1.0.0
  * @param array $filter Filter configuration array
  * @param bool $has_permission Whether user can use this filter
@@ -302,35 +273,136 @@ function odcm_render_event_type_filter(array $filter, bool $has_permission, stri
     if (!empty($_REQUEST) && isset($_REQUEST['_wpnonce'])) {
         $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
         if (!wp_verify_nonce($nonce, 'odcm_audit_filter_action')) {
-            // Invalid nonce, but we'll still show the filter - just won't process values
             $current_value = '';
         }
     }
-    
-    $event_types = [
-        ''                    => __('admin.insight_dashboard.filters.event_type.all', 'order-daemon'),
-        'rule_check'          => __('admin.insight_dashboard.filters.event_type.rule_check', 'order-daemon'),
-        'order_completion'    => __('admin.insight_dashboard.filters.event_type.order_completion', 'order-daemon'),
-        'manual_trigger'      => __('admin.insight_dashboard.filters.event_type.manual_trigger', 'order-daemon'),
-        'scheduled_task'      => __('admin.insight_dashboard.filters.event_type.scheduled_task', 'order-daemon'),
-        'webhook_received'    => __('admin.insight_dashboard.filters.event_type.webhook_received', 'order-daemon'),
-        'error_occurred'      => __('admin.insight_dashboard.filters.event_type.error_occurred', 'order-daemon'),
+
+    // Define basic fallback event types
+    // (It's impractical to maintain exhaustive list of potential events)
+    $fallback_event_types = [
+        // Core system events
+        'rule_execution' => __('Rule Execution', 'order-daemon'),
+        'status_changed' => __('Status Changed', 'order-daemon'),
+        'order_completion' => __('Order Completion', 'order-daemon'),
+        'manual_status_change' => __('Manual Status Change', 'order-daemon'),
+        'checkout_processed' => __('Checkout Processed', 'order-daemon'),
+        'email_sent' => __('Email Sent', 'order-daemon'),
+        'stock_adjusted' => __('Stock Adjusted', 'order-daemon'),
+        'note_added' => __('Note Added', 'order-daemon'),
+
+        // Payment gateway events (critical for users)
+        // Stripe events - comprehensive coverage of common Stripe webhook events
+        'payment.stripe.checkout_processed' => __('Stripe Checkout Processed', 'order-daemon'),
+        'payment.stripe.payment_intent_succeeded' => __('Stripe Payment Succeeded', 'order-daemon'),
+        'payment.stripe.payment_intent_created' => __('Stripe Payment Created', 'order-daemon'),
+        'payment.stripe.payment_intent_payment_failed' => __('Stripe Payment Failed', 'order-daemon'),
+        'payment.stripe.charge_succeeded' => __('Stripe Charge Succeeded', 'order-daemon'),
+        'payment.stripe.charge_failed' => __('Stripe Charge Failed', 'order-daemon'),
+        'payment.stripe.customer_subscription_created' => __('Stripe Subscription Created', 'order-daemon'),
+        'payment.stripe.customer_subscription_updated' => __('Stripe Subscription Updated', 'order-daemon'),
+        'payment.stripe.customer_subscription_deleted' => __('Stripe Subscription Cancelled', 'order-daemon'),
+        'payment.stripe.invoice_payment_succeeded' => __('Stripe Invoice Payment Succeeded', 'order-daemon'),
+        'payment.stripe.invoice_payment_failed' => __('Stripe Invoice Payment Failed', 'order-daemon'),
+        'payment.stripe.charge_refunded' => __('Stripe Charge Refunded', 'order-daemon'),
+
+        // PayPal events
+        'payment.paypal.payment_captured' => __('PayPal Payment Captured', 'order-daemon'),
+        'payment.paypal.order_completed' => __('PayPal Order Completed', 'order-daemon'),
+        'payment.paypal.payment_completed' => __('PayPal Payment Completed', 'order-daemon'),
+        'payment.paypal.payment_failed' => __('PayPal Payment Failed', 'order-daemon'),
+        'payment.paypal.payment_pending' => __('PayPal Payment Pending', 'order-daemon'),
+        'payment.paypal.payment_refunded' => __('PayPal Payment Refunded', 'order-daemon'),
+        'payment.paypal.renewal_payment_completed' => __('PayPal Renewal Payment Completed', 'order-daemon'),
+        'payment.paypal.subscription_cancelled' => __('PayPal Subscription Cancelled', 'order-daemon'),
+        'payment.paypal.subscription_created' => __('PayPal Subscription Created', 'order-daemon'),
+        'payment.paypal.subscription_reactivated' => __('PayPal Subscription Reactivated', 'order-daemon'),
+        'payment.paypal.subscription_suspended' => __('PayPal Subscription Suspended', 'order-daemon'),
+
+        // Square events
+        'payment.square.charge_completed' => __('Square Charge Completed', 'order-daemon'),
+        'payment.square.payment_processed' => __('Square Payment Processed', 'order-daemon'),
+
+        // Webhook and external events
+        'webhook_received' => __('Webhook Received', 'order-daemon'),
+        'webhook_processed' => __('Webhook Processed', 'order-daemon'),
+
+        // Error and warning events
+        'error_occurred' => __('Error Occurred', 'order-daemon'),
+        'validation_failed' => __('Validation Failed', 'order-daemon'),
+        'action_failed' => __('Action Failed', 'order-daemon'),
     ];
-    
+
+    // Start with all event types option
+    $event_types = [
+        '' => __('All Event Types', 'order-daemon')
+    ];
+
+    // Try to fetch dynamic event types from API
+    $use_fallback = false;
+
+    if ($has_permission && class_exists('OrderDaemon\\CompletionManager\\API\\AuditLogEndpoint')) {
+        try {
+            $endpoint = new \OrderDaemon\CompletionManager\API\AuditLogEndpoint();
+            $request = new \WP_REST_Request('GET', '/odcm/v1/audit-log/filter-options');
+            $request->set_timeout(10);
+            $request->set_param('context', 'filter');
+
+            $response = $endpoint->get_filter_options($request);
+
+            if (!is_wp_error($response) && isset($response->data['filter_options']['event_types'])) {
+                foreach ($response->data['filter_options']['event_types'] as $event) {
+                    // Skip internal-only events
+                    $internal_events = ['rule_no_match', 'debug_', 'process_started'];
+                    $is_internal = false;
+                    foreach ($internal_events as $internal) {
+                        if (strpos($event['value'], $internal) === 0) {
+                            $is_internal = true;
+                            break;
+                        }
+                    }
+                    if (!$is_internal) {
+                        $event_types[$event['value']] = $event['label'];
+                    }
+                }
+            } else {
+                $use_fallback = true;
+            }
+        } catch (\Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                odcm_log_message('ODCM: Failed to fetch dynamic event types: ' . $e->getMessage(), 'error');
+            }
+            $use_fallback = true;
+        }
+    } else {
+        $use_fallback = true;
+    }
+
+    // Use fallback if API call failed
+    if ($use_fallback) {
+        $event_types = array_merge($event_types, $fallback_event_types);
+    }
+
+    // Allow extensions to modify event types
+    $event_types = apply_filters('odcm_event_type_filter_options', $event_types);
+
+    // Sort alphabetically for better UX after filters applied for better ux
+    ksort($event_types);
+
+    // Render the dropdown
     echo '<select name="event_type" id="odcm-event-type-filter" class="regular-text"';
-    
+
     if (!$has_permission) {
         echo ' disabled="disabled"';
     }
-    
+
     echo '>';
-    
+
     foreach ($event_types as $value => $label) {
         echo '<option value="' . esc_attr($value) . '"';
         selected($current_value, $value);
         echo '>' . esc_html($label) . '</option>';
     }
-    
+
     echo '</select>';
 }
 
@@ -349,6 +421,7 @@ function odcm_render_event_type_filter(array $filter, bool $has_permission, stri
 function odcm_render_source_filter(array $filter, bool $has_permission, string $current_value): void
 {
     // Verify nonce if this is a form submission
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce is verified immediately after this line.
     if (!empty($_REQUEST) && isset($_REQUEST['_wpnonce'])) {
         $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
         if (!wp_verify_nonce($nonce, 'odcm_audit_filter_action')) {

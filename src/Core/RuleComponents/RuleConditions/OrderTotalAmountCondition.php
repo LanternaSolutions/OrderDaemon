@@ -29,10 +29,6 @@ class OrderTotalAmountCondition implements ConditionInterface
         return __('rule_component.condition.order_total.description', 'order-daemon');
     }
 
-    public function get_capability(): string
-    {
-        return 'condition_order_total'; // Free tier
-    }
 
     public function get_settings_schema(): ?array
     {
@@ -48,13 +44,15 @@ class OrderTotalAmountCondition implements ConditionInterface
                         'amount_gt' => __('rule_component.condition.order_total.operator.greater_than', 'order-daemon'),
                         'amount_lt' => __('rule_component.condition.order_total.operator.less_than', 'order-daemon'),
                         'amount_eq' => __('rule_component.condition.order_total.operator.equal_to', 'order-daemon'),
+                        'amount_ne' => __('rule_component.condition.order_total.operator.not_equal_to', 'order-daemon'),
                         'amount_gte' => __('rule_component.condition.order_total.operator.greater_than_equal', 'order-daemon'),
                         'amount_lte' => __('rule_component.condition.order_total.operator.less_than_equal', 'order-daemon'),
                     ],
                     'ui:radio_inputs' => [
                         'amount_gt' => 'amount_gt_value',
-                        'amount_lt' => 'amount_lt_value', 
+                        'amount_lt' => 'amount_lt_value',
                         'amount_eq' => 'amount_eq_value',
+                        'amount_ne' => 'amount_ne_value',
                         'amount_gte' => 'amount_gte_value',
                         'amount_lte' => 'amount_lte_value',
                     ],
@@ -72,6 +70,11 @@ class OrderTotalAmountCondition implements ConditionInterface
                     'default' => 50,
                 ],
                 'amount_eq_value' => [
+                    'type' => 'number',
+                    'minimum' => 0,
+                    'default' => 75,
+                ],
+                'amount_ne_value' => [
                     'type' => 'number',
                     'minimum' => 0,
                     'default' => 75,
@@ -113,6 +116,8 @@ class OrderTotalAmountCondition implements ConditionInterface
                 return $order_total < $amount;
             case 'amount_eq':
                 return abs($order_total - $amount) <= $epsilon;
+            case 'amount_ne':
+                return abs($order_total - $amount) > $epsilon;
             case 'amount_gte':
                 return $order_total >= $amount;
             case 'amount_lte':

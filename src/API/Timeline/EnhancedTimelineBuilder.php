@@ -337,6 +337,11 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
      */
     private function isDebugOnlyEvent(TimelineEvent $timelineEvent): bool
     {
+        // First check for _universal_event_debug events (always debug-only)
+        if ($timelineEvent->event_type === '_universal_event_debug') {
+            return true;
+        }
+
         // First check for explicit debug_only flag (highest priority)
         if (!empty($timelineEvent->raw_payload['debug_only']) && $timelineEvent->raw_payload['debug_only'] === true) {
             return true;
@@ -386,6 +391,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $result = $wpdb->get_row(
             $wpdb->prepare(
                 "SELECT l.log_id,
@@ -744,6 +750,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
 
         global $wpdb;
 
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $results = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT l.log_id,

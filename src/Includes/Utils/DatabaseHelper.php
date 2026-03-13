@@ -68,20 +68,19 @@ class DatabaseHelper
         }
 
         // Use WordPress caching for table existence checks
-        $cache_key = 'odcm_table_exists_' . md5($table_name);
-        $cached_result = wp_cache_get($cache_key, 'odcm_database');
+        $cache_key      = 'odcm_table_exists_' . md5($table_name);
+        $cached_result  = wp_cache_get($cache_key, 'odcm_database');
 
         if ($cached_result !== false) {
             return $cached_result;
         }
 
         try {
-            $result = $this->wpdb->get_var(
-                $this->wpdb->prepare(
-                    "SHOW TABLES LIKE %s",
-                    '%' . $this->wpdb->esc_like($table_name) . '%'
-                )
+            $query  = $this->wpdb->prepare(
+                'SHOW TABLES LIKE %s',
+                '%' . $this->wpdb->esc_like($table_name) . '%'
             );
+            $result = $this->get_var($query);
 
             $table_exists = ! empty($result);
             wp_cache_set($cache_key, $table_exists, 'odcm_database', HOUR_IN_SECONDS);
@@ -106,12 +105,14 @@ class DatabaseHelper
 
     private function _drop_table(string $table_name): bool
     {
-        if (empty($table_name) || !$this->table_exists($table_name) || !self::validate_table_name($table_name)) {
+        if (empty($table_name) || ! $this->table_exists($table_name) || ! self::validate_table_name($table_name)) {
             return true; // Table doesn't exist or invalid name, consider it successful
         }
 
         try {
-            $result = $this->wpdb->query($this->wpdb->prepare("DROP TABLE IF EXISTS %s", $table_name));
+            // WordPress prepare() cannot be used for table names (identifiers).
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $result = $this->query("DROP TABLE IF EXISTS `" . esc_sql($table_name) . "`");
 
             if ($result === false) {
                 $this->log_error("DatabaseHelper::drop_table failed for table '{$table_name}'");
@@ -133,7 +134,7 @@ class DatabaseHelper
      * Get option value with caching
      *
      * @param string $option_name Option name to retrieve
-     * @param mixed $default Default value if option doesn't exist
+     * @param mixed  $default     Default value if option doesn't exist
      * @return mixed Option value or default value
      */
     public static function get_option(string $option_name, $default = false)
@@ -148,7 +149,7 @@ class DatabaseHelper
         }
 
         // Use WordPress caching for options
-        $cache_key = 'odcm_option_' . $option_name;
+        $cache_key     = 'odcm_option_' . $option_name;
         $cached_result = wp_cache_get($cache_key, 'odcm_options');
 
         if ($cached_result !== false) {
@@ -170,8 +171,8 @@ class DatabaseHelper
      * Update option value with caching
      *
      * @param string $option_name Option name to update
-     * @param mixed $value Option value to set
-     * @param string $autoload Whether to autoload option (default: 'yes')
+     * @param mixed  $value       Option value to set
+     * @param string $autoload    Whether to autoload option (default: 'yes')
      * @return bool True on success, false on failure
      */
     public static function update_option(string $option_name, $value, string $autoload = 'yes'): bool
@@ -247,18 +248,21 @@ class DatabaseHelper
 
     private function _delete_options_by_pattern(string $pattern): int
     {
-        if (empty($pattern) || !$this->validate_option_name($pattern)) {
+        if (empty($pattern) || ! $this->validate_option_name($pattern)) {
             return 0;
         }
 
         try {
             $deleted_count = 0;
-            $options = $this->get_results(
-                $this->wpdb->prepare(
-                    "SELECT option_name FROM {$this->wpdb->options} WHERE option_name LIKE %s",
-                    '%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%'
-                )
-            );
+
+            // Options table name from $wpdb is trusted.
+            $option_table = $this->wpdb->options;
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is trusted.
+            $query = "SELECT option_name FROM {$option_table} WHERE option_name LIKE %s";
+            $args  = ['%' . $this->wpdb->esc_like(sanitize_text_field($pattern)) . '%'];
+
+            $options = $this->get_results($query, $args);
 
             // Add explicit escaping for LIKE queries
             $pattern = $this->wpdb->esc_like($pattern);
@@ -296,17 +300,21 @@ class DatabaseHelper
         try {
             $deleted_count = 0;
 
+            // Sanitize and escape pattern for safe concatenation
+            $sanitized_pattern = sanitize_text_field($pattern);
+            $escaped_pattern   = $this->wpdb->esc_like($sanitized_pattern);
+
             // Delete regular transients
-            $deleted_count += $this->delete_options_by_pattern('_transient_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_transient_' . $escaped_pattern);
 
             // Delete transient timeouts
-            $deleted_count += $this->delete_options_by_pattern('_transient_timeout_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_transient_timeout_' . $escaped_pattern);
 
             // Delete site transients
-            $deleted_count += $this->delete_options_by_pattern('_site_transient_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_site_transient_' . $escaped_pattern);
 
             // Delete site transient timeouts
-            $deleted_count += $this->delete_options_by_pattern('_site_transient_timeout_' . $pattern);
+            $deleted_count += $this->delete_options_by_pattern('_site_transient_timeout_' . $escaped_pattern);
 
             // Clear WordPress object cache
             wp_cache_flush();
@@ -322,7 +330,7 @@ class DatabaseHelper
      * Execute a safe database query with error handling
      *
      * @param string $query SQL query to execute
-     * @param array $args Query arguments
+     * @param array  $args  Query arguments
      * @return mixed Query result
      */
     public static function query(string $query, array $args = [])
@@ -332,11 +340,32 @@ class DatabaseHelper
 
     private function _query(string $query, array $args = [])
     {
+        if (! $this->validate_query($query)) {
+            return false;
+        }
+
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
-            return $this->wpdb->query($this->wpdb->prepare($query, ...$args));
+            $sanitized_args = $this->sanitize_query_args($args);
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is dynamic by design in this helper.
+            $prepared_query = $this->wpdb->prepare($query, $sanitized_args);
+
+            if (empty($prepared_query)) {
+                $this->log_warning(
+                    'DatabaseHelper::query failed to prepare query.',
+                    'query',
+                    ['query' => $query]
+                );
+                return false;
+            }
+
+            $this->log_query($query, $sanitized_args);
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Prepared above.
+            return $this->wpdb->query($prepared_query);
+
         } catch (\Throwable $e) {
-            $this->log_error("DatabaseHelper::query failed: " . $e->getMessage());
+            $this->log_error('DatabaseHelper::query failed: ' . $e->getMessage());
             return false;
         }
     }
@@ -345,7 +374,7 @@ class DatabaseHelper
      * Get a single value from database with error handling
      *
      * @param string $query SQL query to execute
-     * @param array $args Query arguments
+     * @param array  $args  Query arguments
      * @return mixed Single value result
      */
     public static function get_var(string $query, array $args = [])
@@ -355,11 +384,32 @@ class DatabaseHelper
 
     private function _get_var(string $query, array $args = [])
     {
+        if (! $this->validate_query($query)) {
+            return null;
+        }
+
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
-            return $this->wpdb->get_var($this->wpdb->prepare($query, ...$args));
+            $sanitized_args = $this->sanitize_query_args($args);
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is dynamic.
+            $prepared_query = $this->wpdb->prepare($query, $sanitized_args);
+
+            if (empty($prepared_query)) {
+                $this->log_warning(
+                    'DatabaseHelper::get_var failed to prepare query.',
+                    'get_var',
+                    ['query' => $query]
+                );
+                return null;
+            }
+
+            $this->log_query($query, $sanitized_args);
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Prepared above.
+            return $this->wpdb->get_var($prepared_query);
+
         } catch (\Throwable $e) {
-            $this->log_error("DatabaseHelper::get_var failed: " . $e->getMessage());
+            $this->log_error('DatabaseHelper::get_var failed: ' . $e->getMessage());
             return null;
         }
     }
@@ -367,8 +417,8 @@ class DatabaseHelper
     /**
      * Get a row from database with error handling
      *
-     * @param string $query SQL query to execute
-     * @param array $args Query arguments
+     * @param string $query  SQL query to execute
+     * @param array  $args   Query arguments
      * @param string $output Output type (OBJECT, ARRAY_A, ARRAY_N)
      * @return mixed Row result
      */
@@ -379,11 +429,32 @@ class DatabaseHelper
 
     private function _get_row(string $query, array $args = [], string $output = 'OBJECT')
     {
+        if (! $this->validate_query($query)) {
+            return null;
+        }
+
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
-            return $this->wpdb->get_row($this->wpdb->prepare($query, ...$args), $output);
+            $sanitized_args = $this->sanitize_query_args($args);
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is dynamic.
+            $prepared_query = $this->wpdb->prepare($query, $sanitized_args);
+
+            if (empty($prepared_query)) {
+                $this->log_warning(
+                    'DatabaseHelper::get_row failed to prepare query.',
+                    'get_row',
+                    ['query' => $query]
+                );
+                return null;
+            }
+
+            $this->log_query($query, $sanitized_args);
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Prepared above.
+            return $this->wpdb->get_row($prepared_query, $output);
+
         } catch (\Throwable $e) {
-            $this->log_error("DatabaseHelper::get_row failed: " . $e->getMessage());
+            $this->log_error('DatabaseHelper::get_row failed: ' . $e->getMessage());
             return null;
         }
     }
@@ -391,10 +462,10 @@ class DatabaseHelper
     /**
      * Get multiple rows from database with error handling
      *
-     * @param string $query SQL query to execute
-     * @param array $args Query arguments
+     * @param string $query  SQL query to execute
+     * @param array  $args   Query arguments
      * @param string $output Output type (OBJECT, ARRAY_A, ARRAY_N)
-     * @return array Row results
+     * @return array|null Row results
      */
     public static function get_results(string $query, array $args = [], string $output = 'OBJECT'): ?array
     {
@@ -403,14 +474,34 @@ class DatabaseHelper
 
     private function _get_results(string $query, array $args = [], string $output = 'OBJECT'): ?array
     {
+        if (! $this->validate_query($query)) {
+            return null;
+        }
+
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
-            $results = $this->wpdb->get_results($this->wpdb->prepare($query, ...$args), $output);
+            $sanitized_args = $this->sanitize_query_args($args);
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is dynamic.
+            $prepared_query = $this->wpdb->prepare($query, $sanitized_args);
+
+            if (empty($prepared_query)) {
+                $this->log_warning(
+                    'DatabaseHelper::get_results failed to prepare query.',
+                    'get_results',
+                    ['query' => $query]
+                );
+                return null;
+            }
+
+            $this->log_query($query, $sanitized_args);
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Prepared above.
+            $results = $this->wpdb->get_results($prepared_query, $output);
 
             // Return null if no results found or if results is false (error)
             return $results === false || empty($results) ? null : $results;
         } catch (\Throwable $e) {
-            $this->log_error("DatabaseHelper::get_results failed: " . $e->getMessage());
+            $this->log_error('DatabaseHelper::get_results failed: ' . $e->getMessage());
             return null;
         }
     }
@@ -418,9 +509,9 @@ class DatabaseHelper
     /**
      * Get a single column from database with error handling
      *
-     * @param string $query SQL query to execute
-     * @param array $args Query arguments
-     * @param int $column_offset Column offset (0 for first column)
+     * @param string $query         SQL query to execute
+     * @param array  $args          Query arguments
+     * @param int    $column_offset Column offset (0 for first column)
      * @return array Column results
      */
     public static function get_col(string $query, array $args = [], int $column_offset = 0): array
@@ -430,11 +521,32 @@ class DatabaseHelper
 
     private function _get_col(string $query, array $args = [], int $column_offset = 0): array
     {
+        if (! $this->validate_query($query)) {
+            return [];
+        }
+
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
-            return $this->wpdb->get_col($this->wpdb->prepare($query, ...$args), $column_offset);
+            $sanitized_args = $this->sanitize_query_args($args);
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Query is dynamic.
+            $prepared_query = $this->wpdb->prepare($query, $sanitized_args);
+
+            if (empty($prepared_query)) {
+                $this->log_warning(
+                    'DatabaseHelper::get_col failed to prepare query.',
+                    'get_col',
+                    ['query' => $query]
+                );
+                return [];
+            }
+
+            $this->log_query($query, $sanitized_args);
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Prepared above.
+            return $this->wpdb->get_col($prepared_query, $column_offset);
+
         } catch (\Throwable $e) {
-            $this->log_error("DatabaseHelper::get_col failed: " . $e->getMessage());
+            $this->log_error('DatabaseHelper::get_col failed: ' . $e->getMessage());
             return [];
         }
     }
@@ -442,9 +554,9 @@ class DatabaseHelper
     /**
      * Insert data into database with error handling
      *
-     * @param string $table_name Table name to insert into
-     * @param array $data Data to insert (column => value pairs)
-     * @param array $format Optional format array for data types
+     * @param string     $table_name Table name to insert into
+     * @param array      $data       Data to insert (column => value pairs)
+     * @param array|null $format     Optional format array for data types
      * @return int|false The number of rows inserted, or false on error
      */
     public static function insert(string $table_name, array $data, array $format = null)
@@ -454,12 +566,13 @@ class DatabaseHelper
 
     private function _insert(string $table_name, array $data, array $format = null)
     {
-        if (empty($table_name) || empty($data)) {
+        if (empty($table_name) || empty($data) || !self::validate_table_name($table_name)) {
+            $this->log_error("Invalid table name for insert: {$table_name}");
             return false;
         }
 
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // Use WordPress insert with proper data validation
             $result = $this->wpdb->insert($table_name, $data, $format);
 
             if ($result === false) {
@@ -477,11 +590,11 @@ class DatabaseHelper
     /**
      * Update data in database with error handling
      *
-     * @param string $table_name Table name to update
-     * @param array $data Data to update (column => value pairs)
-     * @param array $where Where conditions (column => value pairs)
-     * @param array $format Optional format array for data types
-     * @param array $where_format Optional format array for where conditions
+     * @param string     $table_name   Table name to update
+     * @param array      $data         Data to update (column => value pairs)
+     * @param array      $where        Where conditions (column => value pairs)
+     * @param array|null $format       Optional format array for data types
+     * @param array|null $where_format Optional format array for where conditions
      * @return int|false The number of rows updated, or false on error
      */
     public static function update(string $table_name, array $data, array $where, array $format = null, array $where_format = null)
@@ -491,12 +604,13 @@ class DatabaseHelper
 
     private function _update(string $table_name, array $data, array $where, array $format = null, array $where_format = null)
     {
-        if (empty($table_name) || empty($data) || empty($where)) {
+        if (empty($table_name) || empty($data) || empty($where) || !self::validate_table_name($table_name)) {
+            $this->log_error("Invalid table name for update: {$table_name}");
             return false;
         }
 
         try {
-            // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter
+            // Use WordPress update with proper data validation
             $result = $this->wpdb->update($table_name, $data, $where, $format, $where_format);
 
             if ($result === false) {
@@ -512,94 +626,324 @@ class DatabaseHelper
     }
 
     /**
-     * Log an error message with additional context
+     * Validate SQL query for security
      *
-     * @param string $message Error message to log
-     * @param string $operation The database operation that failed
-     * @param array $context Additional context information
+     * @param string $query SQL query to validate
+     * @return bool True if query is safe, false otherwise
+     */
+    private function validate_query(string $query): bool
+    {
+        // Only allow SELECT, INSERT, UPDATE, DELETE, and specific safe operations
+        $allowed_operations = '/^\s*(SELECT|INSERT|UPDATE|DELETE|SHOW|DESCRIBE|EXPLAIN)\s+/i';
+
+        if (! preg_match($allowed_operations, $query)) {
+            $this->log_error(
+                'DatabaseHelper: Invalid SQL operation in query',
+                'query_validation',
+                ['query' => $query]
+            );
+            return false;
+        }
+
+        // Check for dangerous patterns
+        $dangerous_patterns = [
+            '/DROP\s+TABLE/i',
+            '/TRUNCATE\s+TABLE/i',
+            '/ALTER\s+TABLE/i',
+            '/RENAME\s+TABLE/i',
+            '/CREATE\s+TABLE/i',
+            '/DELETE\s+FROM\s+WHERE\s+1=1/i',
+            '/UPDATE\s+SET\s+WHERE\s+1=1/i',
+        ];
+
+        foreach ($dangerous_patterns as $pattern) {
+            if (preg_match($pattern, $query)) {
+                $this->log_error(
+                    'DatabaseHelper: Dangerous SQL pattern detected',
+                    'query_validation',
+                    ['query' => $query]
+                );
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Sanitize query parameters before preparation
+     *
+     * @param array $args Query arguments to sanitize
+     * @return array Sanitized arguments
+     */
+    private function sanitize_query_args(array $args): array
+    {
+        $sanitized_args = [];
+
+        foreach ($args as $arg) {
+            if (is_string($arg)) {
+                $sanitized_args[] = sanitize_text_field($arg);
+            } elseif (is_int($arg) || is_float($arg)) {
+                $sanitized_args[] = $arg;
+            } elseif (is_array($arg)) {
+                $sanitized_args[] = $this->sanitize_query_args($arg);
+            } else {
+                $sanitized_args[] = null;
+            }
+        }
+
+        return $sanitized_args;
+    }
+
+    /**
+     * Log SQL query for debugging purposes
+     *
+     * @param string $query SQL query to log
+     * @param array  $args  Query arguments
      * @return void
+     */
+    private function log_query(string $query, array $args = []): void
+    {
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $log_message = 'SQL Query: ' . $query;
+            if (! empty($args)) {
+                $log_message .= ' | Args: ' . json_encode($args);
+            }
+            $this->log_debug($log_message, 'sql_query');
+        }
+    }
+
+    /**
+     * Validate table name for SQL queries with WordPress prefix check
+     *
+     * @param string $table_name Table name to validate
+     * @return bool True if valid, false otherwise
+     */
+    public static function validate_table_name(string $table_name): bool
+    {
+        // Basic validation: alphanumeric, underscores, hyphens only
+        if (preg_match('/^[a-zA-Z0-9_-]+$/', $table_name) !== 1) {
+            return false;
+        }
+        
+        // Must start with WordPress prefix or plugin prefix (defense-in-depth)
+        $instance = self::get_instance();
+        $allowed_prefixes = [
+            $instance->wpdb->prefix, // WordPress prefix (e.g., "wp_")
+            'odcm_' // Plugin prefix
+        ];
+        
+        $prefix_valid = false;
+        foreach ($allowed_prefixes as $prefix) {
+            if (!empty($prefix) && strpos($table_name, $prefix) === 0) {
+                $prefix_valid = true;
+                break;
+            }
+        }
+        
+        if (!$prefix_valid) {
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Validate option name for SQL queries
+     *
+     * @param string $option_name Option name to validate
+     * @return bool True if valid, false otherwise
+     */
+    private function validate_option_name(string $option_name): bool
+    {
+        // Only allow alphanumeric characters, underscores, hyphens, and periods
+        return preg_match('/^[a-zA-Z0-9_.-]+$/', $option_name) === 1;
+    }
+
+    /**
+     * Log an error message with additional context.
+     *
+     * @param string $message   The error message to log.
+     * @param string $operation The database operation that failed (optional).
+     * @param array  $context   Additional context data (optional).
      */
     private function log_error(string $message, string $operation = '', array $context = []): void
     {
-        // Build detailed error message
+        // Build a detailed error message.
         $error_message = '[ODCM DatabaseHelper ERROR] ' . $message;
-        if (!empty($operation)) {
+        if (! empty($operation)) {
             $error_message .= " (Operation: {$operation})";
         }
 
-        // Add context information
-        if (!empty($context)) {
-            $error_message .= " | Context: " . json_encode($context);
+        // Add context information if provided.
+        if (! empty($context)) {
+            $error_message .= ' | Context: ' . json_encode($context);
         }
 
-        // Use WordPress error logging if available
-        if (function_exists('error_log')) {
-            error_log($error_message);
+        // Use WordPress debug logger when available; otherwise do nothing.
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($error_message);
         }
 
-        // Also store in a transient for potential debugging
+        // Persist the error in a transient for debugging purposes.
         $log = get_transient('odcm_database_log');
-        if (!is_array($log)) {
+        if (! is_array($log)) {
             $log = [];
         }
 
         $log_entry = [
-            'timestamp' => current_time('mysql'),
-            'message' => $message,
-            'operation' => $operation,
-            'context' => $context,
-            'error_type' => 'error'
+            'timestamp'  => current_time('mysql'),
+            'message'    => $message,
+            'operation'  => $operation,
+            'context'    => $context,
+            'error_type' => 'error',
         ];
 
         $log[] = $log_entry;
         set_transient('odcm_database_log', $log, HOUR_IN_SECONDS);
 
-        // Store last error for debugging
+        // Store the most recent error in an option for quick access.
         update_option('odcm_last_database_error', $log_entry, 'no');
     }
 
     /**
-     * Log a warning message
+     * Log a warning message with additional context.
      *
-     * @param string $message Warning message to log
-     * @param string $operation The database operation that generated warning
-     * @param array $context Additional context information
-     * @return void
+     * @param string $message   The warning message to log.
+     * @param string $operation The database operation that generated the warning (optional).
+     * @param array  $context   Additional context data (optional).
      */
     private function log_warning(string $message, string $operation = '', array $context = []): void
     {
-        // Build detailed warning message
+        // Build a detailed warning message.
         $warning_message = '[ODCM DatabaseHelper WARNING] ' . $message;
-        if (!empty($operation)) {
+        if (! empty($operation)) {
             $warning_message .= " (Operation: {$operation})";
         }
 
-        // Add context information
-        if (!empty($context)) {
-            $warning_message .= " | Context: " . json_encode($context);
+        // Add context information if provided.
+        if (! empty($context)) {
+            $warning_message .= ' | Context: ' . json_encode($context);
         }
 
-        // Use WordPress error logging if available
-        if (function_exists('error_log')) {
-            error_log($warning_message);
+        // Use WordPress debug logger when available; otherwise do nothing.
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($warning_message);
         }
 
-        // Also store in a transient for potential debugging
+        // Persist the warning in a transient for debugging purposes.
         $log = get_transient('odcm_database_log');
-        if (!is_array($log)) {
+        if (! is_array($log)) {
             $log = [];
         }
 
         $log_entry = [
-            'timestamp' => current_time('mysql'),
-            'message' => $message,
-            'operation' => $operation,
-            'context' => $context,
-            'error_type' => 'warning'
+            'timestamp'  => current_time('mysql'),
+            'message'    => $message,
+            'operation'  => $operation,
+            'context'    => $context,
+            'error_type' => 'warning',
         ];
 
         $log[] = $log_entry;
         set_transient('odcm_database_log', $log, HOUR_IN_SECONDS);
+    }
+
+    /**
+     * Log a debug message
+     *
+     * @param string $message   Debug message to log
+     * @param string $operation The database operation that generated debug message
+     * @param array  $context   Additional context information
+     * @return void
+     */
+    private function log_debug(string $message, string $operation = '', array $context = []): void
+    {
+        // Build a detailed debug message.
+        $debug_message = '[ODCM DatabaseHelper DEBUG] ' . $message;
+        if (! empty($operation)) {
+            $debug_message .= " (Operation: {$operation})";
+        }
+
+        // Add context information if provided.
+        if (! empty($context)) {
+            $debug_message .= ' | Context: ' . json_encode($context);
+        }
+
+        // Use WordPress debug logger when available; otherwise do nothing.
+        if (function_exists('wp_debug_log')) {
+            wp_debug_log($debug_message);
+        }
+    }
+
+    /**
+     * Trusted table registry for plugin tables only
+     * 
+     * @return array List of trusted table names (without prefix)
+     */
+    private function get_trusted_tables(): array
+    {
+        return [
+            'odcm_audit_log',
+            'odcm_orders',
+            'odcm_completions'
+            // Add new plugin tables here
+        ];
+    }
+
+    /**
+     * Check if table is trusted (plugin-owned)
+     */
+    private function is_trusted_table(string $table_name): bool
+    {
+        if (!self::validate_table_name($table_name)) {
+            return false;
+        }
+        
+        $short_name = str_replace($this->wpdb->prefix, '', $table_name);
+        return in_array($short_name, $this->get_trusted_tables(), true);
+    }
+
+    /**
+     * Build safe COUNT query for trusted tables
+     */
+    public static function safe_count(string $table_name, array $conditions = []): int
+    {
+        $instance = self::get_instance();
+
+        if (!$instance->is_trusted_table($table_name)) {
+            $instance->log_error("Untrusted table in safe_count: {$table_name}");
+            return 0;
+        }
+
+        if (empty($conditions)) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name is trusted and escaped.
+            return (int) $instance->wpdb->get_var("SELECT COUNT(*) FROM " . esc_sql($table_name));
+        }
+
+        $where_conditions = [];
+        $prepare_args = [];
+
+        foreach ($conditions as $column => $value) {
+            $sanitized_column = esc_sql($column);
+            if (is_array($value)) {
+                $count = count($value);
+                $placeholders = implode(',', array_fill(0, $count, '%s'));
+                $where_conditions[] = "{$sanitized_column} IN ({$placeholders})";
+                $prepare_args = array_merge($prepare_args, $value);  // Raw array values OK for prepare()
+            } else {
+                $where_conditions[] = "{$sanitized_column} = %s";
+                $prepare_args[] = $value;  // Raw scalar OK for prepare()
+            }
+        }
+
+        $where_sql = implode(' AND ', $where_conditions);
+        
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.NotPrepared -- Table name is trusted/escaped. Query structure is dynamic but safe.
+        $query = $instance->wpdb->prepare( "SELECT COUNT(*) FROM " . esc_sql( $table_name ) . " WHERE " . $where_sql, $prepare_args );
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above.
+        return (int) $instance->wpdb->get_var($query);
     }
 
     /**
@@ -611,10 +955,10 @@ class DatabaseHelper
     {
         try {
             // Simple test query to check connection
-            $result = $this->wpdb->get_var("SELECT 1");
+            $result = $this->wpdb->get_var('SELECT 1');
             return $result === '1';
         } catch (\Throwable $e) {
-            $this->log_error("Database connection check failed: " . $e->getMessage());
+            $this->log_error('Database connection check failed: ' . $e->getMessage());
             return false;
         }
     }

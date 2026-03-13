@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core;
 
+// Import helper functions
+require_once __DIR__ . '/../../Includes/functions.php';
+
 /**
  * Checkout Circuit Breaker - FAIL-SAFE CHECKOUT PROTECTION
  *
@@ -327,16 +330,28 @@ class CheckoutCircuitBreaker
             
             // Log to audit trail if available and failure is significant
             if (function_exists('odcm_log_event') && $failure_count >= 2) {
+                // Extract order ID if available
+                $order_id = isset($metadata['order_id']) ? (int)$metadata['order_id'] : null;
+                
+                // Get process_id if possible
+                $process_id = null;
+                if ($order_id && class_exists('OrderDaemon\\CompletionManager\\Core\\ProcessIdManager')) {
+                    $process_id = \OrderDaemon\CompletionManager\Core\ProcessIdManager::instance()->get_or_create_process_id($order_id);
+                }
+
                 odcm_log_event(
                     "Checkout failure detected",
                     array_merge([
                         'failure_count' => $failure_count,
                         'threshold' => self::FAILURE_THRESHOLD,
-                        'context' => $context
+                        'context' => $context,
+                        'process_id' => $process_id
                     ], $metadata),
-                    null,
+                    $order_id,
                     'warning',
-                    'checkout_failure'
+                    'checkout_failure',
+                    false,
+                    $process_id
                 );
             }
         } catch (\Throwable $e) {
@@ -440,13 +455,9 @@ class CheckoutCircuitBreaker
         }
         
         // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-            $debug_file = WP_CONTENT_DIR . '/debug.log';
-            @file_put_contents(
-                $debug_file,
-                '[' . gmdate('Y-m-d H:i:s') . '] ' . $message . PHP_EOL,
-                FILE_APPEND
-            );
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+            $debug_file = odcm_get_safe_debug_file_path();
+            odcm_safe_file_put_contents($debug_file, '[' . gmdate('Y-m-d H:i:s') . '] ' . $message . PHP_EOL, FILE_APPEND);
             return;
         }
     }

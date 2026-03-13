@@ -206,7 +206,16 @@ class DiagnosticDashboard
                                 <h4><?php echo esc_html__('Run by Category:', 'order-daemon'); ?></h4>
                                 <div class="odcm-button-group">
                                     <?php
-                                    $categories = ['core', 'api', 'performance', 'frontend'];
+                                    // Get all unique categories dynamically from available diagnostics
+                                    $categories = [];
+                                    foreach ($available_diagnostics as $diag) {
+                                        $category = $diag['category'];
+                                        if (!in_array($category, $categories)) {
+                                            $categories[] = $category;
+                                        }
+                                    }
+                                    // Sort categories for consistent display
+                                    sort($categories);
                                     foreach ($categories as $category):
                                         if (empty(array_filter($available_diagnostics, function($diag) use ($category) { return $diag['category'] === $category; }))) continue;
                                     ?>
@@ -756,10 +765,10 @@ class DiagnosticDashboard
         
         // Header
         $output .= __('ORDER DAEMON DIAGNOSTICS REPORT', 'order-daemon') . "\n";
-        /* translators: %s: The date and time when the report was generated */
+        /* translators: %s: Date and time when the report was generated */
         $output .= sprintf(__('Generated: %s', 'order-daemon'), current_time('Y-m-d H:i:s T')) . "\n";
         /* translators: %s: The Order Daemon plugin version number */
-        $output .= sprintf(__('Plugin Version: %s', 'order-daemon'), defined('ODCM_VERSION') ? ODCM_VERSION : __('unknown', 'order-daemon')) . "\n";
+        $output .= sprintf(__('Plugin Version: %s', 'order-daemon'), defined('ODCM_VERSION') ? ODCM_VERSION : __('unknown plugin version', 'order-daemon')) . "\n";
         $output .= "\n";
 
         // Report Summary
@@ -851,11 +860,11 @@ class DiagnosticDashboard
             $output .= "\n" . __('SYSTEM INFORMATION', 'order-daemon') . "\n";
             $output .= "------------------\n";
             /* translators: %s: The WordPress version number */
-            $output .= sprintf(__('WordPress Version: %s', 'order-daemon'), $report['system_info']['wordpress_version'] ?? __('unknown', 'order-daemon')) . "\n";
+            $output .= sprintf(__('WordPress Version: %s', 'order-daemon'), $report['system_info']['wordpress_version'] ?? __('unknown wordpress version', 'order-daemon')) . "\n";
             /* translators: %s: The PHP version number */
-            $output .= sprintf(__('PHP Version: %s', 'order-daemon'), $report['system_info']['php_version'] ?? __('unknown', 'order-daemon')) . "\n";
+            $output .= sprintf(__('PHP Version: %s', 'order-daemon'), $report['system_info']['php_version'] ?? __('unknown php version', 'order-daemon')) . "\n";
             /* translators: %s: The Order Daemon plugin version number */
-            $output .= sprintf(__('Order Daemon Version: %s', 'order-daemon'), $report['system_info']['order_daemon_version'] ?? __('unknown', 'order-daemon')) . "\n";
+            $output .= sprintf(__('Order Daemon Version: %s', 'order-daemon'), $report['system_info']['order_daemon_version'] ?? __('unknown plugin version', 'order-daemon')) . "\n";
             /* translators: %s: Whether WooCommerce is active (Yes/No) */
             $output .= sprintf(__('WooCommerce Active: %s', 'order-daemon'), ($report['system_info']['woocommerce_active'] ?? false) ? __('Yes', 'order-daemon') : __('No', 'order-daemon')) . "\n";
             /* translators: %s: Whether debug mode is enabled (Enabled/Disabled) */

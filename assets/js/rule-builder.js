@@ -59,10 +59,6 @@ function ruleBuilder() {
             secondaryActions: []
         },
         
-        // License state detection
-        get isLicensed() {
-            return (window.odcmRuleBuilderConfig && window.odcmRuleBuilderConfig.license && !!window.odcmRuleBuilderConfig.license.active) || false;
-        },
         
         
         // Modern UI State for Inline Expanders
@@ -183,7 +179,18 @@ function ruleBuilder() {
             
             // Start silent auto-save cycle
             this.autoSave();
-            
+
+            // ── Form-submit safety net ─────────────────────────────────────────────
+            // WordPress's Publish/Update button submits the classic-editor form via a
+            // standard HTML POST.  Intercept the submit event to forcefully write the
+            // current rule into the hidden field as the very last step, BEFORE the
+            // browser POSTs the data.  This guarantees the latest in-memory state is
+            // always sent even if Alpine's $watch or autoSave skipped an update.
+            const self = this;
+            document.addEventListener('submit', function onFormSubmit() {
+                self._syncHiddenField();
+            }, true /* capture phase - fires before the form is actually submitted */);
+
             this.loading = false;
         },
 
@@ -205,63 +212,43 @@ function ruleBuilder() {
         },
 
         /**
-         * Generate complete component summary client-side (no API calls).
+         * Generate client-side summary for a component.
+         * This builds a human-readable summary from component settings.
          *
          * @param {object} component - Component object with id and settings
-         * @param {string} componentType - Component type (trigger, condition, action, primaryAction)
+         * @param {string} type - Component type (trigger, condition, action, primaryAction)
          * @param {number|null} index - Index for array components
-         * @return {string} HTML summary
+         * @return {string} HTML summary string
          */
-        generateClientSideSummary(component, componentType, index) {
+        generateClientSideSummary(component, type, index = null) {
             if (!component || !component.id) {
-                return this.getFallbackSummary(componentType);
+                return this.getFallbackSummary(type);
             }
 
-            const componentDef = this.getComponentDefinition(componentType, component.id);
+            // Get component definition
+            const componentDef = this.getComponentDefinition(type, component.id);
+            if (!componentDef) {
+                return this.getComponentFallbackSummary(component, type);
+            }
+
             const settings = component.settings || {};
-            
-            // Get base label
-            const label = componentDef?.label || component.id;
-            
-            // For triggers and actions, just show the label
-            if (componentType === 'trigger') {
-                return `<span class="odcm-summary-title">${this.escapeHtml(label)}</span>`;
-            }
-            
-            if (componentType === 'action' || componentType === 'primaryAction') {
-                return `<span class="odcm-summary-title">${this.escapeHtml(label)}</span>`;
-            }
-            
-            // For conditions, build complete summary with all information
-            return this.buildConditionSummary(label, settings, componentDef, component.id);
-        },
 
-        /**
-         * Build comprehensive condition summary with all essential information.
-         *
-         * @param {string} label - Component label
-         * @param {object} settings - Component settings
-         * @param {object} componentDef - Component definition from registry
-         * @param {string} componentId - Component ID for specific logic
-         * @return {string} HTML summary
-         */
-        buildConditionSummary(label, settings, componentDef, componentId) {
-            // Use component-specific logic when available
-            const specificSummary = this.getComponentSpecificSummary(componentId, settings, componentDef);
+            // Try component-specific summary first
+            const specificSummary = this.getComponentSpecificSummary(component.id, settings, componentDef);
             if (specificSummary) {
                 return specificSummary;
             }
 
-            // Generic condition summary builder
+            // Fall back to generic summary builder
             const parts = {
-                label: label,
+                title: componentDef.label || component.id,
                 values: this.extractValues(settings, componentDef),
                 operator: this.extractOperator(settings),
                 matchMode: this.extractMatchMode(settings)
             };
-            
-            // Format: "Label: Values Operator (Match Mode)"
-            let summary = `<span class="odcm-summary-title">${this.escapeHtml(parts.label)}</span>`;
+
+            // Build summary HTML
+            let summary = `<span class="odcm-summary-title">${this.escapeHtml(parts.title)}</span>`;
             
             if (parts.values) {
                 summary += `: <span class="odcm-summary-values">${this.escapeHtml(parts.values)}</span>`;
@@ -318,10 +305,18 @@ function ruleBuilder() {
          * Build Product Category condition summary.
          */
         buildProductCategorySummary(settings, componentDef) {
-            const categories = this.formatValue(settings.categories || [], componentDef?.schema?.properties?.categories);
-            const matchType = settings.match_type === 'all' ? 'All match' : 'Any match';
-            
-            return `<span class="odcm-summary-title">Product Category</span>: <span class="odcm-summary-values">${this.escapeHtml(categories)}</span> <span class="odcm-summary-match">(${matchType})</span>`;
+            // Product category uses single select (category), not multi-select (categories)
+            const category = settings.category || '';
+            const categoriesEnum = componentDef?.schema?.properties?.category?.enum || {};
+
+            if (!category || category === '0') {
+                // No category selected means match all orders
+                return `<span class="odcm-summary-title">Product Category</span>: <span class="odcm-summary-values">Any category</span>`;
+            } else {
+                // Specific category selected
+                const categoryLabel = categoriesEnum[category] || category;
+                return `<span class="odcm-summary-title">Product Category</span>: <span class="odcm-summary-values">${this.escapeHtml(categoryLabel)}</span>`;
+            }
         },
 
         /**
@@ -681,28 +676,21 @@ function ruleBuilder() {
             }
         },
 
-        // Get default primary action based on freemium model
+        // Get default primary action
         getDefaultPrimaryAction() {
-            // For free users, default to "Complete Order" action
-            // For premium users, they can choose any primary action
-            const freeAction = this.components.primaryActions?.find(action => 
-                action.id === 'change_status_to_completed' && action.accessible
+            // Default to "Complete Order" action
+            const defaultAction = this.components.primaryActions?.find(action => 
+                action.id === 'change_status_to_completed'
             );
-            
-            if (freeAction) {
+
+            if (defaultAction) {
                 return {
                     id: 'change_status_to_completed',
                     settings: {}
                 };
             }
-            
-            return null;
-        },
 
-        // Check if user has access to multiple primary actions (premium feature)
-        canChangePrimaryAction() {
-            const accessiblePrimaryActions = this.components.primaryActions?.filter(action => action.accessible) || [];
-            return accessiblePrimaryActions.length > 1;
+            return null;
         },
 
     async saveRule() {
@@ -882,8 +870,7 @@ function ruleBuilder() {
             
             // Guard: Block selection of inaccessible components.
             if (!component.accessible) {
-                const msg = (window.odcmRuleBuilderConfig && window.odcmRuleBuilderConfig.upgrade && window.odcmRuleBuilderConfig.upgrade.message) ? window.odcmRuleBuilderConfig.upgrade.message : 'This feature is available in the pro version. Learn more in the documentation.';
-                this.showToast(msg, 'info');
+                this.showToast('This component is not available.', 'info');
                 return;
             }
 
@@ -1142,14 +1129,6 @@ function ruleBuilder() {
             return component;
         },
 
-        // Centralized helper method to determine if a component should show a premium badge
-        // This ensures consistent premium badge display logic across the entire rule builder
-        shouldShowPremiumBadge(componentDef) {
-            return componentDef && 
-                   !componentDef.accessible && 
-                   componentDef.capability && 
-                   componentDef.capability !== 'free';
-        },
 
 
 
@@ -1212,24 +1191,239 @@ function ruleBuilder() {
                 return `<p class="odcm-no-settings">${odcmRuleBuilderConfig.i18n.noSettings}</p>`;
             }
 
-            let html = '<div class="odcm-settings-form">';
-            for (const [key, property] of Object.entries(schema.properties)) {
-                html += this.renderFormField(key, property, currentSettings[key], componentType, index);
+            // Check if this component uses conditional groups
+            const hasConditionalGroups = schema.properties.comparison_type?.['ui:conditional_groups'];
+
+            // Debug logging to trace execution path
+            if (odcmIsDebug()) {
+                console.log('🔍 RENDERING SETTINGS FORM for component:', componentType, index);
+                console.log('🔍 Schema properties:', Object.keys(schema.properties));
+                console.log('🔍 Has comparison_type:', !!schema.properties.comparison_type);
+                console.log('🔍 Has conditional groups:', hasConditionalGroups);
             }
+
+            // Get the current comparison type for Alpine.js reactive binding
+            const comparisonType = hasConditionalGroups 
+                ? (currentSettings?.comparison_type || schema.properties.comparison_type.default || 'relative')
+                : null;
+
+            let html = '<div class="odcm-settings-form"';
+            html += ` data-component-type="${componentType}"`;
+            html += ` data-index="${index !== null ? index : ''}"`;
+            
+            // If using conditional groups, wrap the entire form in x-data for Alpine.js reactivity
+            if (hasConditionalGroups) {
+                html += ` x-data="{ activeGroup: '${comparisonType}' }"`;
+            }
+            html += '>';
+
+            if (hasConditionalGroups) {
+                if (odcmIsDebug()) {console.log('🔍 USING CONDITIONAL RENDERING PATH with activeGroup:', comparisonType);}
+                // Render non-conditional fields (includes radio buttons that control visibility)
+                html += '<div class="odcm-non-conditional-fields">';
+                const nonConditionalFields = this.getNonConditionalFieldsForSchema(schema);
+                for (const [key, property] of Object.entries(nonConditionalFields)) {
+                    html += this.renderFormField(key, property, currentSettings[key], componentType, index);
+                }
+                html += '</div>';
+
+                // Render conditional field groups (these will use x-show to toggle visibility)
+                html += this.renderConditionalFieldGroups(schema, currentSettings, componentType, index);
+            } else {
+                if (odcmIsDebug()) {console.log('🔍 USING LEGACY RENDERING PATH');}
+                // Original behavior for backward compatibility
+                for (const [key, property] of Object.entries(schema.properties)) {
+                    html += this.renderFormField(key, property, currentSettings[key], componentType, index);
+                }
+            }
+
             html += '</div>';
             return html;
         },
 
-        renderFormField(key, property, value, componentType, index) {
+        /**
+         * Render conditional field groups
+         * Note: This method relies on the parent container (renderSettingsForm) having
+         * x-data="{ activeGroup: '...' }" for Alpine.js reactivity.
+         */
+        renderConditionalFieldGroups(schema, currentSettings, componentType, index) {
+            const comparisonType = currentSettings?.comparison_type || schema.properties.comparison_type.default;
+            const conditionalGroups = schema.properties.comparison_type['ui:conditional_groups'];
+            let html = '';
+
+            // Debug log to verify this method is being called
+            if (odcmIsDebug()) {
+                console.log('🔧 RENDERING CONDITIONAL FIELD GROUPS for comparison type:', comparisonType);
+                console.log('🔧 Conditional groups found:', Object.keys(conditionalGroups));
+                console.log('🔧 Current settings:', currentSettings);
+            }
+
+            // Container for conditional field groups (no x-data here - parent form already has it)
+            html += `<div class="odcm-conditional-field-groups">`;
+
+            // Create a container for each possible group
+            for (const [groupKey, fieldKeys] of Object.entries(conditionalGroups)) {
+                if (odcmIsDebug()) {console.log(`🔧 Processing group: ${groupKey} with fields:`, fieldKeys);}
+
+                html += `<div class="odcm-field-group odcm-field-group-${groupKey}"`;
+                html += ` x-show="activeGroup === '${groupKey}'"`;
+                html += `>`;
+
+                // Add group header
+                const groupLabel = schema.properties.comparison_type.enum[groupKey] || groupKey;
+                html += `<div class="odcm-field-group-header">${groupLabel}</div>`;
+
+                // Group fields by their ui:inline_group values for proper horizontal layout
+                const inlineGroups = {};
+
+                // First, organize fields by their inline group
+                for (const fieldKey of fieldKeys) {
+                    if (schema.properties[fieldKey]) {
+                        const field = schema.properties[fieldKey];
+                        const inlineGroup = field['ui:inline_group'] || 'default';
+
+                        if (!inlineGroups[inlineGroup]) {
+                            inlineGroups[inlineGroup] = [];
+                        }
+                        inlineGroups[inlineGroup].push({
+                            key: fieldKey,
+                            field: field,
+                            value: currentSettings[fieldKey]
+                        });
+
+                        if (odcmIsDebug()) {console.log(`🔧 Field ${fieldKey} assigned to inline group: ${inlineGroup}`);}
+                    }
+                }
+
+                if (odcmIsDebug()) {console.log(`🔧 Inline groups organized:`, Object.keys(inlineGroups));}
+
+                // Render each inline group
+                for (const [inlineGroupName, fields] of Object.entries(inlineGroups)) {
+                    if (odcmIsDebug()) {console.log(`🔧 Rendering inline group: ${inlineGroupName} with ${fields.length} fields`);}
+
+                    if (inlineGroupName === 'default') {
+                        // Render default fields individually
+                        for (const fieldData of fields) {
+                            html += `<div class="odcm-form-group">`;
+                            html += this.renderFormField(
+                                fieldData.key,
+                                fieldData.field,
+                                fieldData.value,
+                                componentType,
+                                index
+                            );
+                            html += `</div>`;
+                        }
+                    } else {
+                        // Render inline group fields together in a horizontal container
+                        if (odcmIsDebug()) {console.log(`🔧 Creating horizontal container for inline group: ${inlineGroupName}`);}
+                        html += `<div class="odcm-form-group odcm-inline-group odcm-inline-group--${inlineGroupName}">`;
+                        html += `<div class="odcm-horizontal-field-group">`;
+
+                        for (const fieldData of fields) {
+                            if (odcmIsDebug()) {console.log(`🔧 Rendering field ${fieldData.key} with skipWrapper=true`);}
+                            html += this.renderFormField(
+                                fieldData.key,
+                                fieldData.field,
+                                fieldData.value,
+                                componentType,
+                                index,
+                                true  // Skip wrapper for inline group fields
+                            );
+                        }
+
+                        html += `</div>`;
+                        html += `</div>`;
+                    }
+                }
+
+                html += '</div>';
+            }
+
+            html += '</div>';
+            return html;
+        },
+
+        /**
+         * Get non-conditional fields from schema
+         */
+        getNonConditionalFieldsForSchema(schema) {
+            if (!schema.properties.comparison_type?.['ui:conditional_groups']) {
+                return schema.properties;
+            }
+
+            const conditionalFields = new Set(
+                Object.values(schema.properties.comparison_type['ui:conditional_groups']).flat()
+            );
+
+            return Object.fromEntries(
+                Object.entries(schema.properties).filter(
+                    ([key]) => !conditionalFields.has(key)
+                )
+            );
+        },
+
+        /**
+         * Check if a component uses conditional field groups
+         * @param {string} componentType - Type of component (trigger, condition, action)
+         * @param {string} componentId - ID of the component
+         * @return {boolean} True if component uses conditional groups
+         */
+        hasConditionalGroups(componentType, componentId) {
+            const component = this.getComponentDefinition(componentType, componentId);
+            return component?.schema?.properties?.comparison_type?.['ui:conditional_groups'];
+        },
+
+        /**
+         * Get conditional field groups for the current selection
+         * @param {string} componentType - Type of component
+         * @param {number} index - Component index
+         * @return {Array|null} Array of field keys for current group, or null if no conditional groups
+         */
+        getConditionalFieldGroups(componentType, index) {
+            const component = this.getComponentDefinition(componentType, this.rule[componentType + 's'][index]?.id);
+            if (!component || !component.schema?.properties?.comparison_type?.['ui:conditional_groups']) {
+                return null;
+            }
+
+            const comparisonType = this.rule[componentType + 's'][index]?.settings?.comparison_type;
+            const conditionalGroups = component.schema.properties.comparison_type['ui:conditional_groups'];
+
+            return conditionalGroups[comparisonType] || [];
+        },
+
+        /**
+         * Get fields that should always be visible (not part of conditional groups)
+         * @param {string} componentType - Type of component
+         * @param {number} index - Component index
+         * @return {Object} Fields that are not in any conditional group
+         */
+        getNonConditionalFields(componentType, index) {
+            const component = this.getComponentDefinition(componentType, this.rule[componentType + 's'][index]?.id);
+            if (!component || !component.schema?.properties?.comparison_type?.['ui:conditional_groups']) {
+                return this.fields; // No conditional groups, show all fields
+            }
+
+            const conditionalGroups = component.schema.properties.comparison_type['ui:conditional_groups'];
+            const allConditionalFields = new Set(Object.values(conditionalGroups).flat());
+
+            return Object.fromEntries(
+                Object.entries(this.fields).filter(
+                    ([key, field]) => !allConditionalFields.has(key)
+                )
+            );
+        },
+
+        renderFormField(key, property, value, componentType, index, skipWrapper = false) {
             const fieldId = `${componentType}_${index !== null ? index + '_' : ''}${key}`;
+
+            let html = skipWrapper ? '' : '<div class="odcm-form-group">';
             
-            let html = '<div class="odcm-form-group">';
-            
-            if (property.title) {
+            if (property.title && !skipWrapper) {
                 html += `<label for="${fieldId}" class="odcm-form-label">${property.title}</label>`;
             }
             
-            if (property.description) {
+            if (property.description && !skipWrapper) {
                 html += `<div class="odcm-form-description">${property.description}</div>`;
             }
 
@@ -1245,13 +1439,13 @@ function ruleBuilder() {
                 html += this.renderRadioGroup(key, property, value, fieldId, componentType, index);
             } else if (property['ui:widget'] === 'textarea') {
                 // DEBUG: Simple console log to see if we get here
-                console.log('🔍 TEXTAREA DEBUG: About to render textarea for key:', key);
+                if (odcmIsDebug()) {console.log('🔍 TEXTAREA DEBUG: About to render textarea for key:', key);}
                 html += this.renderTextarea(key, property, value, fieldId, componentType, index);
             } else {
                 html += this.renderTextInput(key, property, value, fieldId, componentType, index);
             }
 
-            html += '</div>';
+            html += skipWrapper ? '' : '</div>';
             return html;
         },
 
@@ -1277,6 +1471,15 @@ function ruleBuilder() {
                 const radioId = `${fieldId}_${optionValue}`;
                 const siblingKey = radioInputs[optionValue];
 
+                // Check if this radio group controls conditional field groups
+                const isConditionalController = key === 'comparison_type' && componentType === 'condition' && index !== null;
+
+                // Build the @change handler - combine both handlers into one attribute
+                let changeHandler = `updateRadioSetting('${key}', $event.target.value, '${componentType}', ${index})`;
+                if (isConditionalController) {
+                    changeHandler += `; activeGroup = $event.target.value`;
+                }
+
                 html += `
                     <label class="odcm-radio-label" for="${radioId}" role="radio" aria-checked="${String(isChecked)}" tabindex="0"
                            @keydown.enter.prevent="$event.currentTarget.querySelector('input')?.click()"
@@ -1286,7 +1489,7 @@ function ruleBuilder() {
                                name="${fieldId}" 
                                value="${optionValue}" 
                                ${isChecked ? 'checked' : ''}
-                               @change="updateRadioSetting('${key}', $event.target.value, '${componentType}', ${index})">
+                               @change="${changeHandler}">
                         <span class="odcm-radio-text">${optionLabel}</span>`;
 
                 if (siblingKey) {
@@ -1312,10 +1515,11 @@ function ruleBuilder() {
 
         renderTextarea(key, property, value, fieldId, componentType, index) {
             const textValue = value || property.default || '';
+            const placeholder = property['ui:placeholder'] || '';
             return `<textarea id="${fieldId}" 
                               class="odcm-form-textarea"
                               rows="4"
-                              placeholder="${property.description || ''}"
+                              placeholder="${placeholder}"
                               @input="updateSetting('${key}', $event.target.value, '${componentType}', ${index})">${textValue}</textarea>`;
         },
 
@@ -1323,6 +1527,7 @@ function ruleBuilder() {
             const inputValue = value || property.default || '';
             const inputType = property.type === 'number' || property.type === 'integer' ? 'number' :
                 property.format === 'email' ? 'email' : 'text';
+            const placeholder = property['ui:placeholder'] || '';
 
             let attributes = '';
             if (property.type === 'number' || property.type === 'integer') {
@@ -1336,7 +1541,7 @@ function ruleBuilder() {
                            id="${fieldId}" 
                            class="odcm-form-input"
                            value="${this.escapeHtml(String(inputValue))}"
-                           placeholder="${property.description || ''}"
+                           placeholder="${placeholder}"
                            ${attributes}
                            @input="updateSetting('${key}', $event.target.value, '${componentType}', ${index})">`;
         },
@@ -1441,35 +1646,65 @@ function ruleBuilder() {
             return html;
         },
 
+        /*
+        *
+        * Settings update methods
+        * 
+        */
 
-
-
-
-        // Enhanced settings update methods
         updateSetting(key, value, componentType, index) {
-            console.log(`🔧 UPDATE: Setting ${key} = ${JSON.stringify(value)} for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 UPDATE: Setting ${key} = ${JSON.stringify(value)} for ${componentType}[${index}]`);}
             
             if (componentType === 'trigger') {
                 if (!this.rule.trigger) this.rule.trigger = { id: '', settings: {} };
+                // Guard: PHP json_decode(true) turns {} into [], so settings may arrive as
+                // a JS Array. JSON.stringify silently drops string-keyed array properties,
+                // so we must convert it back to a plain object before writing.
+                if (Array.isArray(this.rule.trigger.settings)) { this.rule.trigger.settings = {}; }
                 this.rule.trigger.settings[key] = value;
             } else if (componentType === 'condition') {
                 if (this.rule.conditions[index]) {
+                    if (Array.isArray(this.rule.conditions[index].settings)) { this.rule.conditions[index].settings = {}; }
                     this.rule.conditions[index].settings[key] = value;
                 }
             } else if (componentType === 'primaryAction') {
                 if (!this.rule.primaryAction) this.rule.primaryAction = { id: '', settings: {} };
+                if (Array.isArray(this.rule.primaryAction.settings)) { this.rule.primaryAction.settings = {}; }
                 this.rule.primaryAction.settings[key] = value;
             } else if (componentType === 'action') {
                 if (this.rule.secondaryActions[index]) {
+                    if (Array.isArray(this.rule.secondaryActions[index].settings)) { this.rule.secondaryActions[index].settings = {}; }
                     this.rule.secondaryActions[index].settings[key] = value;
                 }
             }
+
+            // CRITICAL: Directly write the current rule to the hidden form field on
+            // every setting change.  Alpine's $watch('rule', ...) in the PHP template
+            // only fires when the rule *reference* is replaced, NOT on deep property
+            // mutations. autoSave() has a staleness guard that may also skip the
+            // update. Writing here unconditionally guarantees the hidden field is
+            // always in sync before the WordPress Publish/Update form is submitted.
+            this._syncHiddenField();
             
             this.autoSave();
         },
 
+        // Writes the current rule object to the hidden WordPress form field.
+        // Called unconditionally on every setting mutation to guarantee the form
+        // always submits the latest data regardless of Alpine $watch behaviour.
+        _syncHiddenField() {
+            try {
+                const hiddenField = document.getElementById('odcm_rule_data_field');
+                if (hiddenField) {
+                    hiddenField.value = JSON.stringify(this.rule);
+                }
+            } catch (e) {
+                if (odcmIsDebug()) { console.error('ODCM _syncHiddenField error:', e); }
+            }
+        },
+
         updateArraySetting(key, value, checked, componentType, index) {
-            console.log(`🔧 UPDATE ARRAY: ${key}[${value}] = ${checked} for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 UPDATE ARRAY: ${key}[${value}] = ${checked} for ${componentType}[${index}]`);}
 
             let currentArray;
 
@@ -1505,7 +1740,7 @@ function ruleBuilder() {
 
         // Select All functionality for regular checkbox groups
         selectAllCheckboxes(key, enumOptions, componentType, index) {
-            console.log(`🔧 SELECT ALL: ${key} for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 SELECT ALL: ${key} for ${componentType}[${index}]`);}
             
             // Get all available option values
             const allValues = Object.keys(enumOptions || {});
@@ -1514,7 +1749,7 @@ function ruleBuilder() {
 
         // Clear All functionality for regular checkbox groups
         clearAllCheckboxes(key, componentType, index) {
-            console.log(`🔧 CLEAR ALL: ${key} for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 CLEAR ALL: ${key} for ${componentType}[${index}]`);}
             this.updateSetting(key, [], componentType, index);
         },
 
@@ -1558,13 +1793,29 @@ function ruleBuilder() {
         },
 
         updateRadioSetting(key, value, componentType, index) {
-            console.log(`🔧 UPDATE RADIO: ${key} = ${value} for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 UPDATE RADIO: ${key} = ${value} for ${componentType}[${index}]`);}
+
+            // Special handling for comparison_type changes to trigger re-render
+            if (key === 'comparison_type' && componentType === 'condition' && index !== null) {
+                if (odcmIsDebug()) {console.log(`🔧 TRIGGERING RE-RENDER FOR COMPARISON TYPE CHANGE: ${value}`);}
+
+                // Force a re-render by toggling the editing state
+                const currentEditingIndex = this.editingConditionIndex;
+                if (currentEditingIndex === index) {
+                    // Briefly close and re-open the settings panel to force re-render
+                    this.editingConditionIndex = null;
+                    setTimeout(() => {
+                        this.editingConditionIndex = index;
+                    }, 50);
+                }
+            }
+
             this.updateSetting(key, value, componentType, index);
         },
 
         // Handle radio-with-inline-number sibling field updates
         updateSiblingField(radioKey, siblingKey, value, componentType, index) {
-            console.log(`🔧 UPDATE SIBLING: ${siblingKey} = ${value} (radio: ${radioKey}) for ${componentType}[${index}]`);
+            if (odcmIsDebug()) {console.log(`🔧 UPDATE SIBLING: ${siblingKey} = ${value} (radio: ${radioKey}) for ${componentType}[${index}]`);}
 
             // Convert to appropriate type
             const numericValue = value === '' ? null : (isNaN(Number(value)) ? value : Number(value));
@@ -1598,7 +1849,11 @@ function ruleBuilder() {
                 return;
             }
 
+            // Mark current data as saved so the next cycle doesn't re-save unnecessarily
+            this.lastSaveData = currentData;
+
             // Update hidden form field for WordPress standard save
+            // (also updated unconditionally by _syncHiddenField on every updateSetting call)
             const hiddenField = document.getElementById('odcm_rule_data_field');
             if (hiddenField) {
                 hiddenField.value = currentData;
@@ -1620,97 +1875,258 @@ function settingsPanel(componentType, index) {
         fields: {},
         initSettings(schema, currentSettings) {
             try {
-                
-                // For triggers, we need to look up the component ID to get the right prepared fields
-                let key = null;
-                if (componentType === 'trigger') {
-                    const triggerId = window.ruleBuilderInstance?.rule?.trigger?.id;
-                    if (triggerId) {
-                        key = `trigger_0_${triggerId}`;
-                    }
-                } else if (componentType === 'primaryAction') {
-                    const actionId = window.ruleBuilderInstance?.rule?.primaryAction?.id;
-                    if (actionId) {
-                        key = `primaryAction_${actionId}`;
-                    }
-                } else if (componentType === 'condition') {
-                    key = `condition_${index}`;
-                } else if (componentType === 'action') {
-                    key = `action_${index}`;
-                }
-                
-                const prepared = (window.ruleBuilderInstance && window.ruleBuilderInstance.preparedFields)
-                    ? window.ruleBuilderInstance.preparedFields
-                    : ((window.odcmRuleBuilderConfig && window.odcmRuleBuilderConfig.preparedFields)
-                        ? window.odcmRuleBuilderConfig.preparedFields
-                        : null);
-                
-                
-                if (key && prepared && prepared[key] && Object.keys(prepared[key]).length > 0) {
-                    this.fields = prepared[key];
+                // Check if this component uses the new conditional groups system
+                this.usesConditionalGroups = schema?.properties?.comparison_type?.['ui:conditional_groups'];
+
+                if (this.usesConditionalGroups) {
+                    // New conditional rendering logic
+                    this.initConditionalFields(schema, currentSettings);
                 } else {
-                    // Fallback: derive fields from schema using registry as single source of truth
-                    this.fields = {};
-                    
-                    // Get schema from registry directly if not provided
-                    let actualSchema = schema;
-                    if (!actualSchema && componentType === 'trigger') {
-                        const triggerId = window.ruleBuilderInstance?.rule?.trigger?.id;
-                        if (triggerId) {
-                            const triggerComponent = window.ruleBuilderInstance?.getTriggerComponent(triggerId);
-                            actualSchema = triggerComponent?.schema;
-                        }
-                    }
-                    
-                    if (actualSchema && actualSchema.properties) {
-                        
-                        Object.entries(actualSchema.properties).forEach(([propKey, prop]) => {
-                            const enumOptions = prop.items?.enum || prop.enum || {};
-                            
-                            this.fields[propKey] = {
-                                id: `${componentType}_${index !== null ? index + '_' : ''}${propKey}`,
-                                key: propKey,
-                                title: prop.title || '',
-                                description: prop.description || '',
-                                widget: (function(p){
-                                    if (typeof p['ui:widget'] === 'string') {
-                                        return p['ui:widget'] === 'select' ? 'radio_group' : p['ui:widget'];
-                                    }
-                                    if (p.type === 'boolean') return 'checkbox';
-                                    if (p.type === 'array' && p.items && p.items.enum) return p['ui:searchable'] ? 'searchable_checkboxes' : 'checkboxes';
-                                    if (p.type === 'string' && p.enum) return 'radio_group';
-                                    if (p.type === 'number' || p.type === 'integer') return 'number';
-                                    return 'text';
-                                })(prop),
-                                value: (currentSettings && currentSettings[propKey] !== undefined) ? currentSettings[propKey] : (prop.default ?? ''),
-                                enumOptions: enumOptions,
-                                selectedValues: Array.isArray(currentSettings?.[propKey]) ? currentSettings[propKey] : Array.isArray(prop.default) ? prop.default : [],
-                                premiumOptions: prop['ui:premium_options'] || [],
-                                placeholder: prop['ui:placeholder'] || 'Search options...',
-                                minimum: prop.minimum ?? null,
-                                maximum: prop.maximum ?? null,
-                                step: prop.step ?? (prop.type === 'integer' ? 1 : null),
-                                default: prop.default ?? (prop.type === 'integer' || prop.type === 'number' ? 0 : (prop.type === 'array' ? [] : '')),
-                                radioInputs: prop['ui:radio_inputs'] || {}
-                            };
-                            
-                        });
-                    } else {
-                    }
+                    // Original behavior for backward compatibility
+                    this.initLegacyFields(schema, currentSettings);
                 }
-                
             } catch (e) {
                 console.error('ODCM settingsPanel.initSettings error:', e);
                 this.fields = {};
             }
         },
-        // Bridge update helpers into main component instance
-        updateSetting(key, value, type, idx) { window.ruleBuilderInstance?.updateSetting(key, value, type, idx); },
-        updateArraySetting(key, value, checked, type, idx) { window.ruleBuilderInstance?.updateArraySetting(key, value, checked, type, idx); },
-        updateRadioSetting(key, value, type, idx) { window.ruleBuilderInstance?.updateRadioSetting(key, value, type, idx); },
-        updateSiblingField(parentKey, siblingKey, value, type, idx) { window.ruleBuilderInstance?.updateSiblingField(parentKey, siblingKey, value, type, idx); }
+
+        initConditionalFields(schema, currentSettings) {
+            // Initialize fields with conditional rendering support
+            this.fields = {};
+            const nonConditionalFields = window.ruleBuilderInstance.getNonConditionalFieldsForSchema(schema);
+
+            // Process non-conditional fields
+            Object.entries(nonConditionalFields).forEach(([propKey, prop]) => {
+                this.fields[propKey] = this.createFieldDefinition(propKey, prop, currentSettings);
+            });
+
+            // Process conditional fields (they'll be handled by conditional groups)
+            const conditionalFields = this.getConditionalFieldsFromSchema(schema);
+            Object.entries(conditionalFields).forEach(([propKey, prop]) => {
+                this.fields[propKey] = this.createFieldDefinition(propKey, prop, currentSettings);
+            });
+        },
+
+        initLegacyFields(schema, currentSettings) {
+            // Original field initialization logic
+            if (schema && schema.properties) {
+                Object.entries(schema.properties).forEach(([propKey, prop]) => {
+                    this.fields[propKey] = this.createFieldDefinition(propKey, prop, currentSettings);
+                });
+            }
+        },
+
+        createFieldDefinition(propKey, prop, currentSettings) {
+            const enumOptions = prop.items?.enum || prop.enum || {};
+
+            // Resolve initial value from live settings, falling back to schema default.
+            // We use a plain property (not Object.defineProperty getter) so that Alpine.js
+            // tracks mutations to fieldDef.value as plain reactive data. Reactivity is
+            // maintained by the bridge methods (updateSetting etc.) which write both to
+            // rule.x.settings AND to this.fields[key].value in the Alpine reactive scope.
+            let initialValue;
+            if (currentSettings && currentSettings[propKey] !== undefined) {
+                initialValue = currentSettings[propKey];
+            } else if (prop.default !== undefined) {
+                initialValue = prop.default;
+            } else if (prop.type === 'integer' || prop.type === 'number') {
+                initialValue = 0;
+            } else if (prop.type === 'array') {
+                initialValue = [];
+            } else {
+                initialValue = '';
+            }
+
+            const fieldDef = {
+                id: `${componentType}_${index !== null ? index + '_' : ''}${propKey}`,
+                key: propKey,
+                title: prop.title || '',
+                description: prop.description || '',
+                widget: (function(p){
+                    if (typeof p['ui:widget'] === 'string') {
+                        return p['ui:widget'] === 'select' ? 'radio_group' : p['ui:widget'];
+                    }
+                    if (p.type === 'boolean') return 'checkbox';
+                    if (p.type === 'array' && p.items && p.items.enum) return p['ui:searchable'] ? 'searchable_checkboxes' : 'checkboxes';
+                    if (p.type === 'string' && p.enum) return 'radio_group';
+                    if (p.type === 'number' || p.type === 'integer') return 'number';
+                    return 'text';
+                })(prop),
+                // Plain reactive value property - kept in sync by bridge methods (updateSetting, etc.)
+                value: initialValue,
+                enumOptions: enumOptions,
+                selectedValues: Array.isArray(currentSettings?.[propKey]) ? currentSettings[propKey] : Array.isArray(prop.default) ? prop.default : [],
+                placeholder: prop['ui:placeholder'] || '',
+                minimum: prop.minimum ?? null,
+                maximum: prop.maximum ?? null,
+                step: prop.step ?? (prop.type === 'integer' ? 1 : null),
+                default: prop.default ?? (prop.type === 'integer' || prop.type === 'number' ? 0 : (prop.type === 'array' ? [] : '')),
+                radioInputs: prop['ui:radio_inputs'] || {},
+                inlineGroup: prop['ui:inline_group'] ?? null
+            };
+
+            return fieldDef;
+        },
+
+        getConditionalFieldsFromSchema(schema) {
+            if (!schema.properties.comparison_type?.['ui:conditional_groups']) {
+                return {};
+            }
+
+            const conditionalGroups = schema.properties.comparison_type['ui:conditional_groups'];
+            const conditionalFields = {};
+
+            // Collect all fields that are in conditional groups
+            Object.values(conditionalGroups).forEach(fieldKeys => {
+                fieldKeys.forEach(fieldKey => {
+                    if (schema.properties[fieldKey]) {
+                        conditionalFields[fieldKey] = schema.properties[fieldKey];
+                    }
+                });
+            });
+
+            return conditionalFields;
+        },
+
+        // Add conditional rendering support
+        getConditionalFieldGroups() {
+            try {
+                // Only apply conditional rendering for conditions with proper index
+                if (componentType !== 'condition' || index === null || index === undefined) {
+                    return null;
+                }
+
+                const condition = window.ruleBuilderInstance?.rule?.conditions?.[index];
+                if (!condition?.id) {
+                    return null;
+                }
+
+                const component = window.getConditionComponent(condition.id);
+                if (!component?.schema?.properties?.comparison_type?.['ui:conditional_groups']) {
+                    return null;
+                }
+
+                const comparisonType = condition.settings?.comparison_type;
+                const conditionalGroups = component.schema.properties.comparison_type['ui:conditional_groups'];
+
+                return conditionalGroups[comparisonType] || [];
+            } catch (e) {
+                console.error('ODCM getConditionalFieldGroups error:', e);
+                return null;
+            }
+        },
+
+        // Check if a field should be visible based on current selection
+        shouldShowField(fieldKey) {
+            try {
+                const conditionalGroups = this.getConditionalFieldGroups();
+                if (!conditionalGroups) return true;
+
+                return conditionalGroups.includes(fieldKey);
+            } catch (e) {
+                console.error('ODCM shouldShowField error:', e);
+                return true; // Fail safe: show the field if there's an error
+            }
+        },
+
+        // Get the current comparison type
+        getCurrentComparisonType() {
+            try {
+                if (componentType !== 'condition' || index === null || index === undefined) {
+                    return null;
+                }
+
+                return window.ruleBuilderInstance?.rule?.conditions?.[index]?.settings?.comparison_type;
+            } catch (e) {
+                console.error('ODCM getCurrentComparisonType error:', e);
+                return null;
+            }
+        },
+
+        // ─── Bridge update helpers ────────────────────────────────────────────
+        // Each bridge writes to the authoritative rule object via ruleBuilderInstance
+        // AND keeps this.fields[key].value in sync so Alpine's reactive `:value`
+        // bindings re-render immediately without relying on deep-proxy tracking of
+        // cross-component state.  The activeGroup sync ensures button_radio_group
+        // widgets (like TimingCondition's comparison_type) correctly show/hide
+        // conditional field groups without depending on $watch bracket-notation paths.
+
+        updateSetting(key, value, type, idx) {
+            // 1. Write to the authoritative rule object
+            window.ruleBuilderInstance?.updateSetting(key, value, type, idx);
+
+            // 2. Mirror the new value into the local Alpine-reactive fields object so
+            //    `:value="field.value"` and `:checked` bindings re-render immediately.
+            if (this.fields && key in this.fields) {
+                this.fields[key].value = value;
+                // Keep selectedValues in sync for array-backed fields
+                if (Array.isArray(value)) {
+                    this.fields[key].selectedValues = [...value];
+                }
+            }
+
+            // 3. If this is the comparison_type controller field, update activeGroup
+            //    directly so conditional field groups show/hide without needing $watch
+            //    (which may not support bracket notation in all Alpine.js v3 builds).
+            if (key === 'comparison_type' && typeof this.activeGroup !== 'undefined') {
+                this.activeGroup = value;
+                if (odcmIsDebug()) { console.log(`🔧 BRIDGE: activeGroup updated to "${value}"`); }
+            }
+        },
+
+        updateArraySetting(key, value, checked, type, idx) {
+            // 1. Write to the authoritative rule object
+            window.ruleBuilderInstance?.updateArraySetting(key, value, checked, type, idx);
+
+            // 2. Mirror the updated array back into fields so `:checked` bindings
+            //    reflect the change without waiting for deep-proxy re-evaluation.
+            if (this.fields && key in this.fields) {
+                // Work from the current selectedValues to avoid async mismatch
+                let arr = Array.isArray(this.fields[key].selectedValues)
+                    ? [...this.fields[key].selectedValues]
+                    : [];
+                if (checked && !arr.includes(value)) {
+                    arr.push(value);
+                } else if (!checked) {
+                    arr = arr.filter(v => v !== value);
+                }
+                this.fields[key].selectedValues = arr;
+                this.fields[key].value = arr;
+            }
+        },
+
+        updateRadioSetting(key, value, type, idx) {
+            // 1. Write to the authoritative rule object
+            window.ruleBuilderInstance?.updateRadioSetting(key, value, type, idx);
+
+            // 2. Mirror into local fields
+            if (this.fields && key in this.fields) {
+                this.fields[key].value = value;
+            }
+
+            // 3. Sync activeGroup for comparison_type controller
+            if (key === 'comparison_type' && typeof this.activeGroup !== 'undefined') {
+                this.activeGroup = value;
+                if (odcmIsDebug()) { console.log(`🔧 BRIDGE: activeGroup updated to "${value}" via updateRadioSetting`); }
+            }
+        },
+
+        updateSiblingField(parentKey, siblingKey, value, type, idx) {
+            // 1. Write to the authoritative rule object
+            window.ruleBuilderInstance?.updateSiblingField(parentKey, siblingKey, value, type, idx);
+
+            // 2. Mirror sibling value into local fields
+            if (this.fields && siblingKey in this.fields) {
+                const numericValue = value === '' ? null : (isNaN(Number(value)) ? value : Number(value));
+                this.fields[siblingKey].value = numericValue;
+            }
+        }
     };
 }
+
+// Expose ruleBuilder to global scope for Alpine.js
+window.ruleBuilder = ruleBuilder;
 
 // Searchable checkbox widget helper
 // Global proxies to access component definitions from templates (Alpine evaluates globals)
@@ -1724,15 +2140,13 @@ function searchableWidget(fieldId) {
         options: [],
         filteredOptions: [],
         selectedValues: [],
-        premiumOptions: [],
         key: '',
         searchTerm: '',
         showAll: false,
-        init(enumOptions, selectedValues, premiumOptions, key) {
+        init(enumOptions, selectedValues, key) {
             this.options = Object.entries(enumOptions || {}).map(([value, label]) => ({ value, label }));
             this.filteredOptions = this.options;
             this.selectedValues = Array.isArray(selectedValues) ? selectedValues : [];
-            this.premiumOptions = Array.isArray(premiumOptions) ? premiumOptions : [];
             this.key = key || '';
         },
         filterOptions() {
@@ -1741,8 +2155,7 @@ function searchableWidget(fieldId) {
         },
         getOptionClasses(value) {
             const isSelected = this.selectedValues.includes(value);
-            const isPremium = this.premiumOptions.includes(value);
-            return `odcm-checkbox-label${isSelected ? ' is-selected' : ''}${isPremium ? ' is-premium' : ''}`;
+            return `odcm-checkbox-label${isSelected ? ' is-selected' : ''}`;
         },
         shouldShowOption(value, label) {
             if (this.showAll) return true;
@@ -1750,8 +2163,7 @@ function searchableWidget(fieldId) {
             return label.toLowerCase().includes(term);
         },
         shouldDisableOption(value) {
-            // Do not allow selecting premium options when not available; UI-level hint only
-            return this.premiumOptions.includes(value) && !(window.odcmRuleBuilderConfig?.uiCapabilities?.canAccessPremiumComponents);
+            return false;
         },
         handleCheckboxChange(key, value, checked, componentType, index) {
             if (checked && !this.selectedValues.includes(value)) this.selectedValues.push(value);
@@ -1763,25 +2175,21 @@ function searchableWidget(fieldId) {
             window.ruleBuilderInstance?.updateSetting(key, [], componentType, index);
         },
         selectAll(key, componentType, index) {
-            // Get all available (non-premium or accessible premium) options
-            const availableOptions = this.options.filter(option => 
-                !this.shouldDisableOption(option.value)
-            ).map(option => option.value);
+            // Get all available options
+            const availableOptions = this.options.map(option => option.value);
             
             this.selectedValues = [...availableOptions];
             window.ruleBuilderInstance?.updateSetting(key, availableOptions, componentType, index);
         },
         get canSelectAll() {
-            // Check if there are any unselected available options
-            const availableOptions = this.options.filter(option => 
-                !this.shouldDisableOption(option.value)
-            ).map(option => option.value);
+            // Check if there are any unselected options
+            const availableOptions = this.options.map(option => option.value);
             
             return availableOptions.some(value => !this.selectedValues.includes(value));
         },
         get hasSelectableOptions() {
             // Check if there are any options that can be selected
-            return this.options.some(option => !this.shouldDisableOption(option.value));
+            return this.options.length > 0;
         }
     };
 }

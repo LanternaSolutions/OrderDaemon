@@ -5,8 +5,6 @@ namespace OrderDaemon\CompletionManager\Admin;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// require_once ODCM_PLUGIN_DIR . 'src/Admin/AuditTrailAdmin.php';
-
 use OrderDaemon\CompletionManager\Admin\RuleBuilder;
 use OrderDaemon\CompletionManager\Admin\Notices;
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
@@ -27,13 +25,6 @@ class Admin
      * @var Notices
      */
     private Notices $notices;
-
-    /**
-     * Audit trail admin instance.
-     *
-     * @var AuditTrailAdmin
-     */
-    // private AuditTrailAdmin $audit_trail_admin;
 
     /**
      * Admin constructor.
@@ -117,32 +108,6 @@ class Admin
                 '</p></div>';
         });
         
-        // Add additional script in the footer to enhance the drag-and-drop experience
-        add_action('admin_footer', function() {
-            ?>
-            <script>
-            jQuery(document).ready(function($) {
-                // Add data-id attribute to each table row based on the post ID
-                $('#the-list tr').each(function() {
-                    const postId = $(this).attr('id').replace('post-', '');
-                    if (postId) {
-                        $(this).attr('data-id', postId);
-                    }
-                });
-                
-                // Initialize priority column values
-                $('#the-list tr').each(function(index) {
-                    // Find the priority column and update its text
-                    const $priorityCell = $(this).find('.column-priority');
-                    if ($priorityCell.length && $priorityCell.text().trim() === '') {
-                        $priorityCell.text(index);
-                    }
-                });
-            });
-            </script>
-            <?php
-        });
-        
         // Verify nonce if this is a form submission
         if (!empty($_REQUEST) && isset($_REQUEST['_wpnonce'])) {
             $nonce = sanitize_text_field(wp_unslash($_REQUEST['_wpnonce']));
@@ -159,28 +124,6 @@ class Admin
             return $classes;
         }, 10, 3);
         
-        // Add data-id attribute to each row to enable drag-and-drop
-        add_action('manage_posts_custom_column', function($column_name, $post_id) {
-            // We only need to do this once per row, so we'll use the first column
-            static $already_added = [];
-            
-            // Skip if we've already processed this post
-            if (isset($already_added[$post_id])) {
-                return;
-            }
-            
-            // Only for our post type
-            if (get_post_type($post_id) !== 'odcm_order_rule') {
-                return;
-            }
-            
-            // Add JavaScript to inject data-id attribute
-            echo '<script>jQuery(document).ready(function($) {
-                $("#post-' . esc_attr($post_id, 'order-daemon') . '").attr("data-id", "' . esc_attr($post_id, 'order-daemon') . '");
-            });</script>';
-            
-            $already_added[$post_id] = true;
-        }, 999, 2);
     }
                 
     /**
@@ -200,9 +143,9 @@ class Admin
             wp_die();
         }
         
-        // Get the rule order data
+        // Get the rule order data with proper sanitization
         $rule_ids_raw = isset($_POST['rule_ids']) ? sanitize_text_field(wp_unslash($_POST['rule_ids'])) : [];
-        
+
         // Sanitize the rule IDs
         if (is_string($rule_ids_raw)) {
             // Try to decode JSON if it appears to be JSON
@@ -219,10 +162,26 @@ class Admin
         } elseif (!is_array($rule_ids_raw)) {
             $rule_ids_raw = [$rule_ids_raw]; // Ensure it's an array
         }
-        
+
         // Now sanitize each ID as an integer
         $rule_ids = array_map('absint', $rule_ids_raw);
-        
+
+        // Additional validation to ensure we have valid rule IDs
+        $rule_ids = array_filter($rule_ids, function($id) {
+            return $id > 0 && get_post($id) && get_post_type($id) === 'odcm_order_rule';
+        });
+        if (empty($rule_ids)) {
+            wp_send_json_error([
+                'message' => __('Invalid rule IDs provided', 'order-daemon'),
+                'code'    => 'invalid_rule_ids'
+            ]);
+            wp_die();
+        }
+
+        // Additional validation to ensure we have valid rule IDs
+        $rule_ids = array_filter($rule_ids, function($id) {
+            return $id > 0 && get_post($id) && get_post_type($id) === 'odcm_order_rule';
+        });
         if (empty($rule_ids)) {
             wp_send_json_error(['message' => __('No rule order data received', 'order-daemon')]);
             wp_die();
@@ -271,17 +230,13 @@ class Admin
 
         // ALWAYS enqueue admin notices script on ALL admin pages
         // This ensures notices can be dismissed regardless of where they appear
-        $notices_script_path = ODCM_PLUGIN_URL.'assets/js/admin-notices.js';
-        wp_enqueue_script('odcm-admin-notices', $notices_script_path, [], $script_version, true);
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::register_script('odcm-admin-notices', 'js/admin-notices.js', ['jquery'], true);
         
         // Localize the ajaxurl for the notices script
         wp_localize_script('odcm-admin-notices', 'odcm_ajax', [
             'ajaxurl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('odcm_dismiss_notice_nonce')
         ]);
-
-        // Call the audit trail admin enqueue method for audit trail specific assets
-        // $this->audit_trail_admin->enqueue_assets($hook_suffix);
 
         // Define whitelist of plugin pages where other assets should be loaded
         $allowed_hooks = [
@@ -436,7 +391,7 @@ class Admin
 
         register_post_type('odcm_order_rule', $args);
 
-    }//end register_completion_rule_post_type()
+    }
 
 
     /**
@@ -569,46 +524,6 @@ class Admin
                 return;
             }
 
-            // Check if user can use unlimited rules
-            $can_use_unlimited_rules = odcm_can_use('unlimited_rules');
-
-            // For freemium users, enforce priority 0 constraint for active rules
-            if (!$can_use_unlimited_rules) {
-                if ($post->post_status !== 'publish') {
-                    // Activating a rule - ensure it gets priority 0 and deactivate others
-                    
-                    // First, set this rule to priority 0 (highest priority)
-                    wp_update_post([
-                        'ID' => $post_id,
-                        'menu_order' => 0,
-                    ]);
-
-                    // Get all published rules (excluding current rule via PHP filtering,
-                    // avoiding performance issues with post__not_in parameter)
-                    $published_rules = get_posts([
-                        'post_type'      => 'odcm_order_rule',
-                        'post_status'    => 'publish',
-                        'posts_per_page' => -1,
-                        'fields'         => 'ids',
-                    ]);
-                    
-                    // Filter out the current post ID from results
-                    $published_rules = array_filter($published_rules, function($rule_id) use ($post_id) {
-                        return $rule_id != $post_id;
-                    });
-
-                    // Set all other published rules to draft
-                    foreach ($published_rules as $rule_id) {
-                        wp_update_post([
-                            'ID'          => $rule_id,
-                            'post_status' => 'draft',
-                        ]);
-                    }
-                } else {
-                    // Deactivating the current rule - no additional action needed
-                    // Free version users can deactivate their single rule
-                }
-            }
 
             // Toggle the post status
             $new_post_status = $post->post_status === 'publish' ? 'draft' : 'publish';
@@ -637,8 +552,6 @@ class Admin
                 wp_send_json_success([
                     'message'        => __('Rule status updated successfully', 'order-daemon'),
                     'new_status'     => $new_post_status === 'publish' ? '1' : '0',
-                    'is_premium'     => $can_use_unlimited_rules,
-                    'affected_rules' => !$can_use_unlimited_rules && $new_post_status === 'publish' ? count($published_rules ?? []) : 0,
                     'date_text'      => $date_text,
                     'display_title'  => $display_title,
                     'post_title'     => $post_title,
@@ -700,9 +613,4 @@ class Admin
             'href'   => admin_url('post-new.php?post_type=odcm_order_rule'),
         ));
     }
-
-
-
-
-
-}//end class
+}

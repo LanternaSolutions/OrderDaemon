@@ -5,9 +5,16 @@ namespace OrderDaemon\CompletionManager\Core;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
+
 /**
  * Handles automatic cleanup of old audit trail logs.
  * This class implements safe batch deletion to prevent database performance issues.
+ *
+ * SECURITY NOTES:
+ * - Uses plugin-owned tables built from $wpdb->prefix and validated via DatabaseHelper::validate_table_name().
+ * - All dynamic values (dates, IDs) are bound through DatabaseHelper's prepared queries.
+ * - Table names are never taken from user input and are not passed as placeholders.
  */
 class LogCleanup
 {
@@ -24,6 +31,10 @@ class LogCleanup
      */
     public function init(): void
     {
+        // Initialize DatabaseHelper with WordPress database object
+        self::$wpdb = $GLOBALS['wpdb'];
+        DatabaseHelper::initialize(self::$wpdb);
+
         // Hook into the Action Scheduler cleanup action
         add_action('odcm_cleanup_old_logs', [$this, 'cleanup_old_logs'], 10);
 
@@ -32,7 +43,6 @@ class LogCleanup
     /**
      * Cleanup old audit trail logs based on the retention policy.
      * This method performs safe batch deletion to prevent database performance issues.
-     * Implements differentiated retention logic for free vs premium users.
      *
      * @return void
      */
@@ -40,15 +50,21 @@ class LogCleanup
     {
         global $wpdb;
 
-        // Free/Core plugin: use a fixed retention period to keep DB lean
-        $retention_days = 30; // Fixed for free/core - 30 days provides good balance
+        // 30 day retention period to keep DB lean
+        $retention_days = 30;
 
-        // Define table names - use esc_sql for table identifiers
+        // Build plugin-owned tables
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payloads_table = $wpdb->prefix . 'odcm_audit_log_payloads';
-        // Escape table names for use in SQL queries (placeholders cannot be used for identifiers)
-        $log_table_identifier = esc_sql($log_table);
-        $payloads_table_identifier = esc_sql($payloads_table);
+
+        // Validate tables using DatabaseHelper
+        if (
+            ! \OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper::validate_table_name($log_table)
+            || ! \OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper::validate_table_name($payloads_table)
+        ) {
+            // Fail closed: do nothing if table names are not what we expect
+            return;
+        }
 
         // Calculate the cutoff date
         $cutoff_date = gmdate('Y-m-d H:i:s', strtotime("-{$retention_days} days"));
@@ -61,11 +77,9 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $total_to_delete) {
-            $total_to_delete = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s",
-                    $cutoff_date
-                )
+            $total_to_delete = DatabaseHelper::get_var(
+                "SELECT COUNT(*) FROM {$log_table} WHERE timestamp < %s",
+                [ $cutoff_date ]
             );
 
             // Cache the result for 10 minutes
@@ -93,13 +107,10 @@ class LogCleanup
 
             // Cache miss - perform batch query
             if (false === $logs_to_delete) {
-                $logs_to_delete = $wpdb->get_results(
-                    $wpdb->prepare(
-                        "SELECT log_id, payload_id FROM {$log_table_identifier} WHERE timestamp < %s LIMIT %d",
-                        $cutoff_date,
-                        self::BATCH_SIZE
-                    )
-                );
+                $logs_to_delete = DatabaseHelper::get_results(
+                "SELECT log_id, payload_id FROM {$log_table} WHERE timestamp < %s LIMIT %d",
+                [ $cutoff_date, self::BATCH_SIZE ]
+            );
 
                 // Cache the result briefly - just enough to avoid duplicate queries
                 // in case of concurrent cleanup processes
@@ -136,11 +147,9 @@ class LogCleanup
 
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
-                    $deleted_rows = $wpdb->query(
-                        $wpdb->prepare(
-                            "DELETE FROM {$log_table_identifier} WHERE log_id IN ($placeholders)",
-                            ...$log_ids
-                        )
+                    $deleted_rows = DatabaseHelper::query(
+                        "DELETE FROM {$log_table} WHERE log_id IN ({$placeholders})",
+                        $log_ids
                     );
 
                     // Delete log ID cache keys after deletion
@@ -176,11 +185,9 @@ class LogCleanup
 
                     // Create placeholder string for the IN clause
                     $placeholders = implode(',', array_fill(0, count($payload_ids), '%d'));
-                    $wpdb->query(
-                        $wpdb->prepare(
-                            "DELETE FROM {$payloads_table_identifier} WHERE payload_id IN ($placeholders)",
-                            ...$payload_ids
-                        )
+                    DatabaseHelper::query(
+                        "DELETE FROM {$payloads_table} WHERE payload_id IN ({$placeholders})",
+                        $payload_ids
                     );
 
                     // Delete payload cache keys after deletion
@@ -219,7 +226,7 @@ class LogCleanup
     private function log_cleanup_activity(int $deleted_count, int $retention_days): void
     {
 
-        $retention_type = 'free';
+        $retention_type = 'standard';
 
         $details = [
             'deleted_count'    => $deleted_count,
@@ -249,7 +256,6 @@ class LogCleanup
     /**
      * Manually trigger log cleanup (for testing or manual execution).
      * This method can be called from WP-CLI or other admin interfaces.
-     * Implements differentiated retention logic for free vs premium users.
      *
      * @return array Results of the cleanup operation.
      */
@@ -257,7 +263,6 @@ class LogCleanup
     {
         global $wpdb;
 
-        // Free/Core plugin: use a fixed retention period
         $retention_days = 30;
 
         $log_table = $wpdb->prefix . 'odcm_audit_log';
@@ -272,11 +277,9 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $count_to_delete) {
-            $count_to_delete = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s",
-                    $cutoff_date
-                )
+            $count_to_delete = DatabaseHelper::get_var(
+                "SELECT COUNT(*) FROM {$log_table} WHERE timestamp < %s",
+                [ $cutoff_date ]
             );
 
             // Cache the result for 5 minutes - manual cleanup has higher freshness expectations
@@ -300,11 +303,9 @@ class LogCleanup
 
         // Cache miss - perform count query
         if (false === $payload_count_to_delete) {
-            $payload_count_to_delete = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$log_table_identifier} WHERE timestamp < %s AND payload_id IS NOT NULL",
-                    $cutoff_date
-                )
+            $payload_count_to_delete = DatabaseHelper::get_var(
+                "SELECT COUNT(*) FROM {$log_table} WHERE timestamp < %s AND payload_id IS NOT NULL",
+                [ $cutoff_date ]
             );
 
             // Cache the result for 5 minutes

@@ -6,6 +6,7 @@ namespace OrderDaemon\CompletionManager\Core\Events;
 use OrderDaemon\CompletionManager\Core\RuleComponents\RuleComponentRegistry;
 use OrderDaemon\CompletionManager\Core\Evaluator;
 use OrderDaemon\CompletionManager\Core\ProcessIdManager;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 
 /**
  * Universal Event Processor
@@ -167,12 +168,18 @@ class UniversalEventProcessor
                 $universal_event = new UniversalEvent($event_data);
             } catch (\InvalidArgumentException $e) {
                 // Log the specific validation failure in UniversalEvent constructor
-                $this->logError('UniversalEvent constructor validation failed: ' . $e->getMessage(), [
+                // and preserve detailed error information for display
+                $validation_error_details = [
                     'original_event_data' => $event_data,
                     'validation_error' => $e->getMessage(),
                     'error_file' => $e->getFile(),
                     'error_line' => $e->getLine(),
-                ], $process_id);
+                    'validation_field' => $this->extractValidationFieldFromError($e->getMessage()),
+                    'validation_rule' => $this->extractValidationRuleFromError($e->getMessage()),
+                    'event_data_structure' => $this->analyzeEventDataStructure($event_data),
+                ];
+
+                $this->logErrorWithDetails('UniversalEvent constructor validation failed: ' . $e->getMessage(), $validation_error_details, $process_id);
                 return false;
             } catch (\Throwable $e) {
                 // Log any other unexpected errors during UniversalEvent construction
@@ -201,7 +208,7 @@ class UniversalEventProcessor
             $result = $this->processUniversalEventRules($context, $process_id);
 
             // Log final processing result
-            $execution_time = microtime(true) - $start_time;
+            $execution_time = microtime(true) - ($this->getValidatedRequestTimeFloat() ?? $start_time);
             $this->logProcessingResult($context, $result, $execution_time, $process_id);
 
             return $result;
@@ -319,7 +326,25 @@ class UniversalEventProcessor
      */
     private function isDuplicateEvent(UniversalEvent $event): bool
     {
+        // Ensure WordPress functions are available
+        if (!function_exists('wp_cache_get')) {
+            // WordPress functions not available, handle error gracefully
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DATABASE_DEBUG: WordPress functions not available in isDuplicateEvent()", 'warning');
+            }
+            return false;
+        }
+        
         global $wpdb;
+        
+        // Check if $wpdb is available
+        if (!$wpdb) {
+            // $wpdb not available, handle error gracefully
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DATABASE_DEBUG: $wpdb not available in isDuplicateEvent()", 'warning');
+            }
+            return false;
+        }
         
         // Create a unique cache key for this idempotency check
         $cache_key = 'odcm_idempotency_' . md5($event->idempotencyKey);
@@ -338,15 +363,12 @@ class UniversalEventProcessor
         $twenty_four_hours_ago = gmdate('Y-m-d H:i:s', strtotime('-24 hours'));
         
         // Check for existing events with this idempotency key in the last 24 hours
-        $existing_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM `{$audit_log_table}` 
-             WHERE event_type = %s 
-             AND idempotency_key = %s 
-             AND timestamp > %s",
-            'universal_event_processing',
-            $event->idempotencyKey,
-            $twenty_four_hours_ago
-        ));
+        $sql = "SELECT COUNT(*) FROM `{$audit_log_table}` 
+            WHERE event_type = %s 
+            AND idempotency_key = %s 
+            AND timestamp > %s";
+        
+        $existing_count = DatabaseHelper::get_var($sql, ['universal_event_processing', $event->idempotencyKey, $twenty_four_hours_ago]);
         
         $is_duplicate = ((int) $existing_count) > 0;
         
@@ -460,6 +482,8 @@ class UniversalEventProcessor
             'has_order' => $context->order !== null,
             'has_subscription' => $context->subscription !== null,
             'customer_id' => $context->getCustomerId(),
+            // Add debug_only flag for events without components and no rule matches
+            'debug_only' => !$has_components && !$result,
             // Include components in ProcessLogger structure for proper timeline rendering
             'components' => $eventData['components'] ?? [],
             // Preserve raw data for passing full original context to the UI renderers
@@ -558,8 +582,21 @@ class UniversalEventProcessor
             // Events without components only logged in debug mode
             $summary = $event->getSummary();
             $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
-            $message = !empty($summary) ? "No matching rules for: {$summary}" : sprintf('%s %s completed with no matching rules', $gateway, $event->eventType);
-            
+            $order_id = $context->getOrderId();
+            $amount = $event->amount;
+            $currency = $event->currency;
+
+            // Create user-friendly message based on event type
+            if ($event->eventType === 'order_check_scheduled') {
+                $message = "Scheduled check: no rules triggered";
+                $payload_for_storage['debug_explanation'] = "Order Daemon checked Order #{$order_id} but no rules were triggered. This is normal behavior. It often means the order status does not match any active rule triggers, or the order has already been processed.";
+
+                // Add detailed explanation to payload
+            } else {
+                $message = !empty($summary) ? "No matching rules for: {$summary}" : sprintf('%s %s completed with no matching rules', $gateway, $event->eventType);
+                $payload_for_storage['debug_explanation'] = "The event '{$event->eventType}' was processed, but no active rules were configured to react to it.";
+            }
+
             \odcm_log_event(
                 $message,
                 $payload_for_storage,
@@ -637,6 +674,494 @@ class UniversalEventProcessor
             false,
             $process_id
         );
+    }
+
+    /**
+     * Log error with detailed validation information for display
+     * 
+     * Enhanced error logging that preserves specific validation error details
+     * in the components payload for display in the UI.
+     * 
+     * @param string $message Error message
+     * @param array $context Error context with validation details
+     * @param string $process_id Process ID
+     * @return void
+     */
+    private function logErrorWithDetails(string $message, array $context, string $process_id): void
+    {
+        // Extract detailed validation information
+        $validation_error = $context['validation_error'] ?? 'Unknown validation error';
+        $validation_field = $context['validation_field'] ?? 'unknown_field';
+        $validation_rule = $context['validation_rule'] ?? 'unknown_rule';
+        $event_data_structure = $context['event_data_structure'] ?? [];
+        $original_event_data = $context['original_event_data'] ?? [];
+
+        // Create a detailed error component for display
+        $error_component = $this->createValidationErrorComponent(
+            $validation_error,
+            $validation_field,
+            $validation_rule,
+            $event_data_structure,
+            $original_event_data
+        );
+
+        // Create business-friendly error message
+        $gateway = $original_event_data['sourceGateway'] ?? 'Payment gateway';
+        $business_message = $this->createBusinessErrorMessage($message, $gateway);
+
+        // Build comprehensive error payload with validation details in components
+        $error_payload = [
+            'event_type' => $original_event_data['eventType'] ?? 'unknown',
+            'source_gateway' => $original_event_data['sourceGateway'] ?? 'unknown',
+            'idempotency_key' => $original_event_data['idempotencyKey'] ?? 'unknown',
+            'business_error_message' => $business_message,
+            'technical_error_message' => $message,
+            'error_file' => $context['error_file'] ?? '',
+            'error_line' => $context['error_line'] ?? '',
+            'execution_time_ms' => round(microtime(true) - $start_time * 1000, 2),
+            'event_data_summary' => [
+                'event_type' => $original_event_data['eventType'] ?? null,
+                'source_gateway' => $original_event_data['sourceGateway'] ?? null,
+                'primary_object_type' => $original_event_data['primaryObjectType'] ?? null,
+                'primary_object_id' => $original_event_data['primaryObjectID'] ?? null,
+            ],
+            'validation_details' => [
+                'validation_error' => $validation_error,
+                'validation_field' => $validation_field,
+                'validation_rule' => $validation_rule,
+                'event_data_structure_analysis' => $event_data_structure,
+            ],
+            'components' => [$error_component],
+            'rawData' => [
+                'original_event_data' => $original_event_data,
+                'validation_context' => $context,
+            ],
+        ];
+
+        \odcm_log_event(
+            $business_message,
+            $error_payload,
+            null,
+            'error',
+            'universal_event_processor_error',
+            false,
+            $process_id
+        );
+    }
+
+    /**
+     * Extract validation field from error message
+     * 
+     * @param string $error_message Error message from exception
+     * @return string Extracted field name or 'unknown'
+     */
+    private function extractValidationFieldFromError(string $error_message): string
+    {
+        // Common error message patterns and their field extraction
+        $patterns = [
+            '/Invalid (channel|eventType|primaryObjectType|timestamp):/' => 1,
+            '/Invalid ([\w]+) format:/' => 1,
+            '/Missing required field: ([\w]+)/' => 1,
+            '/Invalid ([\w]+) validation failed\./' => 1,
+        ];
+
+        foreach ($patterns as $pattern => $group) {
+            if (preg_match($pattern, $error_message, $matches)) {
+                return $matches[$group] ?? 'unknown';
+            }
+        }
+
+        // Try to extract field names from common validation messages
+        if (strpos($error_message, 'channel') !== false) {
+            return 'channel';
+        }
+        if (strpos($error_message, 'eventType') !== false) {
+            return 'eventType';
+        }
+        if (strpos($error_message, 'primaryObjectType') !== false) {
+            return 'primaryObjectType';
+        }
+        if (strpos($error_message, 'timestamp') !== false) {
+            return 'timestamp';
+        }
+        if (strpos($error_message, 'idempotencyKey') !== false) {
+            return 'idempotencyKey';
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * Extract validation rule from error message
+     * 
+     * @param string $error_message Error message from exception
+     * @return string Extracted validation rule or 'unknown'
+     */
+    private function extractValidationRuleFromError(string $error_message): string
+    {
+        // Common validation rule patterns
+        $rules = [
+            '/Must be one of: (.*?)$/' => 'Must be one of: $1',
+            '/Invalid format: (.*?)$/' => 'Invalid format: $1',
+            '/is required/' => 'Field is required',
+            '/cannot be empty/' => 'Field cannot be empty',
+            '/must be string/' => 'Field must be string',
+            '/must be numeric/' => 'Field must be numeric',
+            '/must be array/' => 'Field must be array',
+        ];
+
+        foreach ($rules as $pattern => $description) {
+            if (preg_match($pattern, $error_message, $matches)) {
+                if (isset($matches[1])) {
+                    return str_replace('$1', $matches[1], $description);
+                }
+                return $description;
+            }
+        }
+
+        // Try to identify specific validation rules
+        if (strpos($error_message, 'Must be one of:') !== false) {
+            return 'Field must be one of allowed values';
+        }
+        if (strpos($error_message, 'Invalid timestamp format') !== false) {
+            return 'Timestamp must be valid ISO8601 format';
+        }
+        if (strpos($error_message, 'is required') !== false) {
+            return 'Field is required but missing';
+        }
+        if (strpos($error_message, 'cannot be empty') !== false) {
+            return 'Field cannot be empty after sanitization';
+        }
+
+        return 'Unknown validation rule';
+    }
+
+    /**
+     * Analyze event data structure for debugging
+     * 
+     * @param array $event_data Event data to analyze
+     * @return array Structure analysis with field types and values
+     */
+    private function analyzeEventDataStructure(array $event_data): array
+    {
+        $analysis = [
+            'field_count' => count($event_data),
+            'field_types' => [],
+            'required_fields_present' => [],
+            'field_values' => [],
+        ];
+
+        // Check required fields
+        $required_fields = [
+            'eventType',
+            'sourceGateway',
+            'channel',
+            'primaryObjectType',
+            'occurredAt',
+            'receivedAt',
+            'idempotencyKey'
+        ];
+
+        foreach ($required_fields as $field) {
+            $analysis['required_fields_present'][$field] = isset($event_data[$field]);
+            if (isset($event_data[$field])) {
+                $analysis['field_types'][$field] = gettype($event_data[$field]);
+                $analysis['field_values'][$field] = $this->getSafeFieldValueForDisplay($event_data[$field]);
+            }
+        }
+
+        // Add validation-specific analysis
+        $analysis['validation_issues'] = $this->identifyPotentialValidationIssues($event_data);
+
+        return $analysis;
+    }
+
+    /**
+     * Get safe field value for display (truncated and sanitized)
+     * 
+     * @param mixed $value Field value
+     * @return string Safe display value
+     */
+    private function getSafeFieldValueForDisplay($value): string
+    {
+        if (is_null($value)) {
+            return 'NULL';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (is_string($value)) {
+            $safe_value = substr($value, 0, 50); // Truncate long strings
+            return '"' . esc_html($safe_value) . (strlen($value) > 50 ? '..."' : '"');
+        }
+
+        if (is_numeric($value)) {
+            return (string)$value;
+        }
+
+        if (is_array($value)) {
+            return '[array with ' . count($value) . ' elements]';
+        }
+
+        if (is_object($value)) {
+            return '[object of class ' . get_class($value) . ']';
+        }
+
+        return '[' . gettype($value) . ']';
+    }
+
+    /**
+     * Identify potential validation issues in event data
+     * 
+     * @param array $event_data Event data to analyze
+     * @return array Potential validation issues found
+     */
+    private function identifyPotentialValidationIssues(array $event_data): array
+    {
+        $issues = [];
+
+        // Check for empty strings in required fields
+        $required_fields = ['eventType', 'channel', 'primaryObjectType', 'occurredAt', 'receivedAt', 'idempotencyKey'];
+
+        foreach ($required_fields as $field) {
+            if (isset($event_data[$field]) && $event_data[$field] === '') {
+                $issues[] = "Required field '{$field}' is empty string";
+            }
+        }
+
+        // Check channel validity
+        if (isset($event_data['channel'])) {
+            $valid_channels = ['webhook', 'ipn', 'sdk', 'manual', 'system', 'scheduled'];
+            if (!in_array($event_data['channel'], $valid_channels)) {
+                $issues[] = "Invalid channel value: '{$event_data['channel']}'. Must be one of: " . implode(', ', $valid_channels);
+            }
+        }
+
+        // Check primaryObjectType validity
+        if (isset($event_data['primaryObjectType'])) {
+            $valid_object_types = ['order', 'subscription', 'refund', 'authorization', 'membership', 'customer', 'product'];
+            if (!in_array($event_data['primaryObjectType'], $valid_object_types)) {
+                $issues[] = "Invalid primaryObjectType value: '{$event_data['primaryObjectType']}'. Must be one of: " . implode(', ', $valid_object_types);
+            }
+        }
+
+        // Check timestamp formats
+        if (isset($event_data['occurredAt']) && !empty($event_data['occurredAt'])) {
+            if (!$this->isValidTimestampFormat($event_data['occurredAt'])) {
+                $issues[] = "Invalid occurredAt timestamp format: '{$event_data['occurredAt']}'";
+            }
+        }
+
+        if (isset($event_data['receivedAt']) && !empty($event_data['receivedAt'])) {
+            if (!$this->isValidTimestampFormat($event_data['receivedAt'])) {
+                $issues[] = "Invalid receivedAt timestamp format: '{$event_data['receivedAt']}'";
+            }
+        }
+
+        return $issues;
+    }
+
+    /**
+     * Check if timestamp is in valid format
+     * 
+     * @param string $timestamp Timestamp to check
+     * @return bool True if valid format
+     */
+    private function isValidTimestampFormat(string $timestamp): bool
+    {
+        // Check if it's a valid ISO8601 timestamp
+        try {
+            new \DateTime($timestamp);
+            return true;
+        } catch (\Exception $e) {
+            // Not ISO8601, check if it's a numeric Unix timestamp
+            return is_numeric($timestamp);
+        }
+    }
+
+    /**
+     * Create validation error component for display
+     * 
+     * Creates a structured component with detailed validation error information
+     * that can be displayed in the UI timeline.
+     * 
+     * @param string $validation_error The validation error message
+     * @param string $validation_field The field that failed validation
+     * @param string $validation_rule The validation rule that failed
+     * @param array $event_data_structure Event data structure analysis
+     * @param array $original_event_data Original event data
+     * @return array Validation error component
+     */
+    private function createValidationErrorComponent(
+        string $validation_error,
+        string $validation_field,
+        string $validation_rule,
+        array $event_data_structure,
+        array $original_event_data
+    ): array {
+        // Create user-friendly descriptions
+        $field_description = $this->getFieldDescription($validation_field);
+        $rule_description = $this->getRuleDescription($validation_rule, $validation_field);
+
+        // Build the validation error component
+        $component = [
+            'event_type' => 'validation_error',
+            'label' => 'Payment Gateway Validation Error',
+            'ts' => microtime(true),
+            'level' => 'error',
+            'data' => [
+                'event_type' => 'validation_error',
+                'error_summary' => 'Payment gateway processor error: Invalid event data structure',
+                'validation_error' => $validation_error,
+                'validation_field' => $validation_field,
+                'validation_field_description' => $field_description,
+                'validation_rule' => $validation_rule,
+                'validation_rule_description' => $rule_description,
+                'source_gateway' => $original_event_data['sourceGateway'] ?? 'unknown',
+                'event_type' => $original_event_data['eventType'] ?? 'unknown',
+                'idempotency_key' => $original_event_data['idempotencyKey'] ?? 'unknown',
+                'primary_object_type' => $original_event_data['primaryObjectType'] ?? null,
+                'primary_object_id' => $original_event_data['primaryObjectID'] ?? null,
+
+                // Detailed validation information
+                'validation_details' => [
+                    'field_being_validated' => $validation_field,
+                    'field_description' => $field_description,
+                    'validation_rule' => $validation_rule,
+                    'validation_rule_description' => $rule_description,
+                    'error_message' => $validation_error,
+                    'suggested_fix' => $this->getSuggestedFix($validation_field, $validation_rule),
+                ],
+
+                // Event data structure analysis
+                'event_data_analysis' => $event_data_structure,
+
+                // Potential issues identified
+                'potential_issues' => $event_data_structure['validation_issues'] ?? [],
+
+                // Field values for debugging
+                'field_values' => $event_data_structure['field_values'] ?? [],
+            ],
+            'rawData' => [
+                'original_event_data' => $original_event_data,
+                'validation_context' => [
+                    'validation_error' => $validation_error,
+                    'validation_field' => $validation_field,
+                    'validation_rule' => $validation_rule,
+                ],
+            ],
+        ];
+
+        return $component;
+    }
+
+    /**
+     * Get user-friendly field description
+     * 
+     * @param string $field_name Field name
+     * @return string User-friendly description
+     */
+    private function getFieldDescription(string $field_name): string
+    {
+        $descriptions = [
+            'eventType' => 'Event Type - Identifies the type of event being processed',
+            'sourceGateway' => 'Source Gateway - The payment gateway that generated the event',
+            'channel' => 'Channel - How the event was received (webhook, IPN, etc.)',
+            'primaryObjectType' => 'Primary Object Type - The main entity type this event relates to',
+            'primaryObjectID' => 'Primary Object ID - The ID of the main entity',
+            'occurredAt' => 'Occurred At - When the event happened at the source',
+            'receivedAt' => 'Received At - When the plugin received the event',
+            'idempotencyKey' => 'Idempotency Key - Unique identifier for deduplication',
+            'timestamp' => 'Timestamp - When the event occurred',
+        ];
+
+        return $descriptions[$field_name] ?? "{$field_name} - Event data field";
+    }
+
+    /**
+     * Get user-friendly rule description
+     * 
+     * @param string $validation_rule Validation rule
+     * @param string $field_name Field name
+     * @return string User-friendly description
+     */
+    private function getRuleDescription(string $validation_rule, string $field_name): string
+    {
+        if (strpos($validation_rule, 'Must be one of:') !== false) {
+            return 'The field must be one of the allowed values';
+        }
+
+        if (strpos($validation_rule, 'Invalid format') !== false) {
+            return 'The field must be in the correct format';
+        }
+
+        if (strpos($validation_rule, 'is required') !== false) {
+            return 'This field is mandatory and cannot be missing';
+        }
+
+        if (strpos($validation_rule, 'cannot be empty') !== false) {
+            return 'This field cannot be empty after processing';
+        }
+
+        if (strpos($validation_rule, 'must be string') !== false) {
+            return 'This field must be a text value';
+        }
+
+        if (strpos($validation_rule, 'must be numeric') !== false) {
+            return 'This field must be a number';
+        }
+
+        if ($field_name === 'channel') {
+            return 'Channel must be one of: webhook, ipn, sdk, manual, system, scheduled';
+        }
+
+        if ($field_name === 'primaryObjectType') {
+            return 'Primary object type must be one of: order, subscription, refund, authorization, membership, customer, product';
+        }
+
+        if ($field_name === 'timestamp' || strpos($validation_rule, 'ISO8601') !== false) {
+            return 'Timestamp must be in ISO8601 format (e.g., 2023-01-01T00:00:00+00:00) or Unix timestamp';
+        }
+
+        return 'The field value did not pass validation';
+    }
+
+    /**
+     * Get suggested fix for validation error
+     * 
+     * @param string $field_name Field name
+     * @param string $validation_rule Validation rule
+     * @return string Suggested fix
+     */
+    private function getSuggestedFix(string $field_name, string $validation_rule): string
+    {
+        if ($field_name === 'channel') {
+            return 'Ensure the channel field is set to one of the allowed values: webhook, ipn, sdk, manual, system, scheduled';
+        }
+
+        if ($field_name === 'primaryObjectType') {
+            return 'Ensure the primaryObjectType field is set to one of the allowed values: order, subscription, refund, authorization, membership, customer, product';
+        }
+
+        if ($field_name === 'eventType' && strpos($validation_rule, 'empty') !== false) {
+            return 'Ensure the eventType field contains a valid event type string';
+        }
+
+        if (strpos($validation_rule, 'timestamp') !== false || strpos($validation_rule, 'ISO8601') !== false) {
+            return 'Ensure timestamp fields are in ISO8601 format (e.g., 2023-01-01T00:00:00+00:00) or valid Unix timestamps';
+        }
+
+        if (strpos($validation_rule, 'required') !== false) {
+            return 'Ensure all required fields are present in the event data';
+        }
+
+        if (strpos($validation_rule, 'empty') !== false) {
+            return 'Ensure the field contains a valid non-empty value';
+        }
+
+        return 'Check the event data structure and ensure all fields conform to the expected format and validation rules';
     }
 
     /**
@@ -762,27 +1287,25 @@ class UniversalEventProcessor
      */
     private function getEventCount($event_type, int $hours, string $since): int
     {
-        $args = [
-            'post_type' => 'odcm_audit_log',
-            'posts_per_page' => -1,
-            'meta_query' => [
-                [
-                    'key' => 'event_type',
-                    'value' => $event_type,
-                    'compare' => '='
-                ]
-            ],
-            'date_query' => [
-                [
-                    'after' => $since,
-                    'inclusive' => true
-                ]
-            ],
-            'fields' => 'ids'
-        ];
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'odcm_audit_log';
         
-        $query = new \WP_Query($args);
-        return $query->post_count;
+        $sql = "SELECT COUNT(*) FROM `{$table_name}` WHERE timestamp > %s";
+        $params = [$since];
+
+        if (is_array($event_type)) {
+            if (empty($event_type)) {
+                return 0;
+            }
+            $placeholders = implode(',', array_fill(0, count($event_type), '%s'));
+            $sql .= " AND event_type IN ($placeholders)";
+            $params = array_merge($params, $event_type);
+        } else {
+            $sql .= " AND event_type = %s";
+            $params[] = $event_type;
+        }
+
+        return (int) DatabaseHelper::get_var($sql, $params);
     }
     
     /**
@@ -796,35 +1319,30 @@ class UniversalEventProcessor
      */
     private function getEventCountWithStatus($event_type, ?string $status, int $hours, string $since): int
     {
-        $args = [
-            'post_type' => 'odcm_audit_log',
-            'posts_per_page' => -1,
-            'meta_query' => [
-                [
-                    'key' => 'event_type',
-                    'value' => $event_type,
-                    'compare' => is_array($event_type) ? 'IN' : '='
-                ]
-            ],
-            'date_query' => [
-                [
-                    'after' => $since,
-                    'inclusive' => true
-                ]
-            ],
-            'fields' => 'ids'
-        ];
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'odcm_audit_log';
         
-        if ($status !== null) {
-            $args['meta_query'][] = [
-                'key' => 'status',
-                'value' => $status,
-                'compare' => '='
-            ];
+        $sql = "SELECT COUNT(*) FROM `{$table_name}` WHERE timestamp > %s";
+        $params = [$since];
+
+        if (is_array($event_type)) {
+            if (empty($event_type)) {
+                return 0;
+            }
+            $placeholders = implode(',', array_fill(0, count($event_type), '%s'));
+            $sql .= " AND event_type IN ($placeholders)";
+            $params = array_merge($params, $event_type);
+        } else {
+            $sql .= " AND event_type = %s";
+            $params[] = $event_type;
         }
         
-        $query = new \WP_Query($args);
-        return $query->post_count;
+        if ($status !== null) {
+            $sql .= " AND status = %s";
+            $params[] = $status;
+        }
+        
+        return (int) DatabaseHelper::get_var($sql, $params);
     }
     
     /**
@@ -836,58 +1354,48 @@ class UniversalEventProcessor
      */
     private function getEventsByGateway(int $hours, string $since): array
     {
-        $args = [
-            'post_type' => 'odcm_audit_log',
-            'posts_per_page' => -1,
-            'meta_query' => [
-                [
-                    'key' => 'event_type',
-                    'value' => 'universal_event_processing',
-                    'compare' => '='
-                ]
-            ],
-            'date_query' => [
-                [
-                    'after' => $since,
-                    'inclusive' => true
-                ]
-            ]
-        ];
+        global $wpdb;
+        $audit_log_table = $wpdb->prefix . 'odcm_audit_log';
+        $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
         
-        $query = new \WP_Query($args);
+        // We are looking for 'universal_event_processing' events to count by gateway
+        $event_type = 'universal_event_processing';
+        
+        $sql = "SELECT COALESCE(p.payload, l.details) as payload
+                FROM `{$audit_log_table}` l
+                LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+                WHERE l.event_type = %s 
+                AND l.timestamp > %s";
+                
+        $results = DatabaseHelper::get_results($sql, [$event_type, $since], ARRAY_A);
+        
         $events_by_gateway = [];
         
-        if ($query->have_posts()) {
-            while ($query->have_posts()) {
-                $query->the_post();
-                $post_id = get_the_ID();
-                $payload = get_post_meta($post_id, 'payload', true);
-                
-                if (!empty($payload) && is_string($payload)) {
-                    $payload_data = json_decode($payload, true);
+        if ($results) {
+            foreach ($results as $row) {
+                if (!empty($row['payload'])) {
+                    $payload_data = json_decode($row['payload'], true);
                     if (isset($payload_data['source_gateway'])) {
                         $gateway = $payload_data['source_gateway'];
                         $events_by_gateway[$gateway] = ($events_by_gateway[$gateway] ?? 0) + 1;
                     }
                 }
             }
+        }
             
-            // Convert to the expected format
-            $result = [];
-            foreach ($events_by_gateway as $gateway => $count) {
-                $result[] = [
-                    'gateway' => $gateway,
-                    'count' => $count
-                ];
-            }
-            
-            // Sort by count descending
-            usort($result, function($a, $b) {
-                return $b['count'] - $a['count'];
-            });
+        // Convert to the expected format
+        $result = [];
+        foreach ($events_by_gateway as $gateway => $count) {
+            $result[] = [
+                'gateway' => $gateway,
+                'count' => $count
+            ];
         }
         
-        wp_reset_postdata();
+        // Sort by count descending
+        usort($result, function($a, $b) {
+            return $b['count'] - $a['count'];
+        });
         
         return $result;
     }
@@ -942,12 +1450,12 @@ class UniversalEventProcessor
     private function processUniversalEventRules(EvaluationContext $context, string $process_id): bool
     {
         $order_id = $context->getOrderId();
-        
+
         // Log entry to universal event rule processing
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Processing rules for Order #{$order_id}", 'debug');
         }
-        
+
         // Check if post type exists
         if (!post_type_exists('odcm_order_rule')) {
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
@@ -975,7 +1483,7 @@ class UniversalEventProcessor
             }
             return false;
         }
-        
+
         // ENHANCED VALIDATION: Strict checks for Order #0 prevention
         // Validate order ID with detailed logging to avoid "Order #0" issues
         if (!$order_id || $order_id <= 0) {
@@ -987,16 +1495,68 @@ class UniversalEventProcessor
                 'primary_object_id' => $context->event->primaryObjectID,
                 'primary_object_type' => $context->event->primaryObjectType
             ]);
-            
+
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - CRITICAL: Invalid Order ID debugging trace: " . $event_info, 'error');
-                
+
                 // Log error context without debug_backtrace for production safety
                 odcm_log_message("ODCM_DEBUG_TRACE: Invalid Order ID - skipping rule evaluation", 'error');
             }
-            
+
             // Return false to completely skip rule evaluation for invalid order IDs
             return false;
+        }
+
+        // Filter rules based on current order status for ALL order-related events
+        // This prevents rules with triggers that don't match the current status from executing
+        // Example: A rule with "order_processing" trigger should NOT fire when order is "on-hold"
+        $current_order_status = $context->order ? $context->order->get_status() : null;
+        if ($current_order_status) {
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Filtering rules for order_check_scheduled event. Current order status: {$current_order_status}", 'debug');
+            }
+
+            // Filter rules to only include those whose trigger matches the current order status
+            $filtered_rules = [];
+            foreach ($rules_query->posts as $rule) {
+                $json = get_post_meta((int)$rule->ID, '_odcm_rule_data', true);
+                $rule_data = is_string($json) ? json_decode($json, true) : null;
+
+                if (is_array($rule_data) && isset($rule_data['trigger']['id'])) {
+                    $trigger_id = $rule_data['trigger']['id'];
+
+                    // Check if this trigger should be allowed for the current order status
+                    if ($this->shouldTriggerForStatus($trigger_id, $current_order_status)) {
+                        $filtered_rules[] = $rule;
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Rule '{$rule->post_title}' (ID: {$rule->ID}) ALLOWED for status '{$current_order_status}' with trigger '{$trigger_id}'", 'debug');
+                        }
+                    } else {
+                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                            odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Rule '{$rule->post_title}' (ID: {$rule->ID}) SKIPPED - trigger '{$trigger_id}' does not match current status '{$current_order_status}'", 'debug');
+                        }
+                    }
+                }
+            }
+
+            // Replace the query results with filtered rules
+            if (count($filtered_rules) < count($rules_query->posts)) {
+                $original_count = count($rules_query->posts);
+                $rules_query->posts = $filtered_rules;
+                $rules_query->post_count = count($filtered_rules);
+
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - Filtered from {$original_count} to " . count($filtered_rules) . " rules that match current status '{$current_order_status}'", 'debug');
+                }
+            }
+
+            // If no rules match the current status, return early
+            if (empty($filtered_rules)) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_DEBUG_TRACE: UniversalEventProcessor - No rules match current status '{$current_order_status}' - skipping rule evaluation", 'debug');
+                }
+                return false;
+            }
         }
         
         // CANONICAL TIMELINE EVENT LOGIC
@@ -1163,7 +1723,8 @@ class UniversalEventProcessor
                         $context->getOrderId(),
                         'debug', // Explicitly debug level
                         'rule_no_match',
-                        false
+                        false,
+                        $process_id
                     );
                 }
                 
@@ -1193,11 +1754,88 @@ class UniversalEventProcessor
     }
     
     /**
+     * Determine if a trigger type should fire for a given order status
+     *
+     * This method maps trigger types to the order statuses they are designed to match.
+     * For example, an "order_processing" trigger should ONLY fire when the order is
+     * actually in "processing" status, not when it's in "on-hold" or other statuses.
+     *
+     * This prevents rules from being incorrectly triggered when an order_check_scheduled
+     * event is processed for an order that has been manually changed to a different status.
+     *
+     * @param string $trigger_id The trigger type ID (e.g., 'order_processing', 'order_completed')
+     * @param string $current_status The current WooCommerce order status (without 'wc-' prefix)
+     * @return bool True if this trigger should be allowed for the given status
+     */
+    private function shouldTriggerForStatus(string $trigger_id, string $current_status): bool
+    {
+        // Map trigger types to their applicable order statuses
+        // Each trigger type is designed to fire for specific order statuses
+        $trigger_status_map = [
+            // "Order Processing" trigger - only fires when order is in "processing" status
+            'order_processing' => ['processing'],
+            
+            // "Order Completed" trigger - only fires when order is in "completed" status
+            'order_completed' => ['completed'],
+            
+            // "Order On Hold" trigger - only fires when order is in "on-hold" status
+            'order_on_hold' => ['on-hold'],
+            
+            // "Order Pending" trigger - only fires when order is in "pending" status
+            'order_pending' => ['pending'],
+            
+            // "Order Failed" trigger - only fires when order is in "failed" status
+            'order_failed' => ['failed'],
+            
+            // "Order Cancelled" trigger - only fires when order is in "cancelled" status
+            'order_cancelled' => ['cancelled'],
+            
+            // "Order Refunded" trigger - only fires when order is in "refunded" status
+            'order_refunded' => ['refunded'],
+            
+            // "Any Status Change" trigger - fires for any status (used for generic automation)
+            'order_status_any_change' => [], // Empty array = matches all statuses
+        ];
+
+        // Check if this trigger type has a defined status mapping
+        if (isset($trigger_status_map[$trigger_id])) {
+            $allowed_statuses = $trigger_status_map[$trigger_id];
+            
+            // Empty array means this trigger matches ALL statuses
+            if (empty($allowed_statuses)) {
+                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                    odcm_log_message("ODCM_DEBUG_TRACE: shouldTriggerForStatus - Trigger '{$trigger_id}' matches ALL statuses (current: '{$current_status}')", 'debug');
+                }
+                return true;
+            }
+            
+            // Check if current status is in the allowed list
+            $is_allowed = in_array($current_status, $allowed_statuses, true);
+            
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $allowed_str = implode(', ', $allowed_statuses);
+                $result_str = $is_allowed ? 'ALLOWED' : 'NOT ALLOWED';
+                odcm_log_message("ODCM_DEBUG_TRACE: shouldTriggerForStatus - Trigger '{$trigger_id}' {$result_str} for status '{$current_status}' (allowed: {$allowed_str})", 'debug');
+            }
+            
+            return $is_allowed;
+        }
+
+        // For unknown trigger types, allow them by default to avoid breaking custom triggers
+        // This ensures backward compatibility with custom/third-party triggers
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("ODCM_DEBUG_TRACE: shouldTriggerForStatus - Unknown trigger '{$trigger_id}' allowed by default for status '{$current_status}'", 'debug');
+        }
+        
+        return true;
+    }
+
+    /**
      * Record a trigger event for an order
-     * 
+     *
      * This helps track all events that trigger rule evaluation for an order
      * to be used in consolidated rule execution events.
-     * 
+     *
      * @param int $order_id Order ID
      * @param EvaluationContext $context Universal event context
      * @return void
@@ -1207,7 +1845,7 @@ class UniversalEventProcessor
         if ($order_id <= 0) {
             return;
         }
-        
+
         // Initialize order tracking if doesn't exist
         if (!isset(self::$rule_trigger_events[$order_id])) {
             self::$rule_trigger_events[$order_id] = [
@@ -1215,7 +1853,7 @@ class UniversalEventProcessor
                 'rule_matches' => [],
             ];
         }
-        
+
         // Add this event to the order's trigger events
         $trigger_data = [
             'event_type' => $context->event->eventType,
@@ -1228,9 +1866,53 @@ class UniversalEventProcessor
             'idempotency_key' => $context->event->idempotencyKey,
             'customer_type' => ($context->order && $context->order->get_customer_id() > 0) ? 'registered' : 'guest',
             'payment_method' => $context->order ? $context->order->get_payment_method_title() : '',
+            // Add current order status context for events that don't have status transition data
+            'current_order_status' => $context->order ? $context->order->get_status() : null,
+            'order_status_history' => $this->getOrderStatusHistory($context),
         ];
-        
+
         self::$rule_trigger_events[$order_id]['events'][$context->event->eventType] = $trigger_data;
+    }
+
+    /**
+     * Get order status history for context
+     *
+     * @param EvaluationContext $context
+     * @return array
+     */
+    private function getOrderStatusHistory(EvaluationContext $context): array
+    {
+        if (!$context->order) {
+            return [];
+        }
+
+        $history = [];
+        $order = $context->order;
+
+        // Get the current status
+        $current_status = $order->get_status();
+
+        // Try to get previous status from order meta if available
+        $previous_status = null;
+        $order_status_changes = get_post_meta($order->get_id(), '_order_status_history', true);
+
+        if (is_array($order_status_changes) && !empty($order_status_changes)) {
+            // Get the most recent status change (excluding the current one)
+            $recent_changes = array_filter($order_status_changes, function($change) use ($current_status) {
+                return isset($change['to']) && $change['to'] !== $current_status;
+            });
+
+            if (!empty($recent_changes)) {
+                $most_recent = end($recent_changes);
+                $previous_status = $most_recent['from'] ?? null;
+            }
+        }
+
+        return [
+            'current_status' => $current_status,
+            'previous_status' => $previous_status,
+            'status_changes' => $order_status_changes ?? [],
+        ];
     }
     
     /**
@@ -1329,20 +2011,24 @@ class UniversalEventProcessor
         $twenty_four_hours_ago = gmdate('Y-m-d H:i:s', strtotime('-24 hours'));
         
         // Find existing rule execution events for this order+rule combination
-        $existing_events = $wpdb->get_results($wpdb->prepare(
+        $existing_events = DatabaseHelper::get_results(
             "SELECT l.log_id, l.timestamp, COALESCE(p.payload, l.details) as payload
-             FROM `{$audit_log_table}` l
-             LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
-             WHERE l.event_type = %s 
-             AND l.order_id = %d
-             AND l.timestamp > %s
-             ORDER BY l.timestamp DESC
-             LIMIT 5",
-            'rule_execution',
-            $order_id,
-            $twenty_four_hours_ago
-        ), ARRAY_A);
-        
+            FROM `{$audit_log_table}` l
+            LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+            WHERE l.event_type = %s 
+            AND l.order_id = %d
+            AND l.timestamp > %s
+            ORDER BY l.timestamp DESC
+            LIMIT 5",
+            ['rule_execution', $order_id, $twenty_four_hours_ago],
+            ARRAY_A
+        );
+
+        // Handle null return value from DatabaseHelper::get_results()
+        if ($existing_events === null) {
+            $existing_events = [];
+        }
+
         // Filter to find the one matching our rule_id
         $filtered_events = [];
         if (!empty($existing_events)) {
@@ -1351,7 +2037,7 @@ class UniversalEventProcessor
                 if (json_last_error() === JSON_ERROR_NONE &&
                     isset($payload_data['rule_id']) &&
                     (int)$payload_data['rule_id'] === $rule_id) {
-                    
+
                     $filtered_events[] = [
                         'log_id' => $event['log_id'],
                         'payload' => $event['payload'],
@@ -1361,7 +2047,7 @@ class UniversalEventProcessor
                 }
             }
         }
-        
+
         $existing_events = $filtered_events;
 
         // No events found in database
@@ -1375,12 +2061,42 @@ class UniversalEventProcessor
         // Process the event we found
         $event = $existing_events[0];
         
-        // Parse payload with error handling to avoid JSON issues
+        // Parse payload with comprehensive error handling and logging
         $payload = json_decode($event['payload'], true);
         if (json_last_error() !== JSON_ERROR_NONE) {
+            // Log detailed JSON error information
+            $json_error = json_last_error_msg();
+            $error_details = [
+                'event_id' => $event['log_id'],
+                'json_error' => $json_error,
+                'json_error_code' => json_last_error(),
+                'payload_length' => strlen($event['payload']),
+                'payload_preview' => substr($event['payload'], 0, 100) . '...',
+                'event_timestamp' => $event['timestamp'],
+                'order_id' => $order_id,
+                'rule_id' => $rule_id,
+                'context' => $context ? 'available' : 'not available',
+            ];
+
+            // Log error with comprehensive details
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                odcm_log_message("ODCM_DEDUP_DEBUG: Invalid JSON in rule execution event payload (ID: {$event['log_id']}): " . json_last_error_msg(), 'error');
+                odcm_log_message("ODCM_DEDUP_DEBUG: JSON decoding failed for rule execution event (ID: {$event['log_id']}): {$json_error}", 'error');
+                odcm_log_message("ODCM_DEDUP_DEBUG: Error details: " . json_encode($error_details), 'debug');
+            } else {
+                // Log error in production mode with essential information
+                odcm_log_message("ODCM_DEDUP_ERROR: JSON decoding failed for rule execution event (ID: {$event['log_id']}): {$json_error}", 'error');
             }
+
+            // Add additional context for debugging
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                // Log the raw payload for debugging
+                odcm_log_message("ODCM_DEDUP_DEBUG: Raw payload for event ID {$event['log_id']}: " . substr($event['payload'], 0, 500), 'debug');
+
+                // Log the SQL query that retrieved this event
+                odcm_log_message("ODCM_DEDUP_DEBUG: SQL query that retrieved this event: SELECT l.log_id, l.timestamp, COALESCE(p.payload, l.details) as payload FROM `{$audit_log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id WHERE l.event_type = 'rule_execution' AND l.order_id = {$order_id} AND l.timestamp > '{$twenty_four_hours_ago}' ORDER BY l.timestamp DESC LIMIT 5", 'debug');
+            }
+
+            // Return null to indicate failure
             return null;
         }
         
@@ -2256,16 +2972,19 @@ class UniversalEventProcessor
         $order_id = $payload['order_id'] ?? $context->getOrderId();
         $executed_actions = $payload['executed_actions'] ?? '';
         $execution_status = $payload['execution_status'] ?? 'EXECUTED';
-        
+
         // Generate trigger summary based on event type
         $trigger_summary = $this->getTriggerSummary($primary_trigger, $all_triggers);
-        
+
         // Create comprehensive execution summary
         $execution_summary = $this->getExecutionSummary($context, $payload);
-        
+
         // Create proper component label
         $label = sprintf('Rule Executed: %s', $rule_name);
-        
+
+        // Get status information with fallback to order context
+        $status_info = $this->getStatusInformationForComponent($primary_trigger, $all_triggers, $context);
+
         // Build the comprehensive rule execution component
         $component = [
             'event_type' => 'rule_execution',
@@ -2284,17 +3003,17 @@ class UniversalEventProcessor
                 'trigger' => $trigger_summary,
                 'actions' => $executed_actions,
                 'execution_status' => $execution_status,
-                
+
                 // ==== RULE EVALUATION SUMMARY (PRIMARY DISPLAY) ====
                 'evaluation_summary' => [
-                    'result' => isset($this->matched_rule_data['trace']) ? 
-                        count(array_filter($this->matched_rule_data['trace']['conditions'], 
-                            fn($c) => $c['result'] === 'pass')) . '/' . 
-                        count($this->matched_rule_data['trace']['conditions']) . 
+                    'result' => isset($this->matched_rule_data['trace']) ?
+                        count(array_filter($this->matched_rule_data['trace']['conditions'],
+                            fn($c) => $c['result'] === 'pass')) . '/' .
+                        count($this->matched_rule_data['trace']['conditions']) .
                         ' conditions passed' : '',
                     'logic' => 'ALL conditions must pass', // Could be enhanced to read from rule data
                     'order_status' => $context->order ? ucfirst($context->order->get_status()) : '',
-                    'order_total' => isset($payload['amount'], $payload['currency']) ? 
+                    'order_total' => isset($payload['amount'], $payload['currency']) ?
                         strtoupper($payload['currency']) . ' ' . number_format((float)$payload['amount'], 2) : '',
                     'payment_method' => $context->order ? $context->order->get_payment_method_title() : '',
                     'customer_type' => ($context->order && $context->order->get_customer_id() > 0) ? 'Registered' : 'Guest',
@@ -2304,12 +3023,10 @@ class UniversalEventProcessor
                     'event_time' => gmdate('Y-m-d H:i:s', (int)$context->event->occurredAt),
                     'event_id' => substr($payload['idempotency_key'] ?? '', 0, 15) . '...',
                 ],
-                
+
                 // ==== TRIGGER DETAILS (SUPPORTING SECTION) ====
-                'from_status' => isset($all_triggers[$primary_trigger]['status_from']) ? 
-                    ucfirst($all_triggers[$primary_trigger]['status_from']) : '',
-                'to_status' => isset($all_triggers[$primary_trigger]['status_to']) ? 
-                    ucfirst($all_triggers[$primary_trigger]['status_to']) : '',
+                'from_status' => $status_info['from_status'],
+                'to_status' => $status_info['to_status'],
                 
                 // ==== CONDITION DETAILS (SUPPORTING SECTION) ====
                 'conditions' => self::formatConditionsForDisplay($this->matched_rule_data['trace']['conditions'] ?? []),
@@ -2492,6 +3209,46 @@ class UniversalEventProcessor
                 }
         }
     }
+
+    /**
+     * Get validated REQUEST_TIME_FLOAT value with proper sanitization
+     * 
+     * Validates, unslashes, and sanitizes $_SERVER['REQUEST_TIME_FLOAT']
+     * to prevent security issues and ensure data integrity.
+     * 
+     * @return float|null Validated request time float or null if invalid
+     */
+    private function getValidatedRequestTimeFloat(): ?float
+    {
+        // Check if the server variable exists
+        if (!isset($_SERVER['REQUEST_TIME_FLOAT'])) {
+            return null;
+        }
+
+        // Get the raw value
+        $raw_value = sanitize_text_field(wp_unslash($_SERVER['REQUEST_TIME_FLOAT']));
+
+        // Apply wp_unslash to remove any magic quotes/slashes
+        $unslashed_value = wp_unslash($raw_value);
+
+        // Validate that it's numeric
+        if (!is_numeric($unslashed_value)) {
+            return null;
+        }
+
+        // Convert to float
+        $float_value = (float)$unslashed_value;
+
+        // Additional validation: ensure it's a reasonable timestamp
+        // Should be within reasonable bounds (current time +/- 1 hour)
+        $current_time = microtime(true);
+        if ($float_value < ($current_time - 3600) || $float_value > ($current_time + 3600)) {
+            return null;
+        }
+
+        return $float_value;
+    }
+
     /**
      * Generate a status change message based on the actual payload data
      * 
@@ -2529,45 +3286,6 @@ class UniversalEventProcessor
     }
 
     /**
-     * Get validated REQUEST_TIME_FLOAT value with proper sanitization
-     * 
-     * Validates, unslashes, and sanitizes $_SERVER['REQUEST_TIME_FLOAT']
-     * to prevent security issues and ensure data integrity.
-     * 
-     * @return float|null Validated request time float or null if invalid
-     */
-    private function getValidatedRequestTimeFloat(): ?float
-    {
-        // Check if the server variable exists
-        if (!isset($_SERVER['REQUEST_TIME_FLOAT'])) {
-            return null;
-        }
-
-        // Get the raw value
-        $raw_value = $_SERVER['REQUEST_TIME_FLOAT'];
-
-        // Apply wp_unslash to remove any magic quotes/slashes
-        $unslashed_value = wp_unslash($raw_value);
-
-        // Validate that it's numeric
-        if (!is_numeric($unslashed_value)) {
-            return null;
-        }
-
-        // Convert to float
-        $float_value = (float)$unslashed_value;
-
-        // Additional validation: ensure it's a reasonable timestamp
-        // Should be within reasonable bounds (current time +/- 1 hour)
-        $current_time = microtime(true);
-        if ($float_value < ($current_time - 3600) || $float_value > ($current_time + 3600)) {
-            return null;
-        }
-
-        return $float_value;
-    }
-
-    /**
      * Format amount with proper currency symbol
      * 
      * @param float $amount The amount
@@ -2587,5 +3305,106 @@ class UniversalEventProcessor
             default:
                 return $currency . ' ' . number_format($amount, 2);
         }
+    }
+
+    /**
+     * Get status information for component display
+     *
+     * Extracts status transition information from event components and context
+     * to provide proper timeline display. Handles various event types and
+     * provides fallback values when specific status information is not available.
+     *
+     * @param string $primary_trigger The primary trigger event type
+     * @param array $all_triggers All trigger events for this rule
+     * @param EvaluationContext $context Evaluation context
+     * @return array Status information with 'from_status' and 'to_status' fields
+     */
+    private function getStatusInformationForComponent(string $primary_trigger, array $all_triggers, EvaluationContext $context): array
+    {
+        $from_status = null;
+        $to_status = null;
+
+        // Try to extract status information from the primary trigger event
+        if (isset($all_triggers[$primary_trigger])) {
+            $trigger_data = $all_triggers[$primary_trigger];
+
+            // Extract status transition information if available
+            if (isset($trigger_data['status_from'])) {
+                $from_status = $trigger_data['status_from'];
+            }
+            if (isset($trigger_data['status_to'])) {
+                $to_status = $trigger_data['status_to'];
+            }
+        }
+
+        // If we don't have status from triggers, try to get it from the event context
+        if (($from_status === null || $to_status === null) && $context->event) {
+            $event_data = $context->event->rawData ?? [];
+
+            // Check for status transition in event raw data
+            if (isset($event_data['from_status']) && $from_status === null) {
+                $from_status = $event_data['from_status'];
+            }
+            if (isset($event_data['to_status']) && $to_status === null) {
+                $to_status = $event_data['to_status'];
+            }
+
+            // For some event types, we can infer status from other data
+            if ($primary_trigger === 'payment_completed' && $to_status === null) {
+                $to_status = 'completed';
+            }
+            if ($primary_trigger === 'checkout_processed' && $to_status === null) {
+                $to_status = 'processing';
+            }
+            if ($primary_trigger === 'order_created' && $to_status === null) {
+                $to_status = 'pending';
+            }
+        }
+
+        // If we still don't have status information, try to get it from the order object
+        if (($from_status === null || $to_status === null) && $context->order) {
+            $current_status = $context->order->get_status();
+
+            // If we have current status but no to_status, use current status
+            if ($to_status === null) {
+                $to_status = $current_status;
+            }
+
+            // Try to get previous status from order history if available
+            if ($from_status === null) {
+                $order_status_changes = get_post_meta($context->order->get_id(), '_order_status_history', true);
+                if (is_array($order_status_changes) && !empty($order_status_changes)) {
+                    $recent_changes = array_filter($order_status_changes, function($change) use ($current_status) {
+                        return isset($change['to']) && $change['to'] !== $current_status;
+                    });
+
+                    if (!empty($recent_changes)) {
+                        $most_recent = end($recent_changes);
+                        $from_status = $most_recent['from'] ?? null;
+                    }
+                }
+            }
+        }
+
+        // Provide sensible defaults if we still don't have status information
+        if ($from_status === null) {
+            $from_status = 'unknown';
+        }
+        if ($to_status === null) {
+            $to_status = $context->order ? $context->order->get_status() : 'unknown';
+        }
+
+        // Debug logging for status extraction
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            odcm_log_message("ODCM_STATUS_DEBUG: Extracted status information for component display", 'debug');
+            odcm_log_message("ODCM_STATUS_DEBUG: - Primary trigger: {$primary_trigger}", 'debug');
+            odcm_log_message("ODCM_STATUS_DEBUG: - From status: {$from_status}", 'debug');
+            odcm_log_message("ODCM_STATUS_DEBUG: - To status: {$to_status}", 'debug');
+        }
+
+        return [
+            'from_status' => $from_status,
+            'to_status' => $to_status,
+        ];
     }
 }

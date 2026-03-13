@@ -5,9 +5,10 @@ namespace OrderDaemon\CompletionManager\Diagnostics\Performance;
 
 use OrderDaemon\CompletionManager\Diagnostics\AbstractDiagnostic;
 use OrderDaemon\CompletionManager\Diagnostics\DiagnosticResult;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 
 /**
- * Query Performance Diagnostic - Test Database Query Performance
+ * Database Query Performance Diagnostic - Test Database Query Performance (Database-Agnostic)
  *
  * This diagnostic addresses the console log performance issue:
  * "ODCM: Slow filter-options fetch - 2178ms" and "ODCM: Slow initial load - 2179ms"
@@ -17,7 +18,7 @@ use OrderDaemon\CompletionManager\Diagnostics\DiagnosticResult;
  * - Query execution times for key endpoints
  * - Filter options query performance
  * - Table sizes and data volume impact
- * - MySQL configuration and performance
+ * - Database configuration and performance
  *
  * CACHING STRATEGY:
  * This diagnostic tool uses a balanced caching approach:
@@ -40,6 +41,110 @@ class QueryDiagnostic extends AbstractDiagnostic
     private const THRESHOLD_ACCEPTABLE = 500;
     private const THRESHOLD_SLOW = 1000;
     private const THRESHOLD_CRITICAL = 2000;
+
+    /**
+     * Detect database type and version
+     *
+     * @return array Database information including type, version, and connection status
+     */
+    private function detectDatabase(): array
+    {
+        global $wpdb;
+
+        $db_info = [
+            'type' => 'unknown',
+            'version' => 'unknown',
+            'connected' => false
+        ];
+
+        try {
+            // Check database connection
+            $db_info['connected'] = $this->is_connected();
+
+            if (!$db_info['connected']) {
+                return $db_info;
+            }
+
+            // Detect database type
+            if ($wpdb->is_mysql) {
+                $db_info['type'] = 'mysql';
+            } elseif ($wpdb->is_sqlite) {
+                $db_info['type'] = 'sqlite';
+            }
+
+            // Get database version
+            $db_info['version'] = $wpdb->db_version();
+
+        } catch (\Throwable $e) {
+            $db_info['error'] = $e->getMessage();
+        }
+
+        return $db_info;
+    }
+
+    /**
+     * Validate database version based on type
+     *
+     * @param string $type Database type (mysql, sqlite, etc.)
+     * @param string $version Database version string
+     * @return array Validation result with 'valid' boolean and 'message' string
+     */
+    private function validateDatabaseVersion(string $type, string $version): array
+    {
+        $result = [
+            'valid' => false,
+            'message' => ''
+        ];
+
+        if (empty($version) || $version === 'unknown') {
+            $result['message'] = 'Database version could not be detected';
+            return $result;
+        }
+
+        // Parse version number
+        $version_parts = explode('.', $version);
+        $major_version = (int)($version_parts[0] ?? 0);
+        $minor_version = (int)($version_parts[1] ?? 0);
+
+        switch ($type) {
+            case 'mysql':
+                // Minimum requirement: MySQL 5.6 or MariaDB 10.0
+                if (strpos($version, 'MariaDB') !== false) {
+                    // MariaDB version check
+                    if ($major_version >= 10) {
+                        $result['valid'] = true;
+                        $result['message'] = 'MariaDB version is compatible';
+                    } else {
+                        $result['message'] = 'MariaDB version must be 10.0 or higher (current: ' . $version . ')';
+                    }
+                } else {
+                    // MySQL version check
+                    if ($major_version > 5 || ($major_version == 5 && $minor_version >= 6)) {
+                        $result['valid'] = true;
+                        $result['message'] = 'MySQL version is compatible';
+                    } else {
+                        $result['message'] = 'MySQL version must be 5.6 or higher (current: ' . $version . ')';
+                    }
+                }
+                break;
+
+            case 'sqlite':
+                // Minimum requirement: SQLite 3.0
+                if ($major_version >= 3) {
+                    $result['valid'] = true;
+                    $result['message'] = 'SQLite version is compatible';
+                } else {
+                    $result['message'] = 'SQLite version must be 3.0 or higher (current: ' . $version . ')';
+                }
+                break;
+
+            default:
+                $result['message'] = 'Unsupported database type: ' . $type;
+                break;
+        }
+
+        return $result;
+    }
 
     /**
      * Get the diagnostic test name
@@ -92,6 +197,22 @@ class QueryDiagnostic extends AbstractDiagnostic
         $recommendations = [];
         $issues_found = [];
 
+        // Test 0: Database detection and version validation
+        $db_info = $this->detectDatabase();
+        $details['database_info'] = $db_info;
+
+        $version_check = $this->validateDatabaseVersion($db_info['type'], $db_info['version']);
+        $details['version_check'] = $version_check;
+
+        if (!$version_check['valid']) {
+            return DiagnosticResult::warning(
+                $this->get_name(),
+                'Database Version Issue',
+                $details,
+                [$version_check['message']]
+            );
+        }
+
         // Test 1: Check if database tables exist
         $tables_test = $this->test_table_existence();
         $details['table_existence'] = $tables_test;
@@ -137,14 +258,14 @@ class QueryDiagnostic extends AbstractDiagnostic
             $recommendations[] = 'Add missing database indexes: ' . implode(', ', $index_analysis['missing_recommended_indexes']);
         }
 
-        // Test 6: Check MySQL configuration
-        $mysql_config = $this->check_mysql_configuration();
-        $details['mysql_configuration'] = $mysql_config;
-        if (!empty($mysql_config['performance_issues'])) {
-            foreach ($mysql_config['performance_issues'] as $issue) {
-                $issues_found[] = "MySQL config issue: {$issue}";
+        // Test 6: Check database configuration
+        $database_config = $this->check_database_configuration();
+        $details['database_configuration'] = $database_config;
+        if (!empty($database_config['performance_issues'])) {
+            foreach ($database_config['performance_issues'] as $issue) {
+                $issues_found[] = "Database config issue: {$issue}";
             }
-            $recommendations[] = 'Review MySQL configuration for performance optimization';
+            $recommendations[] = 'Review database configuration for performance optimization';
         }
 
         // Test 7: Test query cache effectiveness
@@ -220,15 +341,15 @@ class QueryDiagnostic extends AbstractDiagnostic
     private function analyze_table_sizes(): array
     {
         global $wpdb;
-        
+
         // Check cache for complete analysis results
         $cache_key = 'odcm_table_size_analysis';
         $cached_result = wp_cache_get($cache_key);
-        
+
         if (false !== $cached_result) {
             return $cached_result;
         }
-        
+
         $result = [
             'total_rows' => 0,
             'total_size_mb' => 0,
@@ -243,28 +364,30 @@ class QueryDiagnostic extends AbstractDiagnostic
             }
 
             $full_table_name = $wpdb->prefix . $table;
-            
+
             // Get row count
             $row_count = $this->get_table_row_count($table);
-            
+
             // Get table size information with caching
             $table_size_cache_key = 'odcm_table_size_' . md5($full_table_name);
             $size_mb = wp_cache_get($table_size_cache_key);
 
             if (false === $size_mb) {
-                // @codingStandardsIgnoreStart
-                // This is a false positive - we're using a validated table name with WordPress prefix
-                // and this is a performance diagnostic tool that needs to measure actual database performance
-                $size_mb = $wpdb->get_var(
-                    $wpdb->prepare(
+                if ($wpdb->is_mysql) {
+                    // MySQL/MariaDB implementation
+                    $size_mb = DatabaseHelper::get_var(
                         "SELECT ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb'
                         FROM information_schema.TABLES
                         WHERE table_schema = %s AND table_name = %s",
-                        DB_NAME,
-                        $full_table_name
-                    )
-                ) ?? 0;
-                // @codingStandardsIgnoreEnd
+                        [DB_NAME, $full_table_name]
+                    ) ?? 0;
+                } else {
+                    // SQLite implementation - use PRAGMA for size information
+                    $size_mb = DatabaseHelper::get_var(
+                        "SELECT ROUND((page_count * page_size) / 1024 / 1024, 2) AS 'size_mb'
+                        FROM pragma_page_count() pc, pragma_page_size() ps"
+                    ) ?? 0;
+                }
 
                 // Cache the result for 1 hour - table sizes don't change frequently
                 wp_cache_set($table_size_cache_key, $size_mb, '', HOUR_IN_SECONDS);
@@ -280,7 +403,7 @@ class QueryDiagnostic extends AbstractDiagnostic
             $result['total_rows'] += $row_count;
             $result['total_size_mb'] += $size_mb;
         }
-        
+
         // Cache the complete analysis for 1 hour
         wp_cache_set($cache_key, $result, '', HOUR_IN_SECONDS);
 
@@ -295,7 +418,7 @@ class QueryDiagnostic extends AbstractDiagnostic
     private function test_filter_options_performance(): array
     {
         global $wpdb;
-        
+
         $result = [
             'execution_time_ms' => 0,
             'query_count' => 0,
@@ -312,8 +435,11 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
-        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
-        $table_identifier = ($table_name === $wpdb->prefix . 'odcm_audit_log') ? '`' . $table_name . '`' : '`odcm_audit_log`';
+        // Validate identifier using DatabaseHelper
+        if (!DatabaseHelper::validate_table_name($table_name)) {
+            throw new \InvalidArgumentException('Invalid table name');
+        }
+        $table_identifier = '`' . $table_name . '`';
         $start_time = microtime(true);
 
         try {
@@ -338,19 +464,25 @@ class QueryDiagnostic extends AbstractDiagnostic
 
                 // Prepare the query using proper WordPress database abstraction
                 // Column names are validated against whitelist for security
-                // Since we can't use prepare() for identifiers, we use esc_sql() to escape them
-                $escaped_column = esc_sql($column);
-                $escaped_table = esc_sql(trim(str_replace('`', '', $table_identifier)));
-                $sql = $wpdb->prepare(
-                    "SELECT DISTINCT `{$escaped_column}` FROM `{$escaped_table}` WHERE `{$escaped_column}` IS NOT NULL AND `{$escaped_column}` != %s ORDER BY `{$escaped_column}` ASC",
-                    '' // Empty string parameter for the != %s comparison
+                
+                // We use sprintf for identifiers (table/column names) which cannot be bound parameters
+                // The column name is strictly validated against a whitelist above
+                $query_template = "SELECT DISTINCT `%1\$s` FROM %2\$s WHERE `%1\$s` IS NOT NULL AND `%1\$s` != %%s ORDER BY `%1\$s` ASC";
+                
+                $prepared_sql = sprintf(
+                    $query_template,
+                    $column,
+                    $table_identifier
                 );
+
+                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query template is constant, identifiers are whitelisted/validated.
+                $sql = $wpdb->prepare($prepared_sql, '');
 
                 // @codingStandardsIgnoreStart
                 // This is a false positive - we're using validated column names from a whitelist
                 // and this is a performance diagnostic tool that needs to measure actual database performance
                 // Execute the query directly without caching to measure actual performance
-                $results = $wpdb->get_col($sql);
+                $results = DatabaseHelper::get_col($sql);
                 // @codingStandardsIgnoreEnd
 
                 $query_time = (microtime(true) - $query_start) * 1000;
@@ -384,7 +516,7 @@ class QueryDiagnostic extends AbstractDiagnostic
     private function test_audit_log_performance(): array
     {
         global $wpdb;
-        
+
         $result = [
             'tests' => []
         ];
@@ -400,7 +532,7 @@ class QueryDiagnostic extends AbstractDiagnostic
         // Create backticked, safe table identifiers for use in queries
         $table_identifier = '`' . $table_name . '`';
         $payload_table_identifier = '`' . $payload_table . '`';
-        
+
         // Create properly prepared test scenarios
         $test_scenarios = [];
 
@@ -452,12 +584,12 @@ class QueryDiagnostic extends AbstractDiagnostic
 
         foreach ($test_scenarios as $test_name => $prepared_query) {
             $start_time = microtime(true);
-            
+
             try {
                 // @codingStandardsIgnoreStart
                 // This is a false positive - we're using validated table names with WordPress prefix
                 // and this is a performance diagnostic tool that needs to measure actual database performance
-                $results = $wpdb->get_results($prepared_query, 'ARRAY_A');
+                $results = DatabaseHelper::get_results($prepared_query, 'ARRAY_A');
                 $execution_time = (microtime(true) - $start_time) * 1000;
 
                 $result['tests'][$test_name] = [
@@ -492,7 +624,7 @@ class QueryDiagnostic extends AbstractDiagnostic
     private function analyze_database_indexes(): array
     {
         global $wpdb;
-        
+
         $result = [
             'existing_indexes' => [],
             'missing_recommended_indexes' => [],
@@ -504,8 +636,11 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
-        // Validate identifier and wrap in backticks (placeholders cannot be used for identifiers)
-        $table_identifier = ($table_name === $wpdb->prefix . 'odcm_audit_log') ? '`' . $table_name . '`' : '`odcm_audit_log`';
+        // Validate identifier using DatabaseHelper
+        if (!DatabaseHelper::validate_table_name($table_name)) {
+            throw new \InvalidArgumentException('Invalid table name');
+        }
+        $table_identifier = '`' . $table_name . '`';
 
         try {
             // Get existing indexes
@@ -517,17 +652,14 @@ class QueryDiagnostic extends AbstractDiagnostic
             $indexes = wp_cache_get($cache_key);
 
             if (false === $indexes) {
-                // We can't use $wpdb->prepare() for "SHOW INDEX" with a table name as there's no
-                // placeholder for identifiers, but we can safely use $wpdb->get_results with a properly
-                // validated table name. This is a legitimate use case for direct database calls
-                // as WordPress doesn't provide an alternative for SHOW INDEX queries.
-
-                $table_name_clean = trim(str_replace('`', '', $table_identifier));
-
-                // Use WordPress database abstraction with proper validation
-                // Since we can't use prepare() for identifiers, we use esc_sql() to escape the table name
-                // and use $wpdb->get_results() which is the WordPress-approved method for this type of query
-                $query = $wpdb->get_results($wpdb->prepare("SHOW INDEX FROM `%s`", $table_name_clean), 'ARRAY_A');
+                if ($wpdb->is_mysql) {
+                    // MySQL/MariaDB implementation
+                    $table_name_clean = trim(str_replace('`', '', $table_identifier));
+                    $query = DatabaseHelper::get_results($wpdb->prepare("SHOW INDEX FROM `%s`", $table_name_clean), 'ARRAY_A');
+                } else {
+                    // SQLite implementation - use prepared statement for table name
+                    $query = DatabaseHelper::get_results("PRAGMA index_list(%s)", [$table_name]);
+                }
 
                 if ($query !== null) {
                     // Cache for 1 hour - indexes don't change frequently
@@ -537,17 +669,29 @@ class QueryDiagnostic extends AbstractDiagnostic
                 }
                 $indexes = $query;
             }
-            
-            foreach ($indexes as $index) {
-                $key_name = $index['Key_name'];
-                if (!isset($result['existing_indexes'][$key_name])) {
-                    $result['existing_indexes'][$key_name] = [
-                        'columns' => [],
-                        'unique' => $index['Non_unique'] == 0,
-                        'type' => $index['Index_type']
+
+            if ($wpdb->is_mysql) {
+                foreach ($indexes as $index) {
+                    $key_name = $index['Key_name'];
+                    if (!isset($result['existing_indexes'][$key_name])) {
+                        $result['existing_indexes'][$key_name] = [
+                            'columns' => [],
+                            'unique' => $index['Non_unique'] == 0,
+                            'type' => $index['Index_type']
+                        ];
+                    }
+                    $result['existing_indexes'][$key_name]['columns'][] = $index['Column_name'];
+                }
+            } else {
+                // SQLite implementation
+                foreach ($indexes as $index) {
+                    $index_info = DatabaseHelper::get_row("PRAGMA index_info(%s)", [$index->name]);
+                    $result['existing_indexes'][$index->name] = [
+                        'columns' => [$index_info->name],
+                        'unique' => $index->unique,
+                        'type' => 'BTREE' // SQLite uses BTREE by default
                     ];
                 }
-                $result['existing_indexes'][$key_name]['columns'][] = $index['Column_name'];
             }
 
             // Recommended indexes for performance
@@ -570,7 +714,7 @@ class QueryDiagnostic extends AbstractDiagnostic
                         break;
                     }
                 }
-                
+
                 if (!$found) {
                     $result['missing_recommended_indexes'][] = $index_name . ' (' . implode(', ', $columns) . ')';
                 }
@@ -584,14 +728,14 @@ class QueryDiagnostic extends AbstractDiagnostic
     }
 
     /**
-     * Check MySQL configuration for performance issues
+     * Check database configuration for performance issues
      *
-     * @return array MySQL configuration analysis
+     * @return array Database configuration analysis
      */
-    private function check_mysql_configuration(): array
+    private function check_database_configuration(): array
     {
         global $wpdb;
-        
+
         $result = [
             'version' => '',
             'performance_issues' => [],
@@ -600,72 +744,112 @@ class QueryDiagnostic extends AbstractDiagnostic
         ];
 
         try {
-            // Get MySQL version with caching
-            $cache_key = 'odcm_mysql_version';
-            $mysql_version = wp_cache_get($cache_key);
-            
-            if (false === $mysql_version) {
-                $mysql_version = $wpdb->get_var($wpdb->prepare("SELECT %s", 'VERSION()'));
-                // Cache for 24 hours - MySQL version rarely changes
-                if ($mysql_version) {
-                    wp_cache_set($cache_key, $mysql_version, '', DAY_IN_SECONDS);
+            // Get database version with caching
+            $cache_key = 'odcm_database_version';
+            $database_version = wp_cache_get($cache_key);
+
+            if (false === $database_version) {
+                if ($wpdb->is_mysql) {
+                    $database_version = DatabaseHelper::get_var("SELECT %s", ['VERSION()']);
+                } else {
+                    // SQLite implementation
+                    $database_version = DatabaseHelper::get_var("SELECT %s", ['sqlite_version()']);
+                }
+
+                // Cache for 24 hours - database version rarely changes
+                if ($database_version) {
+                    wp_cache_set($cache_key, $database_version, '', DAY_IN_SECONDS);
                 }
             }
-            
-            $result['version'] = $mysql_version;
+
+            $result['version'] = $database_version;
 
             // Check important performance variables
-            $important_vars = [
-                'innodb_buffer_pool_size',
-                'key_buffer_size',
-                'max_connections',
-                'query_cache_size',
-                'query_cache_type',
-                'slow_query_log',
-                'long_query_time'
-            ];
+            $important_vars = [];
 
-            // Get MySQL configuration variables with caching
-            $cache_key = 'odcm_mysql_variables';
-            $mysql_variables = wp_cache_get($cache_key);
-            
-            if (false === $mysql_variables) {
-                $mysql_variables = [];
+            if ($wpdb->is_mysql) {
+                $important_vars = [
+                    'innodb_buffer_pool_size',
+                    'key_buffer_size',
+                    'max_connections',
+                    'query_cache_size',
+                    'query_cache_type',
+                    'slow_query_log',
+                    'long_query_time'
+                ];
+            } else {
+                // SQLite implementation
+                $important_vars = [
+                    'cache_size',
+                    'journal_mode',
+                    'synchronous',
+                    'temp_store'
+                ];
+            }
+
+            // Get database configuration variables with caching
+            $cache_key = 'odcm_database_variables';
+            $database_variables = wp_cache_get($cache_key);
+
+            if (false === $database_variables) {
+                $database_variables = [];
+
                 foreach ($important_vars as $var) {
-                    $var_cache_key = 'odcm_mysql_var_' . md5($var);
+                    $var_cache_key = 'odcm_database_var_' . md5($var);
                     $var_value = wp_cache_get($var_cache_key);
-                    
+
                     if (false === $var_value) {
-                        // Use separate prepared statement for show variables
-                        // Since SHOW VARIABLES LIKE has specific syntax requirements
-                        $var_value = $wpdb->get_row($wpdb->prepare("SHOW VARIABLES LIKE %s", $var));
-                        $var_value = $var_value ? $var_value->Value : null;
+                        if ($wpdb->is_mysql) {
+                            // Use separate prepared statement for show variables
+                            // Since SHOW VARIABLES LIKE has specific syntax requirements
+                            $var_value = DatabaseHelper::get_row("SHOW VARIABLES LIKE %s", [$var]);
+                            $var_value = $var_value ? $var_value->Value : null;
+                        } else {
+                            // SQLite implementation
+                            $var_value = DatabaseHelper::get_var("PRAGMA %s", [$var]);
+                        }
+
                         if ($var_value !== null) {
                             // Cache individual variables for 24 hours
                             wp_cache_set($var_cache_key, $var_value, '', DAY_IN_SECONDS);
                         }
                     }
-                    
+
                     if ($var_value !== null) {
-                        $mysql_variables[$var] = $var_value;
+                        $database_variables[$var] = $var_value;
                     }
                 }
                 // Cache all variables for 24 hours
-                wp_cache_set($cache_key, $mysql_variables, '', DAY_IN_SECONDS);
+                wp_cache_set($cache_key, $database_variables, '', DAY_IN_SECONDS);
             }
-            
-            $result['variables'] = $mysql_variables;
+
+            $result['variables'] = $database_variables;
 
             // Analyze for common performance issues
-            if (isset($result['variables']['query_cache_type']) && 
-                $result['variables']['query_cache_type'] === 'OFF') {
-                $result['performance_issues'][] = 'Query cache is disabled';
-                $result['recommendations'][] = 'Consider enabling query cache for better performance';
-            }
+            if ($wpdb->is_mysql) {
+                if (isset($result['variables']['query_cache_type']) &&
+                    $result['variables']['query_cache_type'] === 'OFF') {
+                    $result['performance_issues'][] = 'Query cache is disabled';
+                    $result['recommendations'][] = 'Consider enabling query cache for better performance';
+                }
 
-            if (isset($result['variables']['slow_query_log']) && 
-                $result['variables']['slow_query_log'] === 'OFF') {
-                $result['recommendations'][] = 'Enable slow query log to identify performance bottlenecks';
+                if (isset($result['variables']['slow_query_log']) &&
+                    $result['variables']['slow_query_log'] === 'OFF') {
+                    $result['recommendations'][] = 'Enable slow query log to identify performance bottlenecks';
+                }
+            } else {
+                // SQLite implementation
+                if (isset($result['variables']['journal_mode']) &&
+                    $result['variables']['journal_mode'] === 'DELETE') {
+                    $result['performance_issues'][] = 'Journal mode is DELETE';
+                    $result['recommendations'][] = 'Consider using WAL journal mode for better performance';
+                }
+
+                if (isset($result['variables']['synchronous']) &&
+                    $result['variables']['synchronous'] === 'FULL') {
+                    $result['performance_issues'][] = 'Synchronous mode is FULL';
+                    $result['recommendations'][] = 'Consider using NORMAL synchronous mode for better performance';
+                }
             }
 
         } catch (\Throwable $e) {
@@ -677,11 +861,11 @@ class QueryDiagnostic extends AbstractDiagnostic
 
     /**
      * Store cached performance results to avoid repeated DB calls
-     * 
+     *
      * @var array|null
      */
     private static $cached_performance_results = null;
-    
+
     /**
      * Test query cache effectiveness
      *
@@ -694,13 +878,13 @@ class QueryDiagnostic extends AbstractDiagnostic
     private function test_query_cache(): array
     {
         global $wpdb;
-        
+
         // Use in-memory static caching during this request to avoid repeated calls
         // This is appropriate for this specific test as it's measuring cache effectiveness
         if (null !== self::$cached_performance_results) {
             return self::$cached_performance_results;
         }
-        
+
         $result = [
             'effective' => false,
             'first_execution_ms' => 0,
@@ -714,93 +898,94 @@ class QueryDiagnostic extends AbstractDiagnostic
         }
 
         $table_name = $wpdb->prefix . 'odcm_audit_log';
-        
+        // Validate identifier using DatabaseHelper
+        if (!DatabaseHelper::validate_table_name($table_name)) {
+            throw new \InvalidArgumentException('Invalid table name');
+        }
+
         // Construct a test query that will benefit from indexing
         $cutoff_time = gmdate('Y-m-d H:i:s', strtotime('-1 hour'));
         // Use WordPress database abstraction with proper table name handling
         $query_template = "SELECT COUNT(*) FROM {$wpdb->prefix}odcm_audit_log WHERE timestamp > %s";
-        
+
         try {
             // Create a cache key for this performance test
             $test_cache_key = 'odcm_db_perf_test_' . md5($cutoff_time . $table_name);
-            
+
             // Test if we have a cached result from previous runs
             $cached_test_results = wp_cache_get($test_cache_key);
-            
+
             if (false !== $cached_test_results) {
                 // We have cached performance test results - use them instead of running the test again
                 $result = $cached_test_results;
                 $result['using_cached_results'] = true;
                 return $result;
             }
-            
+
             // Clear any existing cached values for the actual query being tested
             $cache_key = 'odcm_query_cache_test_' . md5($query_template);
             wp_cache_delete($cache_key);
-            
+
             // First execution (no cache)
             $start_time = microtime(true);
             // @codingStandardsIgnoreStart
             // This is a false positive - we're using a validated table name with WordPress prefix
             // and this is a performance diagnostic tool that needs to measure actual database performance
-            $safe_query = $wpdb->prepare($query_template, $cutoff_time);
-            $wpdb->get_var($safe_query);
+            DatabaseHelper::get_var($query_template, [$cutoff_time]);
             $result['first_execution_ms'] = round((microtime(true) - $start_time) * 1000, 2);
             // @codingStandardsIgnoreEnd
 
-            // Second execution (MySQL query cache might help if enabled)
+            // Second execution (database query cache might help if enabled)
             $start_time = microtime(true);
             // @codingStandardsIgnoreStart
             // This is a false positive - we're using a validated table name with WordPress prefix
             // and this is a performance diagnostic tool that needs to measure actual database performance
-            $safe_query = $wpdb->prepare($query_template, $cutoff_time);
-            $wpdb->get_var($safe_query);
+            DatabaseHelper::get_var($query_template, [$cutoff_time]);
             $result['second_execution_ms'] = round((microtime(true) - $start_time) * 1000, 2);
             // @codingStandardsIgnoreEnd
-            
+
             // Third execution with WordPress caching
             $start_time = microtime(true);
-            
+
             // Example caching implementation
             $cache_result = wp_cache_get($cache_key);
             if (false === $cache_result) {
                 // @codingStandardsIgnoreStart
                 // This is a false positive - we're using a validated table name with WordPress prefix
                 // and this is a performance diagnostic tool that needs to measure actual database performance
-                $safe_query = $wpdb->prepare($query_template, $cutoff_time);
                 // Use properly prepared query
-                $cache_result = $wpdb->get_var($safe_query);
+                $cache_result = DatabaseHelper::get_var($query_template, [$cutoff_time]);
                 wp_cache_set($cache_key, $cache_result, '', 5 * MINUTE_IN_SECONDS);
                 // @codingStandardsIgnoreEnd
             }
-            
+
             $result['wp_cache_execution_ms'] = round((microtime(true) - $start_time) * 1000, 2);
 
             // Store the results in static cache to avoid repeated DB calls
             wp_cache_set($test_cache_key, $result, '', 5 * MINUTE_IN_SECONDS);
             self::$cached_performance_results = $result;
-            
-            // Calculate improvements (MySQL query cache and WordPress object cache)
+
+            // Calculate improvements (database query cache and WordPress object cache)
             if ($result['first_execution_ms'] > 0) {
-                // MySQL query cache improvement
-                $mysql_improvement = (($result['first_execution_ms'] - $result['second_execution_ms']) / $result['first_execution_ms']) * 100;
-                $result['mysql_cache_improvement_percent'] = round($mysql_improvement, 1);
-                
+                // Database query cache improvement
+                $db_cache_improvement = (($result['first_execution_ms'] - $result['second_execution_ms']) / $result['first_execution_ms']) * 100;
+                $result['db_cache_improvement_percent'] = round($db_cache_improvement, 1);
+
                 // WordPress object cache improvement
                 $wp_cache_improvement = (($result['first_execution_ms'] - $result['wp_cache_execution_ms']) / $result['first_execution_ms']) * 100;
                 $result['wp_cache_improvement_percent'] = round($wp_cache_improvement, 1);
-                
+
                 // Overall cache effectiveness
-                $result['cache_improvement_percent'] = max($mysql_improvement, $wp_cache_improvement);
-                
+                $result['cache_improvement_percent'] = max($db_cache_improvement, $wp_cache_improvement);
+
                 // Consider cache effective if either caching method is at least 20% faster
-                $result['effective'] = ($mysql_improvement > 20) || ($wp_cache_improvement > 20);
-                
+                $result['effective'] = ($db_cache_improvement > 20) || ($wp_cache_improvement > 20);
+
                 // Add recommendations based on results
-                if ($wp_cache_improvement > $mysql_improvement) {
+                if ($wp_cache_improvement > $db_cache_improvement) {
                     $result['recommendation'] = 'WordPress object caching is more effective - consider using object caching for all database queries';
                 } else {
-                    $result['recommendation'] = 'MySQL query caching appears effective - ensure it remains enabled in the database configuration';
+                    $result['recommendation'] = 'Database query caching appears effective - ensure it remains enabled in the database configuration';
                 }
             }
 

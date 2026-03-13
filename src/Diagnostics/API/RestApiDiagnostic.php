@@ -155,6 +155,17 @@ class RestApiDiagnostic extends AbstractDiagnostic
             );
         } else {
             $message = 'REST API issues detected: ' . implode('; ', array_slice($issues_found, 0, 3));
+
+            if (in_array('WordPress REST API is disabled', $issues_found)) {
+                $message .= '. FIX: Enable WordPress REST API in your caching plugin: 
+            1. Go to your caching plugin admin, usually in the optimization settings.
+            2. Uncheck "Disable WordPress REST API" or similar option
+            3. Save changes
+            4. Clear all cache
+
+            Impact: Order Daemon requires REST API for real-time order processing, audit logging, and rule execution. Without it, order completions may fail silently and audit trails will be incomplete.';
+            }
+
             if (count($issues_found) > 3) {
                 $message .= ' and ' . (count($issues_found) - 3) . ' more issues';
             }

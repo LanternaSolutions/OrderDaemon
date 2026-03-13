@@ -28,7 +28,7 @@
         $('.odcm-tab-nav li').on('click', function(e) {
             e.preventDefault();
             var tabId = $(this).data('tab');
-            console.log('Tab clicked: ' + tabId);
+            if (odcmIsDebug()) {console.log('Tab clicked: ' + tabId);}
             switchToTab(tabId);
         });
 
@@ -177,77 +177,12 @@
         // Initialize order total value inputs
         updateOrderTotalHiddenField();
     }
-
-    /**
-     * Renders audit log details into a structured HTML format
-     * 
-     * @param {Object} data - The JSON data object received from the AJAX response
-     * @return {string} HTML string representation of the data
-     */
-    function renderAuditLogDetails(data) {
-        // If data is null or undefined, return a message
-        if (data === null || data === undefined) {
-            return '<div class="odcm-empty-data">No data available</div>';
-        }
-        
-        // Create a definition list for the data
-        let html = '<dl class="odcm-log-details-dl">';
-        
-        // Function to recursively render nested objects and arrays
-        function renderValue(value) {
-            if (value === null || value === undefined || value === '') {
-                return '<span class="odcm-empty-value">N/A</span>';
-            } else if (typeof value === 'boolean') {
-                return value ? 
-                    '<span class="odcm-boolean-value odcm-true">True</span>' : 
-                    '<span class="odcm-boolean-value odcm-false">False</span>';
-            } else if (typeof value === 'number') {
-                return '<span class="odcm-number-value">' + value + '</span>';
-            } else if (typeof value === 'string') {
-                return '<span class="odcm-string-value">' + value.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
-            } else if (Array.isArray(value)) {
-                if (value.length === 0) {
-                    return '<span class="odcm-empty-value">Empty Array</span>';
-                }
-                
-                let arrayHtml = '<ul class="odcm-array-list">';
-                for (let i = 0; i < value.length; i++) {
-                    arrayHtml += '<li class="odcm-array-item">' + renderValue(value[i]) + '</li>';
-                }
-                arrayHtml += '</ul>';
-                return arrayHtml;
-            } else if (typeof value === 'object') {
-                let nestedHtml = '<dl class="odcm-nested-dl">';
-                for (let key in value) {
-                    if (value.hasOwnProperty(key)) {
-                        nestedHtml += '<dt class="odcm-nested-dt">' + key + ':</dt>';
-                        nestedHtml += '<dd class="odcm-nested-dd">' + renderValue(value[key]) + '</dd>';
-                    }
-                }
-                nestedHtml += '</dl>';
-                return nestedHtml;
-            } else {
-                return '<span class="odcm-unknown-value">' + String(value).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
-            }
-        }
-        
-        // Iterate through the data object and add each key-value pair to the definition list
-        for (let key in data) {
-            if (data.hasOwnProperty(key)) {
-                html += '<dt class="odcm-dt"><strong>' + key + ':</strong></dt>';
-                html += '<dd class="odcm-dd">' + renderValue(data[key]) + '</dd>';
-            }
-        }
-        
-        html += '</dl>';
-        return html;
-    }
-    
+   
     // Try multiple approaches for toggle links to ensure they work
     // 1. Direct event delegation (original approach)
     $(document).on('click', '.audit-log-toggle-details', function(e) {
         e.preventDefault();
-        console.log('Toggle link clicked (delegation)');
+        if (odcmIsDebug()) {console.log('Toggle link clicked (delegation)');}
         handleToggleClick($(this));
     });
 

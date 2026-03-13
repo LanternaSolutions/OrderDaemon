@@ -16,6 +16,38 @@
  * @since   1.0.0
  */
 
+/**
+ * Global request tracking for cleanup and monitoring
+ */
+if (typeof window.odcmActiveRequests === 'undefined') {
+    window.odcmActiveRequests = new Set();
+    window.odcmRequestCounter = 0;
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        // Abort active requests if possible
+        // Note: This is limited since we don't have direct access to the fetch controllers
+        window.odcmActiveRequests.clear();
+    });
+}
+
+/**
+ * Request cleanup utility
+ */
+function cleanupODCMRequests() {
+    try {
+        if (window.odcmActiveRequests && window.odcmActiveRequests.size > 0) {
+            console.warn(`ODCM: Cleaning up ${window.odcmActiveRequests.size} active requests`);
+            window.odcmActiveRequests.clear();
+        }
+    } catch (error) {
+        console.error('ODCM: Error cleaning up requests:', error);
+    }
+}
+
+// Add to window for global access
+window.cleanupODCMRequests = cleanupODCMRequests;
+
 // Lightweight debug flag resolver for gated logs
 function odcmIsDebug() {
     try {
@@ -69,6 +101,11 @@ function insightDashboard() {
         // New installation
         isWelcomeScenario: false,
 
+        // Network status monitoring
+        networkOnline: true,
+        lastNetworkCheck: null,
+        networkIssues: [],
+
         // Log data
         logs: [],
         selectedLog: null,
@@ -90,6 +127,7 @@ function insightDashboard() {
         // Filters with persistence (will be set up in init)
         filters: {
             search: '',
+            full_search: false,
             status: '',
             event_type: '',
             source: '',
@@ -125,8 +163,6 @@ function insightDashboard() {
 
         // Toast notifications (using shared system)
 
-        // Premium access
-        canUsePremiumFilters: false,
 
         // Dynamic filter options and client-side caching (5 minutes)
         filterOptions: {
@@ -137,26 +173,19 @@ function insightDashboard() {
         filterOptionsCache: null,
         filterOptionsCacheExpiry: null,
 
+        // Default labels for filter dropdowns (used when repopulating DOM)
+        allLabels: {
+            statuses: 'All Statuses',
+            eventTypes: 'All Event Types',
+            sources: 'All Sources'
+        },
+
         // Configuration from PHP
         config: window.odcmInsightConfig || {},
         i18n: window.odcmInsightConfig?.i18n || {},
 
-        // Server state tracking for retention policy
-        serverRetentionState: null,
-
-
-
         // Reprocess pending orders state
         isReprocessing: false,
-
-        // Export logs state (premium feature)
-        isExporting: false,
-        exportFormat: null,
-        // Export logs state (premium feature)
-        isExporting: false,
-        exportFormat: null,
-
-        // Generate sample logs state
 
         // =================================================================
         // INITIALIZATION
@@ -171,6 +200,9 @@ function insightDashboard() {
 
                 // Load persistent settings
                 this.loadSettings();
+
+                // Initialize network monitoring
+                this.setupNetworkMonitoring();
 
                 // Load view mode from localStorage
                 try {
@@ -215,8 +247,38 @@ function insightDashboard() {
                 this.setupFilterWatchers();
                 this.setupDebouncedFetch();
                 this.setupSettingsWatchers();
-                this.initializeServerRetentionState();
                 this.setupPrismWatchers();
+
+                // Keep selection state consistent with the current logs list
+                this.$watch('logs', () => {
+                    try {
+                        const validIds = new Set((this.logs || []).map(l => l && l.id).filter(Boolean));
+
+                        // Drop selections that no longer exist in the current list
+                        this.selectedLogIds = (this.selectedLogIds || []).filter(id => validIds.has(id));
+
+                        // Recompute derived select-all state
+                        this.selectAll =
+                            this.selectedLogIds.length > 0 &&
+                            this.selectedLogIds.length === (this.logs || []).length;
+                    } catch (e) {
+                        if (odcmIsDebug()) { console.warn('ODCM: selection reconcile failed:', e); }
+                    }
+                });
+
+                // Keep selectAll in sync when individual checkboxes update selectedLogIds
+                this.$watch('selectedLogIds', () => {
+                    try {
+                        this.selectAll =
+                            (this.selectedLogIds || []).length > 0 &&
+                            (this.selectedLogIds || []).length === (this.logs || []).length;
+                    } catch (e) {
+                        if (odcmIsDebug()) { console.warn('ODCM: selectAll sync failed:', e); }
+                    }
+                });
+
+                // Add click handler for outside clicks
+                this.setupOutsideClickHandler();
 
                 if (odcmIsDebug()) { console.log('ODCM Insight Dashboard: Initialized successfully'); }
             } catch (e) {
@@ -553,15 +615,20 @@ function insightDashboard() {
                     throw new Error('Invalid response format from server');
                 }
 
-                // Check premium access from PHP config (set by pro plugin if licensed)
-                this.canUsePremiumFilters = !!(this.config && this.config.premium_access);
+                // Handle the new response structure where filter_options contains nested arrays
+                // The API now returns: { filter_options: { statuses: [], event_types: [], sources: [] } }
+                const filterOptionsData = data.filter_options || data;
 
-                // Dynamic filter options
-                const fo = data.filter_options || { sources: [], event_types: [], statuses: [] };
+                // Extract the arrays from the nested structure
+                const statuses = Array.isArray(filterOptionsData.statuses) ? filterOptionsData.statuses : [];
+                const eventTypes = Array.isArray(filterOptionsData.event_types) ? filterOptionsData.event_types : [];
+                const sources = Array.isArray(filterOptionsData.sources) ? filterOptionsData.sources : [];
+
+                // Store the filter options
                 this.filterOptions = {
-                    sources: Array.isArray(fo.sources) ? fo.sources : [],
-                    event_types: Array.isArray(fo.event_types) ? fo.event_types : [],
-                    statuses: Array.isArray(fo.statuses) ? fo.statuses : []
+                    sources: sources,
+                    event_types: eventTypes,
+                    statuses: statuses
                 };
 
                 // Populate DOM selects dynamically for backward-compatible templates
@@ -579,7 +646,7 @@ function insightDashboard() {
 
                 return data;
             } catch (error) {
-                if (odcmIsDebug()) { console.warn('ODCM: Could not fetch filter options:', error); }
+                if (odcmIsDebug()) { console.warn('ODCM: Could not fetch filter options.', error); }
                 // Graceful degradation: keep hardcoded defaults
                 return null;
             }
@@ -589,7 +656,7 @@ function insightDashboard() {
             try {
                 const now = Date.now();
                 if (this.filterOptionsCache && this.filterOptionsCacheExpiry && now < this.filterOptionsCacheExpiry) {
-                    if (odcmIsDebug()) { console.log('ODCM: Filter options served from cache'); }
+                    if (odcmIsDebug()) { console.log('ODCM: Filter options served from cache.'); }
                     // Apply cached options to DOM in case of re-entry
                     this.filterOptions = this.filterOptionsCache;
                     this.applyFilterOptionsToDOM();
@@ -600,12 +667,12 @@ function insightDashboard() {
                 if (data && data.filter_options) {
                     this.filterOptionsCache = this.filterOptions;
                     const ttl = (data.meta && Number.isFinite(data.meta.cache_ttl)) ? data.meta.cache_ttl * 1000 : 300000; // default 5 min
-                    this.filterOptionsCacheExpiry = Date.now() + ttl;
-                    if (odcmIsDebug()) { console.log('ODCM: Filter options cached for', Math.round(ttl/1000), 's'); }
+                    this.filterOptionsCacheExpiry = now + ttl;
+                    if (odcmIsDebug()) { console.log(`ODCM: Filter options cached for ${Math.round(ttl/1000)}s.`); }
                 }
                 return { cached: false, data };
             } catch (e) {
-                if (odcmIsDebug()) { console.warn('ODCM: Filter options cache fetch failed:', e); }
+                if (odcmIsDebug()) { console.warn('ODCM: Filter options cache fetch failed.', e); }
                 return { cached: false, data: null };
             }
         },
@@ -645,142 +712,184 @@ function insightDashboard() {
                     selectEl.appendChild(opt);
                 });
                 // Restore selection if still available
-                if (current && Array.isArray(items) && items.some(i => i.value === current)) {
+                if (current && ARRAY.isArray(items) && items.some(i => i.value === current)) {
                     selectEl.value = current;
                 }
             };
 
-            // Only populate for premium users for status/event_type/source
-            const allLabels = {
-                statuses: this.i18n?.allStatuses || 'All Statuses',
-                eventTypes: this.i18n?.allEventTypes || 'All Event Types',
-                sources: this.i18n?.allSources || 'All Sources'
-            };
+                // Handle the new response structure where filter_options contains nested arrays
+            const filterOptions = this.filterOptions.filter_options || this.filterOptions;
 
-            if (this.canUsePremiumFilters) {
-                repopulate(statusSelect, this.filterOptions.statuses, allLabels.statuses);
-                repopulate(eventTypeSelect, this.filterOptions.event_types, allLabels.eventTypes);
-                repopulate(sourceSelect, this.filterOptions.sources, allLabels.sources);
-            }
+            // Extract the arrays from the nested structure
+            const statuses = Array.isArray(filterOptions.statuses) ? filterOptions.statuses : [];
+            const eventTypes = Array.isArray(filterOptions.event_types) ? filterOptions.event_types : [];
+            const sources = Array.isArray(filterOptions.sources) ? filterOptions.sources : [];
+
+            repopulate(statusSelect, statuses, this.allLabels.statuses);
+            repopulate(eventTypeSelect, eventTypes, this.allLabels.eventTypes);
+            repopulate(sourceSelect, sources, this.allLabels.sources);
         },
 
         async fetchLogDetails(logId, viewMode = 'consolidated') {
             this.detailLoading = true;
+            const maxRetries = 3;
+            const baseDelay = 1000; // Start with 1 second delay
+            let lastError = null;
+            let timeoutId = null; // Declare outside try block for proper scoping in finally
 
-            try {
-                // Debug logging to track the complete request pipeline
-                if (odcmIsDebug()) {
-                    console.log('ODCM: fetchLogDetails called with logId:', logId);
-                    console.log('ODCM: fetchLogDetails called with viewMode:', viewMode);
-                    console.log('ODCM: this.config.apiUrl:', this.config.apiUrl);
-                    console.log('ODCM: this.config.nonce:', this.config.nonce ? 'present' : 'missing');
-                    console.log('ODCM: this.filters.include_debug:', this.filters.include_debug);
-                }
-
-                // Use the localized renderUrl when available to avoid path mismatches
-                const renderEndpoint = this.config.renderUrl || `${this.config.apiUrl}render-components/`;
-                const requestPayload = {
-                    log_id: logId,
-                    include_debug: this.filters.include_debug,
-                    view_mode: viewMode
-                };
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Making POST request to:', renderEndpoint);
-                    console.log('ODCM: Request payload:', requestPayload);
-                }
-
-                const response = await fetch(renderEndpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-WP-Nonce': this.config.nonce
-                    },
-                    body: JSON.stringify(requestPayload)
-                });
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Response status:', response.status);
-                    console.log('ODCM: Response headers:', Object.fromEntries(response.headers.entries()));
-                }
-
-                if (!response.ok) {
-                    // Handle debug-filtered entries gracefully
-                    if (response.status === 403) {
-                        if (odcmIsDebug()) {
-                            console.log('ODCM: Entry filtered due to debug settings');
-                        }
-                        return '<div class="odcm-debug-filtered">This log entry is only visible when "Include Debug Logs" is enabled.</div>';
-                    }
-
-                    if (odcmIsDebug()) {
-                        const responseText = await response.text().catch(() => 'Unable to read response');
-                        console.error('ODCM: API Error Response:', responseText);
-                    }
-
-                    // Try to parse structured error to surface any helpful message
-                    try {
-                        const errData = await response.clone().json();
-                        if (errData && typeof errData === 'object') {
-                            if (errData.html) {
-                                return errData.html;
-                            }
-                            if (errData.message) {
-                                return `<div class="odcm-error">${errData.message}</div>`;
-                            }
-                        }
-                    } catch (e) {
-                        // Ignore JSON parse errors
-                    }
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Response data:', data);
-                    console.log('ODCM: HTML length:', (data.html || '').length);
-                }
-
-                // Handle special case for error templates that should be displayed directly
-                if (data.error === 'odcm_render_error' && data.html &&
-                    (data.use_error_template === true ||
-                     (data.meta && data.meta.render_directly === true))) {
-
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: Using error template directly from response');
-                    }
-
-                    return data.html;
-                }
-
-                return data.html || '';
-
-            } catch (error) {
-                console.error('ODCM: Error fetching log details:', error);
-                if (odcmIsDebug()) {
-                    console.error('ODCM: Full error details:', {
-                        name: error.name,
-                        message: error.message,
-                        stack: error.stack
-                    });
-                }
-                this.showToast('Failed to load log details', 'error');
-
-                // Check for error details in the error object to provide more context
-                let errorDetails = '';
-                if (odcmIsDebug() && error && error.message) {
-                    errorDetails = `<p class="odcm-error-details">${error.message}</p>`;
-                }
-
-                return `<div class="odcm-error">
-                    <h3>Failed to load details</h3>
-                    ${errorDetails}
-                    <p>Please try again or check the debug log for more information.</p>
-                </div>`;
-            } finally {
-                this.detailLoading = false;
+            // Track this request for cleanup
+            const requestId = `fetchDetails_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+            if (window.odcmActiveRequests) {
+                window.odcmActiveRequests.add(requestId);
             }
+
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                // Create abort controller for timeout - declared outside try for proper cleanup
+                const controller = new AbortController();
+                timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+                try {
+                    // Debug logging
+                    if (odcmIsDebug()) {
+                        console.log(`ODCM: fetchLogDetails attempt ${attempt}/${maxRetries} for logId: ${logId}`);
+                    }
+
+                    const renderEndpoint = this.config.renderUrl || `${this.config.apiUrl}render-components/`;
+                    const requestPayload = {
+                        log_id: logId,
+                        include_debug: this.filters.include_debug,
+                        view_mode: viewMode
+                    };
+
+                    const response = await fetch(renderEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-WP-Nonce': this.config.nonce
+                        },
+                        body: JSON.stringify(requestPayload),
+                        signal: controller.signal
+                    });
+
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) {
+                        // Handle specific HTTP errors
+                        if (response.status === 404) {
+                            return this.getNotFoundTemplate(logId);
+                        }
+
+                        if (response.status === 403) {
+                            return this.getPermissionDeniedTemplate();
+                        }
+
+                        if (response.status >= 500 && attempt < maxRetries) {
+                            // Server error - retry with exponential backoff
+                            const delay = baseDelay * Math.pow(2, attempt - 1);
+                            if (odcmIsDebug()) {
+                                console.log(`ODCM: Server error ${response.status}, retrying in ${delay}ms (attempt ${attempt}/${maxRetries}).`);
+                            }
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue;
+                        }
+
+                        // For other HTTP errors, try to extract meaningful error message
+                        try {
+                            const errorData = await response.json();
+                            if (errorData && errorData.message) {
+                                throw new Error(`API Error: ${errorData.message}`);
+                            }
+                        } catch (e) {
+                            // Ignore JSON parse errors
+                        }
+
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+
+                    // Validate response structure
+                    if (!data || typeof data !== 'object') {
+                        throw new Error('Invalid API response format');
+                    }
+
+                    // Check for error response from server
+                    if (data.error) {
+                        if (data.html) {
+                            // Server provided an error template
+                            return data.html;
+                        }
+                        throw new Error(data.error || 'Server returned an error');
+                    }
+
+                    return data.html || this.getEmptyTemplate();
+
+                } catch (error) {
+                    lastError = error;
+
+                    // Determine if we should retry
+                    const isNetworkError = error.name === 'TypeError' ||
+                                         error.name === 'AbortError' ||
+                                         error.name === 'TimeoutError' ||
+                                         (error.message && (
+                                             error.message.includes('NetworkError') ||
+                                             error.message.includes('network') ||
+                                             error.message.includes('Failed to fetch')
+                                         ));
+
+                    const isServerError = error.message && (
+                        error.message.includes('500') ||
+                        error.message.includes('502') ||
+                        error.message.includes('503') ||
+                        error.message.includes('504')
+                    );
+
+                    const shouldRetry = (isNetworkError || isServerError) && attempt < maxRetries;
+
+                    if (shouldRetry) {
+                        const delay = baseDelay * Math.pow(2, attempt - 1);
+                        if (odcmIsDebug()) {
+                            console.warn(`ODCM: Retry ${attempt + 1}/${maxRetries} for log ${logId} after ${delay}ms. Error: ${error.message}.`);
+                        }
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+
+                    // Don't retry for other errors (404, 403, validation errors, etc.)
+                    if (odcmIsDebug()) {
+                        console.error(`ODCM: Final error for log ${logId} (no retry):`, error);
+                    }
+                    break;
+
+                } finally {
+                    // Cleanup for this attempt
+                    clearTimeout(timeoutId);
+                }
+            }
+
+            // Cleanup request tracking
+            if (window.odcmActiveRequests) {
+                window.odcmActiveRequests.delete(requestId);
+            }
+
+            // Handle final error state
+            if (lastError) {
+                console.error('ODCM: Error fetching log details after retries:', lastError);
+
+                // Show appropriate error message based on error type
+                if (lastError.name === 'AbortError') {
+                    this.showToast('Request timed out. Please try again.', 'error');
+                } else if (lastError.message.includes('NetworkError')) {
+                    this.showToast('Network error occurred. Please check your connection.', 'error');
+                } else {
+                    this.showToast('Failed to load log details. Please try again.', 'error');
+                }
+
+                // Return user-friendly error template
+                return this.getErrorTemplate(lastError, logId);
+            }
+
+            this.detailLoading = false;
         },
 
         // =================================================================
@@ -952,9 +1061,9 @@ function insightDashboard() {
             });
         },
 
-        // =================================================================
-        // SETTINGS HELPERS (Accordion, Timestamp, Per-Page, Debug, Retention, Reprocess)
-        // =================================================================
+        // ==============================================================================
+        // SETTINGS HELPERS (Timestamp, Per-Page, Debug, Retention, Reprocess, Uninstall)
+        // ==============================================================================
         toggleSettingsSection(section) {
             try {
                 if (odcmIsDebug()) {
@@ -1057,44 +1166,48 @@ function insightDashboard() {
                 this.showToast('Failed to save debug setting', 'error');
             }
         },
-        async saveRetentionSetting() {
-            try {
-                const selected = (document.querySelector('input[name="odcm_log_retention_days"]:checked') || {}).value || '0';
-                const daysInput = document.querySelector('input[name="odcm_custom_retention_days"]');
-                const customDays = daysInput ? Math.max(1, Math.min(365, parseInt(daysInput.value) || 30)) : 30;
-                const payload = new URLSearchParams({ _wpnonce: this.config.nonce });
-                payload.append('odcm_log_retention_days', selected);
-                if (selected === 'custom') {
-                    payload.append('odcm_custom_retention_days', String(customDays));
-                }
-                const resp = await fetch(`${this.config.ajaxUrl}?action=odcm_save_retention_policy`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: payload
-                });
-                const data = await resp.json().catch(() => null);
-                if (resp.ok && data && data.success) {
-                    this.showToast(data.data?.message || 'Retention policy updated', 'success');
-                    this.serverRetentionState = { mode: selected === '0' ? 'forever' : 'custom', days: selected === '0' ? 0 : customDays };
+        async saveUninstallDataSetting(checked) {
+            // Show loading state
+            this.isSavingUninstallSetting = true;
+
+            // Make AJAX request
+            fetch(this.config.ajaxUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({
+                    action: 'odcm_save_uninstall_data_setting',
+                    _wpnonce: this.config.nonce,
+                    odcm_remove_all_data_on_uninstall: checked ? '1' : '0'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.isSavingUninstallSetting = false;
+                
+                if (data.success) {
+                    // Show success toast with proper message string
+                    this.showToast(data.message, 'success', {
+                        duration: 5000
+                    });
                 } else {
-                    const msg = (data && (data.data?.message || data.message)) || `HTTP ${resp.status}`;
-                    this.showToast(msg || 'Failed to update retention policy', 'error');
+                    // Show error toast with proper message string
+                    this.showToast(data.message, 'error', {
+                        duration: 5000
+                    });
                 }
-            } catch (e) {
-                this.showToast('Failed to update retention policy', 'error');
-            }
-        },
-        initializeServerRetentionState() {
-            try {
-                const selected = (document.querySelector('input[name="odcm_log_retention_days"]:checked') || {}).value || '0';
-                const daysInput = document.querySelector('input[name="odcm_custom_retention_days"]');
-                const customDays = daysInput ? Math.max(1, Math.min(365, parseInt(daysInput.value) || 30)) : 30;
-                this.serverRetentionState = { mode: selected === '0' ? 'forever' : 'custom', days: selected === '0' ? 0 : customDays };
-                if (odcmIsDebug()) { console.log('ODCM: Initialized serverRetentionState:', this.serverRetentionState); }
-            } catch (e) {
-                if (odcmIsDebug()) { console.warn('ODCM: initializeServerRetentionState failed:', e); }
-                this.serverRetentionState = { mode: 'unknown', days: null };
-            }
+            })
+            .catch(error => {
+                this.isSavingUninstallSetting = false;
+                console.error('Error saving uninstall setting:', error);
+                
+                // Show error toast
+                    this.showToast('Failed to save uninstall setting. Please try again.', 'error', {
+                    duration: 5000
+                });
+            });
         },
 
         // =================================================================
@@ -1257,7 +1370,7 @@ function insightDashboard() {
             const logsWithAnimation = trulyNewLogs.map(log => ({
                 ...log,
                 isNew: true,
-                animationId: `new_${Date.now()}_${Math.random()}`
+                animationId: `new_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
             }));
 
             // Prepend truly new logs to the beginning
@@ -1407,19 +1520,42 @@ function insightDashboard() {
         getActiveFilters() {
             const activeFilters = {};
 
-            // Basic search (always available)
+            // Search including order_id matching
             if (this.filters.search) {
-                activeFilters.s = this.filters.search;
+                const searchTerm = this.filters.search.trim();
+
+                // General search across multiple fields
+                activeFilters.search = searchTerm;
+
+                // Also search order_id field if search term is numeric
+                if (/^\d+$/.test(searchTerm)) {
+                    activeFilters.order_id = searchTerm;
+                }
+
+                if (this.filters.full_search) {
+                    activeFilters.full_search = '1';
+                }
             }
 
-            // Premium filters (only if user has access)
-            if (this.canUsePremiumFilters) {
-                if (this.filters.status) activeFilters.status = this.filters.status;
-                if (this.filters.event_type) activeFilters.event_type = this.filters.event_type;
-                if (this.filters.source) activeFilters.source = this.filters.source;
-                if (this.filters.order_id) activeFilters.order_id = this.filters.order_id;
-                if (this.filters.date_start) activeFilters.date_start = this.filters.date_start;
-                if (this.filters.date_end) activeFilters.date_end = this.filters.date_end;
+            // All filters are now available in the free version
+            if (this.filters.status) {
+                activeFilters.status = this.filters.status;
+            }
+            if (this.filters.event_type) {
+                activeFilters.event_type = this.filters.event_type;
+            }
+            if (this.filters.source) {
+                activeFilters.source = this.filters.source;
+            }
+            if (this.filters.order_id) {
+                activeFilters.order_id = this.filters.order_id;
+            }
+            // Fix: Use date_from and date_to to match API expectations
+            if (this.filters.date_start) {
+                activeFilters.date_from = this.filters.date_start;
+            }
+            if (this.filters.date_end) {
+                activeFilters.date_to = this.filters.date_end;
             }
 
             // Include tests (always available)
@@ -1478,15 +1614,13 @@ function insightDashboard() {
                 const f = this.filters || {};
                 // Basic search
                 if (typeof f.search === 'string' && f.search.trim() !== '') return true;
-                // Premium filters if available
-                if (this.canUsePremiumFilters) {
-                    if (f.status) return true;
-                    if (f.event_type) return true;
-                    if (f.source) return true;
-                    if (f.order_id) return true;
-                    if (f.date_start) return true;
-                    if (f.date_end) return true;
-                }
+                // All filters are now available in the free version
+                if (f.status) return true;
+                if (f.event_type) return true;
+                if (f.source) return true;
+                if (f.order_id) return true;
+                if (f.date_start) return true;
+                if (f.date_end) return true;
                 // Toggles available for all
                 if (f.include_tests === true) return true;
                 if (f.include_debug === true) return true;
@@ -1543,6 +1677,7 @@ function insightDashboard() {
         clearFilters() {
             this.filters = {
                 search: '',
+                full_search: false,
                 status: '',
                 event_type: '',
                 source: '',
@@ -1590,59 +1725,220 @@ function insightDashboard() {
         },
 
         // =================================================================
+        // ERROR TEMPLATE HELPERS
+        // =================================================================
+
+        /**
+         * Get template for not found log entries
+         */
+        getNotFoundTemplate(logId) {
+            return `<div class="odcm-error-template">
+                <div class="odcm-error-icon">
+                    <span class="dashicons dashicons-warning"></span>
+                </div>
+                <h3>Log Entry Not Found</h3>
+                <p>Log entry #${logId} could not be found.</p>
+                <p>It may have been deleted or the ID is incorrect.</p>
+                <div class="odcm-error-actions">
+                    <button class="button button-primary" onclick="this.fetchLogs()">
+                        <span class="dashicons dashicons-update"></span> Refresh Log List
+                    </button>
+                    <button class="button" onclick="this.closeDetails()">
+                        <span class="dashicons dashicons-no-alt"></span> Close
+                    </button>
+                </div>
+                <div class="odcm-error-hint">
+                    <p><strong>Troubleshooting tips:</strong></p>
+                    <ul>
+                        <li>Check if the log was recently deleted</li>
+                        <li>Verify the log ID is correct</li>
+                        <li>Try refreshing the entire page</li>
+                        <li>Check if filters are hiding this log</li>
+                    </ul>
+                </div>
+            </div>`;
+        },
+
+        /**
+         * Get template for permission denied errors
+         */
+        getPermissionDeniedTemplate() {
+            return `<div class="odcm-error-template">
+                <div class="odcm-error-icon">
+                    <span class="dashicons dashicons-lock"></span>
+                </div>
+                <h3>Access Denied</h3>
+                <p>You don't have permission to view this log entry.</p>
+                <p>Please contact your administrator if you believe this is an error.</p>
+                <div class="odcm-error-actions">
+                    <button class="button" onclick="this.closeDetails()">
+                        <span class="dashicons dashicons-no-alt"></span> Close
+                    </button>
+                </div>
+            </div>`;
+        },
+
+        /**
+         * Get template for empty responses
+         */
+        getEmptyTemplate() {
+            return `<div class="odcm-empty-template">
+                <div class="odcm-empty-icon">
+                    <span class="dashicons dashicons-info"></span>
+                </div>
+                <h3>No Details Available</h3>
+                <p>This log entry doesn't have additional details.</p>
+            </div>`;
+        },
+
+        /**
+         * Get template for error states
+         */
+        getErrorTemplate(error, logId) {
+            const errorType = error.name || 'unknown';
+            const errorMessage = error.message || 'Unknown error';
+
+            // Sanitize error message for display
+            const displayMessage = errorMessage
+                .replace(/^Error:\s*/, '')
+                .replace(/HTTP \d+: /, '')
+                .replace(/\[.*?\]\s*/g, '')
+                .trim();
+
+            return `<div class="odcm-error-template">
+                <div class="odcm-error-icon">
+                    <span class="dashicons dashicons-dismiss"></span>
+                </div>
+                <h3>Failed to Load Details</h3>
+                <p><strong>Error:</strong> ${displayMessage}</p>
+
+                <div class="odcm-error-actions">
+                    <button class="button button-primary" onclick="this.selectLog(this.selectedLog)">
+                        <span class="dashicons dashicons-update"></span> Retry
+                    </button>
+                    <button class="button" onclick="this.closeDetails()">
+                        <span class="dashicons dashicons-no-alt"></span> Close
+                    </button>
+                </div>
+
+                <div class="odcm-error-hint">
+                    <p><strong>Troubleshooting steps:</strong></p>
+                    <ol>
+                        <li><strong>Check your connection:</strong> Ensure you have stable internet</li>
+                        <li><strong>Refresh the page:</strong> Sometimes a full refresh helps</li>
+                        <li><strong>Try a different browser:</strong> Browser extensions can cause issues</li>
+                        <li><strong>Check console logs:</strong> Press F12 for technical details</li>
+                        <li><strong>Contact support:</strong> If the issue persists, provide the error details</li>
+                    </ol>
+                </div>
+
+                ${odcmIsDebug() ? `
+                <div class="odcm-error-debug" style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 4px; font-size: 12px; font-family: monospace;">
+                    <strong>Debug Information:</strong><br>
+                    <pre style="margin: 5px 0; white-space: pre-wrap;">${errorType}: ${errorMessage}\n\n${error.stack ? error.stack : 'No stack trace available'}</pre>
+                </div>
+                ` : ''}
+            </div>`;
+        },
+
+        // =================================================================
         // TOAST HELPERS
         // =================================================================
-        showToast(message, type = 'info') {
+        showToast(message, type = 'info', options = {}) {
             try {
-                // Debug toast system availability
-                if (odcmIsDebug()) {
-                    console.log('ODCM: showToast called:', { message, type });
-                    console.log('ODCM: Toast system check:', {
-                        windowExists: typeof window !== 'undefined',
-                        ODCMToastsExists: !!window.ODCMToasts,
-                        addToastExists: window.ODCMToasts && typeof window.ODCMToasts.addToast === 'function'
-                    });
+                // Default options
+                const defaultOptions = {
+                    persistent: false,
+                    timeout: 5000,
+                    action: null,
+                    actionLabel: null
+                };
+
+                const mergedOptions = { ...defaultOptions, ...options };
+
+                // Enhanced message based on error type
+                let enhancedMessage = message;
+                let enhancedType = type;
+
+                // Network-specific error handling
+                if (type === 'error' && message) {
+                    if (message.includes('load log details') || message.includes('network') || message.includes('fetch')) {
+                        enhancedMessage = 'Network error: Could not load log details';
+                        enhancedType = 'network-error';
+
+                        // Add recovery action
+                        if (!mergedOptions.action) {
+                            mergedOptions.action = () => {
+                                if (this.selectedLog) {
+                                    this.selectLog(this.selectedLog);
+                                } else {
+                                    this.fetchLogs();
+                                }
+                            };
+                            mergedOptions.actionLabel = 'Retry';
+                        }
+                    }
+
+                    if (message.includes('timeout') || message.includes('timed out')) {
+                        enhancedMessage = 'Request timed out. The server may be busy.';
+                        enhancedType = 'timeout-error';
+
+                        if (!mergedOptions.action) {
+                            mergedOptions.action = () => {
+                                if (this.selectedLog) {
+                                    this.selectLog(this.selectedLog);
+                                }
+                            };
+                            mergedOptions.actionLabel = 'Retry';
+                        }
+                    }
                 }
 
+                // Add network status awareness
+                if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                    enhancedMessage = '⚠️ You are offline. ' + enhancedMessage;
+                    enhancedType = 'offline-error';
+                }
+
+                // Use the toast system if available
                 if (typeof window !== 'undefined' && window.ODCMToasts && typeof window.ODCMToasts.addToast === 'function') {
-                    window.ODCMToasts.addToast(message, type);
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: Toast added via ODCMToasts system');
-                    }
+                    window.ODCMToasts.addToast(enhancedMessage, enhancedType, mergedOptions);
                 } else {
-                    // Enhanced fallback: try to create a simple toast notification
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: ODCMToasts not available, using fallback');
-                    }
-
-                    this.createFallbackToast(message, type);
-
-                    // Also log to console as backup
-                    if (type === 'error') {
-                        console.error('ODCM Toast (Error):', message);
-                    } else {
-                        console.log('ODCM Toast (' + type + '):', message);
-                    }
+                    // Enhanced fallback toast with actions
+                    this.createFallbackToast(enhancedMessage, enhancedType, mergedOptions);
                 }
+
+                // Log to console for debugging
+                if (type === 'error' || type === 'network-error' || type === 'timeout-error') {
+                    if (odcmIsDebug()) {
+                        console.error('ODCM Toast (Error):', message);
+                        if (options && options.error) {
+                            console.error('Error details:', options.error);
+                        }
+                    }
+                } else if (odcmIsDebug()) {
+                    console.log('ODCM Toast (' + type + '):', message);
+                }
+
             } catch (e) {
                 console.error('ODCM: Toast system error:', e);
+                // Ultimate fallback - just log to console
                 if (type === 'error') {
-                    console.error('ODCM Toast (Fallback Error):', message);
+                    console.error('ODCM (Fallback Error):', message);
                 } else if (odcmIsDebug()) {
-                    console.log('ODCM Toast (Fallback):', message);
+                    console.log('ODCM (Fallback):', message);
                 }
             }
         },
 
-        createFallbackToast(message, type = 'info') {
+        createFallbackToast(message, type = 'info', options = {}) {
             try {
-                // Create a simple toast notification as fallback
                 const toastContainer = document.getElementById('odcm-toast-container') || this.createToastContainer();
 
                 const toast = document.createElement('div');
                 toast.className = `odcm-fallback-toast odcm-toast-${type}`;
                 toast.style.cssText = `
-                    background: ${type === 'error' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#28a745'};
+                    background: ${this.getToastBackground(type)};
                     color: white;
                     padding: 12px 16px;
                     margin: 8px 0;
@@ -1652,39 +1948,95 @@ function insightDashboard() {
                     cursor: pointer;
                     position: relative;
                     z-index: 10000;
+                    display: flex;
+                    align-items: center;
+                    max-width: 400px;
+                    min-width: 250px
                 `;
-                toast.textContent = message;
 
-                // Auto-remove after 4 seconds
-                const timeoutId = setTimeout(() => {
-                    if (toast.parentNode) {
-                        toast.style.animation = 'slideOutRight 0.3s ease';
-                        setTimeout(() => {
-                            if (toast.parentNode) {
-                                toast.parentNode.removeChild(toast);
-                            }
-                        }, 300);
-                    }
-                }, 4000);
+                // Toast content container
+                const contentContainer = document.createElement('div');
+                contentContainer.style.flex = '1';
+                contentContainer.style.minWidth = '0'; // Prevent flex item overflow
 
-                // Allow manual dismissal
-                toast.addEventListener('click', () => {
-                    clearTimeout(timeoutId);
-                    if (toast.parentNode) {
-                        toast.style.animation = 'slideOutRight 0.3s ease';
-                        setTimeout(() => {
-                            if (toast.parentNode) {
-                                toast.parentNode.removeChild(toast);
-                            }
-                        }, 300);
-                    }
+                // Message element
+                const messageElement = document.createElement('span');
+                messageElement.textContent = message;
+                messageElement.style.display = 'block';
+                messageElement.style.marginRight = '12px';
+                messageElement.style.whiteSpace = 'normal';
+                messageElement.style.wordBreak = 'break-word';
+
+                contentContainer.appendChild(messageElement);
+
+                // Action button if provided
+                if (options.action && options.actionLabel) {
+                    const actionButton = document.createElement('button');
+                    actionButton.textContent = options.actionLabel;
+                    actionButton.style.cssText = `
+                        background: rgba(255,255,255,0.2);
+                        color: white;
+                        border: 1px solid rgba(255,255,255,0.3);
+                        borderRadius: 3px;
+                        padding: 4px 8px;
+                        marginLeft: 8px;
+                        cursor: pointer;
+                        fontSize: 12px;
+                        whiteSpace: nowrap;
+                    `;
+
+                    actionButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        options.action();
+                        this.removeFallbackToast(toast);
+                    });
+
+                    contentContainer.appendChild(actionButton);
+                }
+
+                // Close button
+                const closeButton = document.createElement('button');
+                closeButton.innerHTML = '×';
+                closeButton.style.cssText = `
+                    background: none;
+                    border: none;
+                    color: white;
+                    cursor: pointer;
+                    fontSize: 16px;
+                    lineHeight: 1;
+                    marginLeft: 8px;
+                    opacity: 0.7;
+                    padding: 0;
+                    width: 20px;
+                    height: 20px;
+                `;
+
+                closeButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.removeFallbackToast(toast);
                 });
 
-                toastContainer.appendChild(toast);
+                toast.appendChild(contentContainer);
+                toast.appendChild(closeButton);
 
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Fallback toast created');
+                // Auto-remove unless persistent
+                if (!options.persistent) {
+                    const timeoutId = setTimeout(() => {
+                        this.removeFallbackToast(toast);
+                    }, options.timeout);
+
+                    // Store timeout ID for cleanup
+                    toast._odcmTimeoutId = timeoutId;
                 }
+
+                // Click to dismiss (unless it has an action)
+                if (!options.action) {
+                    toast.addEventListener('click', () => {
+                        this.removeFallbackToast(toast);
+                    });
+                }
+
+                toastContainer.appendChild(toast);
 
             } catch (e) {
                 console.error('ODCM: Fallback toast creation failed:', e);
@@ -1736,158 +2088,56 @@ function insightDashboard() {
             }
         },
 
-        // =================================================================
-        // LOG EXPORT (PREMIUM FEATURE)
-        // =================================================================
-        exportLogs(format) {
+        // ADD helper method for toast background colors
+        getToastBackground(type) {
+            const backgrounds = {
+                'info': '#28a745',
+                'success': '#28a745',
+                'error': '#dc3545',
+                'warning': '#ffc107',
+                'network-error': '#6c757d',
+                'timeout-error': '#6c757d',
+                'offline-error': '#6c757d'
+            };
+            return backgrounds[type] || backgrounds.info;
+        },
+
+        // ADD method for fallback toast removal
+        removeFallbackToast(toastElement) {
             try {
-                // Prevent multiple simultaneous exports
-                if (this.isExporting) {
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: Export already in progress');
+                if (toastElement && toastElement.parentNode) {
+                    // Clear timeout if it exists
+                    if (toastElement._odcmTimeoutId) {
+                        clearTimeout(toastElement._odcmTimeoutId);
                     }
-                    return;
-                }
 
-                // Validate format
-                if (format !== 'csv' && format !== 'json') {
-                    this.showToast('Invalid export format', 'error');
-                    return;
-                }
+                    // Add exit animation
+                    toastElement.style.animation = 'slideOutRight 0.3s ease';
 
-                // Set exporting state
-                this.isExporting = true;
-                this.exportFormat = format;
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Starting export via admin-post.php:', {
-                        format: format,
-                        adminPostUrl: this.config.adminPostUrl,
-                        nonce: this.config.nonce ? 'present' : 'missing',
-                        filters: this.getActiveFilters()
-                    });
-                }
-
-                // Create a hidden form to submit the export request with current filters
-                // Use admin-post.php (WordPress way) for clean file downloads without admin UI
-                const form = document.createElement('form');
-                form.method = 'POST';
-
-                // Use configured URL or fail gracefully
-                if (!this.config.adminPostUrl) {
-                    console.error('ODCM: Admin Post URL not configured');
-                    this.showToast('Export configuration missing. Please refresh the page.', 'error');
-                    this.isExporting = false;
-                    return;
-                }
-                form.action = this.config.adminPostUrl;
-
-                form.target = '_self'; // Ensure it doesn't open in new window
-                form.style.display = 'none';
-
-                // Add action parameter
-                const actionInput = document.createElement('input');
-                actionInput.type = 'hidden';
-                actionInput.name = 'action';
-                actionInput.value = format === 'csv' ? 'odcm_export_logs_csv' : 'odcm_export_logs_json';
-                form.appendChild(actionInput);
-
-                // Add nonce
-                const nonceInput = document.createElement('input');
-                nonceInput.type = 'hidden';
-                nonceInput.name = '_wpnonce';
-                nonceInput.value = this.config.nonce;
-                form.appendChild(nonceInput);
-
-                // Add current filter parameters so export respects active filters
-                const activeFilters = this.getActiveFilters();
-                Object.keys(activeFilters).forEach(key => {
-                    const filterInput = document.createElement('input');
-                    filterInput.type = 'hidden';
-                    filterInput.name = key;
-                    filterInput.value = activeFilters[key];
-                    form.appendChild(filterInput);
-                });
-
-                // Add sorting parameters
-                const orderbyInput = document.createElement('input');
-                orderbyInput.type = 'hidden';
-                orderbyInput.name = 'orderby';
-                orderbyInput.value = 'timestamp'; // Default sorting
-                form.appendChild(orderbyInput);
-
-                const orderInput = document.createElement('input');
-                orderInput.type = 'hidden';
-                orderInput.name = 'order';
-                orderInput.value = 'DESC'; // Default order
-                form.appendChild(orderInput);
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Form created with fields:', {
-                        action: actionInput.value,
-                        nonce: nonceInput.value ? 'present' : 'missing',
-                        filterCount: Object.keys(activeFilters).length
-                    });
-                }
-
-                // Append form to body and submit
-                document.body.appendChild(form);
-
-                if (odcmIsDebug()) {
-                    console.log('ODCM: Submitting form to:', form.action);
-                }
-
-                form.submit();
-
-                // Show info toast
-                this.showToast(
-                    format === 'csv'
-                        ? 'Preparing CSV download...'
-                        : 'Preparing JSON download...',
-                    'info'
-                );
-
-                // Reset button state immediately - the form submission is complete
-                // The browser handles the download independently
-                this.$nextTick(() => {
-                    this.isExporting = false;
-                    this.exportFormat = null;
-
-                    if (odcmIsDebug()) {
-                        console.log('ODCM: Export initiated, button state reset');
-                    }
-                });
-
-                // Clean up form after a brief delay
-                setTimeout(() => {
-                    try {
-                        if (form.parentNode) {
-                            document.body.removeChild(form);
+                    // Remove after animation completes
+                    setTimeout(() => {
+                        if (toastElement.parentNode) {
+                            toastElement.parentNode.removeChild(toastElement);
                         }
-                    } catch (e) {
-                        if (odcmIsDebug()) {
-                            console.warn('ODCM: Error removing form:', e);
-                        }
-                    }
-                }, 100);
-
-            } catch (error) {
-                console.error('ODCM: Error during export:', error);
-                this.showToast('Failed to initiate export', 'error');
-                this.isExporting = false;
-                this.exportFormat = null;
+                    }, 300);
+                }
+            } catch (e) {
+                console.error('ODCM: Error removing toast:', e);
             }
         },
+
 
         // =================================================================
         // SELECTION MANAGEMENT
         // =================================================================
-        toggleSelectAll() {
-            if (this.selectAll) {
-                this.selectedLogIds = this.logs.map(l => l.id);
+        toggleSelectAll(checked) {
+            const shouldSelect = (typeof checked === 'boolean') ? checked : !!this.selectAll;
+            if (shouldSelect) {
+                this.selectedLogIds = this.getValidIds((this.logs || []).map(l => l && l.id));
             } else {
                 this.selectedLogIds = [];
             }
+            this.selectAll = shouldSelect;
         },
         toggleLogSelection(id) {
             const i = this.selectedLogIds.indexOf(id);
@@ -1902,6 +2152,11 @@ function insightDashboard() {
         },
         get selectedCount() {
             return this.selectedLogIds.length;
+        },
+
+        // Helper method for ID validation
+        getValidIds(ids) {
+            return (ids || []).filter(id => id !== null && id !== undefined && id !== '');
         },
         async deleteSelectedLogs() {
             if (!this.selectedLogIds.length) return;
@@ -1927,7 +2182,7 @@ function insightDashboard() {
                 if (log && log.is_process_group === true) {
                     // This is a consolidated entry - fetch constituent logs from the process endpoint
                     try {
-                        console.log(`ODCM: Found consolidated entry ${selectedId}, fetching constituent logs...`);
+                        if (odcmIsDebug()) { console.log(`ODCM: Found consolidated entry ${selectedId}, fetching constituent logs...`); }
 
                         // Use the process endpoint to get all logs for this process
                         const processResponse = await fetch(`${this.config.apiUrl}process/${log.process_id}/`, {
@@ -1946,24 +2201,24 @@ function insightDashboard() {
                                 if (constituentIds.length > 0) {
                                     expandedIds.push(...constituentIds);
                                     consolidatedEntriesExpanded++;
-                                    console.log(`ODCM: Expanded consolidated entry ${selectedId} to ${constituentIds.length} constituent IDs:`, constituentIds);
+                                    if (odcmIsDebug()) { console.log(`ODCM: Expanded consolidated entry ${selectedId} to ${constituentIds.length} constituent IDs:`, constituentIds); }
                                 } else {
-                                    console.warn(`ODCM: Consolidated entry ${selectedId} had no valid constituent IDs`);
+                                    if (odcmIsDebug()) { console.warn(`ODCM: Consolidated entry ${selectedId} had no valid constituent IDs`); }
                                     // Fall back to deleting the placeholder ID
                                     expandedIds.push(selectedId);
                                 }
                             } else {
-                                console.warn(`ODCM: Process endpoint returned no logs for process_id ${log.process_id}`);
+                                if (odcmIsDebug()) { console.warn(`ODCM: Process endpoint returned no logs for process_id ${log.process_id}`); }
                                 // Fall back to deleting the placeholder ID
                                 expandedIds.push(selectedId);
                             }
                         } else {
-                            console.error(`ODCM: Failed to fetch constituent logs for process_id ${log.process_id}: ${processResponse.status}`);
+                            if (odcmIsDebug()) { console.error(`ODCM: Failed to fetch constituent logs for process_id ${log.process_id}: ${processResponse.status}`); }
                             // Fall back to deleting the placeholder ID
                             expandedIds.push(selectedId);
                         }
                     } catch (error) {
-                        console.error(`ODCM: Error fetching constituent logs for consolidated entry ${selectedId}:`, error);
+                        if (odcmIsDebug()) { console.error(`ODCM: Error fetching constituent logs for consolidated entry ${selectedId}:`, error); }
                         // Fall back to deleting the placeholder ID
                         expandedIds.push(selectedId);
                     }
@@ -1976,15 +2231,17 @@ function insightDashboard() {
             // Remove duplicates (in case of overlapping selections)
             const uniqueIds = [...new Set(expandedIds)];
 
-            console.log('ODCM: Starting batch delete:', {
-                selectedCount,
-                originalIds: selectedIds.length,
-                expandedIds: expandedIds.length,
-                uniqueIds: uniqueIds.length,
-                consolidatedEntriesExpanded,
-                apiUrl: this.config.apiUrl,
-                nonce: this.config.nonce ? 'present' : 'missing'
-            });
+            if (odcmIsDebug()) {
+                console.log('ODCM: Starting batch delete:', {
+                    selectedCount,
+                    originalIds: selectedIds.length,
+                    expandedIds: expandedIds.length,
+                    uniqueIds: uniqueIds.length,
+                    consolidatedEntriesExpanded,
+                    apiUrl: this.config.apiUrl,
+                    nonce: this.config.nonce ? 'present' : 'missing'
+                });
+            }
 
             // Split into chunks of 100 for server compatibility
             const CHUNK_SIZE = 100;
@@ -1993,7 +2250,7 @@ function insightDashboard() {
                 chunks.push(uniqueIds.slice(i, i + CHUNK_SIZE));
             }
 
-            console.log(`ODCM: Processing ${chunks.length} chunks of max ${CHUNK_SIZE} items each`);
+            if (odcmIsDebug()) { console.log(`ODCM: Processing ${chunks.length} chunks of max ${CHUNK_SIZE} items each`); }
 
             let totalDeleted = 0;
             let totalFailed = 0;
@@ -2005,7 +2262,7 @@ function insightDashboard() {
                     const chunk = chunks[chunkIndex];
                     const chunkNumber = chunkIndex + 1;
 
-                    console.log(`ODCM: Processing chunk ${chunkNumber}/${chunks.length} (${chunk.length} items)`);
+                    if (odcmIsDebug()) { console.log(`ODCM: Processing chunk ${chunkNumber}/${chunks.length} (${chunk.length} items)`); }
 
                     try {
                         const requestUrl = `${this.config.apiUrl}batch-delete/`;
@@ -2043,16 +2300,15 @@ function insightDashboard() {
 
                             this.showToast(progressMessage, 'success');
 
-                            console.log(`ODCM: Chunk ${chunkNumber} completed successfully:`, {
-                                deleted_count: deletedCount,
-                                chunk_size: chunk.length
-                            });
+                            if (odcmIsDebug()) {
+                                console.log(`ODCM: Chunk ${chunkNumber} completed successfully:`, { deleted_count: deletedCount, chunk_size: chunk.length });
+                            }
                         } else {
                             throw new Error(data.message || 'Unexpected response format');
                         }
 
                     } catch (chunkError) {
-                        console.error(`ODCM: Chunk ${chunkNumber} failed:`, chunkError);
+                        if (odcmIsDebug()) { console.error(`ODCM: Chunk ${chunkNumber} failed:`, chunkError); }
                         totalFailed += chunk.length;
                         failedChunks.push({ chunk: chunkNumber, size: chunk.length, error: chunkError.message });
 
@@ -2072,15 +2328,17 @@ function insightDashboard() {
                     }
                 }
 
-                console.log('ODCM: Batch delete process completed:', {
-                    total_selected: selectedCount,
-                    total_expanded: uniqueIds.length,
-                    total_deleted: totalDeleted,
-                    total_failed: totalFailed,
-                    chunks_processed: chunks.length,
-                    failed_chunks: failedChunks.length,
-                    consolidated_entries_expanded: consolidatedEntriesExpanded
-                });
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Batch delete process completed:', {
+                        total_selected: selectedCount,
+                        total_expanded: uniqueIds.length,
+                        total_deleted: totalDeleted,
+                        total_failed: totalFailed,
+                        chunks_processed: chunks.length,
+                        failed_chunks: failedChunks.length,
+                        consolidated_entries_expanded: consolidatedEntriesExpanded
+                    });
+                }
 
                 // Refresh log stream to show remaining entries and prevent empty state
                 if (totalDeleted > 0) {
@@ -2122,11 +2380,17 @@ function insightDashboard() {
                 const cfg = this.config.dateTimeConfig || {};
                 let timestamp = ts;
 
-                // Handle string timestamps and unit conversion
+                // Enhanced timestamp parsing with proper ISO 8601 handling
                 if (typeof timestamp === 'string') {
-                    // Check if it's a numeric string (possibly with milliseconds)
-                    if (/^\d+(\.\d+)?$/.test(timestamp)) {
-                        // Convert to number
+                    // First, try to parse as ISO 8601 with timezone offset
+                    if (typeof timestamp === 'string') {
+                        // Try native Date parsing first
+                        const parsedDate = new Date(timestamp);
+                        if (!isNaN(parsedDate.getTime())) {
+                            timestamp = parsedDate.getTime();
+                        }
+                    } else if (/^\d+(\.\d+)?$/.test(timestamp)) {
+                        // Handle numeric strings (Unix timestamps)
                         timestamp = parseFloat(timestamp);
 
                         // If it's a Unix timestamp in seconds (10 digits), convert to milliseconds
@@ -2134,7 +2398,7 @@ function insightDashboard() {
                             timestamp = timestamp * 1000;
                         }
                     } else {
-                        // Try to parse as ISO date string
+                        // Try to parse as ISO date string without timezone offset
                         const parsedDate = new Date(timestamp);
                         if (!isNaN(parsedDate.getTime())) {
                             timestamp = parsedDate.getTime();
@@ -2151,8 +2415,33 @@ function insightDashboard() {
                 const d = new Date(timestamp);
                 const mode = this.timestampDisplayMode || 'dateTime';
 
+                // Use WordPress timezone if available
+                const timezone = cfg.timezone || undefined;
+
                 if (mode === 'timeOnly') {
-                    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                    // Get the base time string without milliseconds
+                    let timeString = d.toLocaleTimeString(undefined, { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    });
+
+                    // Add milliseconds if available (same logic as dateTime mode)
+                    if (typeof ts === 'string' && /\.\d{3}/.test(ts)) {
+                        const ms = ts.match(/\.(\d{3})/);
+                        if (ms) {
+                            timeString += '.' + ms[1];
+                        }
+                    } else if (typeof ts === 'number') {
+                        // Get milliseconds from numeric timestamp
+                        const ms = d.getMilliseconds();
+                        if (ms) {
+                            timeString += '.' + ms.toString().padStart(3, '0');
+                        }
+                    }
+
+                    return timeString;
                 }
                 if (mode === 'relative') {
                     const diff = (Date.now() - d.getTime()) / 1000;
@@ -2162,16 +2451,59 @@ function insightDashboard() {
                     return `${Math.floor(diff/86400)}d ago`;
                 }
 
-                // date & time
-                return d.toLocaleString(undefined, {
-                    year: 'numeric', month: 'short', day: '2-digit',
-                    hour: '2-digit', minute: '2-digit'
-                });
+                // date & time with milliseconds
+                let formatted;
+                if (timezone && !/^(\+|-)\d{2}:\d{2}$/.test(timezone)) {
+                    // Use timezone only if it's a valid IANA timezone name
+                    try {
+                        formatted = d.toLocaleString(timezone, {
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: '2-digit',
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false
+                        });
+                    } catch (e) {
+                        // Fallback if timezone is invalid
+                        formatted = d.toLocaleString(undefined, {
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: '2-digit',
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false
+                        });
+                    }
+                } else {
+                    // Fallback to default locale without timezone
+                    formatted = d.toLocaleString(undefined, {
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: '2-digit',
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    });
+                }
+
+                // Add milliseconds if available
+                if (typeof ts === 'string' && /\.\d{3}/.test(ts)) {
+                    const ms = ts.match(/\.(\d{3})/);
+                    if (ms) {
+                        formatted += '.' + ms[1];
+                    }
+                }
+
+                return formatted;
 
             } catch (e) {
                 console.warn('ODCM: Timestamp formatting error:', e);
                 // Return a formatted error message instead of raw timestamp
-                return 'invalid: ' + String(ts || '');
+                return String(ts || 'Invalid timestamp');
             }
         },
 
@@ -2331,12 +2663,12 @@ function insightDashboard() {
                             const hasClass = component.classList.contains(expectedClass);
 
                             if (isCurrentlyExpanded && !hasClass) {
-                                component.classList.add(expectedClass);
+                                component.classList.add(`${target}-expanded`);
                                 if (odcmIsDebug()) {
                                     console.log(`ODCM: Added ${expectedClass} class to component for button ${index}`);
                                 }
                             } else if (!isCurrentlyExpanded && hasClass) {
-                                component.classList.remove(expectedClass);
+                                component.classList.remove(`${target}-expanded`);
                                 if (odcmIsDebug()) {
                                     console.log(`ODCM: Removed ${expectedClass} class from component for button ${index}`);
                                 }
@@ -2494,7 +2826,7 @@ function insightDashboard() {
                 toggleButton.setAttribute('aria-expanded', 'true');
             } else if (target === 'technical') {
                 toggleButton.textContent = showText.replace('Show', 'Hide');
-                toggleButton.setAttribute('aria-expanded', 'true');
+                toggleButton.setAttribute('ariaExpanded', 'true');
             }
 
             // Add expanded class to component
@@ -2547,6 +2879,300 @@ function insightDashboard() {
             if (odcmIsDebug()) {
                 console.log(`ODCM: Collapsed ${target} tier`);
             }
+        },
+
+        // =================================================================
+        // NETWORK STATUS MONITORING
+        // =================================================================
+
+        /**
+         * Set up network monitoring for connectivity awareness
+         */
+        setupNetworkMonitoring() {
+            try {
+                // Set initial network status
+                this.networkOnline = navigator.onLine;
+
+                // Listen for online/offline events
+                window.addEventListener('online', () => this.handleNetworkOnline());
+                window.addEventListener('offline', () => this.handleNetworkOffline());
+
+                // Periodic network health checks (every 30 seconds)
+                this.networkHealthInterval = setInterval(() => {
+                    this.checkNetworkHealth();
+                }, 30000);
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Network monitoring initialized, online:', this.networkOnline);
+                }
+
+            } catch (error) {
+                console.error('ODCM: Error setting up network monitoring:', error);
+            }
+        },
+
+        /**
+         * Handle network coming online
+         */
+        handleNetworkOnline() {
+            if (this.networkOnline) return; // Already online
+
+            this.networkOnline = true;
+            this.lastNetworkCheck = new Date().toISOString();
+
+            if (odcmIsDebug()) {
+                console.log('ODCM: Network connection restored');
+            }
+
+            this.showToast('Network connection restored. Refreshing data...', 'success', {
+                timeout: 3000
+            });
+
+            // Clear any network issues
+            this.networkIssues = [];
+
+            // Auto-refresh data when connection is restored
+            if (this.selectedLog) {
+                this.selectLog(this.selectedLog);
+            } else {
+                this.fetchLogs();
+            }
+        },
+
+        /**
+         * Handle network going offline
+         */
+        handleNetworkOffline() {
+            if (!this.networkOnline) return; // Already offline
+
+            this.networkOnline = false;
+            this.lastNetworkCheck = new Date().toISOString();
+
+            if (odcmIsDebug()) {
+                console.log('ODCM: Network connection lost');
+            }
+
+            this.showToast('Network connection lost. Some features may be limited.', 'warning', {
+                persistent: true,
+                action: () => window.location.reload(),
+                actionLabel: 'Retry'
+            });
+        },
+
+        /**
+         * Perform a network health check
+         */
+        checkNetworkHealth() {
+            try {
+                if (!this.networkOnline) return;
+
+                // Simple health check using a small API request
+                const healthCheckUrl = this.config.apiUrl + '?healthcheck=1';
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+                fetch(healthCheckUrl, {
+                    method: 'GET',
+                    headers: {
+                        'X-WP-Nonce': this.config.nonce
+                    },
+                    signal: controller.signal,
+                    cache: 'no-store'
+                })
+                .then(response => {
+                    clearTimeout(timeoutId);
+                    if (!response.ok && response.status >= 500) {
+                        this.recordNetworkIssue('healthcheck_failed', `Server returned ${response.status}`);
+                    }
+                })
+                .catch(error => {
+                    clearTimeout(timeoutId);
+                    if (error.name !== 'AbortError') {
+                        this.recordNetworkIssue('healthcheck_error', error.message);
+                    }
+                });
+
+            } catch (error) {
+                if (odcmIsDebug()) {
+                    console.warn('ODCM: Network health check error:', error);
+                }
+            }
+        },
+
+        /**
+         * Record a network issue for tracking
+         */
+        recordNetworkIssue(type, details) {
+            // Avoid duplicate issues
+            const existingIssue = this.networkIssues.find(issue => issue.type === type);
+            if (existingIssue) {
+                existingIssue.count = (existingIssue.count || 1) + 1;
+                existingIssue.lastOccurrence = new Date().toISOString();
+                return;
+            }
+
+            this.networkIssues.push({
+                type: type,
+                details: details,
+                firstOccurrence: new Date().toISOString(),
+                lastOccurrence: new Date().toISOString(),
+                count: 1
+            });
+
+            if (odcmIsDebug()) {
+                console.warn('ODCM: Network issue recorded:', type, details);
+            }
+        },
+
+        /**
+         * Format relative time for display
+         */
+        formatRelativeTime(isoString) {
+            try {
+                const date = new Date(isoString);
+                const now = new Date();
+                const diff = now - date;
+
+                if (diff < 60000) { // Less than 1 minute
+                    return 'just now';
+                } else if (diff < 3600000) { // Less than 1 hour
+                    const minutes = Math.floor(diff / 60000);
+                    return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+                } else if (diff < 86400000) { // Less than 1 day
+                    const hours = Math.floor(diff / 3600000);
+                    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+                } else {
+                    return date.toLocaleString();
+                }
+            } catch (error) {
+                if (odcmIsDebug()) {
+                    console.warn('ODCM: Error formatting relative time:', error);
+                }
+                return isoString;
+            }
+        },
+
+        // =================================================================
+        // CLEANUP
+        // =================================================================
+
+        /**
+         * Clean up resources when dashboard is destroyed
+         */
+        cleanup() {
+            try {
+                // Clean up active requests
+                if (window.odcmActiveRequests) {
+                    window.odcmActiveRequests.forEach(requestId => {
+                        if (odcmIsDebug()) {
+                            console.debug(`ODCM: Cleaning up request ${requestId}`);
+                        }
+                    });
+                    window.odcmActiveRequests.clear();
+                }
+
+                // Stop auto-refresh
+                this.stopAutoRefresh();
+
+                // Clean up network health monitoring
+                if (this.networkHealthInterval) {
+                    clearInterval(this.networkHealthInterval);
+                    this.networkHealthInterval = null;
+                }
+
+                // Remove network event listeners
+                window.removeEventListener('online', this.handleNetworkOnline);
+                window.removeEventListener('offline', this.handleNetworkOffline);
+
+                // Clean up any debounced fetch timers
+                if (this.debouncedFetchLogs && this.debouncedFetchLogs.timer) {
+                    clearTimeout(this.debouncedFetchLogs.timer);
+                }
+
+                if (odcmIsDebug()) {
+                    console.log('ODCM: Cleanup completed');
+                }
+
+            } catch (error) {
+                console.error('ODCM: Error during cleanup:', error);
+            }
+        },
+
+        // =================================================================
+        // OUTSIDE CLICK HANDLER
+        // =================================================================
+        setupOutsideClickHandler() {
+            // Add event listener for outside clicks
+            document.addEventListener('click', this.handleOutsideClick.bind(this));
+        },
+
+        handleOutsideClick(event) {
+            try {
+                // Check if the click was outside the detail pane
+                const detailPane = document.querySelector('.odcm-detail-pane');
+                const logEntries = document.querySelectorAll('.odcm-log-entry');
+
+                // Check if the click was on the detail pane or any log entry
+                const isClickOnDetailPane = detailPane && detailPane.contains(event.target);
+                const isClickOnLogEntry = Array.from(logEntries).some(entry => entry.contains(event.target));
+
+                // Check if the click was on any focusable/interactive element
+                const isClickOnInteractiveElement = this.isFocusable(event.target);
+
+                // If the click was outside the detail pane, log entries, and interactive elements, close the detail pane
+                if (!isClickOnDetailPane && !isClickOnLogEntry && !isClickOnInteractiveElement && this.selectedLog) {
+                    this.closeDetails();
+                }
+            } catch (error) {
+                if (odcmIsDebug()) {
+                    console.warn('ODCM: Error handling outside click:', error);
+                }
+            }
+        },
+
+        /**
+         * Check if an element is focusable/interactive
+         * This is a more portable approach that doesn't rely on specific class names
+         */
+        isFocusable(element) {
+            if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+                return false;
+            }
+
+            // Check for standard interactive elements
+            const interactiveTags = ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A'];
+            if (interactiveTags.includes(element.nodeName)) {
+                // For input, exclude hidden fields
+                if (element.nodeName === 'INPUT' && element.type === 'hidden') {
+                    return false;
+                }
+                return true;
+            }
+
+            // Check for tabindex (positive or zero)
+            if (element.hasAttribute('tabindex') && parseInt(element.getAttribute('tabindex')) >= 0) {
+                return true;
+            }
+
+            // Check for ARIA roles that indicate interactivity
+            const interactiveRoles = ['button', 'tab', 'menuitem', 'link', 'checkbox', 'radio', 'combobox', 'slider', 'switch'];
+            if (element.hasAttribute('role') && interactiveRoles.includes(element.getAttribute('role').toLowerCase())) {
+                return true;
+            }
+
+            // Check if element has click event listeners (more advanced check)
+            // This is a fallback for elements that might be interactive but don't fit other criteria
+            if (typeof element.onclick === 'function' || (element.hasAttribute('onclick') && element.getAttribute('onclick'))) {
+                return true;
+            }
+
+            // Recursively check parent elements (in case the click was on a child element)
+            if (element.parentElement) {
+                return this.isFocusable(element.parentElement);
+            }
+
+            return false;
         },
 
         // =================================================================

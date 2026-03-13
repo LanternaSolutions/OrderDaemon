@@ -21,6 +21,13 @@ final class Notices {
         add_action('admin_notices', [$this, 'display_site_wide_notices'], 10);
         add_action('wp_ajax_odcm_dismiss_site_wide_notice', [$this, 'ajax_dismiss_site_wide_notice'], 10);
         add_action('wp_ajax_nopriv_odcm_dismiss_site_wide_notice', [$this, 'ajax_dismiss_site_wide_notice'], 10);
+        add_action('wp_ajax_odcm_dismiss_data_preservation_notice', [$this, 'ajax_dismiss_data_preservation_notice'], 10);
+
+        // Add notice about data preservation when plugin is about to be deactivated
+        add_action('admin_notices', [$this, 'display_data_preservation_notice'], 15);
+
+        // Register scripts for data preservation notice dismissal
+        add_action('admin_enqueue_scripts', [$this, 'register_data_preservation_scripts'], 20);
     }
 
     /**
@@ -124,5 +131,122 @@ final class Notices {
         } else {
             wp_send_json_error(['message' => __('admin.notices.error.notice_not_found', 'order-daemon')]);
         }
+    }
+
+    /**
+     * Display notice about data preservation behavior when plugin is deactivated/uninstalled
+     */
+    public function display_data_preservation_notice(): void {
+        // Only show to administrators
+        if (!current_user_can('manage_woocommerce')) {
+            return;
+        }
+
+        // Only show on plugin-related pages
+        $screen = get_current_screen();
+        if (!$screen) {
+            return;
+        }
+
+        // Show on Order Daemon settings pages and plugins page
+        $show_on_screens = [
+            'plugins',
+            'woocommerce_page_odcm-settings',
+            'toplevel_page_odcm-settings',
+            'admin_page_odcm-settings'
+        ];
+
+        if (!in_array($screen->id, $show_on_screens)) {
+            return;
+        }
+
+        // Check if notice has been dismissed
+        $dismissed = get_user_meta(get_current_user_id(), 'odcm_data_preservation_notice_dismissed', true);
+        if ($dismissed) {
+            return;
+        }
+
+        ?>
+        <div class="notice notice-info is-dismissible odcm-data-preservation-notice">
+            <h4><?php esc_html_e('Important: Data Preservation Information', 'order-daemon'); ?></h4>
+            <p><?php esc_html_e('When you deactivate or uninstall Order Daemon, your data is preserved by default. This includes:', 'order-daemon'); ?></p>
+            <ul style="list-style-type: disc; margin-left: 20px;">
+                <li><?php esc_html_e('All audit log entries and processing history', 'order-daemon'); ?></li>
+                <li><?php esc_html_e('Your custom order completion rules', 'order-daemon'); ?></li>
+                <li><?php esc_html_e('Plugin settings and configurations', 'order-daemon'); ?></li>
+            </ul>
+            <p><?php esc_html_e('To completely remove all data when uninstalling, add this line to your wp-config.php file:', 'order-daemon'); ?></p>
+            <code style="background: #f5f5f5; padding: 2px 6px; border: 1px solid #ddd; border-radius: 3px;">define('ODCM_REMOVE_ALL_DATA', true);</code>
+            <p><strong><?php esc_html_e('Warning:', 'order-daemon'); ?></strong> <?php esc_html_e('This will permanently delete all Order Daemon data including your rules and audit logs.', 'order-daemon'); ?></p>
+        </div>
+        <?php
+    }
+
+    /**
+     * Register scripts for data preservation notice dismissal
+     * This should be called from admin_enqueue_scripts hook
+     */
+    public function register_data_preservation_scripts(): void {
+        // Only register scripts on pages where the notice might appear
+        $screen = get_current_screen();
+        if (!$screen) {
+            return;
+        }
+
+        $show_on_screens = [
+            'plugins',
+            'woocommerce_page_odcm-settings',
+            'toplevel_page_odcm-settings',
+            'admin_page_odcm-settings'
+        ];
+
+        if (!in_array($screen->id, $show_on_screens)) {
+            return;
+        }
+
+        // Check if notice has been dismissed
+        $dismissed = get_user_meta(get_current_user_id(), 'odcm_data_preservation_notice_dismissed', true);
+        if ($dismissed) {
+            return;
+        }
+
+        // Register the admin notices script first
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::register_script('odcm-admin-notices', 'js/admin-notices.js', ['jquery'], true);
+
+        // Add inline script for notice dismissal
+        $script_data = [
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('odcm_dismiss_data_preservation_notice')
+        ];
+
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::add_inline_script('odcm-admin-notices', '
+            jQuery(document).ready(function($) {
+                // Handle dismissal of the data preservation notice
+                $(document).on("click", ".odcm-data-preservation-notice .notice-dismiss", function() {
+                    $.post(odcmDataPreservation.ajaxurl, {
+                        action: "odcm_dismiss_data_preservation_notice",
+                        nonce: odcmDataPreservation.nonce
+                    });
+                });
+            });
+        ');
+        wp_localize_script('odcm-admin-notices', 'odcmDataPreservation', $script_data);
+    }
+
+    /**
+     * AJAX handler to dismiss the data preservation notice
+     */
+    public function ajax_dismiss_data_preservation_notice(): void {
+        // Always check capability and nonce first in AJAX handlers
+        odcm_check_user_capability('manage_woocommerce', 'ajax');
+
+        if (empty($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'odcm_dismiss_data_preservation_notice')) {
+            wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
+        }
+
+        // Mark notice as dismissed for this user
+        update_user_meta(get_current_user_id(), 'odcm_data_preservation_notice_dismissed', true);
+
+        wp_send_json_success(['message' => __('admin.notices.success.notice_dismissed', 'order-daemon')]);
     }
 }

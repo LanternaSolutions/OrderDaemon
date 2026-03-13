@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core\Events;
 
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
+
 /**
  * Rule Execution Deduplicator
  *
@@ -93,18 +95,21 @@ class RuleExecutionDeduplicator
 
         // Try to insert into queue with unique constraint
         // Direct DB query required for custom table with ON DUPLICATE KEY UPDATE
-        $result = $wpdb->query($wpdb->prepare(
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $result = DatabaseHelper::query(
             "INSERT INTO {$wpdb->prefix}odcm_audit_log_queue
              (dedupe_key, payload, order_id, process_id, status, created_at)
              VALUES (%s, %s, %d, %s, 'pending', NOW())
              ON DUPLICATE KEY UPDATE
              payload = VALUES(payload),
              updated_at = NOW()",
-            $dedupeKey,
-            json_encode($eventData),
-            $order_id,
-            $process_id
-        ));
+            [
+                $dedupeKey,
+                json_encode($eventData),
+                $order_id,
+                $process_id,
+            ]
+        );
 
         // Cache the deduplication key for 1 hour to avoid repeated operations
         wp_cache_set($cacheKey, true, 'odcm_rule_execution', HOUR_IN_SECONDS);
@@ -132,10 +137,11 @@ class RuleExecutionDeduplicator
         }
 
         // Get queued item - direct DB query required for custom table
-        $queueItem = $wpdb->get_row($wpdb->prepare(
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $queueItem = DatabaseHelper::get_row(
             "SELECT * FROM {$wpdb->prefix}odcm_audit_log_queue WHERE dedupe_key = %s",
-            $dedupeKey
-        ));
+            [$dedupeKey]
+        );
 
         if (!$queueItem) {
             return; // Already processed or doesn't exist
@@ -149,10 +155,11 @@ class RuleExecutionDeduplicator
         
         if ($existingEvent === false) {
             // Insert or update in final audit log with deduplication - direct DB query required for custom table
-            $existingEvent = $wpdb->get_row($wpdb->prepare(
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $existingEvent = DatabaseHelper::get_row(
                 "SELECT log_id, details FROM {$wpdb->prefix}odcm_audit_log WHERE dedupe_key = %s",
-                $dedupeKey
-            ));
+                [$dedupeKey]
+            );
             
             // Cache for 30 minutes to avoid repeated lookups
             wp_cache_set($eventCacheKey, $existingEvent ?: 'not_found', 'odcm_rule_execution', 30 * MINUTE_IN_SECONDS);
@@ -168,8 +175,8 @@ class RuleExecutionDeduplicator
             $this->insertNewRuleExecution($eventData, $dedupeKey);
         }
 
-        // Mark queue item as processed - direct DB query required for custom table
-        $wpdb->update(
+        // Mark queue item as processed - use DatabaseHelper for update operation
+        DatabaseHelper::update(
             "{$wpdb->prefix}odcm_audit_log_queue",
             ['status' => 'processed', 'processed_at' => current_time('mysql')],
             ['dedupe_key' => $dedupeKey]
@@ -188,6 +195,8 @@ class RuleExecutionDeduplicator
      */
     private function enrichExistingRuleExecution($existingEvent, array $newEventData): void
     {
+        global $wpdb;
+
         $existingDetails = json_decode($existingEvent->details, true) ?: [];
 
         // Merge enrichment data (actions, triggers, status updates)
@@ -202,10 +211,8 @@ class RuleExecutionDeduplicator
         $enrichedDetails['execution_status'] = $newStatus;
         $enrichedDetails['last_seen_at'] = current_time('mysql');
 
-        global $wpdb;
-        
-        // Direct DB query required for custom table update
-        $wpdb->update(
+        // Use DatabaseHelper for update operation
+        DatabaseHelper::update(
             "{$wpdb->prefix}odcm_audit_log",
             ['details' => json_encode($enrichedDetails)],
             ['log_id' => $existingEvent->log_id]
@@ -230,7 +237,7 @@ class RuleExecutionDeduplicator
         global $wpdb;
 
         // Direct DB query required for custom table insert
-        $wpdb->insert(
+        DatabaseHelper::insert(
             "{$wpdb->prefix}odcm_audit_log",
             [
                 'order_id' => $eventData['order_id'],
@@ -275,13 +282,13 @@ class RuleExecutionDeduplicator
         }
 
         // Look for the most recent event of this type for this order - direct DB query required for custom table
-        $result = $wpdb->get_row($wpdb->prepare(
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $result = DatabaseHelper::get_row(
             "SELECT log_id FROM {$wpdb->prefix}odcm_audit_log
              WHERE order_id = %d AND event_type = %s
              ORDER BY timestamp DESC LIMIT 1",
-            $order_id,
-            $eventType
-        ));
+            [$order_id, $eventType]
+        );
 
         $logId = $result ? (int)$result->log_id : null;
         

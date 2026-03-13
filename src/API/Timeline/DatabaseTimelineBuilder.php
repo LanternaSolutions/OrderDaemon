@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\API\Timeline;
 
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
+
 /**
  * Database-driven timeline builder
  *
@@ -49,7 +51,7 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
 
         // Check if this is a process group entry and build appropriate timeline
         // For individual view mode, always build individual timeline regardless of process group status
-        if ($request->viewMode === 'flat') {
+        if ('flat' === $request->viewMode) {
             return $this->buildIndividualTimeline($logEntry, $request->includeDebug);
         } elseif ($this->shouldRenderAsProcessGroup($logEntry, $request->viewMode)) {
             return $this->buildProcessGroupTimeline($logEntry, $request->includeDebug);
@@ -104,7 +106,7 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
     private function shouldRenderAsProcessGroup(array $logEntry, string $viewMode): bool
     {
         // In flat view mode, never render as process group regardless of process_id
-        if ($viewMode === 'flat') {
+        if ('flat' === $viewMode) {
             return false;
         }
 
@@ -145,32 +147,28 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
-        // CRITICAL FIX: WordPress doesn't support placeholders for table names
-        // Use esc_sql() for table names instead of %i placeholders
-        $log_table_escaped = esc_sql($log_table);
-        $payload_table_escaped = esc_sql($payload_table);
+        // Validate table names
+        if (!DatabaseHelper::validate_table_name($log_table) || !DatabaseHelper::validate_table_name($payload_table)) {
+            throw new \Exception("Invalid table names in DatabaseTimelineBuilder::fetchLogEntry");
+        }
 
-        // Use WordPress-approved database query method with proper escaping
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table with complex JOIN required
-        $result = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT l.log_id,
-                    l.timestamp,
-                    l.status,
-                    l.summary,
-                    l.order_id,
-                    l.event_type,
-                    l.source,
-                    l.payload_id,
-                    l.is_test,
-                    l.process_id,
-                    COALESCE(p.payload, l.details, %s) as payload
-                FROM `{$log_table_escaped}` l
-                    LEFT JOIN `{$payload_table_escaped}` p ON l.payload_id = p.payload_id
-                WHERE l.log_id = %d",
-                '',
-                $logId
-            ),
+        // Use DatabaseHelper for secure database operations
+        $result = DatabaseHelper::get_row(
+            "SELECT l.log_id,
+                l.timestamp,
+                l.status,
+                l.summary,
+                l.order_id,
+                l.event_type,
+                l.source,
+                l.payload_id,
+                l.is_test,
+                l.process_id,
+                COALESCE(p.payload, l.details, %s) as payload
+            FROM `{$log_table}` l
+                LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+            WHERE l.log_id = %d",
+            ['', $logId],
             'ARRAY_A'
         );
 
@@ -243,33 +241,29 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         $log_table = $wpdb->prefix . 'odcm_audit_log';
         $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
-        // CRITICAL FIX: WordPress doesn't support placeholders for table names
-        // Use esc_sql() for table names instead of %i placeholders
-        $log_table_escaped = esc_sql($log_table);
-        $payload_table_escaped = esc_sql($payload_table);
+        // Validate table names
+        if (!DatabaseHelper::validate_table_name($log_table) || !DatabaseHelper::validate_table_name($payload_table)) {
+            throw new \Exception("Invalid table names in DatabaseTimelineBuilder::fetchProcessLogEntries");
+        }
 
-        // Use WordPress-approved database query method with proper escaping
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Custom table with complex JOIN required
-        $results = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT l.log_id,
-                    l.timestamp,
-                    l.status,
-                    l.summary,
-                    l.order_id,
-                    l.event_type,
-                    l.source,
-                    l.payload_id,
-                    l.is_test,
-                    l.process_id,
-                    COALESCE(p.payload, l.details, %s) as payload
-                FROM `{$log_table_escaped}` l
-                    LEFT JOIN `{$payload_table_escaped}` p ON l.payload_id = p.payload_id
-                WHERE l.process_id = %s
-                ORDER BY l.timestamp ASC",
-                '',
-                $processId
-            ),
+        // Use DatabaseHelper for secure database operations
+        $results = DatabaseHelper::get_results(
+            "SELECT l.log_id,
+                l.timestamp,
+                l.status,
+                l.summary,
+                l.order_id,
+                l.event_type,
+                l.source,
+                l.payload_id,
+                l.is_test,
+                l.process_id,
+                COALESCE(p.payload, l.details, %s) as payload
+            FROM `{$log_table}` l
+                LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+            WHERE l.process_id = %s
+            ORDER BY l.timestamp ASC",
+            ['', $processId],
             'ARRAY_A'
         );
 
@@ -299,7 +293,7 @@ final class DatabaseTimelineBuilder implements TimelineBuilderInterface
         // Adjust cache duration based on process status - longer for "finished" processes
         $has_finished_status = false;
         foreach ($results as $entry) {
-            if (isset($entry['status']) && in_array($entry['status'], ['success', 'error', 'complete', 'cancelled', 'failed'])) {
+            if (isset($entry['status']) && in_array($entry['status'], ['success', 'error', 'complete', 'cancelled', 'failed'], true)) {
                 $has_finished_status = true;
                 break;
             }

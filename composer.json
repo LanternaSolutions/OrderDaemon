@@ -14,5 +14,10 @@
             "email": "yakir@orderdaemon.com"
         }
     ],
-    "minimum-stability": "stable"
+    "minimum-stability": "stable",
+    "require-dev": {
+        "squizlabs/php_codesniffer": "*",
+        "wp-coding-standards/wpcs": "*",
+        "phpcompatibility/php-compatibility": "*"
+    }
 }

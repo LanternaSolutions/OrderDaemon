@@ -44,15 +44,6 @@ interface ComponentInterface
      */
     public function get_description(): string;
 
-    /**
-     * Get the capability required to use this component.
-     *
-     * This integrates with the entitlement system. The UI will check this
-     * capability using odcm_can_use() before displaying the component.
-     *
-     * @return string The capability key.
-     */
-    public function get_capability(): string;
 
     /**
      * Get the JSON Schema for the component's settings.

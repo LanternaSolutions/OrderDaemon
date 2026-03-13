@@ -4,12 +4,15 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\API;
 
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
+use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
+use OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry;
 use OrderDaemon\CompletionManager\API\Timeline\TimelineBuilderInterface;
 use OrderDaemon\CompletionManager\API\Timeline\TimelineRendererInterface;
 use OrderDaemon\CompletionManager\API\Timeline\TimelineRequest;
 use OrderDaemon\CompletionManager\API\Timeline\DatabaseTimelineBuilder;
 use OrderDaemon\CompletionManager\API\Timeline\ProcessLoggerComponentExtractor;
 use OrderDaemon\CompletionManager\API\Timeline\RegistryTimelineRenderer;
+use OrderDaemon\CompletionManager\Includes\Utils\RequestHelper;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_REST_Request;
@@ -68,10 +71,11 @@ class AuditLogEndpoint extends WP_REST_Controller
      * API base route
      */
     const BASE_ROUTE = 'audit-log';
-    
+
     private ?TimelineBuilderInterface $timelineBuilder = null;
     private ?TimelineRendererInterface $timelineRenderer = null;
-    
+    private ?DatabaseHelper $db_helper = null;
+
     /**
      * Constructor with dependency injection
      */
@@ -95,6 +99,10 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Defer initialization to runtime in render_components()
             $this->timelineRenderer = $timelineRenderer ?: null;
         }
+
+		if (class_exists(DatabaseHelper::class)) {
+			$this->db_helper = DatabaseHelper::get_instance();
+		}
     }
 
     /**
@@ -129,14 +137,10 @@ class AuditLogEndpoint extends WP_REST_Controller
             return;
         }
 
-        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file
-        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG && defined('WP_CONTENT_DIR')) {
-            $debug_file = WP_CONTENT_DIR . '/debug.log';
-            @file_put_contents(
-                $debug_file,
-                '[' . current_time('mysql') . '] ' . $message . PHP_EOL,
-                FILE_APPEND
-            );
+        // If WP_DEBUG_LOG is enabled, write directly to the debug.log file using safe file operation
+        if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+            $debug_file = odcm_get_safe_debug_file_path();
+            odcm_safe_file_put_contents($debug_file, '[' . current_time('mysql') . '] ' . $message . PHP_EOL, FILE_APPEND);
             return;
         }
     }
@@ -296,21 +300,22 @@ class AuditLogEndpoint extends WP_REST_Controller
         ]);
 
         // Diagnostic endpoint for route verification (debug mode only)
+        // These endpoints require authentication even in debug mode for security
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             register_rest_route(self::NAMESPACE, '/' . self::BASE_ROUTE . '/diagnostic', [
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'diagnostic_check'],
-                    'permission_callback' => '__return_true', // Public for debugging
+                    'permission_callback' => [$this, 'check_permissions'],
                 ],
             ]);
-            
+
             // Special raw data diagnostic route
             register_rest_route(self::NAMESPACE, '/' . self::BASE_ROUTE . '/raw-data/(?P<log_id>\d+)', [
                 [
                     'methods'             => WP_REST_Server::READABLE,
                     'callback'            => [$this, 'get_raw_timeline_data'],
-                    'permission_callback' => '__return_true', // Public for debugging
+                    'permission_callback' => [$this, 'check_permissions'],
                 ],
             ]);
         }
@@ -353,6 +358,18 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'description' => 'Whether to include test events',
                 'type'        => 'boolean',
                 'default'     => false,
+            ],
+            // sources
+            // manual - Actions triggered by logged-in users through the WordPress admin interface
+            // webhook - Events received from external webhook calls (e.g., payment gateways)
+            // api - Events triggered through REST API or AJAX calls
+            // scheduled - Events triggered by cron jobs, action scheduler, or CLI commands
+            // system - Internal system events (default fallback)
+            'source' => [
+                'description' => 'Filter by log source (manual, scheduled, webhook, api, system)',
+                'type'        => 'string',
+                'enum'        => ['manual', 'scheduled', 'webhook', 'api', 'system', ''],
+                'default'     => '',
             ],
         ];
     }
@@ -614,7 +631,19 @@ class AuditLogEndpoint extends WP_REST_Controller
             $start_time = microtime(true);
 
             // Get pagination parameters
-            $per_page = $request->get_param('per_page') ?: 20;
+            $per_page = $request->get_param('per_page');
+
+            // If per_page is not explicitly provided, try to get from user settings
+            if (!isset($request->get_query_params()['per_page']) && !isset($request->get_body_params()['per_page'])) {
+                $user_id = get_current_user_id();
+                if ($user_id) {
+                    $user_setting = get_user_meta($user_id, 'odcm_logs_per_page', true);
+                    if ($user_setting) {
+                        $per_page = (int) $user_setting;
+                    }
+                }
+            }
+            $per_page = $per_page ?: 20;
             $page = $request->get_param('page') ?: 1;
 
             // Validate pagination parameters
@@ -704,12 +733,21 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Compute consolidated totals and slice current page
             $total = is_array($all_logs) ? count($all_logs) : 0;
+            $is_truncated = ($total >= 500); // Check if we hit the safety limit
+            
+            if ($is_truncated && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: Search results truncated at limit (500 items) to prevent memory exhaustion", 'warning');
+            }
+            
             $total_pages = max(1, (int) ceil($total / $per_page));
             if ($page > $total_pages) {
                 $page = $total_pages; // Clamp to last page
             }
             $offset = ($page - 1) * $per_page;
             $page_logs = $total > 0 ? array_slice($all_logs, $offset, $per_page) : [];
+            
+            // Hydrate payloads for the current page only to save memory
+            $page_logs = $this->hydrate_payloads($page_logs);
             $start_item = $total > 0 ? ($offset + 1) : 0;
             $end_item = $total > 0 ? min($offset + $per_page, $total) : 0;
 
@@ -724,7 +762,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
             // Build response
             $response_data = [
-                'logs' => $this->format_logs_for_api($page_logs),
+                'logs' => $this->format_logs_for_api($page_logs, (bool) $request->get_param('include_debug')),
                 'pagination' => [
                     'total' => $total,
                     'total_pages' => $total_pages,
@@ -742,6 +780,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'consolidated_pagination' => true,
                     'pagination_basis' => 'consolidated',
                     'view_mode' => 'consolidated',
+                    'is_truncated' => $is_truncated, // Frontend can show "2500+ results"
                 ],
             ];
 
@@ -783,7 +822,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     throw $e; // Re-throw to be caught by main catch block
                 }
             }
-            
+
             if (!$this->timelineRenderer instanceof TimelineRendererInterface) {
                 try {
                     $this->timelineRenderer = new RegistryTimelineRenderer();
@@ -800,7 +839,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             // The filtering will happen after building the timeline
             $log_id_raw = $request->get_param('log_id');
             $component_index = null;
-            
+
             // Check if this is a virtual ID
             if (is_string($log_id_raw) && strpos($log_id_raw, '_') !== false) {
                 $parts = explode('_', $log_id_raw);
@@ -808,7 +847,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     // It's a virtual ID: use the real ID for lookup, store index for later filtering
                     $request->set_param('log_id', (int)$parts[0]);
                     $component_index = (int)$parts[1];
-                    
+
                     if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                         $this->logDebugMessage("ODCM: Virtual ID detected: {$log_id_raw} -> Real ID: {$parts[0]}, Component Index: {$component_index}", 'debug');
                     }
@@ -829,13 +868,13 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Build timeline data using injected services
             try {
                 $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
-                
+
                 // If a specific component index was requested (Virtual ID), filter the timeline to ONLY that component
                 if ($component_index !== null) {
                     if (isset($timelineData->components[$component_index])) {
                         // Extract just the target component
                         $target_component = $timelineData->components[$component_index];
-                        
+
                         // Create a new TimelineData with just this single component
                         // We must use reflection or a new instance since properties are readonly
                         $timelineData = \OrderDaemon\CompletionManager\API\Timeline\TimelineData::individual(
@@ -843,7 +882,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                             [$target_component],
                             $timelineData->metadata
                         );
-                        
+
                         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                             $this->logDebugMessage("ODCM: Filtered timeline to virtual component index: {$component_index}", 'debug');
                         }
@@ -952,7 +991,7 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'render_directly' => true, // Secondary flag to ensure template is rendered
                 ],
             ];
-            
+
             // Add detailed information in debug mode
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
                 $response_body['developer_message'] = $e->getMessage();
@@ -961,14 +1000,14 @@ class AuditLogEndpoint extends WP_REST_Controller
                 $response_body['exception_line'] = $e->getLine();
                 $response_body['stack_trace'] = $e->getTraceAsString();
             }
-            
+
             return new WP_REST_Response($response_body, 200);
         }
     }
-    
+
     /**
      * Check components for potential issues before rendering
-     * 
+     *
      * @param \OrderDaemon\CompletionManager\API\Timeline\TimelineData $timelineData The timeline data to check
      * @return array Diagnostic information about components
      */
@@ -979,7 +1018,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             'issues_found' => 0,
             'issues' => []
         ];
-        
+
         try {
             // Safely iterate through components with extra error handling
             foreach ($timelineData->components as $idx => $component) {
@@ -1011,13 +1050,13 @@ class AuditLogEndpoint extends WP_REST_Controller
             $diagnostics['exception'] = $e->getMessage();
             $diagnostics['issues_found']++;
         }
-        
+
         return $diagnostics;
     }
-    
+
     /**
      * Generate a user-friendly error template with diagnostic information
-     * 
+     *
      * @param \Throwable $e The exception that was thrown
      * @param WP_REST_Request $request The original request
      * @return string HTML error template
@@ -1026,18 +1065,18 @@ class AuditLogEndpoint extends WP_REST_Controller
     {
         $log_id = $request->get_param('log_id');
         $debug_mode = defined('ODCM_DEBUG') && ODCM_DEBUG;
-        
+
         $html = '<div class="odcm-timeline-error">';
         $html .= '<div class="odcm-timeline-error-header">';
         $html .= '<h3>Timeline Rendering Error</h3>';
         $html .= '</div>';
         $html .= '<div class="odcm-timeline-error-body">';
         $html .= '<p>There was an error rendering the timeline for log entry #' . esc_html($log_id) . '</p>';
-        
+
         // Include basic error information
         $html .= '<div class="odcm-timeline-error-details">';
         $html .= '<p><strong>Error Type:</strong> ' . esc_html(get_class($e)) . '</p>';
-        
+
         // Sanitize and shorten the error message
         $error_message = $e->getMessage();
         if (empty($error_message)) {
@@ -1048,13 +1087,13 @@ class AuditLogEndpoint extends WP_REST_Controller
             $error_message = substr($error_message, 0, 200) . '...';
         }
         $html .= '<p><strong>Error Message:</strong> ' . esc_html($error_message) . '</p>';
-        
+
         // Include more details in debug mode
         if ($debug_mode) {
             $html .= '<div class="odcm-timeline-error-debug">';
             $html .= '<h4>Debug Information</h4>';
             $html .= '<p><strong>File:</strong> ' . esc_html($e->getFile()) . ':' . esc_html($e->getLine()) . '</p>';
-            
+
             // Format stack trace for readability
             $trace_lines = explode("\n", $e->getTraceAsString());
             $html .= '<div class="odcm-timeline-error-trace">';
@@ -1065,12 +1104,12 @@ class AuditLogEndpoint extends WP_REST_Controller
             }
             $html .= '</pre>';
             $html .= '</div>'; // trace
-            
+
             $html .= '</div>'; // debug
         }
-        
+
         $html .= '</div>'; // details
-        
+
         // Add helpful information for users
         $html .= '<div class="odcm-timeline-error-help">';
         $html .= '<p>If this error persists, please try the following:</p>';
@@ -1080,10 +1119,10 @@ class AuditLogEndpoint extends WP_REST_Controller
         $html .= '<li>Contact support and provide the error details above</li>';
         $html .= '</ul>';
         $html .= '</div>'; // help
-        
+
         $html .= '</div>'; // body
         $html .= '</div>'; // container
-        
+
         return $html;
     }
 
@@ -1099,7 +1138,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $start_time = microtime(true);
             $log_ids = $request->get_param('log_ids');
             $include_debug = (bool) $request->get_param('include_debug');
-            
+
             if (empty($log_ids) || !is_array($log_ids)) {
                 return new WP_Error(
                     'odcm_invalid_log_ids',
@@ -1107,19 +1146,19 @@ class AuditLogEndpoint extends WP_REST_Controller
                     ['status' => 400]
                 );
             }
-            
+
             $results = [];
             foreach ($log_ids as $log_id) {
                 try {
                     $timelineRequest = new TimelineRequest((int) $log_id, $include_debug);
                     $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
-                    
+
                     if (!$include_debug) {
                         $timelineData = $this->filter_debug_components($timelineData);
                     }
-                    
+
                     $html = $this->timelineRenderer->renderTimeline($timelineData);
-                    
+
                     $results[$log_id] = [
                         'success' => true,
                         'html' => $html,
@@ -1132,9 +1171,9 @@ class AuditLogEndpoint extends WP_REST_Controller
                     ];
                 }
             }
-            
+
             $execution_time = microtime(true) - $start_time;
-            
+
             return new WP_REST_Response([
                 'results' => $results,
                 'meta' => [
@@ -1144,12 +1183,12 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'successful' => count(array_filter($results, fn($r) => $r['success'])),
                 ],
             ], 200);
-            
+
         } catch (\Throwable $e) {
             $this->log_api_error('render_components_batch', $e, [
                 'log_ids' => $request->get_param('log_ids'),
             ]);
-            
+
             return new WP_Error(
                 'odcm_batch_render_error',
                 __('audit.logs.render.failure.batch', 'order-daemon'),
@@ -1184,8 +1223,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $logTableName = esc_sql($wpdb->prefix . 'odcm_audit_log');
             $payloadTableName = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
-            $query = $wpdb->prepare(
-                "SELECT l.log_id,
+            $query = "SELECT l.log_id,
                     l.timestamp,
                     l.status,
                     l.summary,
@@ -1200,15 +1238,12 @@ class AuditLogEndpoint extends WP_REST_Controller
                     l.dedupe_key,
                     COALESCE(p.payload, l.details, %s) as payload
                 FROM `{$logTableName}` l
-                    LEFT JOIN `{$payloadTableName}` p ON l.payload_id = p.payload_id
+                LEFT JOIN `{$payloadTableName}` p ON l.payload_id = p.payload_id
                 WHERE l.process_id = %s
-                ORDER BY l.timestamp ASC",
-                '',
-                $process_id
-            );
+                ORDER BY l.timestamp ASC";
 
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $query is prepared above via $wpdb->prepare()
-            $logs = $wpdb->get_results($query, ARRAY_A);
+            // Use DatabaseHelper to handle preparation and execution safely
+            $logs = $this->db_helper->get_results($query, ['', $process_id], ARRAY_A);
 
             if ($logs === false) {
                 throw new \Exception('Database query failed: ' . ($wpdb->last_error ?: 'Unknown error'));
@@ -1218,7 +1253,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $execution_time = microtime(true) - $start_time;
 
             return new WP_REST_Response([
-                'logs' => $this->format_logs_for_api($logs),
+                'logs' => $this->format_logs_for_api($logs, (bool) $request->get_param('include_debug')),
                 'meta' => [
                     'process_id' => $process_id,
                     'total_logs' => count($logs),
@@ -1249,13 +1284,13 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function filter_debug_components(\OrderDaemon\CompletionManager\API\Timeline\TimelineData $timelineData): \OrderDaemon\CompletionManager\API\Timeline\TimelineData
     {
         $filtered_components = [];
-        
+
         foreach ($timelineData->components as $component) {
             // Skip debug components
             if ($this->is_debug_component($component)) {
                 continue;
             }
-            
+
             // For non-debug components, filter any nested debug components
             if (isset($component['data']['components']) && is_array($component['data']['components'])) {
                 $component['data']['components'] = array_filter(
@@ -1263,10 +1298,10 @@ class AuditLogEndpoint extends WP_REST_Controller
                     fn($c) => !$this->is_debug_component($c)
                 );
             }
-            
+
             $filtered_components[] = $component;
         }
-        
+
         // Create a new TimelineData object with filtered components instead of modifying the existing one
         if ($timelineData->isIndividual()) {
             return \OrderDaemon\CompletionManager\API\Timeline\TimelineData::individual(
@@ -1299,6 +1334,11 @@ class AuditLogEndpoint extends WP_REST_Controller
 
         // Check for explicit debug_only flag (highest priority)
         if (!empty($component['debug_only']) && $component['debug_only'] === true) {
+            return true;
+        }
+
+        // Check for _universal_event_debug
+        if (isset($component['event_type']) && $component['event_type'] === '_universal_event_debug') {
             return true;
         }
 
@@ -1368,7 +1408,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Render individual log entry
-     * 
+     *
      * @param array $log The log entry
      * @param bool $include_debug Whether to include debug components
      * @return string HTML output
@@ -1376,28 +1416,28 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function render_individual_entry(array $log, bool $include_debug): string
     {
         $payload_raw = $log['payload'] ?? '';
-        
+
         // Handle empty payload
         if (empty($payload_raw)) {
             return $this->render_empty_entry_fallback($log);
         }
-        
+
         // Parse payload
         $payload = json_decode($payload_raw, true);
         if (!is_array($payload)) {
             return $this->render_empty_entry_fallback($log);
         }
-        
+
         // Extract components from payload
         $components = $this->extract_components_from_payload($payload, $include_debug);
-        
+
         // Render timeline
         return $this->render_component_timeline($components);
     }
 
     /**
      * Extract components from payload data
-     * 
+     *
      * @param array $payload Decoded payload
      * @param bool $include_debug Whether to include debug components
      * @return array Array of components
@@ -1407,17 +1447,17 @@ class AuditLogEndpoint extends WP_REST_Controller
         // ProcessLogger format (preferred)
         if (isset($payload['components']) && is_array($payload['components'])) {
             $components = $payload['components'];
-            
+
             // Filter debug components if needed
             if (!$include_debug) {
                 $components = array_filter($components, function($c) {
                     return is_array($c) && !$this->is_debug_component($c);
                 });
             }
-            
+
             return array_values($components);
         }
-        
+
         // Legacy/unknown format: create generic component
         return [[
             'event_type' => 'info',
@@ -1431,7 +1471,7 @@ class AuditLogEndpoint extends WP_REST_Controller
     /**
      * Extract components from a single event
      * UNIFIED HELPER: Works for both process and individual entries
-     * 
+     *
      * @param array $event Event data
      * @param bool $include_debug Whether to include debug components
      * @return array Array of components
@@ -1439,7 +1479,7 @@ class AuditLogEndpoint extends WP_REST_Controller
     private function extract_components_from_single_event(array $event, bool $include_debug): array
     {
         $payload_raw = $event['payload'] ?? '';
-        
+
         if (empty($payload_raw)) {
             // Create synthetic component for empty payload
             return [[
@@ -1453,20 +1493,73 @@ class AuditLogEndpoint extends WP_REST_Controller
                 ],
             ]];
         }
-        
+
         $payload = json_decode($payload_raw, true);
         if (!is_array($payload)) {
             return [];
         }
-        
+
         return $this->extract_components_from_payload($payload, $include_debug);
     }
 
     /**
+     * Hydrate payloads for a list of logs
+     * 
+     * @param array $logs Array of log entries
+     * @return array Logs with payloads hydrated
+     */
+    private function hydrate_payloads(array $logs): array
+    {
+        global $wpdb;
+        
+        if (empty($logs)) {
+            return [];
+        }
+        
+        $log_ids = [];
+        foreach ($logs as $log) {
+            if (!empty($log['log_id'])) {
+                $log_ids[] = (int)$log['log_id'];
+            }
+        }
+        
+        if (empty($log_ids)) {
+            return $logs;
+        }
+        
+        $log_ids = array_unique($log_ids);
+        $placeholders = implode(',', array_fill(0, count($log_ids), '%d'));
+        
+        $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+        $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
+        
+        $query = "SELECT l.log_id, COALESCE(p.payload, l.details) as payload 
+             FROM {$log_table} l 
+             LEFT JOIN {$payload_table} p ON l.payload_id = p.payload_id 
+             WHERE l.log_id IN ($placeholders)";
+        
+        $results = $this->db_helper->get_results($query, $log_ids, ARRAY_A);
+        
+        if (empty($results)) {
+            return $logs;
+        }
+        
+        $payload_map = array_column($results, 'payload', 'log_id');
+        
+        foreach ($logs as &$log) {
+            if (isset($log['log_id']) && isset($payload_map[$log['log_id']])) {
+                $log['payload'] = $payload_map[$log['log_id']];
+            }
+        }
+        
+        return $logs;
+    }
+
+    /**
      * Get all filtered logs based on request parameters
-     * 
+     *
      * All query building is inlined directly in this method.
-     * 
+     *
      * @param WP_REST_Request $request The REST request with filter parameters
      * @return array|WP_Error Array of log entries or WP_Error
      */
@@ -1475,114 +1568,51 @@ class AuditLogEndpoint extends WP_REST_Controller
         global $wpdb;
 
         try {
-            // Use proper table name escaping (cannot use placeholders for table names)
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
-            $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+            // Use DatabaseHelper for secure queries
+            $log_table = $wpdb->prefix . 'odcm_audit_log';
+            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
-            // Extract and sanitize all filter parameters directly
-            $include_debug_param = $request->get_param('include_debug');
-            $include_test_param = $request->get_param('include_test');
-            $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
-            $include_test = ($include_test_param === null) ? true : (bool) $include_test_param;
-            
-            $order_id = $request->get_param('order_id');
-            $status = $request->get_param('status');
-            $event_type = $request->get_param('event_type');
-            $date_from = $request->get_param('date_from');
-            $date_to = $request->get_param('date_to');
-            $search = $request->get_param('search');
+            // Get conditions and params from helper
+            list($conditions, $params) = $this->build_query_conditions($request);
 
-            // Build the base query
-            $base_query = "SELECT l.*, p.payload FROM `{$log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
-            
-            // Build conditions and params arrays
-            $conditions = [];
-            $params = [];
-            
-            if (!$include_debug) {
-                $conditions[] = "l.event_type NOT LIKE %s";
-                $params[] = 'debug_%';
-                $conditions[] = "l.status != %s";
-                $params[] = 'debug';
-            }
-            
-            if (!$include_test) {
-                $conditions[] = "l.is_test = %d";
-                $params[] = 0;
-            }
-            
-            if (!empty($order_id) && is_numeric($order_id)) {
-                $conditions[] = "l.order_id = %d";
-                $params[] = absint($order_id);
-            }
-            
-            if (!empty($status)) {
-                $conditions[] = "l.status = %s";
-                $params[] = sanitize_key($status);
-            }
-            
-            if (!empty($event_type)) {
-                $conditions[] = "l.event_type = %s";
-                $params[] = sanitize_key($event_type);
-            }
-            
-            if (!empty($date_from)) {
-                $conditions[] = "l.timestamp >= %s";
-                $params[] = sanitize_text_field($date_from);
-            }
-            
-            if (!empty($date_to)) {
-                $conditions[] = "l.timestamp <= %s";
-                $params[] = sanitize_text_field($date_to);
-            }
-            
-            if (!empty($search)) {
-                $conditions[] = "l.summary LIKE %s";
-                $params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
-            }
-            
-            // Build final query
-            if (!empty($conditions)) {
-                $where_clause = '';
-                $condition_count = count($conditions);
-                for ($i = 0; $i < $condition_count; $i++) {
-                    $where_clause .= $conditions[$i];
-                    if ($i < $condition_count - 1) {
-                        $where_clause .= ' AND ';
-                    }
+            // Optimization: Don't select payload column for the bulk query to prevent OOM.
+            // We only need payloads for the final paginated result set.
+            // We also exclude l.details to be safe, selecting only necessary columns.
+            $base_query = "SELECT l.log_id, l.timestamp, l.status, l.summary, l.event_type, l.source, l.process_id, l.order_id, l.payload_id, l.is_test, l.parent_id, l.display_data, l.dedupe_key FROM `{$log_table}` l";
+
+            // Check if we need to join for filtering
+            $needs_join = false;
+            foreach ($conditions as $condition) {
+                if (strpos($condition, 'p.') !== false) {
+                    $needs_join = true;
+                    break;
                 }
-                $full_query = $base_query . " WHERE " . $where_clause . " ORDER BY l.timestamp DESC";
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is dynamically built with proper escaping
-                $sql = $wpdb->prepare($full_query, ...$params);
+            }
+
+            if ($needs_join) {
+                $base_query .= " LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
+            }
+
+            // Build final query using DatabaseHelper
+            if (!empty($conditions)) {
+                $where_clause = implode(' AND ', $conditions);
+                // Add safety LIMIT to prevent OOM on broad searches (e.g. "failure"). Reduced to 500 to ensure stability.
+                $full_query = $base_query . " WHERE " . $where_clause . " ORDER BY l.timestamp DESC LIMIT 500";
             } else {
-                $sql = $base_query . " ORDER BY l.timestamp DESC";
+                // Add safety LIMIT for default view as well
+                $full_query = $base_query . " ORDER BY l.timestamp DESC LIMIT 500";
             }
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM: Executing all_filtered_logs query: " . $sql, 'debug');
+                $this->logDebugMessage("ODCM: Executing all_filtered_logs query: " . $full_query, 'debug');
             }
 
-            // Execute the query
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is built with proper escaping above
-            $logs = $wpdb->get_results($sql, ARRAY_A);
+            // Execute the query using DatabaseHelper for security
+            $logs = $this->db_helper->get_results($full_query, $params, ARRAY_A);
 
-            // Check for database errors
-            if ($wpdb->last_error) {
-                $error_msg = "Database query failed: " . $wpdb->last_error;
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: SQL Error in get_all_filtered_logs: " . $wpdb->last_error, 'error');
-                    $this->logDebugMessage("ODCM: Query was: " . $sql, 'debug');
-                }
-                return new WP_Error('audit_log_query_failed', $error_msg);
-            }
-
-            if ($logs === false) {
-                $error_msg = "Database query returned false";
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: Query returned false for get_all_filtered_logs", 'error');
-                }
-                return new WP_Error('audit_log_query_failed', $error_msg);
+            // Debug: Log if query returned false (error) but wasn't caught
+            if ($logs === null && defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage("ODCM: Database query returned null (error occurred). Query: " . $full_query, 'error');
             }
 
             $result = $logs ?: [];
@@ -1604,9 +1634,9 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Get filtered logs with pagination
-     * 
+     *
      * All query building is inlined directly in this method.
-     * 
+     *
      * @param WP_REST_Request $request The REST request
      * @param int $per_page Items per page
      * @param int $page Current page
@@ -1622,134 +1652,78 @@ class AuditLogEndpoint extends WP_REST_Controller
             $cache_group = 'odcm_audit_logs';
             $cache_ttl = 300; // 5 minutes cache TTL
 
-            // Try to get cached result
-            $cached_result = wp_cache_get($cache_key, $cache_group);
+            // Check if search is active
+            $search = $request->get_param('search');
 
-            if ($cached_result !== false) {
-                // Cache hit - return cached data
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: Cache hit for filtered_logs with key: " . $cache_key, 'debug');
+            // Only use cache if NOT searching. Search results should be fresh.
+            if (empty($search)) {
+                // Try to get cached result
+                $cached_result = wp_cache_get($cache_key, $cache_group);
+
+                if ($cached_result !== false) {
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage("ODCM: Cache hit for filtered_logs with key: " . $cache_key, 'debug');
+                    }
+                    return $cached_result;
                 }
-
-                return $cached_result;
             }
 
             // Cache miss - perform database query
             // Calculate offset based on pagination
             $offset = max(0, ($page - 1) * $per_page);
 
-            // Use proper table name escaping
-            $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
-            $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+            // Use DatabaseHelper for secure queries
+            $log_table = $wpdb->prefix . 'odcm_audit_log';
+            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
-            // Extract and sanitize all filter parameters directly
-            $include_debug_param = $request->get_param('include_debug');
-            $include_test_param = $request->get_param('include_test');
-            $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
-            $include_test = ($include_test_param === null) ? true : (bool) $include_test_param;
-            
-            $order_id = $request->get_param('order_id');
-            $status = $request->get_param('status');
-            $event_type = $request->get_param('event_type');
-            $date_from = $request->get_param('date_from');
-            $date_to = $request->get_param('date_to');
-            $search = $request->get_param('search');
+            // Get conditions and params from helper
+            list($conditions, $params) = $this->build_query_conditions($request);
+            // Use DatabaseHelper for secure queries
+            $log_table = $wpdb->prefix . 'odcm_audit_log';
+            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
-            // Build base query
-            $base_query = "SELECT l.*, p.payload FROM `{$log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
+            // Get conditions and params from helper
+            list($conditions, $params) = $this->build_query_conditions($request);
             
-            // Build conditions and params arrays
-            $conditions = [];
-            $params = [];
-            
-            if (!$include_debug) {
-                $conditions[] = "l.event_type NOT LIKE %s";
-                $params[] = 'debug_%';
-                $conditions[] = "l.status != %s";
-                $params[] = 'debug';
+            // Optimization: Lightweight select for flat view as well
+            $base_query = "SELECT l.log_id, l.timestamp, l.status, l.summary, l.event_type, l.source, l.process_id, l.order_id, l.payload_id, l.is_test, l.parent_id, l.display_data, l.dedupe_key FROM `{$log_table}` l";
+
+            // Check if we need to join for filtering
+            $needs_join = false;
+            foreach ($conditions as $condition) {
+                if (strpos($condition, 'p.') !== false) {
+                    $needs_join = true;
+                    break;
+                }
             }
             
-            if (!$include_test) {
-                $conditions[] = "l.is_test = %d";
-                $params[] = 0;
+            if ($needs_join) {
+                $base_query .= " LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
             }
-            
-            if (!empty($order_id) && is_numeric($order_id)) {
-                $conditions[] = "l.order_id = %d";
-                $params[] = absint($order_id);
-            }
-            
-            if (!empty($status)) {
-                $conditions[] = "l.status = %s";
-                $params[] = sanitize_key($status);
-            }
-            
-            if (!empty($event_type)) {
-                $conditions[] = "l.event_type = %s";
-                $params[] = sanitize_key($event_type);
-            }
-            
-            if (!empty($date_from)) {
-                $conditions[] = "l.timestamp >= %s";
-                $params[] = sanitize_text_field($date_from);
-            }
-            
-            if (!empty($date_to)) {
-                $conditions[] = "l.timestamp <= %s";
-                $params[] = sanitize_text_field($date_to);
-            }
-            
-            if (!empty($search)) {
-                $conditions[] = "l.summary LIKE %s";
-                $params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
-            }
-            
+
             // Add pagination params
             $params[] = absint($per_page);
             $params[] = absint($offset);
-            
-            // Build final query
+
+            // Build final query using DatabaseHelper
             if (!empty($conditions)) {
-                $where_clause = '';
-                $condition_count = count($conditions);
-                for ($i = 0; $i < $condition_count; $i++) {
-                    $where_clause .= $conditions[$i];
-                    if ($i < $condition_count - 1) {
-                        $where_clause .= ' AND ';
-                    }
-                }
+                $where_clause = implode(' AND ', $conditions);
                 $full_query = $base_query . " WHERE " . $where_clause . " ORDER BY l.timestamp DESC LIMIT %d OFFSET %d";
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is dynamically built with proper escaping
-                $sql = $wpdb->prepare($full_query, ...$params);
             } else {
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is dynamically built with proper escaping
-                $sql = $wpdb->prepare($base_query . " ORDER BY l.timestamp DESC LIMIT %d OFFSET %d", absint($per_page), absint($offset));
+                $full_query = $base_query . " ORDER BY l.timestamp DESC LIMIT %d OFFSET %d";
             }
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM: Executing filtered_logs query: " . $sql, 'debug');
+                $this->logDebugMessage("ODCM: Executing filtered_logs query: " . $full_query, 'debug');
             }
 
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is built with proper escaping above
-            $logs = $wpdb->get_results($sql, ARRAY_A);
-
-            // Check for database errors
-            if ($wpdb->last_error) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: SQL Error in get_filtered_logs: " . $wpdb->last_error, 'error');
-                    $this->logDebugMessage("ODCM: Query was: " . $sql, 'debug');
-                }
-                throw new \Exception($wpdb->last_error ?: 'Database query failed');
-            }
-
-            if ($logs === false) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: Query returned false for get_filtered_logs", 'error');
-                }
-                throw new \Exception('Database query returned false');
-            }
+            // Execute the query using DatabaseHelper for security
+            $logs = $this->db_helper->get_results($full_query, $params, ARRAY_A);
 
             $result = $logs ?: [];
+            
+            // Hydrate payloads for the current page
+            $result = $this->hydrate_payloads($result);
 
             // Cache the result
             wp_cache_set($cache_key, $result, $cache_group, $cache_ttl);
@@ -1768,9 +1742,9 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Get count of filtered logs
-     * 
+     *
      * All query building is inlined directly in this method.
-     * 
+     *
      * @param WP_REST_Request $request The REST request
      * @return int Count of filtered logs
      */
@@ -1784,123 +1758,64 @@ class AuditLogEndpoint extends WP_REST_Controller
             $cache_group = 'odcm_audit_logs';
             $cache_ttl = 60; // 1 minute cache TTL (shorter since counts change more frequently)
 
-            // Try to get cached result
-            $cached_result = wp_cache_get($cache_key, $cache_group);
+            // Check if search is active
+            $search = $request->get_param('search');
 
-            if ($cached_result !== false) {
-                // Cache hit - return cached data
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: Cache hit for filtered_log_count with key: " . $cache_key, 'debug');
+            // Only use cache if NOT searching
+            if (empty($search)) {
+                // Try to get cached result
+                $cached_result = wp_cache_get($cache_key, $cache_group);
+
+                if ($cached_result !== false) {
+                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                        $this->logDebugMessage("ODCM: Cache hit for filtered_log_count with key: " . $cache_key, 'debug');
+                    }
+                    return $cached_result;
                 }
-
-                return $cached_result;
             }
 
             // Cache miss - perform database query
-            // Use proper table name escaping (cannot use placeholders for table names)
-            $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
-
-            // Extract and sanitize all filter parameters directly
-            $include_debug_param = $request->get_param('include_debug');
-            $include_test_param = $request->get_param('include_test');
-            $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
-            $include_test = ($include_test_param === null) ? true : (bool) $include_test_param;
-            
-            $order_id = $request->get_param('order_id');
-            $status = $request->get_param('status');
-            $event_type = $request->get_param('event_type');
-            $date_from = $request->get_param('date_from');
-            $date_to = $request->get_param('date_to');
-            $search = $request->get_param('search');
+            // Use DatabaseHelper for secure queries
+            $log_table = $wpdb->prefix . 'odcm_audit_log';
+            $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
             // Build base query
-            $base_query = "SELECT COUNT(*) FROM `{$log_table}` l";
-            
-            // Build conditions and params arrays
-            $conditions = [];
-            $params = [];
-            
-            if (!$include_debug) {
-                $conditions[] = "l.event_type NOT LIKE %s";
-                $params[] = 'debug_%';
-                $conditions[] = "l.status != %s";
-                $params[] = 'debug';
-            }
-            
-            if (!$include_test) {
-                $conditions[] = "l.is_test = %d";
-                $params[] = 0;
-            }
-            
-            if (!empty($order_id) && is_numeric($order_id)) {
-                $conditions[] = "l.order_id = %d";
-                $params[] = absint($order_id);
-            }
-            
-            if (!empty($status)) {
-                $conditions[] = "l.status = %s";
-                $params[] = sanitize_key($status);
-            }
-            
-            if (!empty($event_type)) {
-                $conditions[] = "l.event_type = %s";
-                $params[] = sanitize_key($event_type);
-            }
-            
-            if (!empty($date_from)) {
-                $conditions[] = "l.timestamp >= %s";
-                $params[] = sanitize_text_field($date_from);
-            }
-            
-            if (!empty($date_to)) {
-                $conditions[] = "l.timestamp <= %s";
-                $params[] = sanitize_text_field($date_to);
-            }
-            
-            if (!empty($search)) {
-                $conditions[] = "l.summary LIKE %s";
-                $params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
-            }
-            
-            // Build final query
-            if (!empty($conditions)) {
-                $where_clause = '';
-                $condition_count = count($conditions);
-                for ($i = 0; $i < $condition_count; $i++) {
-                    $where_clause .= $conditions[$i];
-                    if ($i < $condition_count - 1) {
-                        $where_clause .= ' AND ';
-                    }
+            $base_query = "SELECT COUNT(*) FROM `{$log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
+
+            // Get conditions and params from helper
+            list($conditions, $params) = $this->build_query_conditions($request);
+
+            // Optimization: Only join payload table if we are actually filtering by payload fields
+            // This significantly improves performance for default views and simple filters
+            $needs_payload_join = false;
+            foreach ($conditions as $condition) {
+                if (strpos($condition, 'p.') !== false) {
+                    $needs_payload_join = true;
+                    break;
                 }
-                $full_query = $base_query . " WHERE " . $where_clause;
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is dynamically built with proper escaping
-                $sql = $wpdb->prepare($full_query, ...$params);
+            }
+
+            // Build base query based on requirement
+            if ($needs_payload_join) {
+                $base_query = "SELECT COUNT(*) FROM `{$log_table}` l LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id";
             } else {
-                $sql = $base_query;
+                $base_query = "SELECT COUNT(*) FROM `{$log_table}` l";
+            }
+
+            // Build final query using DatabaseHelper
+            if (!empty($conditions)) {
+                $where_clause = implode(' AND ', $conditions);
+                $full_query = $base_query . " WHERE " . $where_clause;
+            } else {
+                $full_query = $base_query;
             }
 
             if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                $this->logDebugMessage("ODCM: Executing filtered_log_count query: " . $sql, 'debug');
+                $this->logDebugMessage("ODCM: Executing filtered_log_count query: " . $full_query, 'debug');
             }
 
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is built with proper escaping above
-            $count = $wpdb->get_var($sql);
-
-            // Check for database errors
-            if ($wpdb->last_error) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: SQL Error in get_filtered_log_count: " . $wpdb->last_error, 'error');
-                    $this->logDebugMessage("ODCM: Query was: " . $sql, 'debug');
-                }
-                throw new \Exception($wpdb->last_error ?: 'Database query failed');
-            }
-
-            if ($count === false) {
-                if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM: Query returned false for get_filtered_log_count", 'error');
-                }
-                throw new \Exception('Database query returned false');
-            }
+            // Execute the query using DatabaseHelper for security
+            $count = $this->db_helper->get_var($full_query, $params);
 
             $result = (int) $count;
 
@@ -1920,178 +1835,179 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
-     * Build WHERE clauses for filtering logs
-     * 
+     * Build query conditions and parameters from request
+     *
      * @param WP_REST_Request $request The REST request
-     * @return array Array of WHERE clauses with parameters for safe query building
+     * @return array Array containing [$conditions, $params]
      */
-    private function build_filter_where_clauses(WP_REST_Request $request): array
+    private function build_query_conditions(WP_REST_Request $request): array
     {
         global $wpdb;
-        $where_clauses = [];
-        $where_params = [];
+        $conditions = [];
+        $params = [];
 
-        // Resolve default flags for debug/test inclusion
-        // Default to true (include all) when not explicitly provided to avoid filtering out legitimate events
+        // Extract and sanitize all filter parameters directly
         $include_debug_param = $request->get_param('include_debug');
-        $include_test_param  = $request->get_param('include_test');
-
-        // Default to true (include all) when not explicitly provided
-        // This ensures we don't accidentally filter out legitimate events
+        $include_test_param = $request->get_param('include_test');
         $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
-        $include_test  = ($include_test_param === null)  ? true : (bool) $include_test_param;
+        $include_test = ($include_test_param === null) ? true : (bool) $include_test_param;
 
-        // Include debug events
-        if (!$include_debug) {
-            $where_clauses[] = "l.event_type NOT LIKE %s";
-            $where_params[] = 'debug_%';
-            $where_clauses[] = "l.status != %s";
-            $where_params[] = 'debug';
-        }
-
-        // Include test events
-        if (!$include_test) {
-            $where_clauses[] = "l.is_test = %d";
-            $where_params[] = 0;
-        }
-
-        // Order ID filter
         $order_id = $request->get_param('order_id');
-        if (!empty($order_id) && is_numeric($order_id)) {
-            $where_clauses[] = "l.order_id = %d";
-            $where_params[] = (int) $order_id;
-        }
-
-        // Status filter
         $status = $request->get_param('status');
-        if (!empty($status)) {
-            $where_clauses[] = "l.status = %s";
-            $where_params[] = sanitize_key($status);
-        }
-
-        // Event type filter
         $event_type = $request->get_param('event_type');
-        if (!empty($event_type)) {
-            $where_clauses[] = "l.event_type = %s";
-            $where_params[] = sanitize_key($event_type);
-        }
-
-        // Date range filters
+        $source = $request->get_param('source');
         $date_from = $request->get_param('date_from');
-        if (!empty($date_from)) {
-            $where_clauses[] = "l.timestamp >= %s";
-            $where_params[] = sanitize_text_field($date_from);
-        }
-
         $date_to = $request->get_param('date_to');
-        if (!empty($date_to)) {
-            $where_clauses[] = "l.timestamp <= %s";
-            $where_params[] = sanitize_text_field($date_to);
-        }
-
-        // Search filter
         $search = $request->get_param('search');
-        if (!empty($search)) {
-            $where_clauses[] = "l.summary LIKE %s";
-            $where_params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
+
+        if (!$include_debug) {
+            $conditions[] = "l.event_type NOT LIKE %s";
+            $params[] = 'debug_%';
+            $conditions[] = "l.status != %s";
+            $params[] = 'debug';
         }
 
-        // Debug logging of where clauses to help diagnose empty dashboards
-        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-            try {
-                $this->logDebugMessage('ODCM: build_filter_where_clauses => ' . implode(' AND ', $where_clauses));
-                $this->logDebugMessage('ODCM: build_filter_where_clauses params => ' . implode(', ', $where_params));
-            } catch (\Throwable $e) {
-                // noop
+        if (!$include_test) {
+            $conditions[] = "l.is_test = %d";
+            $params[] = 0;
+        }
+
+        // SINGLE SOURCE OF TRUTH: Filter internal-only events from AdapterRegistry
+        $internalOnlyEvents = AdapterRegistry::getInternalOnlyEvents();
+        foreach ($internalOnlyEvents as $eventType) {
+            $conditions[] = "l.event_type != %s";
+            $params[] = $eventType;
+        }
+
+        // Order ID Filter
+        // Always add strict order_id filter if present
+        if (!empty($order_id) && is_numeric($order_id)) {
+            $conditions[] = "l.order_id = %d";
+            $params[] = absint($order_id);
+        }
+
+        if (!empty($status)) {
+            $conditions[] = "l.status = %s";
+            $params[] = sanitize_key($status);
+        }
+
+        if (!empty($event_type)) {
+            $conditions[] = "(l.event_type = %s OR (l.event_type = 'universal_event_processing' AND (p.payload LIKE %s OR p.payload LIKE %s)))";
+            $params[] = $event_type;
+            $params[] = '%"eventType":"' . $wpdb->esc_like($event_type) . '"%';
+            $params[] = '%"event_type":"' . $wpdb->esc_like($event_type) . '"%';
+        }
+
+        if (!empty($source)) {
+            $conditions[] = "l.source = %s";
+            $params[] = sanitize_key($source);
+        }
+
+        if (!empty($date_from)) {
+            $conditions[] = "l.timestamp >= %s";
+            $params[] = sanitize_text_field($date_from);
+        }
+
+        if (!empty($date_to)) {
+            $conditions[] = "l.timestamp <= %s";
+            $params[] = sanitize_text_field($date_to);
+        }
+
+        if (!empty($search)) {
+            // Use trim() instead of sanitize_text_field() to better handle special characters in search terms
+            $trimmed_search = trim($search);
+            $is_numeric_search = is_numeric($trimmed_search);
+
+            // Re-introduce specific logic for numeric searches for performance and accuracy.
+            // A numeric search should prioritize an exact match on order_id.
+            if ($is_numeric_search) {
+                $search_clauses = ["l.order_id = %d"];
+                $params[] = absint($trimmed_search);
+
+                // Also search text-based fields with LIKE for cases where the ID is in the summary.
+                $text_fields = ['l.summary', 'l.event_type', 'l.status', 'l.source'];
+                $text_fields[] = 'p.payload';
+
+                $like_term = '%' . $wpdb->esc_like($trimmed_search) . '%';
+                foreach ($text_fields as $field) {
+                    $search_clauses[] = "$field LIKE %s";
+                    $params[] = $like_term;
+                }
+
+                $conditions[] = "(" . implode(' OR ', $search_clauses) . ")";
+            } else {
+                // For non-numeric searches, search all relevant fields with LIKE.
+                $search_term = '%' . $wpdb->esc_like($trimmed_search) . '%';
+
+                $search_fields = [
+                    'l.summary',
+                    'l.event_type',
+                    'l.status',
+                    'l.source',
+                    'l.order_id', // Keep for "Order #123" style searches
+                ];
+
+                $search_fields[] = 'p.payload';
+
+                $search_clauses = array_map(fn($field) => "$field LIKE %s", $search_fields);
+                $params = array_merge($params, array_fill(0, count($search_fields), $search_term));
+                $conditions[] = "(" . implode(' OR ', $search_clauses) . ")";
+            }
+
+            // Log search debug info
+            if (function_exists('odcm_log_event')) {
+                odcm_log_event(
+                    'Audit Log Search Debug',
+                    [
+                        'search_term' => $search,
+                        'conditions' => $conditions,
+                        'params' => $params
+                    ],
+                    null,
+                    'debug',
+                    'search_debug'
+                );
             }
         }
 
-        return $where_clauses;
-    }
+        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+            $this->logDebugMessage(sprintf(
+                'ODCM Search Debug: Search Term="%s", Order ID="%s"',
+                $search ?? 'NULL',
+                $order_id ?? 'NULL'
+            ), 'debug');
 
-    /**
-     * Build WHERE clauses with parameters for safe query building
-     * 
-     * @param WP_REST_Request $request The REST request
-     * @return array Array with two elements: [WHERE clauses array, parameters array]
-     */
-    private function build_filter_where_clauses_with_params(WP_REST_Request $request): array
-    {
-        global $wpdb;
-        $where_clauses = [];
-        $where_params = [];
+            $this->logDebugMessage(sprintf(
+                'ODCM Search Debug: Simplified Search Logic Applied'
+            ), 'debug');
 
-        // Resolve default flags for debug/test inclusion
-        // Default to true (include all) when not explicitly provided to avoid filtering out legitimate events
-        $include_debug_param = $request->get_param('include_debug');
-        $include_test_param  = $request->get_param('include_test');
+            $this->logDebugMessage(sprintf(
+                'ODCM Search Debug: Current Conditions Count=%d',
+                count($conditions)
+            ), 'debug');
 
-        // Default to true (include all) when not explicitly provided
-        // This ensures we don't accidentally filter out legitimate events
-        $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
-        $include_test  = ($include_test_param === null)  ? true : (bool) $include_test_param;
+            if (!empty($conditions)) {
+                $this->logDebugMessage('ODCM Search Debug: Current Conditions: ' . json_encode($conditions), 'debug');
+            }
+        }
+if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
+            $this->logDebugMessage(sprintf(
+                'ODCM Search Query: Term="%s", Conditions=%s',
+                $search,
+                json_encode($conditions)
+            ), 'debug');
 
-        // Include debug events
-        if (!$include_debug) {
-            $where_clauses[] = "l.event_type NOT LIKE %s";
-            $where_params[] = 'debug_%';
-            $where_clauses[] = "l.status != %s";
-            $where_params[] = 'debug';
+            // Add detailed debug information about parameter binding
+            $this->logDebugMessage('ODCM Search Debug: Parameters to be bound: ' . json_encode($params), 'debug');
+            $this->logDebugMessage('ODCM Search Debug: Total parameters count: ' . count($params), 'debug');
         }
 
-        // Include test events
-        if (!$include_test) {
-            $where_clauses[] = "l.is_test = %d";
-            $where_params[] = 0;
-        }
-
-        // Order ID filter
-        $order_id = $request->get_param('order_id');
-        if (!empty($order_id) && is_numeric($order_id)) {
-            $where_clauses[] = "l.order_id = %d";
-            $where_params[] = (int) $order_id;
-        }
-
-        // Status filter
-        $status = $request->get_param('status');
-        if (!empty($status)) {
-            $where_clauses[] = "l.status = %s";
-            $where_params[] = sanitize_key($status);
-        }
-
-        // Event type filter
-        $event_type = $request->get_param('event_type');
-        if (!empty($event_type)) {
-            $where_clauses[] = "l.event_type = %s";
-            $where_params[] = sanitize_key($event_type);
-        }
-
-        // Date range filters
-        $date_from = $request->get_param('date_from');
-        if (!empty($date_from)) {
-            $where_clauses[] = "l.timestamp >= %s";
-            $where_params[] = sanitize_text_field($date_from);
-        }
-
-        $date_to = $request->get_param('date_to');
-        if (!empty($date_to)) {
-            $where_clauses[] = "l.timestamp <= %s";
-            $where_params[] = sanitize_text_field($date_to);
-        }
-
-        // Search filter
-        $search = $request->get_param('search');
-        if (!empty($search)) {
-            $where_clauses[] = "l.summary LIKE %s";
-            $where_params[] = '%' . $wpdb->esc_like(sanitize_text_field($search)) . '%';
-        }
-
-        return [$where_clauses, $where_params];
+        return [$conditions, $params];
     }
 
     /**
      * Apply process ID consolidation for lifecycle events
-     * 
+     *
      * @param array $logs Array of log entries
      * @param bool $include_debug Whether to include debug events
      * @param string $view_mode The current view mode ('flat' or 'consolidated')
@@ -2286,7 +2202,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Get applied filters from request
-     * 
+     *
      * @param WP_REST_Request $request The REST request
      * @return array Applied filters
      */
@@ -2294,7 +2210,7 @@ class AuditLogEndpoint extends WP_REST_Controller
     {
         $filters = [];
         $params = $request->get_params();
-        
+
         // Map request parameters to filter names
         $filter_map = [
             'include_debug' => 'include_debug_events',
@@ -2306,14 +2222,14 @@ class AuditLogEndpoint extends WP_REST_Controller
             'date_to' => 'date_to',
             'search' => 'search',
         ];
-        
+
         // Build filter list
         foreach ($filter_map as $param => $filter_name) {
             if (isset($params[$param]) && !empty($params[$param])) {
                 $filters[$filter_name] = $params[$param];
             }
         }
-        
+
         return $filters;
     }
 
@@ -2322,7 +2238,7 @@ class AuditLogEndpoint extends WP_REST_Controller
      * This method ensures that each log entry is treated individually without any consolidation.
      * CRITICAL: It also explodes composite log entries (which essentially contain multiple
      * events in their payload) into distinct virtual entries.
-     * 
+     *
      * @param array $logs Array of log entries
      * @return array Formatted logs
      */
@@ -2333,22 +2249,22 @@ class AuditLogEndpoint extends WP_REST_Controller
         foreach ($logs as $log) {
             // For flat view, ensure we have a valid log_id
             $log_id = $log['log_id'] ?? 0;
-            
+
             // Check if payload contains multiple components to explode
             $payload_data = null;
             if (!empty($log['payload'])) {
                 $payload_data = json_decode($log['payload'], true);
             }
-            
+
             // Check if this is a composite entry that needs explosion
             // Only explode if 'components' exists and has more than 1 item
             if (isset($payload_data['components']) && is_array($payload_data['components']) && count($payload_data['components']) > 1) {
-                
+
                 foreach ($payload_data['components'] as $index => $component) {
                     // Create virtual ID: "realID_index" (e.g. 302_0, 302_1)
                     // Frontend treats strings as IDs fine
                     $virtual_id = $log_id . '_' . $index;
-                    
+
                     $formatted_log = [
                         'id' => $virtual_id,
                         'original_id' => (int) $log_id,
@@ -2362,18 +2278,18 @@ class AuditLogEndpoint extends WP_REST_Controller
                         'is_virtual' => true,
                         'component_index' => $index
                     ];
-                    
+
                     if (!empty($log['order_id'])) {
                         $formatted_log['order_id'] = (int) $log['order_id'];
                     }
-                    
+
                     if (!empty($log['payload_id'])) {
                         $formatted_log['payload_id'] = (int) $log['payload_id'];
                     }
-                    
+
                     $formatted_logs[] = $formatted_log;
                 }
-                
+
                 continue; // Skip the standard processing since we added virtual ones
             }
 
@@ -2410,12 +2326,158 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
+     * Extract consistent event data using DisplayAdapter unified system
+     * This ensures log stream and timeline use EXACTLY the same logic for status and summary
+     *
+     * @param array $log The log entry
+     * @param bool $includeDebug Whether to include debug events (from dashboard toggle)
+     * @return array Array with 'status', 'status_type', and 'summary' extracted using DisplayAdapter
+     */
+    private function extractConsistentEventData(array $log, bool $includeDebug = false): array
+    {
+        // Get the payload data
+        $payload = $log['payload'] ?? '';
+        if (empty($payload)) {
+            return [
+                'status' => $log['status'] ?? 'unknown',
+                'status_type' => 'info', // Default status type
+                'summary' => $log['summary'] ?? 'No summary available'
+            ];
+        }
+
+        $payload_data = json_decode($payload, true);
+        if (!is_array($payload_data)) {
+            return [
+                'status' => $log['status'] ?? 'unknown',
+                'status_type' => 'info', // Default status type
+                'summary' => $log['summary'] ?? 'No summary available'
+            ];
+        }
+
+        // Extract event type for filtering
+        $event_type = $payload_data['event_type'] ?? $payload_data['data']['event_type'] ?? $log['event_type'] ?? '';
+
+        // Use the same filtering logic as the timeline
+        // Check if this event should be filtered based on debug preferences
+        if (\OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry::shouldFilterForRendering($event_type, $includeDebug, $payload_data)) {
+            // This is a debug event that should be filtered out when includeDebug=false
+            // Return appropriate status and summary for filtered events
+            if (\OrderDaemon\CompletionManager\API\Timeline\RuleExecutionAdapter::isIncompleteRuleEvent($payload_data)) {
+                return [
+                    'status' => 'processing',
+                    'status_type' => 'debug',
+                    'summary' => __('Rule Processing Started', 'order-daemon')
+                ];
+            }
+
+            // For other debug events, return debug status
+            return [
+                'status' => $log['status'] ?? 'debug',
+                'status_type' => 'debug',
+                'summary' => $log['summary'] ?? 'Debug Event'
+            ];
+        }
+
+        try {
+            // PRIMARY PATH: Use the UNIFIED method - same as RegistryTimelineRenderer::renderPrimaryInfo()
+            // This ensures EXACTLY the same title and status in both log stream and timeline
+            $unifiedData = \OrderDaemon\CompletionManager\API\Timeline\DisplayAdapter::generateUnifiedEventData($payload_data, $log);
+
+            $summary = $unifiedData['summary'];
+            $statusData = $unifiedData['status'];
+
+            // Special handling for incomplete rule execution events to ensure consistency
+            if (empty($summary) && \OrderDaemon\CompletionManager\API\Timeline\RuleExecutionAdapter::isIncompleteRuleEvent($payload_data)) {
+                $summary = __('Rule Processing Started', 'order-daemon');
+            }
+
+            // Fallback if unified method returned empty summary
+            if (empty($summary)) {
+                $summary = $log['summary'] ?? 'No summary available';
+            }
+
+            return [
+                'status' => $statusData ? $statusData['label'] : ($log['status'] ?? 'unknown'),
+                'status_type' => $statusData ? $statusData['type'] : 'info',
+                'summary' => $summary
+            ];
+
+        } catch (\Throwable $e) {
+            // Fallback to original logic if DisplayAdapter fails
+            if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
+                $this->logDebugMessage('ODCM: DisplayAdapter unified method failed for log stream consistency, falling back: ' . $e->getMessage(), 'warning');
+            }
+
+            // Special handling for incomplete rule execution events in fallback mode
+            $payload_data = json_decode($payload, true);
+            if (is_array($payload_data) && \OrderDaemon\CompletionManager\API\Timeline\RuleExecutionAdapter::isIncompleteRuleEvent($payload_data)) {
+                return [
+                    'status' => 'processing',
+                    'status_type' => 'debug',
+                    'summary' => __('Rule Processing Started', 'order-daemon')
+                ];
+            }
+
+            // Use existing extractRuleExecutionStatus for rule execution events
+            $status = $this->extractRuleExecutionStatus($log);
+            $summary = $log['summary'] ?? 'No summary available';
+
+            return [
+                'status' => $status,
+                'status_type' => 'info', // Default fallback status type
+                'summary' => $summary
+            ];
+        }
+    }
+
+    /**
+     * Extract the true execution status for rule execution events
+     *
+     * @param array $log The log entry
+     * @return string The true execution status
+     */
+    private function extractRuleExecutionStatus(array $log): string
+    {
+        // Only process rule execution events
+        if (($log['event_type'] ?? '') !== 'rule_execution') {
+            return $log['status'] ?? 'unknown';
+        }
+
+        // Try to extract status from the payload if available
+        $payload = $log['payload'] ?? '';
+        if (!empty($payload)) {
+            $payload_data = json_decode($payload, true);
+            if (is_array($payload_data)) {
+                // Check for execution_status first (SUCCESS/FAILED from action results)
+                if (!empty($payload_data['execution_status'])) {
+                    return $payload_data['execution_status'];
+                }
+
+                // Check for rule_execution.status
+                if (!empty($payload_data['rule_execution']['status'])) {
+                    return $payload_data['rule_execution']['status'];
+                }
+
+                // Check for status in data
+                if (!empty($payload_data['status'])) {
+                    return $payload_data['status'];
+                }
+            }
+        }
+
+        // Fallback: use 'executed' for complete rule execution events
+        // This matches the logic in RuleExecutionAdapter
+        return 'executed';
+    }
+
+    /**
      * Format logs for API response
      *
      * @param array $logs Array of log entries
+     * @param bool $include_debug Whether to include debug events
      * @return array Formatted logs
      */
-    private function format_logs_for_api(array $logs): array
+    private function format_logs_for_api(array $logs, bool $include_debug = false): array
     {
         $formatted_logs = [];
 
@@ -2458,8 +2520,15 @@ class AuditLogEndpoint extends WP_REST_Controller
                 }
             }
 
+            // Use DisplayAdapter system for consistent status and summary extraction
+            // This ensures log stream and timeline use the same logic
+            $consistentData = $this->extractConsistentEventData($log, $include_debug);
+
             // For consolidated entries, use the highest priority event's summary if available
-            $summary = $log['summary'];
+            $summary = $consistentData['summary'];
+            $status = $consistentData['status'];
+            $status_type = $consistentData['status_type'];
+
             if (isset($log['_is_process_group']) && $log['_is_process_group'] && isset($log['_process_logs'])) {
                 $highestPrioritySummary = $this->getHighestPrioritySummaryFromProcessLogs($log['_process_logs']);
                 if ($highestPrioritySummary !== null) {
@@ -2473,7 +2542,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             $formatted_log = [
                 'id' => (int) $log_id,
                 'timestamp' => $log['timestamp'],
-                'status' => $log['status'],
+                'status' => $status,
+                'status_type' => $status_type,
                 'summary' => $summary,
                 'event_type' => $log['event_type'],
             ];
@@ -2521,7 +2591,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Validate log IDs for deletion
-     * 
+     *
      * @param array $log_ids Array of log IDs
      * @return array Array of valid log IDs
      */
@@ -2543,18 +2613,15 @@ class AuditLogEndpoint extends WP_REST_Controller
         $placeholders = array_fill(0, count($log_ids), '%d');
         $placeholder_string = implode(',', $placeholders);
 
-        // Validate log IDs exist using prepared statement with proper parameter binding
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // Direct query is needed for performance-critical batch operations
-        $sql = $wpdb->prepare(
-            "SELECT log_id
-            FROM `{$logTableName}`
-            WHERE log_id IN ({$placeholder_string})",
-            ...$log_ids
-        );
+        if (! DatabaseHelper::validate_table_name($logTableName)) {
+            return new WP_Error('odcm_invalid_table_name', __('Invalid table name provided', 'order-daemon'), ['status' => 400]);
+        }
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is prepared above via $wpdb->prepare()
-        $valid_ids = $wpdb->get_col($sql);
+        $log_ids = array_map('intval', explode(',', $placeholder_string));
+        $valid_ids = DatabaseHelper::get_col(
+            "SELECT log_id FROM `{$logTableName}` WHERE log_id IN (%s)",
+            [implode(',', $log_ids)]
+        );
         $result = array_map('intval', $valid_ids);
 
         return $result;
@@ -2562,7 +2629,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Perform batch deletion of logs
-     * 
+     *
      * @param array $log_ids Array of log IDs
      * @return int Number of deleted logs
      */
@@ -2579,86 +2646,70 @@ class AuditLogEndpoint extends WP_REST_Controller
         $payloadTableName = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
         // Start transaction
-        $wpdb->query('START TRANSACTION');
+        DatabaseHelper::query('START TRANSACTION');
 
         try {
             // Build safe IN clause for log IDs
             $log_placeholders = array_fill(0, count($log_ids), '%d');
             $log_placeholder_string = implode(',', $log_placeholders);
 
-            // Get payload IDs to delete using prepared statement
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical batch operations
-            $payload_ids_query = $wpdb->prepare(
+            // Validate table names before using them
+            if (!DatabaseHelper::validate_table_name($logTableName) || !DatabaseHelper::validate_table_name($payloadTableName)) {
+                throw new \Exception('Invalid table names provided for batch deletion');
+            }
+
+            // Get payload IDs to delete using DatabaseHelper for security
+            $payload_ids = DatabaseHelper::get_col(
                 "SELECT DISTINCT payload_id
-                FROM `{$logTableName}`
-                WHERE log_id IN ({$log_placeholder_string}) AND payload_id IS NOT NULL",
-                ...$log_ids
+                FROM %s
+                WHERE log_id IN (%s) AND payload_id IS NOT NULL",
+                [$logTableName, implode(',', array_map('intval', $log_ids))]
             );
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $payload_ids_query is prepared above via $wpdb->prepare()
-            $payload_ids = $wpdb->get_col($payload_ids_query);
 
-            // Delete logs using prepared statement
-            $delete_logs_query = $wpdb->prepare(
-                "DELETE FROM `{$logTableName}`
-                WHERE log_id IN ({$log_placeholder_string})",
-                ...$log_ids
+            // Delete logs using DatabaseHelper for security
+            $deleted = DatabaseHelper::query(
+                "DELETE FROM %s
+                WHERE log_id IN (%s)",
+                [$logTableName, implode(',', array_map('intval', $log_ids))]
             );
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $delete_logs_query is prepared above via $wpdb->prepare()
-            $deleted = $wpdb->query($delete_logs_query);
 
-            // Delete orphaned payloads
+            // Delete orphaned payloads using DatabaseHelper for security
             if (!empty($payload_ids)) {
-                // Build safe IN clause for payload IDs
-                $payload_placeholders = array_fill(0, count($payload_ids), '%d');
-                $payload_placeholder_string = implode(',', $payload_placeholders);
-
-                // Get payloads still in use using prepared statement
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                // Direct query is needed for performance-critical batch operations
-                $used_payloads_query = $wpdb->prepare(
+                // Get payloads still in use using DatabaseHelper
+                $used_payloads = DatabaseHelper::get_col(
                     "SELECT DISTINCT payload_id
-                    FROM `{$logTableName}`
-                    WHERE payload_id IN ({$payload_placeholder_string})",
-                    ...$payload_ids
+                    FROM %s
+                    WHERE payload_id IN (%s)",
+                    [$logTableName, implode(',', array_map('intval', $payload_ids))]
                 );
-                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $used_payloads_query is prepared above via $wpdb->prepare()
-                $used_payloads = $wpdb->get_col($used_payloads_query);
 
                 // Calculate orphaned payloads
                 $orphaned_payloads = array_diff($payload_ids, $used_payloads);
 
-                // Delete orphaned payloads using prepared statement
+                // Delete orphaned payloads using DatabaseHelper
                 if (!empty($orphaned_payloads)) {
-                    $orphaned_placeholders = array_fill(0, count($orphaned_payloads), '%d');
-                    $orphaned_placeholder_string = implode(',', $orphaned_placeholders);
-
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                    // Direct query is needed for performance-critical batch operations
-                    $delete_payloads_query = $wpdb->prepare(
-                        "DELETE FROM `{$payloadTableName}`
-                        WHERE id IN ({$orphaned_placeholder_string})",
-                        ...$orphaned_payloads
+                    DatabaseHelper::query(
+                        "DELETE FROM %s
+                        WHERE payload_id IN (%s)",
+                        [$payloadTableName, implode(',', array_map('intval', $orphaned_payloads))]
                     );
-                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $delete_payloads_query is prepared above via $wpdb->prepare()
-                    $wpdb->query($delete_payloads_query);
                 }
             }
 
             // Commit transaction
-            $wpdb->query('COMMIT');
+            DatabaseHelper::query('COMMIT');
 
             return $deleted;
         } catch (\Exception $e) {
             // Rollback transaction
-            $wpdb->query('ROLLBACK');
+            DatabaseHelper::query('ROLLBACK');
             throw $e;
         }
     }
 
     /**
      * Log batch deletion operation
-     * 
+     *
      * @param array $log_ids Array of deleted log IDs
      * @param int $count Number of deleted logs
      * @return void
@@ -2692,7 +2743,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Log API performance metrics for monitoring
-     * 
+     *
      * @param string $endpoint API endpoint name
      * @param float $execution_time Execution time in seconds
      * @param array $context Additional context data
@@ -2704,16 +2755,16 @@ class AuditLogEndpoint extends WP_REST_Controller
         if (!(defined('ODCM_DEBUG') && ODCM_DEBUG) && !(defined('ODCM_PERFORMANCE_MONITORING') && ODCM_PERFORMANCE_MONITORING)) {
             return;
         }
-        
+
         // Format execution time with precision
         $time_ms = round($execution_time * 1000, 2);
-        
+
         // Log using structured logging
         $this->logDebugMessage(
             sprintf('API Performance: %s completed in %s ms', $endpoint, $time_ms),
             'info'
         );
-        
+
         // Log detailed performance metrics if monitoring is enabled
         if (defined('ODCM_PERFORMANCE_MONITORING') && ODCM_PERFORMANCE_MONITORING) {
             // Add performance data to context
@@ -2721,7 +2772,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $context['endpoint'] = $endpoint;
             $context['timestamp'] = current_time('mysql');
             $context['user_id'] = get_current_user_id();
-            
+
             // Log to performance monitoring system
             if (function_exists('odcm_log_event')) {
                 odcm_log_event(
@@ -2737,7 +2788,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Log API errors for troubleshooting
-     * 
+     *
      * @param string $endpoint API endpoint name
      * @param \Throwable $exception The exception/error that occurred
      * @param array $context Additional context data
@@ -2748,13 +2799,13 @@ class AuditLogEndpoint extends WP_REST_Controller
         // Get exception details
         $error_message = $exception->getMessage();
         $error_trace = $exception->getTraceAsString();
-        
+
         // Log using structured logging
         $this->logDebugMessage(
             sprintf('API Error: %s - %s', $endpoint, $error_message),
             'error'
         );
-        
+
         // Log to error tracking system
         if (function_exists('odcm_log_event')) {
             odcm_log_event(
@@ -2777,7 +2828,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Render empty entry fallback
-     * 
+     *
      * @param array $log The log entry
      * @return string HTML output
      */
@@ -2787,7 +2838,7 @@ class AuditLogEndpoint extends WP_REST_Controller
         $status = esc_attr($log['status'] ?? 'info');
         $event_type = esc_html($log['event_type'] ?? 'event');
         $timestamp = esc_html($log['timestamp'] ?? current_time('mysql'));
-        
+
         return "
             <div class='odcm-timeline'>
                 <div class='odcm-timeline-component odcm-status-{$status}'>
@@ -2805,7 +2856,7 @@ class AuditLogEndpoint extends WP_REST_Controller
 
     /**
      * Render component timeline
-     * 
+     *
      * @param array $components Array of components
      * @return string HTML output
      */
@@ -2814,23 +2865,23 @@ class AuditLogEndpoint extends WP_REST_Controller
         if (empty($components)) {
             return "<div class='odcm-timeline odcm-timeline-empty'>No components found</div>";
         }
-        
+
         // Sort components by timestamp (descending)
         usort($components, function($a, $b) {
             $a_ts = $a['ts'] ?? 0;
             $b_ts = $b['ts'] ?? 0;
             return $b_ts - $a_ts;
         });
-        
+
         $html = "<div class='odcm-timeline'>";
-        
+
         foreach ($components as $component) {
             $label = esc_html($component['label'] ?? 'Event');
             $level = esc_attr($component['level'] ?? 'info');
             $timestamp = is_numeric($component['ts'] ?? null) ?
                          gmdate('Y-m-d H:i:s', $component['ts']) :
                          esc_html($component['ts'] ?? current_time('mysql'));
-            
+
             $html .= "
                 <div class='odcm-timeline-component odcm-level-{$level}'>
                     <div class='odcm-timeline-header'>
@@ -2839,43 +2890,43 @@ class AuditLogEndpoint extends WP_REST_Controller
                     </div>
                     <div class='odcm-timeline-body'>
             ";
-            
+
             // Add component data if available
             if (isset($component['data']) && is_array($component['data'])) {
                 $html .= "<div class='odcm-timeline-data'>";
                 $html .= $this->render_component_data($component['data']);
                 $html .= "</div>";
             }
-            
+
             $html .= "
                     </div>
                 </div>
             ";
         }
-        
+
         $html .= "</div>";
-        
+
         return $html;
     }
 
     /**
      * Render component data
-     * 
+     *
      * @param array $data Component data
      * @return string HTML output
      */
     private function render_component_data(array $data): string
     {
         $html = "<dl class='odcm-data-list'>";
-        
+
         foreach ($data as $key => $value) {
             // Skip internal or complex objects
             if ($key === 'components' || is_resource($value)) {
                 continue;
             }
-            
+
             $key_html = esc_html($key);
-            
+
             if (is_array($value)) {
                 // Render nested array
                 $value_html = "<div class='odcm-data-nested'>" . $this->render_component_data($value) . "</div>";
@@ -2889,15 +2940,14 @@ class AuditLogEndpoint extends WP_REST_Controller
                 // Default rendering
                 $value_html = esc_html((string) $value);
             }
-            
+
             $html .= "<dt>{$key_html}</dt><dd>{$value_html}</dd>";
         }
-        
+
         $html .= "</dl>";
-        
+
         return $html;
     }
-
 
     /**
      * Add diagnostic endpoint for debugging empty dashboards
@@ -2913,7 +2963,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             $audit_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
             $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
 
-            $table_check = $wpdb->get_var($wpdb->prepare(
+            $table_check = $this->db_helper->get_var($wpdb->prepare(
                 "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = %s AND table_name = %s",
                 DB_NAME,
                 $audit_table
@@ -2925,21 +2975,17 @@ class AuditLogEndpoint extends WP_REST_Controller
             ];
 
             if ($table_check === '1') {
-            // Get basic stats
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for diagnostic purposes
-            $total_logs = $wpdb->get_var("SELECT COUNT(*) FROM {$audit_table}");
-            $recent_logs = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$audit_table} WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)"
-            ));
-            $completion_logs = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$audit_table} WHERE event_type LIKE %s",
-                '%completion%'
-            ));
-            $debug_logs = $wpdb->get_var($wpdb->prepare(
-                "SELECT COUNT(*) FROM {$audit_table} WHERE status = %s OR event_type LIKE %s",
-                'debug', 'debug_%'
-            ));
+            // Get basic stats using DatabaseHelper with proper validation
+            $audit_table = $wpdb->prefix . 'odcm_audit_log';
+            if (!DatabaseHelper::validate_table_name($audit_table)) {
+                throw new \Exception('Invalid table name provided');
+            }
+            $audit_table = esc_sql($audit_table);
+
+            $total_logs = $this->db_helper->safe_count($audit_table);
+            $recent_logs = $this->db_helper->safe_count($audit_table, "WHERE timestamp > DATE_SUB(NOW(), INTERVAL 7 DAY)");
+            $completion_logs = $this->db_helper->safe_count($audit_table, "WHERE event_type LIKE %s", ['%completion%']);
+            $debug_logs = $this->db_helper->safe_count($audit_table, "WHERE status = %s OR event_type LIKE %s", ['debug', 'debug_%']);
 
                 $diagnostics['log_stats'] = [
                     'total_logs' => (int) $total_logs,
@@ -2948,24 +2994,23 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'debug_logs' => (int) $debug_logs,
                 ];
 
-                // Get recent log samples
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-                // Direct query is needed for diagnostic purposes
-                $sample_logs = $wpdb->get_results($wpdb->prepare(
+                // Get recent log samples using DatabaseHelper with proper validation
+                $sample_logs = $this->db_helper->get_results(
                     "SELECT id, timestamp, status, event_type, summary, order_id
                     FROM {$audit_table}
                     ORDER BY timestamp DESC
                     LIMIT %d",
-                    10
-                ), ARRAY_A);
+                    [10],
+                    ARRAY_A
+                );
 
                 $diagnostics['sample_logs'] = $sample_logs ?: [];
 
                 // Check for filtering issues
-                $filter_test = $this->build_filter_where_clauses(new \WP_REST_Request());
+                list($conditions, $params) = $this->build_query_conditions(new \WP_REST_Request());
                 $diagnostics['filter_test'] = [
-                    'default_where_clauses' => $filter_test,
-                    'filters_count' => count($filter_test),
+                    'default_where_clauses' => $conditions,
+                    'filters_count' => count($conditions),
                 ];
             }
 
@@ -3007,7 +3052,7 @@ class AuditLogEndpoint extends WP_REST_Controller
      * Get raw timeline data for diagnostic purposes
      * This endpoint is only available in debug mode and returns the raw timeline data
      * without rendering, which helps diagnose rendering issues
-     * 
+     *
      * @param WP_REST_Request $request The REST request
      * @return WP_REST_Response Raw timeline data
      */
@@ -3016,18 +3061,18 @@ class AuditLogEndpoint extends WP_REST_Controller
         try {
             // Get the log ID from the request
             $log_id = (int)$request->get_param('log_id');
-            
+
             // Create immutable request object
             $timelineRequest = new TimelineRequest($log_id, true); // Include debug components
-            
+
             // Ensure services are initialized
             if (!$this->timelineBuilder) {
                 $this->timelineBuilder = new DatabaseTimelineBuilder(new ProcessLoggerComponentExtractor());
             }
-            
+
             // Get the raw timeline data
             $timelineData = $this->timelineBuilder->buildTimeline($timelineRequest);
-            
+
             // Check component data for potential issues
             $componentDiagnostics = [];
             foreach ($timelineData->components as $idx => $component) {
@@ -3040,15 +3085,15 @@ class AuditLogEndpoint extends WP_REST_Controller
                     'ts' => $component['ts'] ?? '-- MISSING --',
                     'has_data' => isset($component['data']),
                     'data_is_array' => isset($component['data']) && is_array($component['data']),
-                    'data_keys' => isset($component['data']) && is_array($component['data']) 
-                        ? array_keys($component['data']) 
+                    'data_keys' => isset($component['data']) && is_array($component['data'])
+                        ? array_keys($component['data'])
                         : [],
                     'data_sample' => isset($component['data']) && is_array($component['data'])
                         ? json_encode(array_slice($component['data'], 0, 3, true))
                         : (isset($component['data']) ? gettype($component['data']) : 'NULL'),
                 ];
             }
-            
+
             // Build the diagnostic response
             $diagnosticData = [
                 'log_id' => $log_id,
@@ -3056,11 +3101,11 @@ class AuditLogEndpoint extends WP_REST_Controller
                 'component_count' => $timelineData->getComponentCount(),
                 'metadata' => $timelineData->metadata,
                 'component_diagnostics' => $componentDiagnostics,
-                'first_component_sample' => !empty($timelineData->components) 
+                'first_component_sample' => !empty($timelineData->components)
                     ? json_encode($timelineData->components[0], JSON_PRETTY_PRINT)
                     : 'No components found',
             ];
-            
+
             // Add raw components if they exist but are limited to avoid huge responses
             if (!empty($timelineData->components)) {
                 if (count($timelineData->components) <= 10) {
@@ -3072,13 +3117,13 @@ class AuditLogEndpoint extends WP_REST_Controller
                     $diagnosticData['raw_components_truncated'] = true;
                 }
             }
-            
+
             return new WP_REST_Response([
                 'diagnostic_data' => $diagnosticData,
                 'timestamp' => current_time('mysql'),
                 'debug_mode' => true,
             ], 200);
-            
+
         } catch (\Throwable $e) {
             // Return detailed error information
             return new WP_REST_Response([
@@ -3091,7 +3136,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             ], 200);
         }
     }
-    
+
     /**
      * Get the highest priority summary from process logs for consolidated entries
      *
@@ -3212,6 +3257,269 @@ class AuditLogEndpoint extends WP_REST_Controller
     }
 
     /**
+     * Apply filters to query based on request parameters
+     * This is a shared filtering method used by both API endpoints and export functionality
+     *
+     * @param WP_REST_Request $request The REST request with filter parameters
+     * @param array &$where_conditions Array to populate with WHERE conditions
+     * @param array &$where_values Array to populate with parameter values for prepared statements
+     * @return void
+     */
+    public static function apply_filters_to_query(WP_REST_Request $request, array &$where_conditions, array &$where_values): void
+    {
+        global $wpdb;
+
+        // Extract and sanitize all filter parameters directly
+        $include_debug_param = $request->get_param('include_debug');
+        $include_test_param = $request->get_param('include_test');
+        $include_debug = ($include_debug_param === null) ? true : (bool) $include_debug_param;
+        $include_test = ($include_test_param === null) ? true : (bool) $include_test_param;
+
+        $order_id = $request->get_param('order_id');
+        $status = $request->get_param('status');
+        $event_type = $request->get_param('event_type');
+        $date_from = $request->get_param('date_from');
+        $date_to = $request->get_param('date_to');
+        $search = $request->get_param('search');
+
+        // Include debug events
+        if (!$include_debug) {
+            $where_conditions[] = "l.event_type NOT LIKE %s";
+            $where_values[] = 'debug_%';
+            $where_conditions[] = "l.status != %s";
+            $where_values[] = 'debug';
+        }
+
+        // Include test events
+        if (!$include_test) {
+            $where_conditions[] = "l.is_test = %d";
+            $where_values[] = 0;
+        }
+
+        // Order ID filter
+        if (!empty($order_id) && is_numeric($order_id)) {
+            $where_conditions[] = "l.order_id = %d";
+            $where_values[] = (int) $order_id;
+        }
+
+        // Status filter
+        if (!empty($status)) {
+            $where_conditions[] = "l.status = %s";
+            $where_values[] = sanitize_key($status);
+        }
+
+        // Event type filter
+        if (!empty($event_type)) {
+            $where_conditions[] = "l.event_type = %s";
+            $where_values[] = $event_type;
+        }
+
+        // Date range filters
+        if (!empty($date_from)) {
+            $where_conditions[] = "l.timestamp >= %s";
+            $where_values[] = sanitize_text_field($date_from);
+        }
+
+        if (!empty($date_to)) {
+            $where_conditions[] = "l.timestamp <= %s";
+            $where_values[] = sanitize_text_field($date_to);
+        }
+
+        // Search filter
+        $search = $request->get_param('search');
+        if (!empty($search)) {
+            // Use trim() instead of sanitize_text_field() to preserve special characters
+            $trimmed_search = trim($search);
+            $is_numeric_search = is_numeric($trimmed_search);
+
+            if ($is_numeric_search) {
+                $search_clauses = ["l.order_id = %d"];
+                $where_values[] = absint($trimmed_search);
+
+                $text_fields = ['l.summary', 'l.event_type', 'l.status', 'l.source'];
+                $text_fields[] = 'p.payload';
+
+                $like_term = '%' . $wpdb->esc_like($trimmed_search) . '%';
+                foreach ($text_fields as $field) {
+                    $search_clauses[] = "$field LIKE %s";
+                    $where_values[] = $like_term;
+                }
+
+                $where_conditions[] = "(" . implode(' OR ', $search_clauses) . ")";
+            } else {
+                $search_term = '%' . $wpdb->esc_like($trimmed_search) . '%';
+
+                $search_fields = [
+                    'l.summary',
+                    'l.event_type',
+                    'l.status',
+                    'l.source',
+                    'l.order_id',
+                ];
+
+                $search_fields[] = 'p.payload';
+
+                $search_clauses = [];
+                foreach ($search_fields as $field) {
+                    $search_clauses[] = "$field LIKE %s";
+                    $where_values[] = $search_term;
+                }
+
+                $where_conditions[] = "(" . implode(' OR ', $search_clauses) . ")";
+            }
+        }
+    }
+
+    /**
+     * Enhanced search method that searches both summary and payload content
+     *
+     * @param WP_REST_Request $request The REST request
+     * @return WP_REST_Response Response with search results
+     */
+    public function search_logs_comprehensive(WP_REST_Request $request): WP_REST_Response
+    {
+        try {
+            global $wpdb;
+            $start_time = microtime(true);
+
+            $search_term = $request->get_param('search');
+            $search_term = trim($search_term);
+
+            if (empty($search_term)) {
+                return new WP_REST_Response([
+                    'logs' => [],
+                    'pagination' => [
+                        'total' => 0,
+                        'total_pages' => 0,
+                        'current_page' => 1,
+                        'per_page' => 20,
+                    ],
+                    'meta' => [
+                        'execution_time' => microtime(true) - $start_time,
+                        'timestamp' => current_time('mysql'),
+                    ],
+                ], 200);
+            }
+
+            // Sanitize and prepare search term
+            $safe_search_term = '%' . $wpdb->esc_like(trim($search_term)) . '%';
+
+            // Get pagination parameters
+            $per_page = $request->get_param('per_page');
+
+            // If per_page is not explicitly provided, try to get from user settings
+            if (!isset($request->get_query_params()['per_page']) && !isset($request->get_body_params()['per_page'])) {
+                $user_id = get_current_user_id();
+                if ($user_id) {
+                    $user_setting = get_user_meta($user_id, 'odcm_logs_per_page', true);
+                    if ($user_setting) {
+                        $per_page = (int) $user_setting;
+                    }
+                }
+            }
+            $per_page = $per_page ?: 20;
+            $page = $request->get_param('page') ?: 1;
+            $per_page = max(1, min(200, (int) $per_page));
+            $page = max(1, (int) $page);
+            $offset = max(0, ($page - 1) * $per_page);
+
+            // Use proper table name escaping
+            $log_table = esc_sql($wpdb->prefix . 'odcm_audit_log');
+            $payload_table = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+
+            // First, search in summaries (fast)
+            $summary_sql = "SELECT l.*, p.payload
+                FROM `{$log_table}` l
+                LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+                WHERE l.summary LIKE %s
+                ORDER BY l.timestamp DESC
+                LIMIT %d OFFSET %d";
+
+            $summary_results = $this->db_helper->get_results($summary_sql, [$safe_search_term, $per_page, $offset], ARRAY_A);
+
+            // If we have enough results from summary search, return them
+            if (count($summary_results) >= $per_page) {
+                $total_sql = "SELECT COUNT(*) FROM `{$log_table}` l WHERE l.summary LIKE %s";
+
+                $total = (int) $this->db_helper->get_var($total_sql, [$safe_search_term]);
+
+                $execution_time = microtime(true) - $start_time;
+
+                return new WP_REST_Response([
+                    'logs' => $this->format_logs_for_api($summary_results, (bool) $request->get_param('include_debug')),
+                    'pagination' => [
+                        'total' => $total,
+                        'total_pages' => max(1, (int) ceil($total / $per_page)),
+                        'current_page' => $page,
+                        'per_page' => $per_page,
+                    ],
+                    'meta' => [
+                        'execution_time' => $execution_time,
+                        'timestamp' => current_time('mysql'),
+                        'search_method' => 'summary_only',
+                    ],
+                ], 200);
+            }
+
+            // If we need more results, search in payload content
+            $payload_sql = "SELECT l.*, p.payload
+                FROM `{$log_table}` l
+                LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+                WHERE p.payload LIKE %s
+                AND l.log_id NOT IN (
+                    SELECT log_id
+                    FROM `{$log_table}`
+                    WHERE summary LIKE %s
+                )
+                ORDER BY l.timestamp DESC
+                LIMIT %d";
+
+            $payload_results = $this->db_helper->get_results($payload_sql, [$safe_search_term, $safe_search_term, $per_page - count($summary_results)], ARRAY_A);
+
+            // Combine results
+            $combined_results = array_merge($summary_results, $payload_results);
+
+            // Get total count
+            $total_sql = "SELECT COUNT(DISTINCT l.log_id)
+                FROM `{$log_table}` l
+                LEFT JOIN `{$payload_table}` p ON l.payload_id = p.payload_id
+                WHERE l.summary LIKE %s OR p.payload LIKE %s";
+
+            $total = (int) $this->db_helper->get_var($total_sql, [$safe_search_term, $safe_search_term]);
+
+            $execution_time = microtime(true) - $start_time;
+
+            return new WP_REST_Response([
+                'logs' => $this->format_logs_for_api($combined_results),
+                'pagination' => [
+                    'total' => $total,
+                    'total_pages' => max(1, (int) ceil($total / $per_page)),
+                    'current_page' => $page,
+                    'per_page' => $per_page,
+                ],
+                'meta' => [
+                    'execution_time' => $execution_time,
+                    'timestamp' => current_time('mysql'),
+                    'search_method' => 'comprehensive',
+                    'summary_results' => count($summary_results),
+                    'payload_results' => count($payload_results),
+                ],
+            ], 200);
+
+        } catch (\Throwable $e) {
+            $this->log_api_error('search_logs_comprehensive', $e, [
+                'search_term' => $request->get_param('search'),
+            ]);
+
+            return new WP_Error(
+                'odcm_search_error',
+                __('audit.logs.search.failure', 'order-daemon'),
+                ['status' => 500]
+            );
+        }
+    }
+
+    /**
      * Get filter options for dynamic filters
      */
     public function get_filter_options(WP_REST_Request $request): WP_REST_Response
@@ -3223,9 +3531,8 @@ class AuditLogEndpoint extends WP_REST_Controller
             $start_time = microtime(true);
 
             // Get available statuses
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical filter options
-            $statuses = $wpdb->get_col("
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical filter options.
+            $statuses = $this->db_helper->get_col("
                 SELECT DISTINCT status
                 FROM {$wpdb->prefix}odcm_audit_log
                 WHERE status != ''
@@ -3233,19 +3540,26 @@ class AuditLogEndpoint extends WP_REST_Controller
             ");
 
             // Get available event types
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical filter options
-            $event_types = $wpdb->get_col("
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical filter options.
+            $event_types = $this->db_helper->get_col("
                 SELECT DISTINCT event_type
                 FROM {$wpdb->prefix}odcm_audit_log
                 WHERE event_type != ''
                 ORDER BY event_type
             ");
 
+            // Get available sources
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical filter options.
+            $sources = $this->db_helper->get_col("
+                SELECT DISTINCT source
+                FROM {$wpdb->prefix}odcm_audit_log
+                WHERE source != ''
+                ORDER BY source
+            ");
+
             // Get order IDs with logs
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // Direct query is needed for performance-critical filter options
-            $order_ids = $wpdb->get_col("
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query is needed for performance-critical filter options.
+            $order_ids = $this->db_helper->get_col("
                 SELECT DISTINCT order_id
                 FROM {$wpdb->prefix}odcm_audit_log
                 WHERE order_id IS NOT NULL
@@ -3253,15 +3567,87 @@ class AuditLogEndpoint extends WP_REST_Controller
                 LIMIT 100
             ");
 
+            // Filter out internal-only events from event_types
+            // These are system events that should never be shown to users as they are just noise
+            $internal_only_events = AdapterRegistry::getInternalOnlyEvents();
+            $filtered_event_types = array_filter($event_types, function($event_type) use ($internal_only_events) {
+                return !in_array($event_type, $internal_only_events, true);
+            });
+
+            // Extract nested event types from universal_event_processing payloads
+            // Payment gateway events and other lifecycle events are stored as 'universal_event_processing'
+            // with the actual event type nested in the payload JSON
+            $universal_event_types = [];
+            if (in_array('universal_event_processing', $event_types, true)) {
+                // Get payloads for universal_event_processing events
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Direct query needed to extract nested event types from payloads.
+                $universal_payloads = $this->db_helper->get_results("
+                    SELECT DISTINCT p.payload
+                    FROM {$wpdb->prefix}odcm_audit_log l
+                    JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
+                    WHERE l.event_type = 'universal_event_processing'
+                    AND p.payload IS NOT NULL
+                    LIMIT 1000
+                ");
+
+                // Extract nested event types from payloads
+                foreach ($universal_payloads as $payload_row) {
+                    $payload_data = json_decode($payload_row->payload, true);
+                    if (is_array($payload_data) && isset($payload_data['eventType'])) {
+                        $nested_event_type = $payload_data['eventType'];
+                        if (!empty($nested_event_type) && !in_array($nested_event_type, $internal_only_events, true)) {
+                            $universal_event_types[$nested_event_type] = $nested_event_type;
+                        }
+                    }
+
+                    // Also check components for nested event types (ProcessLogger format)
+                    if (is_array($payload_data) && isset($payload_data['components']) && is_array($payload_data['components'])) {
+                        foreach ($payload_data['components'] as $component) {
+                            if (isset($component['event_type']) && !empty($component['event_type']) &&
+                                !in_array($component['event_type'], $internal_only_events, true)) {
+                                $universal_event_types[$component['event_type']] = $component['event_type'];
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Merge universal event types with regular event types
+            $all_event_types = array_merge($filtered_event_types, $universal_event_types);
+
+            // Remove duplicates and sort alphabetically
+            $all_event_types = array_unique($all_event_types);
+            sort($all_event_types);
+
+            // Format response with proper structure for JavaScript dropdowns
+            // Convert simple arrays to arrays of objects with label and value properties
+            $format_options = function($items) {
+                $formatted = [];
+                foreach ($items as $item) {
+                    if (!empty($item)) {
+                        $formatted[] = [
+                            'value' => $item,
+                            'label' => $item
+                        ];
+                    }
+                }
+                return $formatted;
+            };
+
             // Format response
             $response_data = [
-                'statuses' => array_values(array_filter($statuses)),
-                'event_types' => array_values(array_filter($event_types)),
+                'filter_options' => [
+                    'statuses' => $format_options(array_filter($statuses)),
+                    'event_types' => $format_options(array_filter($all_event_types)),
+                    'sources' => $format_options(array_filter($sources))
+                ],
                 'order_ids' => array_map('intval', array_filter($order_ids)),
                 'meta' => [
                     'execution_time' => microtime(true) - $start_time,
                     'timestamp' => current_time('mysql'),
                     'max_results' => 100,
+                    'filtered_internal_events' => $internal_only_events,
+                    'universal_event_types_found' => count($universal_event_types),
                 ],
             ];
 

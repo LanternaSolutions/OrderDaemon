@@ -8,7 +8,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 use OrderDaemon\CompletionManager\Core\RuleComponents\RuleComponentRegistry;
 use OrderDaemon\CompletionManager\Core\RuleComponents\RuleIndexBuilder;
-use OrderDaemon\CompletionManager\Includes\DependencyChecker;
 
 /**
  * Rule Builder for the Order Daemon Completion Manager
@@ -151,9 +150,9 @@ final class RuleBuilder
                     do_action('odcm_log_error', 'Rule Builder: ' . $message);
                     // If action isn't handled, write to WordPress debug.log if available
                     if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-                        // Write to debug.log file using WordPress constants
-                        $debug_file = WP_CONTENT_DIR . '/debug.log';
-                        @file_put_contents(
+                        // Write to debug.log file using safe file operation
+                        $debug_file = odcm_get_safe_debug_file_path();
+                        odcm_safe_file_put_contents(
                             $debug_file,
                             '[' . gmdate('Y-m-d H:i:s') . '] ODCM Rule Builder: ' . $message . PHP_EOL,
                             FILE_APPEND
@@ -279,12 +278,12 @@ final class RuleBuilder
 
         // Configure wp.apiFetch with proper nonce and root URL (still needed for saving)
         $rest_nonce = wp_create_nonce('wp_rest');
-        wp_add_inline_script('wp-api-fetch', sprintf(
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::add_inline_script('wp-api-fetch', sprintf(
             'wp.apiFetch.use( wp.apiFetch.createNonceMiddleware( %s ) );',
             wp_json_encode($rest_nonce)
         ), 'after');
 
-        wp_add_inline_script('wp-api-fetch', sprintf(
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::add_inline_script('wp-api-fetch', sprintf(
             'wp.apiFetch.use( wp.apiFetch.createRootURLMiddleware( %s ) );',
             wp_json_encode(esc_url_raw(rest_url()))
         ), 'after');
@@ -317,15 +316,8 @@ final class RuleBuilder
                 'summary' => rest_url('odcm/v1/rule-builder/summary'),
             ],
             
-            'uiCapabilities' => [
-                'canSelectMultipleProductCategories' => function_exists('odcm_can_use') && odcm_can_use('condition_multi_category'),
-                // In core (free) plugin, premium components are educational-only; keep disabled in UI
-                'canAccessPremiumComponents' => false,
-            ],
             // Debug info
             'debug' => [
-                'condition_multi_category' => function_exists('odcm_can_use') ? odcm_can_use('condition_multi_category') : false,
-                'premium_features' => function_exists('odcm_can_use') ? odcm_can_use('premium_features') : false,
                 'php_version' => PHP_VERSION
             ],
             'i18n' => [
@@ -347,6 +339,9 @@ final class RuleBuilder
 
         // Pass complete, ready-to-use data to frontend (no API calls needed)
         wp_localize_script('odcm-rule-builder', 'odcmRuleBuilderConfig', $config);
+
+        // Add inline CSS for Alpine.js x-cloak functionality using WordPress standards
+        \OrderDaemon\CompletionManager\Includes\AssetHelper::add_inline_style('odcm-rule-builder', '[x-cloak] { display: none !important; }');
     }
 
     /**
@@ -373,6 +368,16 @@ final class RuleBuilder
         }
 
         $rule_data = json_decode($rule_data_json, true);
+
+        // Normalize: PHP's json_decode(true) cannot distinguish an empty JSON object {}
+        // from an empty JSON array [], so both decode to [].  When re-encoded for the
+        // frontend via wp_localize_script / wp_json_encode, an empty PHP array becomes
+        // the JSON array [] rather than the object {}.  Alpine.js then initialises
+        // rule.conditions[n].settings as a JavaScript Array, and JSON.stringify silently
+        // drops any string-keyed properties written to it — so every updateSetting call
+        // is a no-op for serialisation purposes.  Casting empty arrays to stdClass here
+        // ensures they re-encode as {} and Alpine gets a plain JS object.
+        $rule_data = $this->normalize_empty_settings($rule_data);
         
         // Migration: Convert old structure to new structure
         if (isset($rule_data['action']) && !isset($rule_data['primaryAction'])) {
@@ -447,28 +452,22 @@ final class RuleBuilder
     private function format_components(array $components, array $rule_data): array
     {
         $formatted = [];
-        
+
         foreach ($components as $component) {
-            $can_use = function_exists('odcm_can_use') && odcm_can_use($component->get_capability());
+            $can_use = true;
             $already_in_rule = $this->is_component_in_current_rule($component->get_id(), $rule_data);
-            
-            // Determine component state
+
+            // All components default to available
             $component_state = 'available';
-            if (!$can_use && $already_in_rule) {
-                $component_state = 'already_selected_unavailable';
-            } elseif (!$can_use) {
-                $component_state = 'unavailable';
-            }
-            
+
             // Always include schema so settings can render in UI; capability is enforced at runtime
             $schema = $component->get_settings_schema();
-            
+
             $formatted[] = [
                 'id'          => $component->get_id(),
                 'label'       => $component->get_label(),
                 'description' => $component->get_description(),
                 'schema'      => $schema,
-                'capability'  => $component->get_capability(),
                 'accessible'  => $can_use,
                 'state'       => $component_state,
                 'already_in_rule' => $already_in_rule,
@@ -476,18 +475,15 @@ final class RuleBuilder
                 'priority'    => method_exists($component, 'get_priority') ? $component->get_priority() : 999,
             ];
         }
-        
-        // Sort by accessibility and priority
+
+        // Sort by priority only
         usort($formatted, function($a, $b) {
-            if ($a['accessible'] !== $b['accessible']) {
-                return $b['accessible'] - $a['accessible'];
-            }
             if ($a['priority'] !== $b['priority']) {
                 return $a['priority'] - $b['priority'];
             }
             return strcmp($a['label'], $b['label']);
         });
-        
+
         return $formatted;
     }
 
@@ -550,7 +546,8 @@ final class RuleBuilder
                 $current_settings = [];
                 // If this trigger is currently selected, use its settings
                 if ($rule_data['trigger'] && $rule_data['trigger']['id'] === $trigger_component['id']) {
-                    $current_settings = $rule_data['trigger']['settings'] ?? [];
+                    // Cast to array: normalize_empty_settings() may have converted {} to stdClass
+                    $current_settings = (array)($rule_data['trigger']['settings'] ?? []);
                 }
                 
                 $prepared['trigger_0_' . $trigger_component['id']] = $this->prepare_component_fields(
@@ -581,7 +578,7 @@ final class RuleBuilder
                 if ($condition_component && $condition_component['schema']) {
                     $prepared["condition_{$index}"] = $this->prepare_component_fields(
                         $condition_component['schema'],
-                        $condition['settings'] ?? [],
+                        (array)($condition['settings'] ?? []),
                         'condition',
                         $index
                     );
@@ -595,7 +592,8 @@ final class RuleBuilder
                 $current_settings = [];
                 // If this action is currently selected, use its settings
                 if ($rule_data['primaryAction'] && $rule_data['primaryAction']['id'] === $action_component['id']) {
-                    $current_settings = $rule_data['primaryAction']['settings'] ?? [];
+                    // Cast to array: normalize_empty_settings() may have converted {} to stdClass
+                    $current_settings = (array)($rule_data['primaryAction']['settings'] ?? []);
                 }
                 
                 $prepared['primaryAction_' . $action_component['id']] = $this->prepare_component_fields(
@@ -626,7 +624,7 @@ final class RuleBuilder
                 if ($action_component && $action_component['schema']) {
                     $prepared["action_{$index}"] = $this->prepare_component_fields(
                         $action_component['schema'],
-                        $action['settings'] ?? [],
+                        (array)($action['settings'] ?? []),
                         'action',
                         $index
                     );
@@ -635,6 +633,57 @@ final class RuleBuilder
         }
         
         return $prepared;
+    }
+
+    /**
+     * Normalises settings values after json_decode(, true) to ensure they
+     * re-encode as JSON objects ({}) rather than JSON arrays ([]).
+     *
+     * PHP's json_decode with the assoc flag cannot distinguish an empty JSON
+     * object {} from an empty JSON array [], so both become an empty PHP
+     * array [].  When wp_json_encode (or json_encode) later re-encodes that
+     * empty array it produces the JSON array [], not the object {}.  Alpine.js
+     * receives [] and initialises rule.*.settings as a JavaScript Array; assigning
+     * string-keyed properties to a JS Array works at runtime but JSON.stringify
+     * silently drops those properties, so every updateSetting write is lost.
+     *
+     * Casting the empty array to stdClass forces json_encode to output {} which
+     * Alpine correctly maps to a plain JavaScript object.
+     *
+     * @param array $rule_data The decoded rule data.
+     * @return array The rule data with empty settings normalised.
+     */
+    private function normalize_empty_settings(array $rule_data): array
+    {
+        // Trigger settings
+        if (isset($rule_data['trigger']['settings']) && $rule_data['trigger']['settings'] === []) {
+            $rule_data['trigger']['settings'] = new \stdClass();
+        }
+
+        // Condition settings
+        if (isset($rule_data['conditions']) && is_array($rule_data['conditions'])) {
+            foreach ($rule_data['conditions'] as $i => $condition) {
+                if (isset($condition['settings']) && $condition['settings'] === []) {
+                    $rule_data['conditions'][$i]['settings'] = new \stdClass();
+                }
+            }
+        }
+
+        // Primary action settings
+        if (isset($rule_data['primaryAction']['settings']) && $rule_data['primaryAction']['settings'] === []) {
+            $rule_data['primaryAction']['settings'] = new \stdClass();
+        }
+
+        // Secondary action settings
+        if (isset($rule_data['secondaryActions']) && is_array($rule_data['secondaryActions'])) {
+            foreach ($rule_data['secondaryActions'] as $i => $action) {
+                if (isset($action['settings']) && $action['settings'] === []) {
+                    $rule_data['secondaryActions'][$i]['settings'] = new \stdClass();
+                }
+            }
+        }
+
+        return $rule_data;
     }
 
     /**
@@ -698,9 +747,6 @@ final class RuleBuilder
                 $enum_options = $property['enum'];
             }
             
-            // Get premium options
-            $premium_options = $property['ui:premium_options'] ?? [];
-            
             $fields[$key] = [
                 'id' => $field_id,
                 'key' => $key,
@@ -710,15 +756,16 @@ final class RuleBuilder
                 'value' => $current_value !== null ? $current_value : $default_value,
                 'enumOptions' => $enum_options,
                 'selectedValues' => $selected_values,
-                'premiumOptions' => $premium_options,
-                'placeholder' => $property['ui:placeholder'] ?? 'Search options...',
+                'placeholder' => $property['ui:placeholder'] ?? '',
                 // Numeric attributes for number/integer inputs
                 'minimum' => isset($property['minimum']) ? $property['minimum'] : null,
                 'maximum' => isset($property['maximum']) ? $property['maximum'] : null,
                 'step' => isset($property['step']) ? $property['step'] : (($property['type'] ?? '') === 'integer' ? 1 : null),
                 'default' => $default_value,
                 // Radio-with-inline-number patterns mapping
-                'radioInputs' => $property['ui:radio_inputs'] ?? []
+                'radioInputs' => $property['ui:radio_inputs'] ?? [],
+                // Inline grouping for horizontal layout
+                'inlineGroup' => $property['ui:inline_group'] ?? null
             ];
         }
         
@@ -896,7 +943,7 @@ final class RuleBuilder
                                                 <template x-if="field.enumOptions && Object.keys(field.enumOptions).length > 0">
                                                     <div class="odcm-searchable-checkboxes" 
                                                          x-data="searchableWidget(field.id)" 
-                                                         x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.premiumOptions, field.key))">
+                                                         x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.key))">
                                                     <div class="odcm-search-header">
                                                         <input type="text" 
                                                                :id="field.id + '_search'"
@@ -923,7 +970,6 @@ final class RuleBuilder
                                                                            @change="handleCheckboxChange(field.key, option.value, $event.target.checked, 'trigger', 0)">
                                                                     <div class="odcm-checkbox-content">
                                                                         <span class="odcm-checkbox-text" x-text="option.label"></span>
-                                                                        <span x-show="premiumOptions.includes(option.value)" class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
                                                                     </div>
                                                                 </label>
                                                             </template>
@@ -1029,18 +1075,18 @@ final class RuleBuilder
                                                 <textarea :id="field.id"
                                                           class="odcm-form-textarea"
                                                           rows="6"
-                                                          :placeholder="field.description || ''"
+                                                          :placeholder="field.placeholder || ''"
                                                           :value="field.value"
                                                           @input="updateSetting(field.key, $event.target.value, 'trigger', 0)"></textarea>
                                             </template>
                                             
                                             <!-- Other field types -->
                                             <template x-if="field.widget === 'text'">
-                                                <input type="text" 
+                                                <input type="text"
                                                        :id="field.id"
                                                        class="odcm-form-input"
                                                        :value="field.value"
-                                                       :placeholder="field.description || ''"
+                                                       :placeholder="field.placeholder || ''"
                                                        @input="updateSetting(field.key, $event.target.value, 'trigger', 0)">
                                             </template>
                                             
@@ -1080,15 +1126,11 @@ final class RuleBuilder
                             <template x-for="trigger in filteredTriggers" :key="trigger.id">
                                 <button type="button" 
                                         @click="selectComponent('trigger', trigger.id)" 
-                                        class="odcm-selector-option"
-                                        :class="{ 'odcm-premium-option': shouldShowPremiumBadge(trigger) }">
+                                        class="odcm-selector-option">
                                     <div class="odcm-option-content">
                                         <div class="odcm-option-title" x-text="trigger.label"></div>
                                         <div class="odcm-option-description" x-text="trigger.description"></div>
                                     </div>
-                                    <span x-show="shouldShowPremiumBadge(trigger)"
-                                    class="odcm-premium-badge odcm-premium-badge--inline"
-                                    :title="odcmRuleBuilderConfig?.upgrade?.message || ''">PRO</span>
                                 </button>
                             </template>
                         </div>
@@ -1133,9 +1175,50 @@ final class RuleBuilder
                             <div x-show="editingConditionIndex === index" 
                                  class="odcm-settings-panel"
                                  :class="{ 'odcm-expanded': editingConditionIndex === index }">
-                                <div x-data="settingsPanel('condition', index)" x-init="initSettings(getConditionComponent(condition.id)?.schema, condition.settings || {})">
-                                    <template x-for="(field, fieldKey) in fields" :key="fieldKey">
-                                        <div class="odcm-form-group">
+                                <div x-data="{ 
+                                        ...settingsPanel('condition', index),
+                                        activeGroup: (rule.conditions[index]?.settings?.comparison_type || getConditionComponent(condition.id)?.schema?.properties?.comparison_type?.default || 'absolute_date'),
+                                        hasConditionalGroups() {
+                                            return !!getConditionComponent(condition.id)?.schema?.properties?.comparison_type?.['ui:conditional_groups'];
+                                        },
+                                        getConditionalGroupFields() {
+                                            const schema = getConditionComponent(condition.id)?.schema;
+                                            if (!schema?.properties?.comparison_type?.['ui:conditional_groups']) return null;
+                                            return schema.properties.comparison_type['ui:conditional_groups'][this.activeGroup] || [];
+                                        },
+                                        isFieldInActiveGroup(fieldKey) {
+                                            if (!this.hasConditionalGroups()) return true;
+                                            const schema = getConditionComponent(condition.id)?.schema;
+                                            const conditionalGroups = schema?.properties?.comparison_type?.['ui:conditional_groups'];
+                                            if (!conditionalGroups) return true;
+                                            // comparison_type is always visible (it's the controller)
+                                            if (fieldKey === 'comparison_type') return true;
+                                            // Check if field is in any conditional group
+                                            const allConditionalFields = Object.values(conditionalGroups).flat();
+                                            if (!allConditionalFields.includes(fieldKey)) return true;
+                                            // Check if field is in the active group
+                                            const activeFields = conditionalGroups[this.activeGroup] || [];
+                                            return activeFields.includes(fieldKey);
+                                        }
+                                     }" 
+                                     x-init="$nextTick(() => {
+                                        const doInit = () => {
+                                            const comp = getConditionComponent(condition.id);
+                                            const schema = comp?.schema;
+                                            const settings = rule.conditions[index]?.settings || {};
+                                            initSettings(schema, settings);
+                                            const ct = settings.comparison_type ?? comp?.schema?.properties?.comparison_type?.default;
+                                            if (ct) activeGroup = ct;
+                                        };
+                                        doInit();
+                                        $watch(() => editingConditionIndex, (v) => { if (v === index) doInit(); });
+                                        $watch(() => rule.conditions[index]?.settings?.comparison_type, (val) => { if (val) activeGroup = val; });
+                                     })">
+                                    <div class="odcm-settings-form">
+                                        <template x-for="(field, fieldKey) in fields" :key="fieldKey">
+                                            <div class="odcm-form-group" 
+                                             x-show="isFieldInActiveGroup(fieldKey)"
+                                             :class="field.inlineGroup ? 'odcm-inline-group odcm-inline-group--' + field.inlineGroup : ''">
                                             <!-- Field Label -->
                                             <label x-show="field.title" :for="field.id" class="odcm-form-label" x-text="field.title"></label>
                                             
@@ -1147,7 +1230,7 @@ final class RuleBuilder
                                                 <template x-if="field.enumOptions && Object.keys(field.enumOptions).length > 0">
                                                     <div class="odcm-searchable-checkboxes" 
                                                          x-data="searchableWidget(field.id)" 
-                                                         x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.premiumOptions, field.key))">
+                                                         x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.key))">
                                                     <div class="odcm-search-header">
                                                         <input type="text" 
                                                                :id="field.id + '_search'"
@@ -1173,9 +1256,8 @@ final class RuleBuilder
                                                                            :disabled="shouldDisableOption(option.value)"
                                                                            @change="handleCheckboxChange(field.key, option.value, $event.target.checked, 'condition', index)">
                                                                     <div class="odcm-checkbox-content">
-                                                                        <span class="odcm-checkbox-text" x-text="option.label"></span>
-                                                                        <span x-show="premiumOptions.includes(option.value)" class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
-                                                                    </div>
+                                                                    <span class="odcm-checkbox-text" x-text="option.label"></span>
+                                                                </div>
                                                                 </label>
                                                             </template>
                                                             <div x-show="filteredOptions.length === 0" class="odcm-no-results">
@@ -1240,7 +1322,7 @@ final class RuleBuilder
                                                                    :name="field.id"
                                                                    :value="val"
                                                                    :checked="(rule.conditions[index]?.settings[field.key] ?? field.value) === val"
-                                                                   @change="updateSetting(field.key, $event.target.value, 'condition', index)">
+                                                                   @change="updateSetting(field.key, $event.target.value, 'condition', index); if (fieldKey === 'comparison_type') activeGroup = $event.target.value">
                                                             <span class="odcm-radio-text" x-text="label"></span>
                                                             <!-- Inline numeric input when radioInputs mapping exists -->
                                                             <template x-if="field.radioInputs && field.radioInputs[val]">
@@ -1266,7 +1348,7 @@ final class RuleBuilder
                                                                 class="odcm-radio-button"
                                                                 :class="{ 'is-active': (rule.conditions[index]?.settings[field.key] ?? field.value) === val }"
                                                                 :aria-pressed="String((rule.conditions[index]?.settings[field.key] ?? field.value) === val)"
-                                                                @click="updateSetting(field.key, val, 'condition', index)"
+                                                                @click="updateRadioSetting(field.key, val, 'condition', index)"
                                                                 x-text="label">
                                                         </button>
                                                     </template>
@@ -1278,18 +1360,48 @@ final class RuleBuilder
                                                 <textarea :id="field.id"
                                                           class="odcm-form-textarea"
                                                           rows="6"
-                                                          :placeholder="field.description || ''"
+                                                          :placeholder="field.placeholder || ''"
                                                           :value="field.value"
                                                           @input="updateSetting(field.key, $event.target.value, 'condition', index)"></textarea>
                                             </template>
 
+                                            <!-- Date picker widget -->
+                                            <template x-if="field.widget === 'date_picker'">
+                                                <input type="date"
+                                                       :id="field.id"
+                                                       class="odcm-form-input odcm-date-picker"
+                                                       :value="field.value"
+                                                       @input="updateSetting(field.key, $event.target.value, 'condition', index)">
+                                            </template>
+
+                                            <!-- Time picker widget -->
+                                            <template x-if="field.widget === 'time_picker'">
+                                                <input type="time"
+                                                       :id="field.id"
+                                                       class="odcm-form-input odcm-time-picker"
+                                                       :value="field.value"
+                                                       @input="updateSetting(field.key, $event.target.value, 'condition', index)">
+                                            </template>
+
+                                            <!-- Number input widget -->
+                                            <template x-if="field.widget === 'number'">
+                                                <input type="number"
+                                                       :id="field.id"
+                                                       class="odcm-form-input odcm-number-input"
+                                                       :value="field.value"
+                                                       :min="field.minimum"
+                                                       :max="field.maximum"
+                                                       :step="field.step"
+                                                       @input="updateSetting(field.key, $event.target.value, 'condition', index)">
+                                            </template>
+
                                             <!-- Other field types -->
                                             <template x-if="field.widget === 'text'">
-                                                <input type="text" 
+                                                <input type="text"
                                                        :id="field.id"
                                                        class="odcm-form-input"
                                                        :value="field.value"
-                                                       :placeholder="field.description || ''"
+                                                       :placeholder="field.placeholder || ''"
                                                        @input="updateSetting(field.key, $event.target.value, 'condition', index)">
                                             </template>
                                             
@@ -1304,6 +1416,7 @@ final class RuleBuilder
                                             </template>
                                         </div>
                                     </template>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1332,15 +1445,11 @@ final class RuleBuilder
                             <template x-for="condition in filteredConditions" :key="condition.id">
                                 <button type="button" 
                                         @click="selectComponent('condition', condition.id)" 
-                                        class="odcm-selector-option"
-                                        :class="{ 'odcm-premium-option': shouldShowPremiumBadge(condition) }">
+                                        class="odcm-selector-option">
                                     <div class="odcm-option-content">
                                         <div class="odcm-option-title" x-text="condition.label"></div>
                                         <div class="odcm-option-description" x-text="condition.description"></div>
                                     </div>
-                                    <span x-show="shouldShowPremiumBadge(condition)"
-                                    class="odcm-premium-badge odcm-premium-badge--inline"
-                                    :title="odcmRuleBuilderConfig?.upgrade?.message || ''">PRO</span>
                                 </button>
                             </template>
                         </div>
@@ -1404,7 +1513,7 @@ final class RuleBuilder
                                             <template x-if="field.enumOptions && Object.keys(field.enumOptions).length > 0">
                                                 <div class="odcm-searchable-checkboxes" 
                                                      x-data="searchableWidget(field.id)" 
-                                                     x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.premiumOptions, field.key))">
+                                                     x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.key))">
                                                 <div class="odcm-search-header">
                                                     <input type="text" 
                                                            :id="field.id + '_search'"
@@ -1431,7 +1540,6 @@ final class RuleBuilder
                                                                        @change="handleCheckboxChange(field.key, option.value, $event.target.checked, 'primaryAction', null)">
                                                                 <div class="odcm-checkbox-content">
                                                                     <span class="odcm-checkbox-text" x-text="option.label"></span>
-                                                                    <span x-show="premiumOptions.includes(option.value)" class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
                                                                 </div>
                                                             </label>
                                                         </template>
@@ -1463,15 +1571,15 @@ final class RuleBuilder
                                             </template>
                                         </template>
                                         
-                                        <!-- Other field types -->
-                                        <template x-if="field.widget === 'text'">
-                                            <input type="text" 
-                                                   :id="field.id"
-                                                   class="odcm-form-input"
-                                                   :value="field.value"
-                                                   :placeholder="field.description || ''"
-                                                   @input="updateSetting(field.key, $event.target.value, 'primaryAction', null)">
-                                        </template>
+                                            <!-- Other field types -->
+                                            <template x-if="field.widget === 'text'">
+                                                <input type="text"
+                                                       :id="field.id"
+                                                       class="odcm-form-input"
+                                                       :value="field.value"
+                                                       :placeholder="field.placeholder || ''"
+                                                       @input="updateSetting(field.key, $event.target.value, 'primaryAction', null)">
+                                            </template>
                                         
                                         <template x-if="field.widget === 'checkbox'">
                                             <label class="odcm-checkbox-label">
@@ -1500,17 +1608,14 @@ final class RuleBuilder
                             </div>
                             <div class="odcm-selector-list">
                                 <template x-for="action in filteredPrimaryActions" :key="action.id">
-                                    <button type="button" 
-                                            @click="selectComponent('primaryAction', action.id)" 
-                                            class="odcm-selector-option"
-                                            :class="{ 'odcm-premium-option': shouldShowPremiumBadge(action) }">
-                                        <div class="odcm-option-content">
-                                            <div class="odcm-option-title" x-text="action.label"></div>
-                                            <div class="odcm-option-description" x-text="action.description"></div>
-                                        </div>
-                                        <span x-show="shouldShowPremiumBadge(action)" 
-                                              class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
-                                    </button>
+                                <button type="button" 
+                                        @click="selectComponent('primaryAction', action.id)" 
+                                        class="odcm-selector-option">
+                                    <div class="odcm-option-content">
+                                        <div class="odcm-option-title" x-text="action.label"></div>
+                                        <div class="odcm-option-description" x-text="action.description"></div>
+                                    </div>
+                                </button>
                                 </template>
                             </div>
                         </div>
@@ -1562,7 +1667,7 @@ final class RuleBuilder
                                                     <template x-if="field.enumOptions && Object.keys(field.enumOptions).length > 0">
                                                         <div class="odcm-searchable-checkboxes" 
                                                              x-data="searchableWidget(field.id)" 
-                                                             x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.premiumOptions, field.key))">
+                                                             x-init="$nextTick(() => init(field.enumOptions, field.selectedValues, field.key))">
                                                         <div class="odcm-search-header">
                                                             <input type="text" 
                                                                    :id="field.id + '_search'"
@@ -1588,9 +1693,8 @@ final class RuleBuilder
                                                                                :disabled="shouldDisableOption(option.value)"
                                                                                @change="handleCheckboxChange(field.key, option.value, $event.target.checked, 'action', index)">
                                                                         <div class="odcm-checkbox-content">
-                                                                            <span class="odcm-checkbox-text" x-text="option.label"></span>
-                                                                            <span x-show="premiumOptions.includes(option.value)" class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
-                                                                        </div>
+                                                                    <span class="odcm-checkbox-text" x-text="option.label"></span>
+                                                                </div>
                                                                     </label>
                                                                 </template>
                                                                 <div x-show="filteredOptions.length === 0" class="odcm-no-results">
@@ -1667,7 +1771,7 @@ final class RuleBuilder
                                                            :id="field.id"
                                                            class="odcm-form-input"
                                                            :value="field.value"
-                                                           :placeholder="field.description || ''"
+                                                           :placeholder="field.placeholder || ''"
                                                            @input="updateSetting(field.key, $event.target.value, 'action', index)">
                                                 </template>
 
@@ -1675,7 +1779,7 @@ final class RuleBuilder
                                                     <textarea :id="field.id"
                                                            class="odcm-form-textarea"
                                                            rows="4"
-                                                           :placeholder="field.description || ''"
+                                                           :placeholder="field.placeholder || ''"
                                                            :value="field.value"
                                                            @input="updateSetting(field.key, $event.target.value, 'action', index)"></textarea>
                                                 </template>
@@ -1721,14 +1825,11 @@ final class RuleBuilder
                                 <template x-for="action in filteredSecondaryActions" :key="action.id">
                                     <button type="button" 
                                             @click="selectComponent('action', action.id)" 
-                                            class="odcm-selector-option"
-                                            :class="{ 'odcm-premium-option': shouldShowPremiumBadge(action) }">
+                                            class="odcm-selector-option">
                                         <div class="odcm-option-content">
                                             <div class="odcm-option-title" x-text="action.label"></div>
                                             <div class="odcm-option-description" x-text="action.description"></div>
                                         </div>
-                                        <span x-show="shouldShowPremiumBadge(action)" 
-                                              class="odcm-premium-badge odcm-premium-badge--inline">PRO</span>
                                     </button>
                                 </template>
                             </div>
@@ -1738,9 +1839,6 @@ final class RuleBuilder
             </div>
         </div>
 
-        <style>
-        [x-cloak] { display: none !important; }
-        </style>
         <?php
     }
 }

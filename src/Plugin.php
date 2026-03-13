@@ -176,8 +176,6 @@ final class Plugin {
 		// Load audit log filter registrations
 		require_once ODCM_PLUGIN_DIR . 'src/Core/audit-filters.php';
 		
-		// Load payload component registry for composite rendering
-		require_once ODCM_PLUGIN_DIR . 'src/Core/PayloadComponentRegistry.php';
 	}
 
 	/**
@@ -196,38 +194,13 @@ final class Plugin {
 		// Initialize Manual Status Tracker for chain of custody logging
 		ManualStatusTracker::init();
 
-		// Initialize Premium Component Fallback System (v2.2.1+)
-		$this->initialize_premium_fallback_system();
-
-        // Initialize Security Guard System (v2.1.1+)
+        // Initialize Security Guard System
         $this->initialize_security_system();
+
+        // Initialize Unknown Component Fallback for neutral handling of missing components
+        $this->initialize_unknown_component_fallback();
 	}
 
-	/**
-	 * Initialize the premium component fallback system.
-	 *
-	 * This method sets up the fallback system that handles scenarios where
-	 * existing rules reference premium components that are no longer available
-	 * (e.g., when pro plugin is deactivated or components are migrated).
-	 *
-	 * @since 1.1.0
-	 */
-	private function initialize_premium_fallback_system(): void {
-		try {
-			// Check if the fallback class exists
-			if (!class_exists('\OrderDaemon\CompletionManager\Core\PremiumComponentFallback')) {
-				return;
-			}
-
-			// Initialize the fallback system
-			\OrderDaemon\CompletionManager\Core\PremiumComponentFallback::init();
-
-		} catch (\Throwable $e) {
-			// Silently fail fallback system initialization to prevent breaking the plugin
-			// The fallback system is optional and shouldn't break core functionality
-			// Errors are logged to WordPress debug log only when WP_DEBUG is enabled
-		}
-	}
 
     /**
      * Initialize the security guard system.
@@ -319,6 +292,31 @@ final class Plugin {
      */
     public static function get_guard_checker(): ?\OrderDaemon\CompletionManager\Core\Security\GuardChecker {
         return $GLOBALS['odcm_guard_checker'] ?? null;
+    }
+
+    /**
+     * Initialize the unknown component fallback system.
+     *
+     * This method sets up the fallback system for handling unknown components
+     * that may be present in rules when extensions are inactive or removed.
+     *
+     * @since 2.0.0
+     */
+    private function initialize_unknown_component_fallback(): void {
+        try {
+            // Check if the fallback class exists
+            if (!class_exists('\OrderDaemon\CompletionManager\Core\RuleComponent\UnknownComponentFallback')) {
+                // Class not available, skip initialization
+                return;
+            }
+
+            // Initialize the unknown component fallback system
+            \OrderDaemon\CompletionManager\Core\RuleComponent\UnknownComponentFallback::init();
+
+        } catch (\Throwable $e) {
+            // Silently fail fallback system initialization to prevent breaking the plugin
+            // The fallback system is optional and shouldn't break core functionality
+        }
     }
 
 }
