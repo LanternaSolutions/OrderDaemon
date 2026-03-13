@@ -8,8 +8,6 @@ composer.phar
 .DS_Store
 Thumbs.db
 .env
-order-daemon.code-workspace
-order-daemon-side-quests.code-workspace
 
 # EXPLICITLY UN-IGNORE the safe-to-share PHPStorm configuration files
 !/.idea/misc.xml
