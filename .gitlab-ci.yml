@@ -21,6 +21,7 @@ package_artifacts:
       rsync -a --prune-empty-dirs \
         --exclude='.*' \
         --exclude='*/.*' \
+        --exclude='notes/***' \
         --include='*/' \
         --include='README.txt' \
         --include='composer.json' \

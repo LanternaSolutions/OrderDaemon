@@ -11,9 +11,6 @@ Thumbs.db
 order-daemon.code-workspace
 order-daemon-side-quests.code-workspace
 
-# Private Dev Notes
-/notes/
-
 # EXPLICITLY UN-IGNORE the safe-to-share PHPStorm configuration files
 !/.idea/misc.xml
 !/.idea/php.xml
