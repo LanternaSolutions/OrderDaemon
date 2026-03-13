@@ -116,7 +116,7 @@ Set these in GitHub → repo Settings → Secrets and variables → Actions (mar
 |---|---|
 | `WP_SVN_USERNAME` | wordpress.org username |
 | `WP_SVN_PASSWORD` | wordpress.org password |
-| `GITHUB_DEPLOY_KEY` | SSH private key with write access to `LanternaSolutions/OrderDaemon` |
+| `PUBLIC_DEPLOY_KEY` | SSH private key with write access to `LanternaSolutions/OrderDaemon` |
 | `GITLAB_DEPLOY_KEY` | SSH private key with write access to `gitlab.com/YakirLanterna/order-daemon` |
 
 For the deploy keys: generate a dedicated keypair per target repo, add the **private** key as a CI secret, and add the **public** key as a Deploy Key (with write access) in each target repo's settings.
