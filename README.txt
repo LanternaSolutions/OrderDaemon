@@ -1,6 +1,6 @@
 === Order Daemon for WooCommerce ===
 Contributors: orderdaemon
-Tags: woocommerce, automation, order-completion, virtual-products, order-management
+Tags: woocommerce, automation, auto complete, digital products, order management
 Requires at least: 5.6
 Tested up to: 6.9
 Requires PHP: 7.4
@@ -8,91 +8,61 @@ Stable tag: 1.3.23
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Rule-based automation for WooCommerce order completion. Auto-complete orders based on products, payment, and custom conditions.
+Automatically complete WooCommerce orders based on rules you define. Built for digital, virtual, and subscription-based stores.
 
 == Description ==
 
-Stop wasting time manually completing WooCommerce orders. Order Daemon is a lightweight, high-performance utility that ensures your virtual and downloadable orders are completed reliably, every time, without slowing down your site.
+Order Daemon lets you define rules that automatically complete WooCommerce orders when your conditions are met — no manual intervention needed. It is designed for stores selling virtual, downloadable, or digital products where orders don't require physical fulfillment.
 
-**Transform Your Order Management**
+If your store sells software, courses, memberships, or any product that doesn't need packing and shipping, you're probably completing orders manually or relying on a payment gateway integration that may or may not work reliably. Order Daemon gives you explicit, auditable control over when and how orders get completed.
 
-Order Daemon revolutionizes how you handle WooCommerce orders by providing intelligent, rule-based automation that works seamlessly in the background. Whether you're selling digital products, courses, memberships, or any virtual goods, Order Daemon ensures your customers receive their purchases instantly while you focus on growing your business.
+**How it works**
 
-**Key Features**
+You create rules using a visual rule builder. Each rule has:
 
-* **Intelligent Rule Builder** - Create custom automation rules with an intuitive visual interface
-* **Multiple Triggers** - Respond to order processing events, payment confirmations, and more
-* **Flexible Conditions** - Target specific products, categories, order amounts, and customer types
-* **Reliable Actions** - Automatically complete orders, send notifications, and trigger workflows
-* **Real-time Monitoring** - Track all automation activity with comprehensive audit logs
-* **Performance Optimized** - Lightweight architecture that won't slow down your site
-* **Security First** - Built with WordPress security best practices and capability-based access control
-* **Developer Friendly** - Extensible architecture with hooks and filters for customization
+* A **trigger** — the event that starts evaluation (e.g. order moves to Processing)
+* **Conditions** — filters that must all pass (e.g. product type is Virtual, order total > $0)
+* An **action** — what happens when conditions are met (e.g. complete the order)
 
-**Perfect For**
+Rules run automatically in the background. The Insights Dashboard gives you a full audit log of every rule evaluation and order action taken, so you always know exactly what happened and why.
 
-* Digital product stores
-* Course and training platforms
-* Membership sites
-* Software and app downloads
-* Virtual service providers
-* Any business selling non-physical products
-
-**How It Works**
-
-1. **Set Up Rules** - Define when orders should be automatically completed using our visual rule builder
-2. **Choose Triggers** - Select what events should activate your rules (order processing, payment received, etc.)
-3. **Add Conditions** - Specify which orders qualify (product types, categories, amounts, etc.)
-4. **Define Actions** - Set what happens when conditions are met (complete order, send emails, etc.)
-5. **Monitor Results** - Track all automation activity through the comprehensive insights dashboard
-
-**Free Version Includes**
+**Free version includes**
 
 * Unlimited active automation rules
-* Rule creation and management
+* Visual rule builder
 * Order processing trigger
-* Product type and category conditions
+* Product type, product category, and order total conditions
 * Order completion action
-* Audit logging and reporting
-* Diagnostics dashboard
+* Full audit log and Insights Dashboard
+* Built-in diagnostics tools
 
-**Why Choose Order Daemon?**
+**Good for**
 
-Unlike other automation plugins that try to do everything, Order Daemon focuses specifically on order completion automation. This laser focus allows us to deliver:
+* Digital product and software stores
+* Course and membership platforms
+* SaaS and subscription-based businesses
+* Any store where manual order completion is unnecessary overhead
+* Recovering orders stuck in Processing
 
-* **Superior Performance** - Optimized specifically for order processing workflows
-* **Reliability** - Robust error handling and fallback systems ensure orders are never missed
-* **Simplicity** - Clean, intuitive interface that doesn't overwhelm you with unnecessary features
-* **Compatibility** - Works seamlessly with popular payment gateways, themes, and plugins
-* **Support** - Dedicated support team with deep WooCommerce expertise
+**Need more triggers, conditions, and actions?**
+
+[Order Daemon Pro](https://orderdaemon.com/pricing) adds additional rule components, priority support, and advanced automation for high-volume stores.
 
 == Installation ==
 
-**Automatic Installation**
+**Via the WordPress plugin directory**
 
-1. Log in to your WordPress admin dashboard
-2. Navigate to Plugins > Add New
-3. Search for "Order Daemon"
-4. Click "Install Now" and then "Activate"
-5. Go to Order Daemon in your admin menu to set up your first rule
+1. Go to Plugins > Add New in your WordPress admin
+2. Search for "Order Daemon"
+3. Click Install Now, then Activate
+4. Go to Order Daemon in your admin menu to create your first rule
 
-**Manual Installation**
+**Manual installation**
 
 1. Download the plugin zip file
-2. Log in to your WordPress admin dashboard
-3. Navigate to Plugins > Add New > Upload Plugin
-4. Choose the downloaded zip file and click "Install Now"
-5. Click "Activate Plugin"
-6. Go to Order Daemon in your admin menu to set up your first rule
-
-== Uninstallation ==
-
-For complete information about uninstallation, data preservation, and removal
-options, please see the UNINSTALLATION.md file included with the plugin.
-
-**Default Behavior**: All your data (rules, audit logs, settings) is preserved when you uninstall the plugin to prevent accidental data loss.
-
-**Complete Removal**: If you want to completely remove all data, add `define('ODCM_REMOVE_ALL_DATA', true);` to your wp-config.php file before uninstalling.
+2. Go to Plugins > Add New > Upload Plugin
+3. Upload the zip file and activate
+4. Go to Order Daemon in your admin menu to create your first rule
 
 **Requirements**
 
@@ -101,137 +71,91 @@ options, please see the UNINSTALLATION.md file included with the plugin.
 * PHP 7.4 or higher
 * MySQL 5.6 or higher (or MariaDB equivalent)
 
+== Uninstallation ==
+
+When you uninstall the plugin, all data (rules, audit logs, settings) is preserved by default to prevent accidental loss.
+
+To permanently remove all plugin data before uninstalling, add this line to your `wp-config.php`:
+
+`define('ODCM_REMOVE_ALL_DATA', true);`
+
+Then uninstall the plugin normally. All tables and options will be deleted.
+
 == Frequently Asked Questions ==
 
 = Does Order Daemon work with all payment gateways? =
 
-Yes! Order Daemon works with any payment gateway that properly updates WooCommerce order statuses. It monitors standard WooCommerce order status changes, so compatibility is universal.
+Yes. Order Daemon monitors standard WooCommerce order status changes, so it works with any payment gateway that correctly transitions orders through WooCommerce statuses.
 
-= Will this plugin slow down my site? =
+= Will this slow down my site? =
 
-No. Order Daemon is built with performance as a top priority. It uses efficient database queries, minimal resource consumption, and runs automation in the background without affecting your site's front-end performance.
+No. The plugin runs automation during order processing events only, uses optimized database queries, and has no impact on front-end performance.
 
-= Can I create multiple automation rules? =
+= Can I create multiple rules? =
 
-Yes! The free plugin allows you to create unlimited active rules to handle various scenarios.
+Yes. There is no limit on the number of active rules.
 
 = Is it safe to automate order completion? =
 
-Absolutely. Order Daemon includes comprehensive safety measures including audit logging, rollback capabilities, and extensive testing to ensure orders are only completed when appropriate conditions are met.
+Yes. Every rule evaluation and action is logged in the audit log. Orders are only completed when all conditions in a rule are satisfied.
 
-= Does it work with digital/virtual products? =
+= Does it work with physical products? =
 
-Yes! Order Daemon is specifically designed for virtual and downloadable products, though it can be configured to work with any product type based on your automation rules.
-
-= Can I see what the plugin is doing? =
-
-Yes. The Insights Dashboard provides real-time monitoring of all automation activity, including detailed logs of every action taken, performance metrics, and system status.
+It can be configured to. The conditions system lets you target any product type or category, so you can scope rules precisely to the products where auto-completion makes sense.
 
 = Is customer data secure? =
 
-Yes. Order Daemon follows WordPress security best practices, includes capability-based access control, and maintains audit trails of all administrative actions. No customer data is transmitted outside your site.
+Yes. Order Daemon does not transmit any data outside your WordPress installation. All processing and logging happens locally on your server.
 
 = Can developers extend the plugin? =
 
-Yes! Order Daemon includes numerous hooks and filters for developers to extend functionality. The architecture is designed to be developer-friendly with clear documentation and examples.
+Yes. The plugin exposes hooks and filters for customization. See the [documentation](https://orderdaemon.com/docs) for details.
 
 == Screenshots ==
 
-1. **Rule Builder Interface** - Create automation rules with an intuitive drag-and-drop interface
-https://www.orderdaemon.com/wp-content/uploads/2026/01/rule-builder-2.png
-2. **Insights Dashboard** - Monitor audit log automation activity and performance in real-time
-https://www.orderdaemon.com/wp-content/uploads/2026/01/insight-dashboard.png
-3. **Rule Management** - Organize and manage multiple automation rules from a central location
-https://www.orderdaemon.com/wp-content/uploads/2026/01/all-order-rules.png
+1. The rule builder — create automation rules using a visual interface with triggers, conditions, and actions.
+2. The Insights Dashboard — view a full audit log of rule evaluations and order actions in real time.
+3. Rule management — enable, disable, and organize all your automation rules from one screen.
 
 == Third-Party Libraries ==
 
-This plugin proudly uses the following open-source projects:
+This plugin uses the following open-source libraries:
 
-*   **Prism.js** for syntax highlighting. See [https://prismjs.com/](https://prismjs.com/). Licensed under the MIT License.
-*   **Alpine.js** for interactive UI elements. See [https://alpinejs.dev/](https://alpinejs.dev/). Licensed under the MIT License.
-
-== Support ==
-
-**Documentation**
-Comprehensive documentation is available at [https://orderdaemon.com/docs](https://orderdaemon.com/docs)
-
-**Support Forums**
-Get help from our community and support team in the WordPress.org support forums.
-
-**Contributing**
-Order Daemon is open source! Developers can contribute to the project and report issues on our GitHub repository.
+* **Alpine.js** — lightweight JavaScript framework for interactive UI. [alpinejs.dev](https://alpinejs.dev/) — MIT License.
+* **Prism.js** — syntax highlighting for code display. [prismjs.com](https://prismjs.com/) — MIT License.
 
 == External Services ==
 
-This plugin can receive and process webhook notifications from various payment gateways to ensure secure and reliable order processing. It does not initiate outbound connections to these services unless explicitly configured to do so for verification purposes.
+Order Daemon can receive and process webhook notifications from payment gateways. It does not initiate outbound connections unless explicitly verifying a payment notification.
 
-**PayPal API Services**
-- **Service**: PayPal IPN and Webhook Verification
-- **Purpose**: Verify authenticity of PayPal payment notifications to prevent fraud
-- **Data Received/Sent**: Receives transaction details (payment status, transaction ID, amount, currency) via webhook payloads. May send back verification requests to PayPal's servers.
-- **When**: During PayPal payment processing when configured to handle PayPal payments.
-- **Terms of Service**: https://www.paypal.com/legalhub
-- **Privacy Policy**: https://www.paypal.com/privacy
+**PayPal**
+Receives IPN and webhook payloads (payment status, transaction ID, amount) and may send verification requests back to PayPal servers during PayPal payment processing.
+[Terms of Service](https://www.paypal.com/legalhub) | [Privacy Policy](https://www.paypal.com/privacy)
 
-**Stripe Webhooks**
-- **Service**: Stripe Webhook Processing
-- **Purpose**: To identify order-related events sent from Stripe.
-- **Data Received**: Receives webhook payloads containing event details, which may include customer and order information. The plugin does not send data to Stripe.
-- **When**: When your site receives a webhook from Stripe.
-- **Terms of Service**: https://stripe.com/legal/ssa
-- **Privacy Policy**: https://stripe.com/privacy
+**Stripe**
+Receives webhook payloads with event details when your site receives a Stripe webhook. No data is sent to Stripe by this plugin.
+[Terms of Service](https://stripe.com/legal/ssa) | [Privacy Policy](https://stripe.com/privacy)
 
-**Mollie Webhooks**
-- **Service**: Mollie Webhook Processing
-- **Purpose**: To identify order-related events sent from Mollie.
-- **Data Received**: Receives webhook payloads containing event details. The plugin does not send data to Mollie.
-- **When**: When your site receives a webhook from Mollie.
-- **Terms of Service**: https://www.mollie.com/en/user-agreement
-- **Privacy Policy**: https://www.mollie.com/en/privacy
+**Mollie**
+Receives webhook payloads with event details when your site receives a Mollie webhook. No data is sent to Mollie by this plugin.
+[Terms of Service](https://www.mollie.com/en/user-agreement) | [Privacy Policy](https://www.mollie.com/en/privacy)
 
-**Square Webhooks**
-- **Service**: Square Webhook Processing
-- **Purpose**: To identify order-related events sent from Square.
-- **Data Received**: Receives webhook payloads containing event details. The plugin does not send data to Square.
-- **When**: When your site receives a webhook from Square.
-- **Terms of Service**: https://squareup.com/us/en/legal/general/ua
-- **Privacy Policy**: https://squareup.com/us/en/legal/general/privacy-notice
+**Square**
+Receives webhook payloads with event details when your site receives a Square webhook. No data is sent to Square by this plugin.
+[Terms of Service](https://squareup.com/us/en/legal/general/ua) | [Privacy Policy](https://squareup.com/us/en/legal/general/privacy-notice)
 
-**Important Notes About Google Services: Order Daemon Does Not Connect to Them**
-The plugin's diagnostic system mentions Google Tag Manager (https://googletagmanager.com), Google Analytics (https://google-analytics.com), and reCAPTCHA (https://www.google.com/recaptcha/api.js) as examples of common third-party services that might be detected as duplicates. However, Order Daemon does NOT actively connect to or use these Google services. These are only diagnostic reference patterns used to identify potential script conflicts caused by other plugins or themes.
-
-== Debug API Endpoints ==
-
-**Note:** These endpoints are only available when `ODCM_DEBUG` constant is set to `true` in your `wp-config.php`. They are intended for development and troubleshooting purposes only and should generally not be enabled on production sites.
-
-**Available Endpoints:**
-
-1. **Diagnostic Check**
-   - **Endpoint:** `GET /wp-json/odcm/v1/audit-log/diagnostic`
-   - **Purpose:** Verifies API route functionality and provides system diagnostics
-   - **Security:** Public access (debug mode only)
-   - **Response:** System status and configuration information
-
-2. **Raw Timeline Data**
-   - **Endpoint:** `GET /wp-json/odcm/v1/audit-log/raw-data/{log_id}`
-   - **Purpose:** Returns unprocessed timeline data for debugging rendering issues
-   - **Security:** Public access (debug mode only)
-   - **Response:** Complete raw timeline data structure
-
-**Security Warning:**
-These endpoints expose sensitive system information and should only be enabled temporarily for debugging purposes. Always disable debug mode after troubleshooting is complete.
+Note: Order Daemon does not connect to Google services. References to Google Tag Manager, Google Analytics, and reCAPTCHA in the diagnostics system are detection patterns only, used to identify potential script conflicts from other plugins or themes.
 
 == Privacy Policy ==
 
-Order Daemon does not collect, store, or transmit any personal data outside of your WordPress installation. All automation activity is logged locally on your server for auditing purposes. The plugin respects WordPress privacy standards and GDPR compliance requirements.
+Order Daemon does not collect, store, or transmit any personal data outside of your WordPress installation. All automation activity is logged locally on your server. The plugin respects WordPress privacy standards and GDPR requirements.
 
-The plugin may connect to PayPal's API services to verify payment notifications when processing PayPal transactions, as documented in the External Services section above.
+== Changelog ==
 
-== License ==
+= 1.3.23 =
+* Initial release on WordPress.org
 
-This plugin is licensed under the GPL v2.
+== Upgrade Notice ==
 
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+= 1.3.23 =
+Initial release.
