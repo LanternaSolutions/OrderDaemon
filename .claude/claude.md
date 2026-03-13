@@ -1,0 +1,1 @@
+explain every edit you want to make or command you want to do so that the user can follow, understand, and ensure alignment with goals.
