@@ -152,10 +152,10 @@ Order Daemon does not collect, store, or transmit any personal data outside of y
 
 == Changelog ==
 
-= 1.3.23 =
+= 1.3.24 =
 * Initial release on WordPress.org
 
 == Upgrade Notice ==
 
-= 1.3.23 =
+= 1.3.24 =
 Initial release.
