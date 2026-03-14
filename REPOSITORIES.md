@@ -417,9 +417,11 @@ The release pipeline automatically updates the plugin download page on `orderdae
 
 1. CI builds the zip and deploys to WP.org SVN
 2. CI POSTs the zip + version number to a webhook on `orderdaemon.com`
-3. The webhook saves the zip to `wp-content/uploads/odcm-releases/` and updates two WordPress options:
-   - `odcm_free_version` — the current version string
-   - `odcm_free_download_url` — the full URL to the zip file
+3. The webhook saves the zip to `wp-content/uploads/odcm-releases/` and:
+   - Updates two WordPress options used by the `/get/` download page:
+     - `odcm_free_version` — the current version string
+     - `odcm_free_download_url` — the full URL to the zip file
+   - Updates the `Order Daemon` downloadable file entry on every WooCommerce pro product (identified by having an `Order Daemon Pro` download attached), so pro customers can download both plugins from their My Account page
 4. The download page at `/get/` reads these options live — no Elementor editing required after initial setup
 
 ---
