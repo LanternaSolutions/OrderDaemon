@@ -163,6 +163,8 @@ These must be set in:
 | `WP_SVN_PASSWORD` | wordpress.org account password |
 | `PUBLIC_DEPLOY_KEY` | SSH private key with write access to `LanternaSolutions/OrderDaemon` |
 | `GITLAB_DEPLOY_KEY` | SSH private key with write access to `gitlab.com/YakirLanterna/order-daemon` |
+| `WEBSITE_WEBHOOK_URL` | `https://orderdaemon.com/` |
+| `WEBSITE_WEBHOOK_TOKEN` | Shared secret — must match `ODCM_WEBHOOK_TOKEN` constant in `wp-config.php` |
 
 > **Important:** GitHub does not allow secret names that start with `GITHUB_`. Use `PUBLIC_DEPLOY_KEY`, not `GITHUB_PUBLIC_DEPLOY_KEY`.
 
@@ -402,6 +404,230 @@ The public GitHub repo (`LanternaSolutions/OrderDaemon`) accepts issues and pull
 3. Credit the contributor in the commit message (e.g. `Co-authored-by: Name <email>`)
 4. Close the PR on the public repo with a comment explaining it was applied upstream
 5. Release normally — the change will appear in the next published version
+
+---
+
+## Website Integration (orderdaemon.com)
+
+The release pipeline automatically updates the plugin download page on `orderdaemon.com` after each successful SVN deploy. This section covers the one-time setup required on the WordPress site.
+
+---
+
+### How it works
+
+1. CI builds the zip and deploys to WP.org SVN
+2. CI POSTs the zip + version number to a webhook on `orderdaemon.com`
+3. The webhook saves the zip to `wp-content/uploads/odcm-releases/` and updates two WordPress options:
+   - `odcm_free_version` — the current version string
+   - `odcm_free_download_url` — the full URL to the zip file
+4. The download page at `/get/` reads these options live — no Elementor editing required after initial setup
+
+---
+
+### Required CI secrets
+
+Add these to **GitHub → `YakirLantern/OrderDaemon-private` → Settings → Secrets and variables → Actions**:
+
+| Secret name | Value |
+|---|---|
+| `WEBSITE_WEBHOOK_URL` | `https://orderdaemon.com/` |
+| `WEBSITE_WEBHOOK_TOKEN` | *(see below — store this carefully)* |
+
+The token is a long random hex string generated once. It is the shared secret between GitHub Actions and your WordPress site.
+
+---
+
+### Step 1 — Store the webhook token in wp-config.php
+
+Add this line to `wp-config.php` on `orderdaemon.com` (above the `/* That's all */` line). Using a constant instead of a database option means the token survives database restores.
+
+```php
+define( 'ODCM_WEBHOOK_TOKEN', 'your-token-here' );
+```
+
+> **Recovery:** The token is always available in GitHub → repo Settings → Secrets → `WEBSITE_WEBHOOK_TOKEN`. If `wp-config.php` is ever lost, just re-add the constant with the same value.
+
+---
+
+### Step 2 — Advanced Scripts Pro: `odcm-free-helpers`
+
+Create a new PHP snippet in Advanced Scripts Pro. Name it `odcm-free-helpers`. Set it to **frontend**, always active.
+
+This script provides:
+- `[odcm_free_version]` — shortcode for displaying the current version in Elementor text widgets
+- `[odcm_download_trigger]` — shortcode for the download page (auto-starts download via JS with a manual fallback link)
+
+```php
+<?php
+// Shortcode [odcm_free_version] — use in Elementor text widgets
+add_shortcode( 'odcm_free_version', function () {
+    return esc_html( get_option( 'odcm_free_version', '—' ) );
+} );
+
+// Shortcode [odcm_download_trigger] — place in an HTML widget on the /get/ page.
+// Auto-starts the download after 1.5s and shows a manual fallback link.
+add_shortcode( 'odcm_download_trigger', function () {
+    $url = get_option( 'odcm_free_download_url', '' );
+
+    if ( ! $url ) {
+        return '<p>Download link unavailable. Please <a href="/contact/">contact us</a>.</p>';
+    }
+
+    $url = esc_url( $url );
+    ob_start();
+    ?>
+    <script>
+    (function() {
+        var url = <?php echo wp_json_encode( $url ); ?>;
+        setTimeout( function() { window.location.href = url; }, 1500 );
+    })();
+    </script>
+    <p>
+        If your download does not start automatically,
+        <a href="<?php echo $url; ?>">click here</a>.
+    </p>
+    <?php
+    return ob_get_clean();
+} );
+```
+
+---
+
+### Step 3 — Advanced Scripts Pro: `odcm-free-webhook`
+
+Create a second PHP snippet. Name it `odcm-free-webhook`. Set it to **frontend**, always active.
+
+This script receives the POST request from GitHub Actions, validates the token, saves the zip, and updates the WordPress options.
+
+```php
+<?php
+// Order Daemon — free plugin update webhook
+// Called automatically by GitHub Actions on every release.
+
+add_action( 'init', function () {
+
+    if ( ( $_GET['odcm_action'] ?? '' ) !== 'update_free' ) {
+        return;
+    }
+
+    // Validate secret token — prefers wp-config.php constant, falls back to DB option
+    $expected = defined( 'ODCM_WEBHOOK_TOKEN' )
+        ? ODCM_WEBHOOK_TOKEN
+        : get_option( 'odcm_webhook_token', '' );
+
+    $token = sanitize_text_field( $_GET['token'] ?? '' );
+
+    if ( empty( $token ) || ! hash_equals( $expected, $token ) ) {
+        http_response_code( 403 );
+        exit( 'Forbidden' );
+    }
+
+    if ( $_SERVER['REQUEST_METHOD'] !== 'POST' ) {
+        http_response_code( 405 );
+        exit( 'Method Not Allowed' );
+    }
+
+    // Validate version string
+    $version = sanitize_text_field( $_POST['version'] ?? '' );
+    if ( empty( $version ) || ! preg_match( '/^\d+\.\d+\.\d+$/', $version ) ) {
+        http_response_code( 400 );
+        exit( 'Invalid version' );
+    }
+
+    // Save uploaded zip
+    if ( empty( $_FILES['zip']['tmp_name'] ) ) {
+        http_response_code( 400 );
+        exit( 'Missing zip' );
+    }
+
+    $upload   = wp_upload_dir();
+    $dest_dir = $upload['basedir'] . '/odcm-releases/';
+    wp_mkdir_p( $dest_dir );
+
+    $filename  = 'order-daemon-v' . $version . '.zip';
+    $dest_path = $dest_dir . $filename;
+
+    if ( ! move_uploaded_file( $_FILES['zip']['tmp_name'], $dest_path ) ) {
+        http_response_code( 500 );
+        exit( 'Failed to save zip' );
+    }
+
+    $download_url = $upload['baseurl'] . '/odcm-releases/' . $filename;
+
+    // Update options
+    update_option( 'odcm_free_version',      $version );
+    update_option( 'odcm_free_download_url', $download_url );
+
+    http_response_code( 200 );
+    header( 'Content-Type: application/json' );
+    exit( wp_json_encode( [ 'success' => true, 'version' => $version ] ) );
+
+} );
+```
+
+---
+
+### Step 4 — Create the download WordPress page
+
+Go to **WordPress → Pages → Add New**:
+- Title: `Get Order Daemon`
+- Slug: `get`
+- Content: leave empty for now — design in Elementor next
+- Publish it
+
+---
+
+### Step 5 — Design the page in Elementor
+
+The page at `orderdaemon.com/get/` is a fully designed Elementor page. Suggested layout:
+
+```
+[Order Daemon logo]
+
+Your download is starting…
+Order Daemon v[odcm_free_version]
+
+[odcm_download_trigger]
+(invisible — outputs JS auto-trigger + manual fallback link)
+
+── While you wait ──
+Links to docs, quick start guide, or pro plugin upsell
+```
+
+- Add `[odcm_free_version]` in any text widget to show the current version
+- Add `[odcm_download_trigger]` in an **HTML widget** on this page — it outputs the JS trigger and fallback link
+- The **Download button on your main/pricing page** points to `https://orderdaemon.com/get/` — set this once and never change it again
+
+---
+
+### Step 6 — Test the webhook manually
+
+Before relying on CI, test the webhook from your terminal. Make sure you have a zip file available:
+
+```bash
+curl -v -X POST \
+  "https://orderdaemon.com/?odcm_action=update_free&token=YOUR_TOKEN_HERE" \
+  -F "version=1.3.24" \
+  -F "zip=@/home/yakir/lab/order-daemon/order-daemon-v1.3.24.zip"
+```
+
+Expected response:
+```json
+{"success": true, "version": "1.3.24"}
+```
+
+Then visit `orderdaemon.com/get/` and confirm the download starts automatically.
+
+---
+
+### Webhook endpoint reference
+
+| Parameter | Location | Value |
+|---|---|---|
+| `odcm_action` | GET | `update_free` |
+| `token` | GET | value of `ODCM_WEBHOOK_TOKEN` |
+| `version` | POST form field | e.g. `1.3.25` |
+| `zip` | POST file upload | the plugin zip file |
 
 ---
 
