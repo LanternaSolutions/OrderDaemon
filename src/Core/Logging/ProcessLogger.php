@@ -314,7 +314,9 @@ final class ProcessLogger
                 $this->map_status($final_status),
                 $this->type,
                 false, // not a test
-                $this->correlation_id // process_id for correlation
+                $this->correlation_id, // process_id for correlation
+                null, // parent_event_type
+                $final_source // attribution-computed source
             );
             
             // Critical: Log logging failures as they indicate serious system issues

@@ -768,7 +768,8 @@ function odcm_log_event(
     string $event_type = 'event',
     bool $is_test = false,
     ?string $process_id = null,
-    ?string $parent_event_type = null
+    ?string $parent_event_type = null,
+    string $source = 'logger'
 ): bool {
     global $wpdb;
 
@@ -843,7 +844,7 @@ function odcm_log_event(
         'order_id' => $order_id,
         'is_test' => $is_test,
         'envelope' => $envelope,
-        'source' => 'logger',
+        'source' => $source,
         'timestamp' => current_time('mysql'),
         'data' => $data,
         'parent_event_type' => $parent_event_type,

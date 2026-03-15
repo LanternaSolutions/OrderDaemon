@@ -366,10 +366,10 @@ class AuditLogEndpoint extends WP_REST_Controller
             // scheduled - Events triggered by cron jobs, action scheduler, or CLI commands
             // system - Internal system events (default fallback)
             'source' => [
-                'description' => 'Filter by log source (manual, scheduled, webhook, api, system)',
-                'type'        => 'string',
-                'enum'        => ['manual', 'scheduled', 'webhook', 'api', 'system', ''],
-                'default'     => '',
+                'description'       => 'Filter by log source',
+                'type'              => 'string',
+                'default'           => '',
+                'sanitize_callback' => 'sanitize_key',
             ],
         ];
     }
