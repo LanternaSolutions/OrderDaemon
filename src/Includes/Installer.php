@@ -515,7 +515,7 @@ class Installer
 
         // Add processed_display_data column if it doesn't exist
         $processed_display_data_exists = self::$db_helper->get_var(
-            "SELECT COUNT() FROM information_schema.COLUMNS
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'processed_display_data'",
             [DB_NAME, $payload_table]
         ) > 0;
@@ -528,7 +528,7 @@ class Installer
 
         // Add last_processed column if it doesn't exist
         $last_processed_exists = self::$db_helper->get_var(
-            "SELECT COUNT() FROM information_schema.COLUMNS
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'last_processed'",
             [DB_NAME, $payload_table]
         ) > 0;
