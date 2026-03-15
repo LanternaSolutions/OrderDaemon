@@ -4,7 +4,7 @@ Tags: woocommerce, automation, auto complete, digital products, order management
 Requires at least: 5.6
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.3.24
+Stable tag: 1.3.25
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -152,10 +152,18 @@ Order Daemon does not collect, store, or transmit any personal data outside of y
 
 == Changelog ==
 
+= 1.3.25 =
+* Fixed: Insight dashboard filter pane display issues
+* Improved: Log event source attribution in the Insights dashboard
+* Improved: Translations and i18n string coverage
+
 = 1.3.24 =
 * Initial release on WordPress.org
 
 == Upgrade Notice ==
+
+= 1.3.25 =
+Bug fixes and improvements for the Insights dashboard and a translations update.
 
 = 1.3.24 =
 Initial release.
