@@ -458,7 +458,7 @@ final class ComponentSummaryBuilder
                     return $this->build_summary_html([
                         'title' => $title,
                         'match_mode' => '',
-                        'details' => [__('Any category', 'order-daemon')],
+                        'details' => [__('admin.rule_builder.condition.any_category', 'order-daemon')],
                     ]);
                 }
 

@@ -533,16 +533,16 @@ abstract class DisplayAdapter
                 if ($domain === 'order-daemon') {
                     // Map common text strings to string literals
                     $textMap = [
-                        'Order' => __('Order', 'order-daemon'),
-                        'Status' => __('Status', 'order-daemon'),
-                        'Amount' => __('Amount', 'order-daemon'),
-                        'Currency' => __('Currency', 'order-daemon'),
-                        'Customer' => __('Customer', 'order-daemon'),
-                        'Payment Method' => __('Payment Method', 'order-daemon'),
-                        'Previous Status' => __('Previous Status', 'order-daemon'),
-                        'New Status' => __('New Status', 'order-daemon'),
-                        'Triggered By' => __('Triggered By', 'order-daemon'),
-                        'Order Total' => __('Order Total', 'order-daemon'),
+                        'Order' => __('api.timeline.field.order', 'order-daemon'),
+                        'Status' => __('api.timeline.field.status', 'order-daemon'),
+                        'Amount' => __('api.timeline.field.amount', 'order-daemon'),
+                        'Currency' => __('api.timeline.field.currency', 'order-daemon'),
+                        'Customer' => __('api.timeline.field.customer', 'order-daemon'),
+                        'Payment Method' => __('api.timeline.field.payment_method', 'order-daemon'),
+                        'Previous Status' => __('api.timeline.field.previous_status', 'order-daemon'),
+                        'New Status' => __('api.timeline.field.new_status', 'order-daemon'),
+                        'Triggered By' => __('api.timeline.field.triggered_by', 'order-daemon'),
+                        'Order Total' => __('api.timeline.field.order_total', 'order-daemon'),
                     ];
 
                     return $textMap[$text] ?? $text;
@@ -579,11 +579,11 @@ abstract class DisplayAdapter
                 if ($domain === 'order-daemon') {
                     // Map common plural strings to string literals
                     $pluralMap = [
-                        'item' => ['single' => __('item', 'order-daemon'), 'plural' => __('items', 'order-daemon')],
-                        'order' => ['single' => __('order', 'order-daemon'), 'plural' => __('orders', 'order-daemon')],
-                        'payment' => ['single' => __('payment', 'order-daemon'), 'plural' => __('payments', 'order-daemon')],
-                        'rule' => ['single' => __('rule', 'order-daemon'), 'plural' => __('rules', 'order-daemon')],
-                        'event' => ['single' => __('event', 'order-daemon'), 'plural' => __('events', 'order-daemon')],
+                        'item' => ['single' => __('core.log_registries.unit.item', 'order-daemon'), 'plural' => __('core.log_registries.unit.items', 'order-daemon')],
+                        'order' => ['single' => __('core.log_registries.unit.order', 'order-daemon'), 'plural' => __('core.log_registries.unit.orders', 'order-daemon')],
+                        'payment' => ['single' => __('core.log_registries.unit.payment', 'order-daemon'), 'plural' => __('core.log_registries.unit.payments', 'order-daemon')],
+                        'rule' => ['single' => __('core.log_registries.unit.rule', 'order-daemon'), 'plural' => __('core.log_registries.unit.rules', 'order-daemon')],
+                        'event' => ['single' => __('core.log_registries.unit.event', 'order-daemon'), 'plural' => __('core.log_registries.unit.events', 'order-daemon')],
                     ];
 
                     // Check if we have a predefined plural mapping

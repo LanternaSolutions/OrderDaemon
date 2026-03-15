@@ -33,7 +33,7 @@ class WooCommerceIntegrationDiagnostic extends AbstractDiagnostic
      */
     public function get_name(): string
     {
-        return __('WooCommerce Integration', 'order-daemon');
+        return __('diagnostics.woocommerce.name', 'order-daemon');
     }
 
     /**
@@ -43,7 +43,7 @@ class WooCommerceIntegrationDiagnostic extends AbstractDiagnostic
      */
     public function get_description(): string
     {
-        return __('Verifies WooCommerce hooks are properly registered for order completion', 'order-daemon');
+        return __('diagnostics.woocommerce.description', 'order-daemon');
     }
 
     /**
@@ -88,13 +88,13 @@ class WooCommerceIntegrationDiagnostic extends AbstractDiagnostic
         // Test 1: Check if WooCommerce is active
         if (!$this->is_woocommerce_available()) {
             return DiagnosticResult::failure(
-                __('WooCommerce Integration Issue', 'order-daemon'),
-                __('WooCommerce is not active on this site', 'order-daemon'),
+                __('diagnostics.woocommerce.result.issue', 'order-daemon'),
+                __('diagnostics.woocommerce.error.not_active', 'order-daemon'),
                 [
                     'woocommerce_active' => false,
                     'execution_time' => round((microtime(true) - $start_time) * 1000, 2) . 'ms'
                 ],
-                [__('Install and activate WooCommerce plugin', 'order-daemon')]
+                [__('diagnostics.woocommerce.recommendation.install', 'order-daemon')]
             );
         }
 
@@ -149,7 +149,7 @@ class WooCommerceIntegrationDiagnostic extends AbstractDiagnostic
         if (!empty($missing_hooks)) {
             $recommendations[] = sprintf(
                 /* translators: %s: Comma-separated list of missing hooks */
-                __('Missing hooks: %s', 'order-daemon'),
+                __('diagnostics.woocommerce.error.missing_hooks', 'order-daemon'),
                 implode(', ', $missing_hooks)
             );
         }
@@ -157,7 +157,7 @@ class WooCommerceIntegrationDiagnostic extends AbstractDiagnostic
         if (!$version_compatible) {
             $recommendations[] = sprintf(
                 /* translators: %s: Current WooCommerce version */
-                __('WooCommerce version %s is not compatible (requires 3.0.0+)', 'order-daemon'),
+                __('diagnostics.woocommerce.error.version_incompatible', 'order-daemon'),
                 $wc_version
             );
         }
@@ -165,7 +165,7 @@ class WooCommerceIntegrationDiagnostic extends AbstractDiagnostic
         if (!empty($missing_classes)) {
             $recommendations[] = sprintf(
                 /* translators: %s: Comma-separated list of missing classes */
-                __('Missing WooCommerce classes: %s', 'order-daemon'),
+                __('diagnostics.woocommerce.error.missing_classes', 'order-daemon'),
                 implode(', ', $missing_classes)
             );
         }
@@ -175,22 +175,22 @@ class WooCommerceIntegrationDiagnostic extends AbstractDiagnostic
 
         if ($critical_issues) {
             $result = DiagnosticResult::failure(
-                __('WooCommerce Integration Issue', 'order-daemon'),
-                __('Required WooCommerce hooks are not properly registered', 'order-daemon'),
+                __('diagnostics.woocommerce.result.issue', 'order-daemon'),
+                __('diagnostics.woocommerce.error.hooks_not_registered', 'order-daemon'),
                 $details,
                 $recommendations
             );
         } else {
             $result = DiagnosticResult::success(
-                __('WooCommerce Hooks Available', 'order-daemon'),
-                __('Required WooCommerce hooks are properly registered and accessible', 'order-daemon'),
+                __('diagnostics.woocommerce.result.ok', 'order-daemon'),
+                __('diagnostics.woocommerce.success', 'order-daemon'),
                 $details
             );
 
             // Add informational recommendations for optimization
             $total_hooks = array_sum(array_column($hook_status, 'priority_count'));
             if ($total_hooks > 20) {
-                $result->addRecommendation(__('Many plugins are hooking into WooCommerce - monitor for conflicts', 'order-daemon'));
+                $result->addRecommendation(__('diagnostics.woocommerce.recommendation.monitor_hooks', 'order-daemon'));
             }
         }
 

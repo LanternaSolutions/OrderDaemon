@@ -501,7 +501,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     {
         $html = '<div class="odcm-expandable-section">';
         $html .= '<button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">' .
-                 esc_html__('Show raw event json', 'order-daemon') . '</button>';
+                 esc_html__('api.timeline.display_mode.show_raw_json', 'order-daemon') . '</button>';
         $html .= '<div class="odcm-tier-content">';
 
         // Format raw payload as JSON with proper prism.js classes
@@ -583,7 +583,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
     {
         $html = '<div class="odcm-expandable-section">';
         $html .= '<button type="button" class="odcm-icon-button odcm-tier-toggle" data-target="technical" aria-expanded="false">' .
-                 esc_html__('Show raw event json', 'order-daemon') . '</button>';
+                 esc_html__('api.timeline.display_mode.show_raw_json', 'order-daemon') . '</button>';
         $html .= '<div class="odcm-tier-content">';
 
         // Format raw payload as JSON with proper prism.js classes

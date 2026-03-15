@@ -282,12 +282,12 @@ class Core
         // Security: Use RequestHelper for nonce verification
         $nonce = $safe_params['_wpnonce'] ?? $safe_params['odcm_reprocess_nonce'] ?? '';
         if (!RequestHelper::verify_nonce($nonce, 'odcm_reprocess_action')) {
-            wp_die(esc_html__('Security check failed', 'order-daemon'));
+            wp_die(esc_html__('api.general.security_check_failed', 'order-daemon'));
         }
 
         // Security: Use RequestHelper for capability verification
         if (!RequestHelper::check_capabilities('manage_woocommerce')) {
-            wp_die(esc_html__('You do not have sufficient permissions to perform this action.', 'order-daemon'));
+            wp_die(esc_html__('api.general.insufficient_permissions', 'order-daemon'));
         }
 
         // DEFENSIVE CHECK: Verify post type exists before processing.

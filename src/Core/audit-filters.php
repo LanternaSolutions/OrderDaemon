@@ -281,60 +281,60 @@ function odcm_render_event_type_filter(array $filter, bool $has_permission, stri
     // (It's impractical to maintain exhaustive list of potential events)
     $fallback_event_types = [
         // Core system events
-        'rule_execution' => __('Rule Execution', 'order-daemon'),
-        'status_changed' => __('Status Changed', 'order-daemon'),
-        'order_completion' => __('Order Completion', 'order-daemon'),
-        'manual_status_change' => __('Manual Status Change', 'order-daemon'),
-        'checkout_processed' => __('Checkout Processed', 'order-daemon'),
-        'email_sent' => __('Email Sent', 'order-daemon'),
-        'stock_adjusted' => __('Stock Adjusted', 'order-daemon'),
-        'note_added' => __('Note Added', 'order-daemon'),
+        'rule_execution' => __('core.log_registries.event_type.rule_execution', 'order-daemon'),
+        'status_changed' => __('core.log_registries.event_type.status_changed', 'order-daemon'),
+        'order_completion' => __('core.log_registries.event_type.order_completion', 'order-daemon'),
+        'manual_status_change' => __('core.log_registries.event_type.manual_status_change', 'order-daemon'),
+        'checkout_processed' => __('core.log_registries.event_type.checkout_processed', 'order-daemon'),
+        'email_sent' => __('core.log_registries.event_type.email_sent', 'order-daemon'),
+        'stock_adjusted' => __('core.log_registries.event_type.stock_adjusted', 'order-daemon'),
+        'note_added' => __('core.log_registries.event_type.note_added', 'order-daemon'),
 
         // Payment gateway events (critical for users)
         // Stripe events - comprehensive coverage of common Stripe webhook events
-        'payment.stripe.checkout_processed' => __('Stripe Checkout Processed', 'order-daemon'),
-        'payment.stripe.payment_intent_succeeded' => __('Stripe Payment Succeeded', 'order-daemon'),
-        'payment.stripe.payment_intent_created' => __('Stripe Payment Created', 'order-daemon'),
-        'payment.stripe.payment_intent_payment_failed' => __('Stripe Payment Failed', 'order-daemon'),
-        'payment.stripe.charge_succeeded' => __('Stripe Charge Succeeded', 'order-daemon'),
-        'payment.stripe.charge_failed' => __('Stripe Charge Failed', 'order-daemon'),
-        'payment.stripe.customer_subscription_created' => __('Stripe Subscription Created', 'order-daemon'),
-        'payment.stripe.customer_subscription_updated' => __('Stripe Subscription Updated', 'order-daemon'),
-        'payment.stripe.customer_subscription_deleted' => __('Stripe Subscription Cancelled', 'order-daemon'),
-        'payment.stripe.invoice_payment_succeeded' => __('Stripe Invoice Payment Succeeded', 'order-daemon'),
-        'payment.stripe.invoice_payment_failed' => __('Stripe Invoice Payment Failed', 'order-daemon'),
-        'payment.stripe.charge_refunded' => __('Stripe Charge Refunded', 'order-daemon'),
+        'payment.stripe.checkout_processed' => __('core.log_registries.event_type.stripe_checkout_processed', 'order-daemon'),
+        'payment.stripe.payment_intent_succeeded' => __('core.log_registries.event_type.stripe_payment_succeeded', 'order-daemon'),
+        'payment.stripe.payment_intent_created' => __('core.log_registries.event_type.stripe_payment_created', 'order-daemon'),
+        'payment.stripe.payment_intent_payment_failed' => __('core.log_registries.event_type.stripe_payment_failed', 'order-daemon'),
+        'payment.stripe.charge_succeeded' => __('core.log_registries.event_type.stripe_charge_succeeded', 'order-daemon'),
+        'payment.stripe.charge_failed' => __('core.log_registries.event_type.stripe_charge_failed', 'order-daemon'),
+        'payment.stripe.customer_subscription_created' => __('core.log_registries.event_type.stripe_subscription_created', 'order-daemon'),
+        'payment.stripe.customer_subscription_updated' => __('core.log_registries.event_type.stripe_subscription_updated', 'order-daemon'),
+        'payment.stripe.customer_subscription_deleted' => __('core.log_registries.event_type.stripe_subscription_cancelled', 'order-daemon'),
+        'payment.stripe.invoice_payment_succeeded' => __('core.log_registries.event_type.stripe_invoice_payment_succeeded', 'order-daemon'),
+        'payment.stripe.invoice_payment_failed' => __('core.log_registries.event_type.stripe_invoice_payment_failed', 'order-daemon'),
+        'payment.stripe.charge_refunded' => __('core.log_registries.event_type.stripe_charge_refunded', 'order-daemon'),
 
         // PayPal events
-        'payment.paypal.payment_captured' => __('PayPal Payment Captured', 'order-daemon'),
-        'payment.paypal.order_completed' => __('PayPal Order Completed', 'order-daemon'),
-        'payment.paypal.payment_completed' => __('PayPal Payment Completed', 'order-daemon'),
-        'payment.paypal.payment_failed' => __('PayPal Payment Failed', 'order-daemon'),
-        'payment.paypal.payment_pending' => __('PayPal Payment Pending', 'order-daemon'),
-        'payment.paypal.payment_refunded' => __('PayPal Payment Refunded', 'order-daemon'),
-        'payment.paypal.renewal_payment_completed' => __('PayPal Renewal Payment Completed', 'order-daemon'),
-        'payment.paypal.subscription_cancelled' => __('PayPal Subscription Cancelled', 'order-daemon'),
-        'payment.paypal.subscription_created' => __('PayPal Subscription Created', 'order-daemon'),
-        'payment.paypal.subscription_reactivated' => __('PayPal Subscription Reactivated', 'order-daemon'),
-        'payment.paypal.subscription_suspended' => __('PayPal Subscription Suspended', 'order-daemon'),
+        'payment.paypal.payment_captured' => __('core.log_registries.event_type.paypal_payment_captured', 'order-daemon'),
+        'payment.paypal.order_completed' => __('core.log_registries.event_type.paypal_order_completed', 'order-daemon'),
+        'payment.paypal.payment_completed' => __('core.log_registries.event_type.paypal_payment_completed', 'order-daemon'),
+        'payment.paypal.payment_failed' => __('core.log_registries.event_type.paypal_payment_failed', 'order-daemon'),
+        'payment.paypal.payment_pending' => __('core.log_registries.event_type.paypal_payment_pending', 'order-daemon'),
+        'payment.paypal.payment_refunded' => __('core.log_registries.event_type.paypal_payment_refunded', 'order-daemon'),
+        'payment.paypal.renewal_payment_completed' => __('core.log_registries.event_type.paypal_renewal_payment_completed', 'order-daemon'),
+        'payment.paypal.subscription_cancelled' => __('core.log_registries.event_type.paypal_subscription_cancelled', 'order-daemon'),
+        'payment.paypal.subscription_created' => __('core.log_registries.event_type.paypal_subscription_created', 'order-daemon'),
+        'payment.paypal.subscription_reactivated' => __('core.log_registries.event_type.paypal_subscription_reactivated', 'order-daemon'),
+        'payment.paypal.subscription_suspended' => __('core.log_registries.event_type.paypal_subscription_suspended', 'order-daemon'),
 
         // Square events
-        'payment.square.charge_completed' => __('Square Charge Completed', 'order-daemon'),
-        'payment.square.payment_processed' => __('Square Payment Processed', 'order-daemon'),
+        'payment.square.charge_completed' => __('core.log_registries.event_type.square_charge_completed', 'order-daemon'),
+        'payment.square.payment_processed' => __('core.log_registries.event_type.square_payment_processed', 'order-daemon'),
 
         // Webhook and external events
-        'webhook_received' => __('Webhook Received', 'order-daemon'),
-        'webhook_processed' => __('Webhook Processed', 'order-daemon'),
+        'webhook_received' => __('core.log_registries.event_type.webhook_received', 'order-daemon'),
+        'webhook_processed' => __('core.log_registries.event_type.webhook_processed', 'order-daemon'),
 
         // Error and warning events
-        'error_occurred' => __('Error Occurred', 'order-daemon'),
-        'validation_failed' => __('Validation Failed', 'order-daemon'),
-        'action_failed' => __('Action Failed', 'order-daemon'),
+        'error_occurred' => __('core.log_registries.event_type.error_occurred', 'order-daemon'),
+        'validation_failed' => __('core.actions.validation_failed', 'order-daemon'),
+        'action_failed' => __('core.actions.action_failed', 'order-daemon'),
     ];
 
     // Start with all event types option
     $event_types = [
-        '' => __('All Event Types', 'order-daemon')
+        '' => __('api.timeline.filter.all_event_types', 'order-daemon')
     ];
 
     // Try to fetch dynamic event types from API

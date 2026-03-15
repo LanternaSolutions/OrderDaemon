@@ -2366,7 +2366,7 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
                 return [
                     'status' => 'processing',
                     'status_type' => 'debug',
-                    'summary' => __('Rule Processing Started', 'order-daemon')
+                    'summary' => __('core.log_registries.event_type.rule_processing_started', 'order-daemon')
                 ];
             }
 
@@ -2388,7 +2388,7 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
 
             // Special handling for incomplete rule execution events to ensure consistency
             if (empty($summary) && \OrderDaemon\CompletionManager\API\Timeline\RuleExecutionAdapter::isIncompleteRuleEvent($payload_data)) {
-                $summary = __('Rule Processing Started', 'order-daemon');
+                $summary = __('core.log_registries.event_type.rule_processing_started', 'order-daemon');
             }
 
             // Fallback if unified method returned empty summary
@@ -2414,7 +2414,7 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
                 return [
                     'status' => 'processing',
                     'status_type' => 'debug',
-                    'summary' => __('Rule Processing Started', 'order-daemon')
+                    'summary' => __('core.log_registries.event_type.rule_processing_started', 'order-daemon')
                 ];
             }
 
@@ -2614,7 +2614,7 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
         $placeholder_string = implode(',', $placeholders);
 
         if (! DatabaseHelper::validate_table_name($logTableName)) {
-            return new WP_Error('odcm_invalid_table_name', __('Invalid table name provided', 'order-daemon'), ['status' => 400]);
+            return new WP_Error('odcm_invalid_table_name', __('core.log_cleanup.invalid_table_name', 'order-daemon'), ['status' => 400]);
         }
 
         $log_ids = array_map('intval', explode(',', $placeholder_string));

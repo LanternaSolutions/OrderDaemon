@@ -168,16 +168,16 @@ final class Notices {
 
         ?>
         <div class="notice notice-info is-dismissible odcm-data-preservation-notice">
-            <h4><?php esc_html_e('Important: Data Preservation Information', 'order-daemon'); ?></h4>
-            <p><?php esc_html_e('When you deactivate or uninstall Order Daemon, your data is preserved by default. This includes:', 'order-daemon'); ?></p>
+            <h4><?php esc_html_e('admin.notices.data_preservation.title', 'order-daemon'); ?></h4>
+            <p><?php esc_html_e('admin.notices.data_preservation.intro', 'order-daemon'); ?></p>
             <ul style="list-style-type: disc; margin-left: 20px;">
-                <li><?php esc_html_e('All audit log entries and processing history', 'order-daemon'); ?></li>
-                <li><?php esc_html_e('Your custom order completion rules', 'order-daemon'); ?></li>
-                <li><?php esc_html_e('Plugin settings and configurations', 'order-daemon'); ?></li>
+                <li><?php esc_html_e('admin.notices.data_preservation.item_audit_logs', 'order-daemon'); ?></li>
+                <li><?php esc_html_e('admin.notices.data_preservation.item_rules', 'order-daemon'); ?></li>
+                <li><?php esc_html_e('admin.notices.data_preservation.item_settings', 'order-daemon'); ?></li>
             </ul>
-            <p><?php esc_html_e('To completely remove all data when uninstalling, add this line to your wp-config.php file:', 'order-daemon'); ?></p>
+            <p><?php esc_html_e('admin.notices.data_preservation.removal_hint', 'order-daemon'); ?></p>
             <code style="background: #f5f5f5; padding: 2px 6px; border: 1px solid #ddd; border-radius: 3px;">define('ODCM_REMOVE_ALL_DATA', true);</code>
-            <p><strong><?php esc_html_e('Warning:', 'order-daemon'); ?></strong> <?php esc_html_e('This will permanently delete all Order Daemon data including your rules and audit logs.', 'order-daemon'); ?></p>
+            <p><strong><?php esc_html_e('admin.notices.data_preservation.warning_label', 'order-daemon'); ?></strong> <?php esc_html_e('admin.notices.data_preservation.warning_text', 'order-daemon'); ?></p>
         </div>
         <?php
     }
