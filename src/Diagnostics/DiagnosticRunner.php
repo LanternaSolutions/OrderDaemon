@@ -99,7 +99,8 @@ class DiagnosticRunner
         if (class_exists($full_class_name)) {
             $instance = new $full_class_name();
             if ($instance instanceof DiagnosticInterface) {
-                $key = strtolower($category . '_' . str_replace('Diagnostic', '', $diagnostic_class));
+                $class_basename = substr($diagnostic_class, strrpos($diagnostic_class, '\\') + 1);
+                $key = strtolower($category . '_' . str_replace('Diagnostic', '', $class_basename));
                 $this->diagnostics[$key] = $instance;
             }
         }
@@ -598,8 +599,8 @@ class DiagnosticRunner
      */
     private function get_wp_cli_status(array $results): string
     {
-        if (isset($results['core_wpcli'])) {
-            $result = $results['core_wpcli'];
+        if (isset($results['wpcli_wpcli'])) {
+            $result = $results['wpcli_wpcli'];
             if ($result->isSuccessful()) {
                 $details = $result->getDetails();
                 return $details['wp_cli_version'] ?? __('diagnostics.runner.wp_cli.available', 'order-daemon');
