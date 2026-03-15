@@ -76,11 +76,12 @@ class DatabaseHelper
         }
 
         try {
-            $query  = $this->wpdb->prepare(
+            $query = $this->wpdb->prepare(
                 'SHOW TABLES LIKE %s',
                 '%' . $this->wpdb->esc_like($table_name) . '%'
             );
-            $result = $this->get_var($query);
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is already prepared above; using get_var directly avoids a double-prepare notice.
+            $result = $this->wpdb->get_var($query);
 
             $table_exists = ! empty($result);
             wp_cache_set($cache_key, $table_exists, 'odcm_database', HOUR_IN_SECONDS);
