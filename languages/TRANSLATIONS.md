@@ -132,9 +132,18 @@ msgstr ""
 
 There are two ways to resolve them:
 
-**Quick fix (unblock the plugin, do it now):**
-Copy the English string into `msgstr`. The plugin displays correctly, and any future
-translator can override it.
+**Quick fix — auto-fill in bulk (unblock the plugin now):**
+
+```bash
+make translations-fill-raw
+```
+
+This runs a Python script that sets `msgstr = msgid` for every untranslated raw English
+string. The plugin displays correctly immediately. Run `make translations` afterward to
+recompile the `.mo`.
+
+**Manual quick fix (single entry):**
+Copy the English string into `msgstr` by hand:
 
 ```po
 msgid "Action Failed"
@@ -149,7 +158,7 @@ msgstr "Action Failed"
 
 The update script warns about raw English strings each time it runs, so they are easy
 to track down. The goal is to have zero Category B strings — `make translations` should
-report "0 string(s) use raw English text".
+report no raw English string warnings.
 
 ---
 
@@ -234,6 +243,65 @@ __( 'admin.rule_builder.save_error', 'order-daemon' )
 
 The update script warns about raw English strings every time it runs.
 
+### Module prefix map
+
+| Prefix | Used for |
+|--------|----------|
+| `admin.rules.*` | Custom post type labels (CPT registration) |
+| `admin.rule_builder.*` | Rule Builder page UI |
+| `admin.rule_list.*` | Order Rules list table page |
+| `admin.list_table.*` | List table columns, actions, confirmations |
+| `admin.insight_dashboard.*` | Insight Dashboard UI and AJAX handlers |
+| `admin.notices.*` | Admin notices |
+| `admin.columns.*` | Column headers and toggle states |
+| `admin.general.*` | General admin strings |
+| `admin.ui.*` | Generic UI labels (Edit, Delete, etc.) |
+| `api.general.*` | Shared API responses (permission denied, security check) |
+| `api.rule_builder.*` | Rule Builder REST API responses |
+| `api.timeline.*` | Timeline display adapter strings |
+| `audit.logs.*` | Audit log endpoint responses |
+| `component.label.*` | Rule component type labels (Trigger, Condition, Action) |
+| `component.behavior.*` | Component behaviour descriptions |
+| `core.log_cleanup.*` | Log cleanup responses |
+| `core.log_registries.*` | Event type and status labels |
+| `core.log.test.*` | Test log entry labels and summary templates |
+| `core.logging.*` | Process logger strings |
+| `core.plugin.*` | Plugin-level strings |
+| `diagnostics.*` | Diagnostic dashboard and runner strings |
+| `rule_component.action.*` | Built-in rule action labels/descriptions |
+| `rule_component.condition.*` | Built-in rule condition labels/descriptions |
+| `rule_component.trigger.*` | Built-in rule trigger labels/descriptions |
+| `rules.conditions.*` | Condition component UI |
+| `security.*` | Permission denied and security check messages |
+| `status.*` | Log entry status labels |
+| `view.payload.*` | Payload renderer and timeline view strings |
+
+---
+
+## What NOT to wrap in `__()`
+
+Only wrap strings in i18n functions if they are **displayed to end users** in the
+WordPress admin UI or returned as user-visible API responses.
+
+Do **not** wrap:
+
+- `throw new \Exception(...)` — exception messages go to PHP error logs, not the UI
+- `throw new \InvalidArgumentException(...)` — same
+- `trigger_error(...)` — PHP error log only
+- Internal debug log messages (not shown in the audit log stream)
+- String constants used as array keys, slugs, or identifiers
+
+```php
+// Wrong — exception messages are developer-facing
+throw new \InvalidArgumentException(__('core.options.validation.must_be_string', 'order-daemon'));
+
+// Correct — plain PHP string is fine
+throw new \InvalidArgumentException("Parameter $param must be a string");
+
+// Correct — user-visible AJAX response should be translated
+wp_send_json_error(['message' => __('api.general.permission_denied', 'order-daemon')]);
+```
+
 ---
 
 ## Why not Poedit?
@@ -265,4 +333,5 @@ Everything else in `languages/` should be committed: `.pot`, `.po`, and `.mo`.
 |------|---------|
 | Update everything (extract → merge → compile) | `make translations` |
 | Check how many strings are untranslated | `make translations-check` |
+| Auto-fill raw English strings (`msgstr = msgid`) | `make translations-fill-raw` |
 | Compile `.po` to `.mo` only (after hand-editing `.po`) | `msgfmt -o languages/order-daemon-en_US.mo languages/order-daemon-en_US.po` |
