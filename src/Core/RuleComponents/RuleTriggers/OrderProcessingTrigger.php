@@ -31,7 +31,7 @@ class OrderProcessingTrigger implements TriggerInterface
 
     public function get_label(): string
     {
-        return __('Order Processing', 'order-daemon');
+        return __('core.log_registries.event_type.order_processing', 'order-daemon');
     }
 
     public function get_description(): string

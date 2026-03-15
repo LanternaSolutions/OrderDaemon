@@ -377,21 +377,21 @@ class DiagnosticRunner
         $results = $this->run_all_diagnostics();
         
         if (empty($results)) {
-            return __('No diagnostic results available. Please run diagnostics first.', 'order-daemon');
+            return __('diagnostics.runner.no_results', 'order-daemon');
         }
 
-        $report = "=== " . __('ORDER DAEMON DIAGNOSTICS REPORT', 'order-daemon') . " ===\n\n";
+        $report = "=== " . __('diagnostics.report.title', 'order-daemon') . " ===\n\n";
         
         // Header with timestamp and version
         $report .= sprintf(
             /* translators: %s: Date and time when the report was generated */
-            __('Generated: %s', 'order-daemon'),
+            __('diagnostics.report.generated_at', 'order-daemon'),
             current_time('Y-m-d H:i T')
         ) . "\n";
         
         $report .= sprintf(
             /* translators: %s: The Order Daemon plugin version number */
-            __('Plugin Version: %s', 'order-daemon'),
+            __('diagnostics.report.plugin_version', 'order-daemon'),
             defined('ODCM_VERSION') ? ODCM_VERSION : 'unknown'
         ) . "\n\n";
 
@@ -402,33 +402,33 @@ class DiagnosticRunner
         if ($critical_count > 0) {
             $report .= sprintf(
                 /* translators: %d: Number of critical issues found */
-                __('SYSTEM STATUS ❌ (%d critical issues)', 'order-daemon'),
+                __('diagnostics.runner.system_status.critical', 'order-daemon'),
                 $critical_count
             ) . "\n\n";
         } elseif ($warning_count > 0) {
             $report .= sprintf(
                 /* translators: %d: Number of warnings found */
-                __('SYSTEM STATUS ⚠️ (%d warnings)', 'order-daemon'),
+                __('diagnostics.runner.system_status.warnings', 'order-daemon'),
                 $warning_count
             ) . "\n\n";
         } else {
-            $report .= __('SYSTEM STATUS ✅ (All tests passed)', 'order-daemon') . "\n\n";
+            $report .= __('diagnostics.runner.system_status.ok', 'order-daemon') . "\n\n";
         }
 
         // Critical issues section (user-friendly explanations)
         if ($critical_count > 0) {
-            $report .= __('CRITICAL ISSUES:', 'order-daemon') . "\n";
+            $report .= __('diagnostics.runner.section.critical_issues', 'order-daemon') . "\n";
             foreach ($this->get_critical_issues($results) as $issue) {
                 $report .= "❌ " . $issue['title'] . "\n";
                 $report .= "   " . sprintf(
                     /* translators: %s: Impact description */
-                    __('Impact', 'order-daemon') . ": %s",
+                    __('diagnostics.runner.label.impact', 'order-daemon') . ": %s",
                     $issue['explanation']
                 ) . "\n";
                 if (!empty($issue['recommendations'])) {
                     $report .= "   " . sprintf(
                         /* translators: %s: Recommended solution */
-                        __('Solution', 'order-daemon') . ": %s",
+                        __('diagnostics.runner.label.solution', 'order-daemon') . ": %s",
                         implode(', ', $issue['recommendations'])
                     ) . "\n";
                 }
@@ -437,56 +437,56 @@ class DiagnosticRunner
         }
 
         // System overview
-        $report .= __('SYSTEM OVERVIEW:', 'order-daemon') . "\n";
+        $report .= __('diagnostics.runner.section.system_overview', 'order-daemon') . "\n";
         $system_info = $this->get_system_info();
         
         $report .= sprintf(
             /* translators: %s: WordPress version */
-            __('WordPress: %s', 'order-daemon'),
+            __('diagnostics.runner.system_info.wordpress', 'order-daemon'),
             $system_info['wordpress_version']
         ) . "\n";
-        
+
         if ($system_info['woocommerce_active']) {
             $wc_version = defined('WC_VERSION') ? constant('WC_VERSION') : 'unknown';
             $report .= sprintf(
                 /* translators: %s: WooCommerce version */
-                __('WooCommerce: %s', 'order-daemon'),
+                __('diagnostics.runner.system_info.woocommerce', 'order-daemon'),
                 $wc_version
             ) . "\n";
         }
-        
+
         $report .= sprintf(
             /* translators: %s: The PHP version number */
-            __('PHP Version: %s', 'order-daemon'),
+            __('diagnostics.report.system_info.php_version', 'order-daemon'),
             $system_info['php_version']
         ) . "\n";
-        
+
         $report .= sprintf(
             /* translators: %s: Memory limit */
-            __('Memory Limit: %s', 'order-daemon'),
+            __('diagnostics.runner.system_info.memory_limit', 'order-daemon'),
             ini_get('memory_limit')
         ) . "\n";
-        
+
         // WP-CLI status for Pro features
         $wp_cli_status = $this->get_wp_cli_status($results);
         $report .= sprintf(
             /* translators: %s: WP-CLI status */
-            __('WP-CLI: %s', 'order-daemon'),
+            __('diagnostics.runner.system_info.wp_cli', 'order-daemon'),
             $wp_cli_status
         ) . "\n";
-        
+
         $report .= sprintf(
             /* translators: %s: Whether debug mode is enabled (Enabled/Disabled) */
-            __('Debug Mode: %s', 'order-daemon'),
+            __('diagnostics.report.system_info.debug_mode', 'order-daemon'),
             $system_info['debug_mode'] ?
-                __('enabled', 'order-daemon') :
-                __('disabled', 'order-daemon')
+                __('diagnostics.runner.debug_enabled', 'order-daemon') :
+                __('diagnostics.runner.debug_disabled', 'order-daemon')
         ) . "\n\n";
 
         // Recommendations section
         $recommendations = $this->get_all_recommendations($results);
         if (!empty($recommendations)) {
-            $report .= __('RECOMMENDATIONS:', 'order-daemon') . "\n";
+            $report .= __('diagnostics.runner.section.recommendations', 'order-daemon') . "\n";
             foreach ($recommendations as $recommendation) {
                 $report .= "• " . $recommendation . "\n";
             }
@@ -494,14 +494,14 @@ class DiagnosticRunner
         }
 
         // Technical details section (for support)
-        $report .= __('TECHNICAL DETAILS (for support team):', 'order-daemon') . "\n";
+        $report .= __('diagnostics.runner.section.technical_details', 'order-daemon') . "\n";
         
         foreach ($results as $key => $result) {
             $status_icon = $result->isSuccessful() ? '✅' : '❌';
-            $report .= sprintf("%s %s: %s\n", $status_icon, $result->getName(), 
-                $result->isSuccessful() ? 
-                    __('Passed', 'order-daemon') : 
-                    __('Failed', 'order-daemon')
+            $report .= sprintf("%s %s: %s\n", $status_icon, $result->getName(),
+                $result->isSuccessful() ?
+                    __('diagnostics.runner.status.passed', 'order-daemon') :
+                    __('diagnostics.runner.status.failed', 'order-daemon')
             );
             
             if (!$result->isSuccessful()) {
@@ -602,13 +602,13 @@ class DiagnosticRunner
             $result = $results['core_wpcli'];
             if ($result->isSuccessful()) {
                 $details = $result->getDetails();
-                return $details['wp_cli_version'] ?? __('available', 'order-daemon');
+                return $details['wp_cli_version'] ?? __('diagnostics.runner.wp_cli.available', 'order-daemon');
             } else {
-                return __('not available', 'order-daemon') . ' (' . 
-                       __('required for Pro', 'order-daemon') . ')';
+                return __('diagnostics.runner.wp_cli.not_available', 'order-daemon') . ' (' .
+                       __('diagnostics.runner.wp_cli.required_for_pro', 'order-daemon') . ')';
             }
         }
-        return __('not available', 'order-daemon');
+        return __('diagnostics.runner.wp_cli.not_available', 'order-daemon');
     }
 
     /**

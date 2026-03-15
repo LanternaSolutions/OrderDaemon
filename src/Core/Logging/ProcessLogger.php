@@ -87,7 +87,7 @@ final class ProcessLogger
             $this->context = [
                 'order_id' => isset($context['order_id']) ? absint($context['order_id']) : null,
                 'actor'    => $this->resolve_actor($context),
-                'summary'  => sanitize_text_field($context['summary'] ?? __('Process started', 'order-daemon')),
+                'summary'  => sanitize_text_field($context['summary'] ?? __('core.logging.process_started', 'order-daemon')),
                 'source'   => isset($context['source']) ? sanitize_key((string) $context['source']) : 'system',
             ];
 

@@ -1604,7 +1604,7 @@ function odcm_validate_and_sanitize_params(array $params, array $rules): array {
     foreach ($rules as $param => $rule) {
         if (!isset($params[$param])) {
             if (isset($rule['required']) && $rule['required']) {
-                throw new InvalidArgumentException(esc_html__('Required parameter missing: $param', 'order-daemon'));
+                throw new InvalidArgumentException("Required parameter missing: $param"); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
             }
             continue;
         }
@@ -1615,14 +1615,14 @@ function odcm_validate_and_sanitize_params(array $params, array $rules): array {
         switch ($rule['type']) {
             case 'string':
                 if (!is_string($value)) {
-                    throw new InvalidArgumentException(esc_html__('Parameter $param must be a string', 'order-daemon'));
+                    throw new InvalidArgumentException("Parameter $param must be a string"); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
                 }
                 $validated[$param] = sanitize_text_field($value);
                 break;
 
             case 'integer':
                 if (!is_numeric($value)) {
-                    throw new InvalidArgumentException(esc_html__('Parameter $param must be an integer', 'order-daemon'));
+                    throw new InvalidArgumentException("Parameter $param must be an integer"); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
                 }
                 $validated[$param] = absint($value);
                 break;
@@ -1633,7 +1633,7 @@ function odcm_validate_and_sanitize_params(array $params, array $rules): array {
 
             case 'array':
                 if (!is_array($value)) {
-                    throw new InvalidArgumentException(esc_html__('Parameter $param must be an array', 'order-daemon'));
+                    throw new InvalidArgumentException("Parameter $param must be an array"); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
                 }
                 $validated[$param] = odcm_sanitize_data($value);
                 break;
@@ -1644,13 +1644,11 @@ function odcm_validate_and_sanitize_params(array $params, array $rules): array {
 
         // Additional validation rules
         if (isset($rule['min']) && $validated[$param] < $rule['min']) {
-            /* translators: %s: parameter name, %s: minimum value */
-            throw new InvalidArgumentException(esc_html(sprintf(__('Parameter $param must be at least %s', 'order-daemon'), $rule['min'])));
+            throw new InvalidArgumentException("Parameter $param must be at least {$rule['min']}"); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
         }
 
         if (isset($rule['max']) && $validated[$param] > $rule['max']) {
-            /* translators: %s: parameter name, %s: maximum value */
-            throw new InvalidArgumentException(esc_html(sprintf(__('Parameter $param must be at most %s', 'order-daemon'), $rule['max'])));
+            throw new InvalidArgumentException("Parameter $param must be at most {$rule['max']}"); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped
         }
     }
 

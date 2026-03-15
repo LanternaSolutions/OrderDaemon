@@ -33,7 +33,7 @@ class PluginStateDiagnostic extends AbstractDiagnostic
      */
     public function get_name(): string
     {
-        return __('Plugin State', 'order-daemon');
+        return __('diagnostics.plugin_state.name', 'order-daemon');
     }
 
     /**
@@ -43,7 +43,7 @@ class PluginStateDiagnostic extends AbstractDiagnostic
      */
     public function get_description(): string
     {
-        return __('Verifies Order Daemon database tables and configuration', 'order-daemon');
+        return __('diagnostics.plugin_state.description', 'order-daemon');
     }
 
     /**
@@ -91,13 +91,13 @@ class PluginStateDiagnostic extends AbstractDiagnostic
         // Test 1: Check if core plugin is available
         if (!$this->is_core_plugin_available()) {
             return DiagnosticResult::failure(
-                __('Plugin State Issue', 'order-daemon'),
-                __('Order Daemon core plugin is not properly loaded', 'order-daemon'),
+                __('diagnostics.plugin_state.result.issue', 'order-daemon'),
+                __('diagnostics.plugin_state.error.core_not_loaded', 'order-daemon'),
                 [
                     'core_plugin_available' => false,
                     'execution_time' => round((microtime(true) - $start_time) * 1000, 2) . 'ms'
                 ],
-                [__('Ensure Order Daemon plugin is properly installed and activated', 'order-daemon')]
+                [__('diagnostics.plugin_state.recommendation.reinstall', 'order-daemon')]
             );
         }
 
@@ -117,10 +117,10 @@ class PluginStateDiagnostic extends AbstractDiagnostic
         if (!empty($missing_tables)) {
             $issues[] = sprintf(
                 /* translators: %s: Comma-separated list of missing database tables */
-                __('Missing database tables: %s', 'order-daemon'),
+                __('diagnostics.plugin_state.error.missing_tables', 'order-daemon'),
                 implode(', ', $missing_tables)
             );
-            $recommendations[] = __('Deactivate and reactivate the plugin to recreate missing tables', 'order-daemon');
+            $recommendations[] = __('diagnostics.plugin_state.recommendation.reactivate', 'order-daemon');
         }
 
         // Test 3: Check database connectivity
@@ -129,8 +129,8 @@ class PluginStateDiagnostic extends AbstractDiagnostic
         $db_connected = $db_connection_test === '1';
         
         if (!$db_connected) {
-            $issues[] = __('Database connectivity issue detected', 'order-daemon');
-            $recommendations[] = __('Check database connection and server status', 'order-daemon');
+            $issues[] = __('diagnostics.plugin_state.error.db_connectivity', 'order-daemon');
+            $recommendations[] = __('diagnostics.plugin_state.recommendation.check_db', 'order-daemon');
         }
 
         // Test 4: Check table data integrity (if tables exist)
@@ -147,7 +147,7 @@ class PluginStateDiagnostic extends AbstractDiagnostic
         $version_valid = $plugin_version !== 'unknown';
 
         if (!$version_valid) {
-            $warnings[] = __('Plugin version could not be determined', 'order-daemon');
+            $warnings[] = __('diagnostics.plugin_state.warning.unknown_version', 'order-daemon');
         }
 
         // Test 6: Check essential plugin constants
@@ -163,7 +163,7 @@ class PluginStateDiagnostic extends AbstractDiagnostic
         if (!empty($missing_constants)) {
             $issues[] = sprintf(
                 /* translators: %s: Comma-separated list of missing constants */
-                __('Missing required plugin constants: %s', 'order-daemon'),
+                __('diagnostics.plugin_state.error.missing_constants', 'order-daemon'),
                 implode(', ', $missing_constants)
             );
         }
@@ -183,10 +183,10 @@ class PluginStateDiagnostic extends AbstractDiagnostic
         if (!empty($active_problematic)) {
             $warnings[] = sprintf(
                 /* translators: %s: Comma-separated list of problematic active plugins */
-                __('Potentially conflicting plugins detected: %s', 'order-daemon'),
+                __('diagnostics.plugin_state.warning.conflicting_plugins', 'order-daemon'),
                 implode(', ', $active_problematic)
             );
-            $recommendations[] = __('Monitor for plugin conflicts that may affect functionality', 'order-daemon');
+            $recommendations[] = __('diagnostics.plugin_state.recommendation.monitor_conflicts', 'order-daemon');
         }
 
         // Compile detailed results
@@ -208,22 +208,22 @@ class PluginStateDiagnostic extends AbstractDiagnostic
 
         if ($has_critical_issues) {
             $result = DiagnosticResult::failure(
-                __('Plugin State Issue', 'order-daemon'),
-                __('Order Daemon plugin has critical configuration issues', 'order-daemon'),
+                __('diagnostics.plugin_state.result.issue', 'order-daemon'),
+                __('diagnostics.plugin_state.error.critical_config', 'order-daemon'),
                 $details,
                 array_merge($issues, $recommendations)
             );
         } elseif (!empty($warnings)) {
             $result = DiagnosticResult::warning(
-                __('Plugin State Warning', 'order-daemon'),
-                __('Order Daemon plugin has minor configuration warnings', 'order-daemon'),
+                __('diagnostics.plugin_state.result.warning', 'order-daemon'),
+                __('diagnostics.plugin_state.warning.minor_config', 'order-daemon'),
                 $details,
                 array_merge($warnings, $recommendations)
             );
         } else {
             $result = DiagnosticResult::success(
-                __('Plugin State OK', 'order-daemon'),
-                __('Order Daemon is properly installed and configured', 'order-daemon'),
+                __('diagnostics.plugin_state.result.ok', 'order-daemon'),
+                __('diagnostics.plugin_state.success', 'order-daemon'),
                 $details
             );
 
@@ -233,7 +233,7 @@ class PluginStateDiagnostic extends AbstractDiagnostic
                 if ($total_logs > 0) {
                     $result->addRecommendation(sprintf(
                         /* translators: %d: Number of log entries in database */
-                        __('Database contains %d log entries', 'order-daemon'),
+                        __('diagnostics.plugin_state.info.log_entries', 'order-daemon'),
                         $total_logs
                     ));
                 }
