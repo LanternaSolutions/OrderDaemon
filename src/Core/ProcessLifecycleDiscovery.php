@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OrderDaemon\CompletionManager\Core;
 
 // Include functions.php for helper methods
-require_once __DIR__ . '/../../Includes/functions.php';
+require_once __DIR__ . '/../Includes/functions.php';
 
 /**
  * Auto-discovering registry for Process Lifecycle Consolidation.
