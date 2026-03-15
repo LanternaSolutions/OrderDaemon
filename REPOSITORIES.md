@@ -43,6 +43,66 @@ git push gitea
 
 ---
 
+```mermaid
+graph TB
+    subgraph local["Local Machine"]
+        OD["order-daemon\n(free plugin)"]
+        ODP["order-daemon-pro\n(pro plugin)"]
+        WSL["software-license\n(WP plugin)"]
+    end
+
+    subgraph remotes_free["Free Plugin Git Remotes"]
+        GH_PRIV["GitHub Private\nYakirLantern/OrderDaemon-private\n(origin / CI)"]
+        GH_PUB["GitHub Public\nLanternaSolutions/OrderDaemon\n(filtered mirror)"]
+        GL["GitLab.com\nYakirLanterna/order-daemon\n(backup)"]
+        GITEA["Gitea Local\nlocalhost:2222\n(local backup)"]
+    end
+
+    subgraph remotes_pro["Pro Plugin Git Remotes"]
+        GH_PRO["GitHub Private\nYakirLantern/OrderDaemon-pro-private\n(origin / CI)"]
+    end
+
+    subgraph website["orderdaemon.com (WordPress)"]
+        WSL_INST["WSL Plugin\n(licensing engine)"]
+        WC["WooCommerce\n(products + orders)"]
+        ADV["Advanced Scripts Pro\n(webhook handlers)"]
+        FREE_ZIP["odcm-releases/\n(free plugin zips)"]
+        PRO_ZIP["woocommerce_uploads/\nodcm-pro-releases/\n(pro plugin zips)"]
+    end
+
+    subgraph wp_org["WordPress.org SVN"]
+        SVN_TRUNK["trunk/"]
+        SVN_TAGS["tags/1.x.x/"]
+        SVN_ASSETS["assets/\n(banners, icons)"]
+    end
+
+    OD -->|"git push (daily)"| GH_PRIV
+    OD -->|"git push gitea (manual)"| GITEA
+    ODP -->|"git push (daily)"| GH_PRO
+
+    GH_PRIV -->|"on version tag:\npackage + deploy_svn"| SVN_TRUNK
+    GH_PRIV -->|"on push to main:\nmirror_gitlab"| GL
+    GH_PRIV -->|"manual:\npush_github_public (filter-repo)"| GH_PUB
+    GH_PRIV -->|"on version tag:\nwebhook POST"| ADV
+
+    GH_PRO -->|"on version tag:\nwebhook POST"| ADV
+
+    ADV -->|"saves free zip"| FREE_ZIP
+    ADV -->|"saves pro zip"| PRO_ZIP
+    ADV -->|"updates options:\nodcm_free_version\nodcm_free_download_url"| WC
+    ADV -->|"updates downloadable files\non pro WC product"| WC
+    WC --- WSL_INST
+
+    ODP -->|"requires free plugin active\n(reads ODCM_VERSION)"| OD
+    ODP -->|"license validation +\nplugin update check (WSL API)"| WSL_INST
+    WSL_INST -->|"serves pro zip\n(after license check)"| PRO_ZIP
+
+    SVN_TRUNK --> SVN_TAGS
+    SVN_TRUNK --> SVN_ASSETS
+```
+
+---
+
 ## What Gets Filtered from Public Releases
 
 These paths exist in the private repo but are **never** included in the zip artifact, WordPress.org SVN, or the public GitHub mirror:
@@ -579,3 +639,64 @@ git push gitea --tags
 ```
 
 This is separate from the automated GitLab.com backup and is entirely optional.
+
+---
+
+## Repository Architecture
+
+```mermaid
+graph TB
+    subgraph local["Local Machine"]
+        OD["order-daemon\n(free plugin)"]
+        ODP["order-daemon-pro\n(pro plugin)"]
+    end
+
+    subgraph remotes_free["Free Plugin Git Remotes"]
+        GH_PRIV["GitHub Private\nYakirLantern/OrderDaemon-private\n(origin / CI)"]
+        GH_PUB["GitHub Public\nLanternaSolutions/OrderDaemon\n(filtered mirror)"]
+        GL["GitLab.com\nYakirLanterna/order-daemon\n(backup)"]
+        GITEA["Gitea Local\nlocalhost:2222\n(local backup)"]
+    end
+
+    subgraph remotes_pro["Pro Plugin Git Remotes"]
+        GH_PRO["GitHub Private\nYakirLantern/OrderDaemon-pro-private\n(origin / CI)"]
+    end
+
+    subgraph website["orderdaemon.com (WordPress)"]
+        WSL_INST["WSL Plugin\n(licensing engine)"]
+        WC["WooCommerce\n(products + orders)"]
+        ADV["Advanced Scripts Pro\n(webhook handlers)"]
+        FREE_ZIP["odcm-releases/\n(free plugin zips)"]
+        PRO_ZIP["woocommerce_uploads/\nodcm-pro-releases/\n(pro plugin zips)"]
+    end
+
+    subgraph wp_org["WordPress.org SVN"]
+        SVN_TRUNK["trunk/"]
+        SVN_TAGS["tags/1.x.x/"]
+        SVN_ASSETS["assets/\n(banners, icons)"]
+    end
+
+    OD -->|"git push (daily)"| GH_PRIV
+    OD -->|"git push gitea (manual)"| GITEA
+    ODP -->|"git push (daily)"| GH_PRO
+
+    GH_PRIV -->|"on version tag:\npackage + deploy_svn"| SVN_TRUNK
+    GH_PRIV -->|"on push to main:\nmirror_gitlab"| GL
+    GH_PRIV -->|"manual:\npush_github_public (filter-repo)"| GH_PUB
+    GH_PRIV -->|"on version tag:\nwebhook POST"| ADV
+
+    GH_PRO -->|"on version tag:\nwebhook POST"| ADV
+
+    ADV -->|"saves free zip"| FREE_ZIP
+    ADV -->|"saves pro zip"| PRO_ZIP
+    ADV -->|"updates options:\nodcm_free_version\nodcm_free_download_url"| WC
+    ADV -->|"updates downloadable files\non pro WC product"| WC
+    WC --- WSL_INST
+
+    ODP -->|"requires free plugin active\n(reads ODCM_VERSION)"| OD
+    ODP -->|"license validation +\nplugin update check (WSL API)"| WSL_INST
+    WSL_INST -->|"serves pro zip\n(after license check)"| PRO_ZIP
+
+    SVN_TRUNK --> SVN_TAGS
+    SVN_TRUNK --> SVN_ASSETS
+```

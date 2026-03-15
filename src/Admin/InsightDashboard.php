@@ -969,24 +969,12 @@ class InsightDashboard
                 <!-- Advanced Filters Group -->
                 <div class="odcm-advanced-filter-group">
                     
-                    <!-- Status Filter -->
-                    <div class="odcm-filter-group">
-                        <label for="filter-status"><?php echo esc_html__('admin.insight_dashboard.filters.status.label', 'order-daemon'); ?></label>
-                        <select id="filter-status" 
-                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.status'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                            <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.status.all', 'order-daemon'); ?></option>
-                            <option value="success"><?php echo esc_html__('status.success', 'order-daemon'); ?></option>
-                            <option value="error"><?php echo esc_html__('status.error', 'order-daemon'); ?></option>
-                            <option value="warning"><?php echo esc_html__('status.warning', 'order-daemon'); ?></option>
-                            <option value="info"><?php echo esc_html__('status.info', 'order-daemon'); ?></option>
-                        </select>
-                    </div>
-
                     <!-- Event Type Filter -->
                     <div class="odcm-filter-group">
                         <label for="filter-event-type"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.label', 'order-daemon'); ?></label>
-                        <select id="filter-event-type" 
-                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.event_type'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                        <select id="filter-event-type"
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.event_type'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'applyFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.event_type.all', 'order-daemon'); ?></option>
                             <option value="rule_check"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.rule_check', 'order-daemon'); ?></option>
                             <option value="order_completion"><?php echo esc_html__('admin.insight_dashboard.filters.event_type.order_completion', 'order-daemon'); ?></option>
@@ -1000,8 +988,9 @@ class InsightDashboard
                     <!-- Source Filter -->
                     <div class="odcm-filter-group">
                         <label for="filter-source"><?php echo esc_html__('admin.insight_dashboard.filters.source.label', 'order-daemon'); ?></label>
-                        <select id="filter-source" 
-                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.source'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                        <select id="filter-source"
+                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.source'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'applyFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             <option value=""><?php echo esc_html__('admin.insight_dashboard.filters.source.all', 'order-daemon'); ?></option>
                             <option value="manual"><?php echo esc_html__('admin.insight_dashboard.filters.source.manual', 'order-daemon'); ?></option>
                             <option value="scheduled"><?php echo esc_html__('admin.insight_dashboard.filters.source.scheduled', 'order-daemon'); ?></option>
@@ -1015,12 +1004,18 @@ class InsightDashboard
                     <div class="odcm-filter-group">
                         <label><?php echo esc_html__('admin.insight_dashboard.filters.date_range.label', 'order-daemon'); ?></label>
                         <div class="odcm-date-range">
-                            <input type="date" 
+                            <input type="date"
+                                   id="filter-date-start"
+                                   aria-label="<?php echo esc_attr__('admin.insight_dashboard.filters.date_range.from', 'order-daemon'); ?>"
                                    <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.date_start'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                   <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'applyFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                    class="regular-text">
                             <span>–</span>
-                            <input type="date" 
+                            <input type="date"
+                                   id="filter-date-end"
+                                   aria-label="<?php echo esc_attr__('admin.insight_dashboard.filters.date_range.to', 'order-daemon'); ?>"
                                    <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.date_end'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                   <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'applyFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                    class="regular-text">
                         </div>
                     </div>

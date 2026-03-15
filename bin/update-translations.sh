@@ -106,11 +106,16 @@ fi
 if [[ "$MODE" == "--check" ]]; then
     bold "=== Translation Status Check ==="
     echo ""
-    msgfmt --statistics "$PO_FILE" 2>&1
-    echo ""
     # Subtract 1 to exclude the header entry (which always has an empty msgstr)
     UNTRANSLATED=$(grep -c '^msgstr ""$' "$PO_FILE" || true)
     UNTRANSLATED=$((UNTRANSLATED - 1))
+    TRANSLATED_COUNT=$(msgfmt --statistics "$PO_FILE" 2>&1 | grep -oE '^[0-9]+' || echo "0")
+    if [[ "$UNTRANSLATED" -gt 0 ]]; then
+        echo "$TRANSLATED_COUNT translated messages, $UNTRANSLATED untranslated messages."
+    else
+        echo "$TRANSLATED_COUNT translated messages."
+    fi
+    echo ""
     if [[ "$UNTRANSLATED" -gt 0 ]]; then
         yellow "  $UNTRANSLATED string(s) have empty msgstr (need English text)."
         echo ""
@@ -225,14 +230,17 @@ msgmerge \
     "$PO_FILE" \
     "$POT_FILE" 2>&1 | sed 's/^/  /'
 
-# Report statistics after merge
-STATS=$(msgfmt --statistics "$PO_FILE" 2>&1)
-green "  $STATS"
-
-# Count untranslated (empty msgstr)
+# Count untranslated (empty msgstr), subtract 1 for the header entry
 UNTRANSLATED=$(grep -c '^msgstr ""$' "$PO_FILE" || true)
-# Subtract 1 for the header entry (which always has empty msgstr "")
 UNTRANSLATED=$((UNTRANSLATED - 1))
+
+# Report statistics after merge (adjusted to exclude header entry)
+TRANSLATED_COUNT=$(msgfmt --statistics "$PO_FILE" 2>&1 | grep -oE '^[0-9]+' || echo "0")
+if [[ "$UNTRANSLATED" -gt 0 ]]; then
+    green "  $TRANSLATED_COUNT translated messages, $UNTRANSLATED untranslated messages."
+else
+    green "  $TRANSLATED_COUNT translated messages."
+fi
 
 if [[ "$UNTRANSLATED" -gt 0 ]]; then
     echo ""

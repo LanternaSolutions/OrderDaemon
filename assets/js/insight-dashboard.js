@@ -127,8 +127,6 @@ function insightDashboard() {
         // Filters with persistence (will be set up in init)
         filters: {
             search: '',
-            full_search: false,
-            status: '',
             event_type: '',
             source: '',
             order_id: '',
@@ -319,11 +317,8 @@ function insightDashboard() {
         },
 
         setupFilterWatchers() {
-            // Watch for filter changes and reset pagination
-            this.$watch('filters', () => {
-                this.currentPage = 1;
-                this.debouncedFetchLogs();
-            });
+            // Filter changes are handled via @change on dropdowns/date inputs
+            // and @input on the search box — no deep watcher needed.
         },
 
         // =================================================================
@@ -712,7 +707,7 @@ function insightDashboard() {
                     selectEl.appendChild(opt);
                 });
                 // Restore selection if still available
-                if (current && ARRAY.isArray(items) && items.some(i => i.value === current)) {
+                if (current && Array.isArray(items) && items.some(i => i.value === current)) {
                     selectEl.value = current;
                 }
             };
@@ -1532,15 +1527,8 @@ function insightDashboard() {
                     activeFilters.order_id = searchTerm;
                 }
 
-                if (this.filters.full_search) {
-                    activeFilters.full_search = '1';
-                }
             }
 
-            // All filters are now available in the free version
-            if (this.filters.status) {
-                activeFilters.status = this.filters.status;
-            }
             if (this.filters.event_type) {
                 activeFilters.event_type = this.filters.event_type;
             }
@@ -1614,8 +1602,6 @@ function insightDashboard() {
                 const f = this.filters || {};
                 // Basic search
                 if (typeof f.search === 'string' && f.search.trim() !== '') return true;
-                // All filters are now available in the free version
-                if (f.status) return true;
                 if (f.event_type) return true;
                 if (f.source) return true;
                 if (f.order_id) return true;
@@ -1677,8 +1663,6 @@ function insightDashboard() {
         clearFilters() {
             this.filters = {
                 search: '',
-                full_search: false,
-                status: '',
                 event_type: '',
                 source: '',
                 order_id: '',

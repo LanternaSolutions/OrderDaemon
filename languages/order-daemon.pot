@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Order Daemon for WooCommerce 1.3.24\n"
 "Report-Msgid-Bugs-To: support@orderdaemon.com\n"
-"POT-Creation-Date: 2026-03-15 02:42+0100\n"
+"POT-Creation-Date: 2026-03-15 03:22+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -121,23 +121,23 @@ msgstr ""
 msgid "admin.insight_dashboard.actions.auto_refresh"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1539
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1534
 msgid "admin.insight_dashboard.actions.retry"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1269
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1264
 msgid "admin.insight_dashboard.ajax.debug_settings_saved"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1495
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1490
 msgid "admin.insight_dashboard.ajax.failed_reprocess_orders"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1220
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1215
 msgid "admin.insight_dashboard.ajax.failed_to_update_setting"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1327
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1322
 msgid "admin.insight_dashboard.ajax.failed_to_update_uninstall_setting"
 msgstr ""
 
@@ -145,32 +145,32 @@ msgstr ""
 msgid "admin.insight_dashboard.ajax.failed_welcome_scenario_check"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1206
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1201
 msgid "admin.insight_dashboard.ajax.invalid_per_page_range"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1303
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1298
 msgid "admin.insight_dashboard.ajax.missing_required_parameter"
 msgstr ""
 
 #. translators: %d: The number of log entries to show per page.
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1216
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1211
 msgid "admin.insight_dashboard.ajax.per_page_updated"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1193
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1234
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1285
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1457
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1766
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1188
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1229
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1280
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1452
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1761
 msgid "admin.insight_dashboard.ajax.permission_denied"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1070
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1065
 msgid "admin.insight_dashboard.ajax.processing"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1480
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1475
 #: /home/yakir/lab/order-daemon/src/Core/Core.php:453
 msgid "admin.insight_dashboard.ajax.reprocess_success_singular"
 msgid_plural "admin.insight_dashboard.ajax.reprocess_success_plural"
@@ -178,23 +178,23 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:569
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1198
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1239
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1294
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1462
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1761
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1193
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1234
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1289
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1457
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1756
 msgid "admin.insight_dashboard.ajax.security_check_failed"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1319
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1314
 msgid "admin.insight_dashboard.ajax.uninstall_data_disabled"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1318
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1313
 msgid "admin.insight_dashboard.ajax.uninstall_data_enabled"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1334
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1329
 msgid "admin.insight_dashboard.ajax.uninstall_setting_error"
 msgstr ""
 
@@ -223,19 +223,19 @@ msgid "admin.insight_dashboard.details"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:854
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1589
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1584
 msgid "admin.insight_dashboard.docs.view_documentation"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1610
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1605
 msgid "admin.insight_dashboard.empty.manage_rules"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1604
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1599
 msgid "admin.insight_dashboard.empty.no_activity.description"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1603
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1598
 msgid "admin.insight_dashboard.empty.no_activity.title"
 msgstr ""
 
@@ -260,53 +260,58 @@ msgstr ""
 msgid "admin.insight_dashboard.filters"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1050
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1045
 msgid "admin.insight_dashboard.filters.apply_filters"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1053
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1048
 msgid "admin.insight_dashboard.filters.clear_all"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1016
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1009
+msgid "admin.insight_dashboard.filters.date_range.from"
+msgstr ""
+
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1005
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:72
 msgid "admin.insight_dashboard.filters.date_range.label"
 msgstr ""
 
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1016
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:193
 msgid "admin.insight_dashboard.filters.date_range.to"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:990
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:978
 msgid "admin.insight_dashboard.filters.event_type.all"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:996
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:984
 msgid "admin.insight_dashboard.filters.event_type.error_occurred"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:987
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:974
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:96
 msgid "admin.insight_dashboard.filters.event_type.label"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:993
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:981
 msgid "admin.insight_dashboard.filters.event_type.manual_trigger"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:992
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:980
 msgid "admin.insight_dashboard.filters.event_type.order_completion"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:991
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:979
 msgid "admin.insight_dashboard.filters.event_type.rule_check"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:994
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:982
 msgid "admin.insight_dashboard.filters.event_type.scheduled_task"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:995
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:983
 msgid "admin.insight_dashboard.filters.event_type.webhook_received"
 msgstr ""
 
@@ -314,7 +319,7 @@ msgstr ""
 msgid "admin.insight_dashboard.filters.include_debug_logs"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1036
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1031
 msgid "admin.insight_dashboard.filters.include_test_logs"
 msgstr ""
 
@@ -328,11 +333,11 @@ msgstr ""
 msgid "admin.insight_dashboard.filters.search.placeholder"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1005
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:994
 msgid "admin.insight_dashboard.filters.source.all"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1009
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:998
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:438
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:1075
 msgid "admin.insight_dashboard.filters.source.api"
@@ -342,7 +347,7 @@ msgstr ""
 msgid "admin.insight_dashboard.filters.source.event_processor"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1002
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:990
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:109
 msgid "admin.insight_dashboard.filters.source.label"
 msgstr ""
@@ -351,37 +356,35 @@ msgstr ""
 msgid "admin.insight_dashboard.filters.source.logger"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1006
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:995
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:435
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:1067
 msgid "admin.insight_dashboard.filters.source.manual"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1007
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:996
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:436
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:1079
 msgid "admin.insight_dashboard.filters.source.scheduled"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1010
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:999
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:439
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:1063
 msgid "admin.insight_dashboard.filters.source.system"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1008
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:997
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:437
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:1071
 msgid "admin.insight_dashboard.filters.source.webhook"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:977
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:235
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:434
 msgid "admin.insight_dashboard.filters.status.all"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:974
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:84
 msgid "admin.insight_dashboard.filters.status.label"
 msgstr ""
@@ -394,65 +397,65 @@ msgstr ""
 msgid "admin.insight_dashboard.loading"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1642
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1637
 msgid "admin.insight_dashboard.log_stream.delete_selected"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1642
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1637
 msgid "admin.insight_dashboard.log_stream.deleting"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1701
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1696
 msgid "admin.insight_dashboard.log_stream.no_summary"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1632
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1627
 msgid "admin.insight_dashboard.log_stream.select_all"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1688
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1683
 msgid "admin.insight_dashboard.log_stream.select_log_entry"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1636
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1631
 msgid "admin.insight_dashboard.log_stream.selected_label"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1706
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1701
 msgid "admin.insight_dashboard.log_stream.unknown_status"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1658
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1653
 msgid "admin.insight_dashboard.log_stream.view_grouped"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1668
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1663
 msgid "admin.insight_dashboard.log_stream.view_individual"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1667
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1662
 msgid "admin.insight_dashboard.log_stream.view_individual_title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1555
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1550
 msgid "admin.insight_dashboard.logs.clear_filters_button"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1042
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1037
 msgid "admin.insight_dashboard.logs.include_debug_logs"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1552
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1547
 msgid "admin.insight_dashboard.logs.no_results_hint"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1551
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1546
 msgid "admin.insight_dashboard.logs.no_results_title"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:804
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1558
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1607
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1553
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1602
 msgid "admin.insight_dashboard.logs.refresh_button"
 msgstr ""
 
@@ -481,7 +484,7 @@ msgstr ""
 msgid "admin.insight_dashboard.pagination"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1734
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1729
 msgid "admin.insight_dashboard.pagination.of"
 msgstr ""
 
@@ -506,23 +509,23 @@ msgstr ""
 msgid "admin.insight_dashboard.select_log_entry"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1078
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1073
 msgid "admin.insight_dashboard.settings.display_label"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1095
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1090
 msgid "admin.insight_dashboard.settings.log_entries_per_page"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1071
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1066
 msgid "admin.insight_dashboard.settings.reprocess_orders.label"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1089
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1084
 msgid "admin.insight_dashboard.settings.timestamp_format_datetime"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1080
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1075
 msgid "admin.insight_dashboard.settings.timestamp_format_label"
 msgstr ""
 
@@ -569,47 +572,47 @@ msgstr ""
 msgid "admin.insight_dashboard.unified_header"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1586
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1581
 msgid "admin.insight_dashboard.welcome.actions.create_first_rule"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1572
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1567
 msgid "admin.insight_dashboard.welcome.description"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1578
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1573
 msgid "admin.insight_dashboard.welcome.steps.create_rule"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1578
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1573
 msgid "admin.insight_dashboard.welcome.steps.create_rule_location"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1579
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1574
 msgid "admin.insight_dashboard.welcome.steps.place_order"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1579
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1574
 msgid "admin.insight_dashboard.welcome.steps.place_order_description"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1580
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1575
 msgid "admin.insight_dashboard.welcome.steps.return_here"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1580
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1575
 msgid "admin.insight_dashboard.welcome.steps.return_here_description"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1576
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1571
 msgid "admin.insight_dashboard.welcome.steps.title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1594
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1589
 msgid "admin.insight_dashboard.welcome.tip"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1571
+#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1566
 msgid "admin.insight_dashboard.welcome.title"
 msgstr ""
 
@@ -3205,13 +3208,11 @@ msgstr ""
 msgid "status.debug"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:979
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:237
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:998
 msgid "status.error"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:981
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:239
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:1010
 msgid "status.info"
@@ -3229,13 +3230,11 @@ msgstr ""
 msgid "status.skipped"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:978
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:236
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:992
 msgid "status.success"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:980
 #: /home/yakir/lab/order-daemon/src/Core/audit-filters.php:238
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:1004
 msgid "status.warning"
