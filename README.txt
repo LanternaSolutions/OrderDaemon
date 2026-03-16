@@ -152,18 +152,10 @@ Order Daemon does not collect, store, or transmit any personal data outside of y
 
 == Changelog ==
 
-= 1.3.25 =
-* Fixed: Insight dashboard filter pane display issues
-* Improved: Log event source attribution in the Insights dashboard
-* Improved: Translations and i18n string coverage
-
-= 1.3.24 =
-* Initial release on WordPress.org
+= 1.3.26 =
+* Fixed critical error on page load caused by database safety check running even when no update was needed
 
 == Upgrade Notice ==
 
-= 1.3.25 =
-Bug fixes and improvements for the Insights dashboard and a translations update.
-
-= 1.3.24 =
-Initial release.
+= 1.3.26 =
+Fixes a critical error that could occur on every page load. Update recommended for all users.

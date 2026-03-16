@@ -81,6 +81,12 @@ class Installer
     {
         self::initialize_db_helper();
 
+        // Skip everything if the DB is already at the current version.
+        $stored_version = self::$db_helper->get_option(self::DB_VERSION_OPTION_KEY, '0.0');
+        if (version_compare($stored_version, self::DB_VERSION, '>=')) {
+            return;
+        }
+
         // Check if update is safe to perform
         if (!self::is_update_safe()) {
             throw new \Exception('Database update is not safe to perform');
