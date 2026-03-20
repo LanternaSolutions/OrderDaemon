@@ -225,7 +225,7 @@
 
 /* Button Styles - Using Three-Tier System */
 .odcm-button {
-    display: inline-block;
+    display: inline-flex;
     padding: var(--odcm-theme-spacing-sm) var(--odcm-theme-spacing-md);
     font-size: var(--odcm-theme-font-size-sm);
     border-radius: var(--odcm-component-border-radius);
@@ -254,6 +254,8 @@
 .odcm-button .odcm-icon {
   font-size: 16px;
   line-height: 1em;
+  width: 1em;
+  height: 1em;
 }
 
 .odcm-button-small {
