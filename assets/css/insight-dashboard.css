@@ -179,40 +179,35 @@
    WORDPRESS-NATIVE LAYOUT INTEGRATION
    ========================================================================== */
 
-/* WordPress-Native Dashboard Integration - Normal Flow Layout */
-/* Let WordPress notices display normally and push dashboard content down */
-.odcm-is-fullscreen-dashboard #wpbody-content {
-    /* Remove forced height constraints - let content flow naturally */
-    padding: 0 !important; /* Remove default WordPress padding */
-    margin: 0 !important; /* Remove default WordPress margins */
-}
+/* WordPress-Native Dashboard Integration
 
-.odcm-is-fullscreen-dashboard .wrap {
-    /* Remove forced height constraints - let content flow naturally */
-    margin: 0 !important; /* Remove WordPress default margins */
-    padding: 0 !important; /* Remove WordPress default padding */
-}
+   WP's common.css already handles:
+     - Desktop: #wpcontent { margin-left: 160px } and .folded #wpcontent { margin-left: 36px }
+     - Mobile:  #wpcontent { margin-left: 0; padding-left: 10px }
+   We do NOT override those margin-left values — let WP's own responsive system manage them.
+   We only remove WP's internal padding/margin that would indent the dashboard from the
+   edge of the content area. */
 
-/* Normal admin menu spacing - no height forcing */
+/* Remove WP's internal spacing so the dashboard fills edge-to-edge within #wpcontent */
 .odcm-is-fullscreen-dashboard #wpcontent {
-    margin-left: 160px !important; /* Maintain WordPress admin menu spacing */
+    padding-left: 0 !important; /* WP default is 20px on desktop */
+}
+.odcm-is-fullscreen-dashboard #wpbody-content {
+    padding-bottom: 0 !important; /* WP default is 65px */
+}
+.odcm-is-fullscreen-dashboard .wrap {
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
-/* Handle collapsed admin menu state */
-.odcm-is-fullscreen-dashboard.folded #wpcontent {
-    margin-left: 36px !important; /* WordPress collapsed menu width */
-}
-
-/* Mobile responsive adjustments */
+/* Mobile: remove WP's 10px padding-left and override wpwrap overflow so
+   position:sticky works relative to the viewport (WP sets overflow:hidden at ≤782px) */
 @media screen and (max-width: 782px) {
-    .odcm-is-fullscreen-dashboard #wpcontent {
-        margin-left: 0 !important;
-        padding-left: 10px !important;
+    .odcm-is-fullscreen-dashboard #wpwrap {
+        overflow: visible !important;
     }
-    
-    .odcm-is-fullscreen-dashboard #wpbody-content {
-        padding-left: 10px !important;
-        padding-right: 12px !important;
+    .odcm-is-fullscreen-dashboard #wpcontent {
+        padding-left: 0 !important; /* WP mobile default is 10px */
     }
 }
 
@@ -238,7 +233,8 @@
     border-bottom: 1px solid var(--odcm-component-border-color) !important;
     position: relative !important;
     box-sizing: border-box !important;
-    min-height: 85vh; /* Good baseline height - WordPress notices naturally push this down */
+    height: calc(100vh - var(--odcm-calculated-admin-bar-height)); /* Fill viewport; mobile overrides this */
+    overflow: hidden; /* Prevent any internal overflow from contributing to body/page scroll */
 }
 
 /* Hide WordPress admin footer on our dashboard page */
@@ -249,6 +245,11 @@
 
 /* Mobile controls - removed in unified approach */
 .odcm-mobile-controls {
+    display: none;
+}
+
+/* Mobile-only delete label: hidden by default, shown only in mobile media query */
+.odcm-delete-label-mobile {
     display: none;
 }
 
@@ -451,6 +452,7 @@
 .odcm-content-grid {
     display: grid;
     grid-template-columns: var(--odcm-theme-side-pane-width) 1fr 0px; /* Default: filter visible, details hidden */
+    grid-template-rows: minmax(0, 1fr); /* Constrain the single row to grid container height, not content height */
     grid-template-areas: "filters stream details";
     gap: 0px;
     transition: grid-template-columns 0.3s ease;
@@ -1399,6 +1401,7 @@ label.odcm-retention-option {
     gap: var(--odcm-theme-spacing-md);
     flex-wrap: wrap;
     flex: 1;
+    width: 100%;
 }
 
 .odcm-select-all-container {
@@ -1424,6 +1427,15 @@ label.odcm-retention-option {
     display: flex;
     align-items: center;
     gap: var(--odcm-theme-spacing-md);
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 300;
+    background: var(--odcm-theme-white);
+    border: 1px solid var(--odcm-component-border-color);
+    border-radius: var(--odcm-component-border-radius);
+    padding: 8px 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.10);
 }
 
 .odcm-selection-count {
@@ -1431,26 +1443,56 @@ label.odcm-retention-option {
     color: var(--odcm-theme-grey-600);
     font-weight: 500;
 }
-/*
+
+.odcm-delete-label-desktop, .odcm-delete-label-mobile, .odcm-delete-label-desktop.dashicons-trash, .odcm-delete-label-mobile.dashicons-trash {
+    color: var(--odcm-theme-red-700)
+}
+
+.odcm-delete-label-desktop:hover, .odcm-delete-label-mobile:hover, .odcm-delete-label-desktop.dashicons-trash:hover, .odcm-delete-label-mobile.dashicons-trash:hover {
+    color: var(--odcm-theme-white)
+}
+
+.dashicons-trash {
+    color: var(--odcm-theme-red-700);
+}
+
 .odcm-delete-selected {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 6px 12px;
-    margin: var(--odcm-theme-spacing-xs);
-    background: var(--odcm-theme-red-700);
-    color: var(--odcm-theme-white);
-    border: 1px solid var(--odcm-theme-red-700);
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 6px;
+    padding: 8px 10px;
     border-radius: var(--odcm-component-border-radius);
+    background: var(--odcm-theme-red-200);
+    color: var(--odcm-theme-red-700);
+    border: 1px solid var(--odcm-theme-red-700) !important;
     cursor: pointer;
     transition: var(--odcm-component-transition);
     font-size: var(--odcm-theme-font-size-sm);
+    line-height: 1.2;
+    min-width: 60px;
+    width: auto;
+    box-sizing: border-box;
+    flex-wrap: nowrap !important;
+    flex-shrink: 0;
+    height: min-content;
 }
-*/
+
+/* Icon inherits red from button by default; WP admin may override .dashicons color,
+   so set it explicitly and use the button hover to flip both icon and text to white. */
+.odcm-delete-selected .dashicons-trash {
+    color: var(--odcm-theme-red-700) !important;
+}
+
 .odcm-delete-selected:hover:not(:disabled) {
     background: var(--odcm-theme-red-700);
     border-color: var(--odcm-theme-red-700);
     color: var(--odcm-theme-white);
+}
+
+.odcm-delete-selected:hover:not(:disabled) .dashicons-trash {
+    color: var(--odcm-theme-white) !important;
 }
 
 .odcm-delete-selected:disabled {
@@ -1477,8 +1519,7 @@ label.odcm-retention-option {
 
 /* Unified Button Styling - Consistent spacing and alignment */
 .odcm-timestamp-toggle,
-.odcm-refresh-button,
-.odcm-delete-selected {
+.odcm-refresh-button{
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
@@ -1712,6 +1753,7 @@ label.odcm-retention-option {
 .odcm-log-entry {
     display: flex;
     align-items: center;
+    cursor: pointer;
     gap: 12px;
     border: 1px solid var(--odcm-component-border-color);
     border-radius: var(--odcm-component-border-radius);
@@ -1761,7 +1803,6 @@ label.odcm-retention-option {
 /* Log Entry Content */
 .odcm-log-entry-content {
     flex: 1;
-    cursor: pointer;
     min-width: 0; /* Allow content to shrink */
     overflow: visible; /* Ensure content can expand */
 }
@@ -1769,14 +1810,16 @@ label.odcm-retention-option {
 .odcm-log-entry-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    flex-wrap: nowrap;
+    gap: var(--odcm-theme-spacing-xs);
+    flex-wrap: wrap;
 }
 
 .odcm-log-summary {
     font-weight: var(--odcm-theme-font-weight-str);
     line-height: 1.4;
     flex: 1;
+    flex-basis: 100%; /* Force summary onto its own row when flex-wrap: wrap is active */
+    order: 4;          /* after timestamp, order#, and status-pill */
     margin-right: var(--odcm-theme-spacing-sm);
     overflow: visible;
     white-space: normal;
@@ -1816,6 +1859,8 @@ label.odcm-retention-option {
     font-weight: 500;
     text-transform: uppercase;
     margin-left: auto;
+    order: 3;      /* visually before summary so it stays on row 1 */
+    flex-shrink: 0;
 }
 
 /* Status variants override the semantic status variables */
@@ -2018,7 +2063,7 @@ label.odcm-retention-option {
     border-radius: var(--odcm-component-border-radius);
     padding: 0;
     margin-bottom: var(--odcm-theme-spacing-sm);
-    //* overflow: hidden; */
+    /* overflow: hidden; */
     background-color: var(--odcm-theme-grey-300);
     transition: var(--odcm-component-transition);
 }
@@ -2754,7 +2799,7 @@ label.odcm-retention-option {
 /* Stream: Enhanced styling for consolidated entries */
 .odcm-log-entry.is-consolidated:hover {
     border-color: var(--odcm-theme-blue-700);
-    //background: var(--odcm-theme-blue-200);
+    /* background: var(--odcm-theme-blue-200); */
     box-shadow: 0 3px 8px rgba(0, 123, 186, 0.2);
 }
 
@@ -3115,4 +3160,300 @@ label.odcm-retention-option {
 .odcm-retention-controls .button .dashicons {
   line-height: 1;
   display: inline-block;
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVE LAYOUT — Drawer System (≤ 782px)
+
+   On mobile:
+   - Unified header becomes position: sticky with z-index above drawers,
+     so its close/nav buttons are always accessible on top of open drawers
+   - Content grid becomes a single full-width column
+   - Filter pane slides in as a fixed left drawer (top: 0, full viewport height)
+   - Detail pane slides in as a fixed fullscreen right drawer (top: 0, full viewport)
+   - When detail pane is open, the unified header swaps to show the detail
+     section (title + close button) instead of the stream section
+   ========================================================================== */
+
+@media screen and (max-width: 782px) {
+
+    /* --- Dashboard: viewport-fill so the stream scrolls internally and the header
+       is always visible at the top without needing position:sticky.
+       Using both 100vh (fallback) and 100dvh (adjusts for mobile browser chrome). */
+    .odcm-insight-dashboard {
+        height: calc(100vh - var(--odcm-calculated-admin-bar-height));
+        height: calc(100dvh - var(--odcm-calculated-admin-bar-height));
+        min-height: unset !important;
+    }
+
+    /* --- Unified Header: sticky, anchored at top: 0 so it scrolls with the page
+       until it reaches the viewport top (the WP admin bar, position:fixed z-index:99999,
+       always sits visually above it). Height is left natural so JS can measure
+       getBoundingClientRect().bottom and write --odcm-header-bottom for the drawers.
+       z-index 201 > drawer z-index 200, so close/nav buttons are always reachable. */
+    .odcm-unified-header {
+        position: sticky;
+        top: 0;
+        flex-shrink: 0;
+        z-index: 201;
+        box-sizing: border-box;
+    }
+
+    /* Override all grid-template-columns state variants → single flex row */
+    .odcm-unified-header-content,
+    .odcm-insight-dashboard.filter-pane-visible .odcm-unified-header-content,
+    .odcm-insight-dashboard:not(.filter-pane-visible) .odcm-unified-header-content,
+    .odcm-insight-dashboard.details-pane-visible .odcm-unified-header-content,
+    .odcm-insight-dashboard.filter-pane-visible.details-pane-visible .odcm-unified-header-content,
+    .odcm-insight-dashboard:not(.filter-pane-visible):not(.details-pane-visible) .odcm-unified-header-content,
+    .odcm-insight-dashboard:not(.filter-pane-visible).details-pane-visible .odcm-unified-header-content {
+        display: flex !important;
+        grid-template-columns: unset !important;
+    }
+
+    /* Filter section: compact icon strip on the left */
+    .odcm-unified-header-section.odcm-unified-header-filters {
+        flex-shrink: 0;
+        width: auto;
+        height: var(--odcm-theme-pane-header-height);
+        padding: var(--odcm-theme-spacing-xs) var(--odcm-theme-spacing-sm);
+    }
+
+    /* Hide docs link on mobile to save space */
+    .odcm-docs-link {
+        display: none !important;
+    }
+
+    /* Stream section: flex-1, single row (header is height-locked, no wrapping needed) */
+    .odcm-unified-header-section.odcm-unified-header-stream {
+        flex: 1;
+        min-width: 0;
+        height: var(--odcm-theme-pane-header-height);
+        padding: var(--odcm-theme-spacing-xs) var(--odcm-theme-spacing-sm);
+        align-content: center;
+        gap: var(--odcm-theme-spacing-xs);
+        overflow: hidden;
+    }
+
+    /* When detail pane is open: hide stream section, show detail section full-width */
+    .odcm-insight-dashboard.details-pane-visible .odcm-unified-header-section.odcm-unified-header-stream {
+        display: none !important;
+    }
+
+    /* Detail section: let it expand to fill the row when stream section is hidden */
+    .odcm-insight-dashboard.details-pane-visible .odcm-unified-header-section.odcm-unified-header-details {
+        flex: 1;
+        height: var(--odcm-theme-pane-header-height);
+        padding: var(--odcm-theme-spacing-xs) var(--odcm-theme-spacing-sm);
+    }
+
+    /* Stream controls: allow wrapping */
+    .odcm-stream-controls {
+        flex-wrap: wrap;
+        gap: var(--odcm-theme-spacing-sm);
+    }
+
+    .odcm-refresh-controls {
+        flex-wrap: wrap;
+        gap: var(--odcm-theme-spacing-xs);
+    }
+
+    /* Hide "Refresh" button text, "every X seconds" text, and interval input on mobile */
+    .odcm-refresh-button .odcm-button-text,
+    .odcm-interval-input,
+    .odcm-refresh-controls > span:not([class]) {
+        display: none !important;
+    }
+
+    /* Refresh button: icon-only, equal padding on all sides */
+    .odcm-refresh-button {
+        min-width: unset;
+        padding: 3px !important;
+        justify-content: center !important;
+    }
+
+    /* --- Content Grid: flex column so the stream fills the remaining dashboard height.
+       All state variants are collapsed to a single column. --- */
+    .odcm-content-grid,
+    .odcm-insight-dashboard.filter-pane-visible .odcm-content-grid,
+    .odcm-insight-dashboard:not(.filter-pane-visible) .odcm-content-grid,
+    .odcm-insight-dashboard.details-pane-visible .odcm-content-grid,
+    .odcm-insight-dashboard.filter-pane-visible.details-pane-visible .odcm-content-grid,
+    .odcm-insight-dashboard:not(.filter-pane-visible):not(.details-pane-visible) .odcm-content-grid,
+    .odcm-insight-dashboard:not(.filter-pane-visible).details-pane-visible .odcm-content-grid {
+        display: flex !important;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        grid-template-columns: unset !important;
+    }
+
+    /* --- Log Stream: fills remaining content-grid height, scrolls internally.
+       No page scroll needed — stream is the scroll container on mobile. --- */
+    .odcm-log-stream {
+        flex: 1;
+        width: 100%;
+        height: 0;      /* flex: 1 grows it to fill; height: 0 prevents content from pushing beyond */
+        min-height: 0;
+        max-height: none;
+        overflow-y: auto;
+        border-left: none;
+        border-right: none;
+    }
+
+    /* --- Hide filter pane expand/retract arrow buttons on mobile ---
+       The open/close arrow buttons are irrelevant in drawer mode.
+       The filter/settings icon buttons remain. */
+    .odcm-unified-header-filters .odcm-pane-icon-button:has(.dashicons-arrow-left-alt),
+    .odcm-unified-header-filters .odcm-pane-icon-button:has(.dashicons-arrow-right-alt) {
+        display: none !important;
+    }
+
+    /* --- Hide detail pane expand/collapse toggle on mobile ---
+       Only the X close button remains visible in the detail header. */
+    .odcm-detail-pane-expand-toggle {
+        display: none !important;
+    }
+
+    /* --- Filter Pane: fixed left drawer, top anchored to --odcm-header-bottom
+       (set dynamically by JS via getBoundingClientRect().bottom on the header).
+       --odcm-theme-side-pane-width is overridden to 80vw on mobile so the drawer
+       leaves a visible darkened strip on the right over the log stream. --- */
+    .odcm-insight-dashboard {
+        --odcm-theme-side-pane-width: 80vw;
+    }
+
+    .odcm-filter-pane {
+        position: fixed !important;
+        left: 0;
+        top: var(--odcm-header-bottom);
+        width: var(--odcm-theme-side-pane-width);
+        height: calc(100vh - var(--odcm-header-bottom));
+        height: calc(100dvh - var(--odcm-header-bottom));
+        z-index: 200;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.25);
+        overflow-y: auto;
+        max-height: none;
+        border-right: 1px solid var(--odcm-component-border-color);
+    }
+
+    .odcm-insight-dashboard.filter-pane-visible .odcm-filter-pane {
+        transform: translateX(0);
+    }
+
+    /* --- Detail Pane: fixed fullscreen overlay from right,
+       top anchored to --odcm-header-bottom (set dynamically by JS).
+       Overrides both the base rule and the desktop "50vw absolute" expand rule. */
+    .odcm-detail-pane,
+    .odcm-insight-dashboard.detail-pane-expanded .odcm-detail-pane {
+        position: fixed !important;
+        right: 0;
+        top: var(--odcm-header-bottom);
+        width: 100vw !important;
+        height: calc(100vh - var(--odcm-header-bottom)) !important;
+        height: calc(100dvh - var(--odcm-header-bottom)) !important;
+        z-index: 200;
+        transform: translateX(100%);
+        transition: transform 0.3s ease !important;
+        box-shadow: -4px 0 16px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
+        max-height: none;
+    }
+
+    .odcm-insight-dashboard:not(.detail-pane-expanded):not(.details-pane-visible) .odcm-detail-pane {
+        transform: translateX(100%) !important;
+    }
+
+    .odcm-insight-dashboard.details-pane-visible .odcm-detail-pane {
+        transform: translateX(0) !important;
+    }
+
+    /* Detail pane internal content fills the drawer height */
+    .odcm-detail-pane-content {
+        height: calc(100vh - var(--odcm-header-bottom));
+        height: calc(100dvh - var(--odcm-header-bottom));
+        max-height: none;
+    }
+
+    /* --- Log Entries: timestamp + order# on row 1, summary on row 2 --- */
+    .odcm-log-entry {
+        padding: var(--odcm-theme-spacing-xs) var(--odcm-theme-spacing-sm);
+        gap: 8px;
+    }
+
+    .odcm-log-entry-header {
+        flex-wrap: wrap;
+        gap: var(--odcm-theme-spacing-xs);
+        align-items: center;
+    }
+
+    /* Timestamp: first in flow, small, muted */
+    .odcm-log-timestamp {
+        order: 1;
+        white-space: nowrap;
+        min-width: auto;
+        font-size: var(--odcm-theme-font-size-xs);
+        flex-shrink: 0;
+    }
+
+    /* Order # div: second in flow, on same line as timestamp */
+    .odcm-log-entry-header > div:not(.odcm-log-summary):not(.odcm-log-timestamp) {
+        order: 2;
+        flex-shrink: 0;
+        font-size: var(--odcm-theme-font-size-xs);
+    }
+
+    /* Status pill: pushed right on row 1, vertically centered */
+    .odcm-status-pill {
+        order: 3;
+        margin-left: auto;
+        flex-shrink: 0;
+        align-self: center;
+    }
+
+    /* Summary: forces a new row, full width */
+    .odcm-log-summary {
+        order: 4;
+        flex-basis: 100%;
+        margin-right: 0;
+    }
+
+    /* --- Log entries controls: stack vertically --- */
+    .odcm-log-entries-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    /* --- Pagination: stack count and nav vertically --- */
+    .odcm-pagination .tablenav-pages {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--odcm-theme-spacing-xs);
+    }
+
+    /* --- Date range filter: stack inputs vertically --- */
+    .odcm-date-range {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--odcm-theme-spacing-xs);
+    }
+
+    .odcm-date-range input {
+        max-width: none;
+    }
+
+    .odcm-date-range span {
+        display: none;
+    }
+}
+
+/* At ≤600px WP hides the admin bar entirely and resets html margin-top to 0.
+   Override the admin bar height variable so the dashboard height and drawer tops
+   are computed correctly (no phantom 46px gap where the admin bar would have been). */
+@media screen and (max-width: 600px) {
+    .odcm-insight-dashboard {
+        --odcm-calculated-admin-bar-height: 0px;
+    }
 }

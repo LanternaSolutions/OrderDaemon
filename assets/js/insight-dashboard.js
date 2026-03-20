@@ -246,6 +246,7 @@ function insightDashboard() {
                 this.setupDebouncedFetch();
                 this.setupSettingsWatchers();
                 this.setupPrismWatchers();
+                this.setupHeaderBottomMeasurement();
 
                 // Keep selection state consistent with the current logs list
                 this.$watch('logs', () => {
@@ -909,9 +910,10 @@ function insightDashboard() {
                 const savedTab = localStorage.getItem('odcm_active_filter_tab');
                 this.activeFilterTab = (savedTab === 'filters' || savedTab === 'settings') ? savedTab : 'filters';
 
-                // Load filter pane visibility state (default: true)
+                // Load filter pane visibility state (default: true on desktop, false on mobile)
                 const savedPaneVisible = localStorage.getItem('odcm_filter_pane_visible');
-                this.filterPaneVisible = savedPaneVisible !== null ? savedPaneVisible === 'true' : true;
+                const isMobileViewport = window.innerWidth <= 782;
+                this.filterPaneVisible = savedPaneVisible !== null ? savedPaneVisible === 'true' : !isMobileViewport;
 
                 // Load settings accordion state
                 const savedAccordionState = localStorage.getItem('odcm_settings_accordion_state');
@@ -1007,6 +1009,14 @@ function insightDashboard() {
             this.$watch('filterPaneVisible', (visible) => {
                 this.saveSettings();
                 if (odcmIsDebug()) { console.log('ODCM: Filter pane visibility changed to:', visible); }
+
+                // Re-measure header bottom after pane state changes (header content may change)
+                requestAnimationFrame(() => this.updateHeaderBottom());
+            });
+
+            // Re-measure header bottom when detail pane opens/closes (swaps header content)
+            this.$watch('selectedLog', () => {
+                requestAnimationFrame(() => this.updateHeaderBottom());
             });
 
             // Watch active filter tab changes
@@ -1618,19 +1628,56 @@ function insightDashboard() {
         closeFilterPane() {
             this.filterPaneVisible = false;
         },
+
+        // Measures the actual bottom edge of the sticky header and writes it as
+        // --odcm-header-bottom on the dashboard root so fixed drawers can anchor to it.
+        updateHeaderBottom() {
+            const header = this.$el.querySelector('.odcm-unified-header');
+            if (!header) return;
+            const bottom = header.getBoundingClientRect().bottom;
+            this.$el.style.setProperty('--odcm-header-bottom', bottom + 'px');
+        },
+
+        setupHeaderBottomMeasurement() {
+            this.updateHeaderBottom();
+            let _resizeTimer = null;
+            this._resizeHeaderBottom = () => {
+                clearTimeout(_resizeTimer);
+                _resizeTimer = setTimeout(() => this.updateHeaderBottom(), 100);
+            };
+            window.addEventListener('resize', this._resizeHeaderBottom);
+        },
         openLastOpenedPane() {
             this.filterPaneVisible = true;
             this.activeFilterTab = this.lastOpenedTab || 'filters';
         },
         showFiltersPane() {
+            // Toggle: clicking the active tab's icon closes the pane
+            if (this.filterPaneVisible && this.activeFilterTab === 'filters') {
+                this.filterPaneVisible = false;
+                return;
+            }
             this.activeFilterTab = 'filters';
             this.lastOpenedTab = 'filters';
             this.filterPaneVisible = true;
+            // On mobile, slide the detail pane out when opening the filter/settings drawer
+            if (window.innerWidth <= 782) {
+                this.closeDetails();
+            }
         },
         showSettingsPane() {
+            // Toggle: clicking the active tab's icon closes the pane
+            if (this.filterPaneVisible && this.activeFilterTab === 'settings') {
+                this.filterPaneVisible = false;
+                return;
+            }
             this.activeFilterTab = 'settings';
             this.lastOpenedTab = 'settings';
             this.filterPaneVisible = true;
+            // On mobile, slide the detail pane out when opening the filter/settings drawer
+            if (window.innerWidth <= 782) {
+                this.closeDetails();
+            }
         },
         toggleDetailPaneExpansion() {
             this.detailPaneExpanded = !this.detailPaneExpanded;
@@ -3069,6 +3116,12 @@ function insightDashboard() {
                 window.removeEventListener('online', this.handleNetworkOnline);
                 window.removeEventListener('offline', this.handleNetworkOffline);
 
+                // Remove header-bottom resize listener
+                if (this._resizeHeaderBottom) {
+                    window.removeEventListener('resize', this._resizeHeaderBottom);
+                    this._resizeHeaderBottom = null;
+                }
+
                 // Clean up any debounced fetch timers
                 if (this.debouncedFetchLogs && this.debouncedFetchLogs.timer) {
                     clearTimeout(this.debouncedFetchLogs.timer);
@@ -3097,8 +3150,13 @@ function insightDashboard() {
                 const detailPane = document.querySelector('.odcm-detail-pane');
                 const logEntries = document.querySelectorAll('.odcm-log-entry');
 
-                // Check if the click was on the detail pane or any log entry
-                const isClickOnDetailPane = detailPane && detailPane.contains(event.target);
+                // The timeline header (.odcm-unified-header-details) is in the unified sticky header,
+                // not inside .odcm-detail-pane, so clicks on it must also be treated as "inside" the detail UI.
+                const detailPaneHeader = document.querySelector('.odcm-unified-header-details');
+
+                // Check if the click was on the detail pane (or its header section) or any log entry
+                const isClickOnDetailPane = (detailPane && detailPane.contains(event.target))
+                    || (detailPaneHeader && detailPaneHeader.contains(event.target));
                 const isClickOnLogEntry = Array.from(logEntries).some(entry => entry.contains(event.target));
 
                 // Check if the click was on any focusable/interactive element
@@ -3165,6 +3223,11 @@ function insightDashboard() {
         async selectLog(log) {
             this.selectedLog = log;
             this.detailLoading = true;
+
+            // On mobile, close the filter drawer before the detail pane slides in
+            if (window.innerWidth <= 782) {
+                this.filterPaneVisible = false;
+            }
 
             // Check if this is a consolidated/representative entry
             const isConsolidated = this.isConsolidatedEntry(log);

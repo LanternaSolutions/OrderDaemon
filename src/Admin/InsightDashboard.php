@@ -257,12 +257,14 @@ class InsightDashboard
             $plugin_version
         );
 
-        // Dashboard-specific CSS (self-contained with complete three-tier system)
+        // Dashboard-specific CSS - use filemtime for cache busting during development/updates
+        $css_path = defined('ODCM_PLUGIN_DIR') ? ODCM_PLUGIN_DIR . 'assets/css/insight-dashboard.css' : '';
+        $css_version = (file_exists($css_path)) ? filemtime($css_path) : $plugin_version;
         wp_enqueue_style(
             'odcm-insight-dashboard',
             $assets_url . 'css/insight-dashboard.css',
             ['odcm-prism-css', 'odcm-design-system'], // Depend on Prism.js CSS and design system
-            $plugin_version
+            $css_version
         );
 
         // Dashboard JavaScript with Alpine.js app - depends on Alpine.js, Prism.js, and shared toasts
@@ -1634,7 +1636,8 @@ class InsightDashboard
                                     <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'deleteSelectedLogs()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                     <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('isDeleting'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                                 <span <?php echo DashboardComponentUIToolkit::createClassAttribute(['dashicons', 'dashicons-trash', 'is-spinning' => 'isDeleting']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
-                                <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('isDeleting ? "' . esc_js(__('admin.insight_dashboard.log_stream.deleting', 'order-daemon')) . '" : "' . esc_js(__('admin.insight_dashboard.log_stream.delete_selected', 'order-daemon')) . '"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+                                <span class="odcm-delete-label-desktop" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('isDeleting ? "' . esc_js(__('admin.insight_dashboard.log_stream.deleting', 'order-daemon')) . '" : "' . esc_js(__('admin.insight_dashboard.log_stream.delete_selected', 'order-daemon')) . '"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+                                <span class="odcm-delete-label-mobile" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('isDeleting ? "' . esc_js(__('admin.insight_dashboard.log_stream.deleting', 'order-daemon')) . '" : "' . esc_js(__('admin.ui.delete', 'order-daemon')) . ' " + selectedCount'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
                             </button>
                         </div>
                         <div class="odcm-controls-divider" aria-hidden="true"></div>
@@ -1670,9 +1673,11 @@ class InsightDashboard
 
                 <template x-for="(log, index) in logs" :key="log?.id || ('invalid-' + index)">
                     <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('log && log.id'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                            <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("log ? getLogEntryClasses(log) : 'odcm-log-entry'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                            <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("log ? getLogEntryClasses(log) : 'odcm-log-entry'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'log && selectLog(log)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 
-                        <div class="odcm-log-entry-checkbox" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('log && log.id'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                        <div class="odcm-log-entry-checkbox" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('log && log.id'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click.stop', ''); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             <input type="checkbox"
                                 <?php echo DashboardComponentUIToolkit::createAlpineBind('id', "'log-checkbox-' + (log?.id || 'invalid')"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                 <?php echo DashboardComponentUIToolkit::createAlpineCheckedBinding('isLogSelected(log.id)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
@@ -1684,7 +1689,7 @@ class InsightDashboard
                             </label>
                         </div>
 
-                        <div class="odcm-log-entry-content" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'log && selectLog(log)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                        <div class="odcm-log-entry-content">
                             <div class="odcm-log-entry-header">
                                 <div class="odcm-log-timestamp js-format-timestamp" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('formatTimestamp(log?.timestamp, $el)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></div>
 
