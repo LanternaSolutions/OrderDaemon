@@ -1711,7 +1711,7 @@
 /* Ensure inline groups within horizontal containers work correctly */
 .odcm-horizontal-field-group .odcm-inline-group {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     flex: 1;
     min-width: 100px;
     margin-right: 0;

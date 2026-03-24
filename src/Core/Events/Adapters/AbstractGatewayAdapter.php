@@ -292,8 +292,31 @@ abstract class AbstractGatewayAdapter implements GatewayEventAdapter
     }
     
     /**
+     * Log a diagnostic message from a gateway adapter.
+     *
+     * @param string      $message    Log message.
+     * @param array       $context    Optional context data.
+     * @param string|null $process_id Process ID of the surrounding order processing run.
+     * @return void
+     */
+    protected function log(string $message, array $context = [], ?string $process_id = null): void
+    {
+        if (function_exists('odcm_log_event')) {
+            odcm_log_event(
+                $message,
+                $context,
+                null,
+                'debug',
+                'gateway_adapter',
+                false,
+                $process_id
+            );
+        }
+    }
+
+    /**
      * Extract gateway-specific metadata (to be implemented by subclasses)
-     * 
+     *
      * @param array $input Raw input data
      * @return array Gateway-specific metadata
      */
