@@ -4,7 +4,7 @@ Tags: woocommerce, automation, auto complete, digital products, order management
 Requires at least: 5.6
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.3.26
+Stable tag: 1.3.27
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -152,10 +152,13 @@ Order Daemon does not collect, store, or transmit any personal data outside of y
 
 == Changelog ==
 
-= 1.3.26 =
-* Fixed critical error on page load caused by database safety check running even when no update was needed
+= 1.3.27 =
+* Improved: Rule Builder mobile responsivity — fixed broken responsive breakpoint, enlarged touch targets on mobile, and improved layout on narrow screens
+* Improved: Rule Builder condition component summaries are now more descriptive and extensible
+* Improved: Insight Dashboard mobile responsivity and several UI improvements
+* Fixed: Gateway adapter validation no longer blocked by missing log method
 
 == Upgrade Notice ==
 
-= 1.3.26 =
-Fixes a critical error that could occur on every page load. Update recommended for all users.
+= 1.3.27 =
+UI and mobile usability improvements for the Rule Builder and Insights Dashboard. Recommended update for all users.

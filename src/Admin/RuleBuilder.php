@@ -891,7 +891,6 @@ final class RuleBuilder
 
                     <!-- Trigger Component Row -->
                     <div x-show="rule.trigger" class="odcm-rule-row" :class="{ 'odcm-expanded': editingTriggerIndex === 0, 'odcm-no-settings': !componentHasSettings('trigger', 0), 'odcm-component-inaccessible': !getComponentDefinition('trigger', rule.trigger?.id)?.accessible }" @click="!getComponentDefinition('trigger', rule.trigger?.id)?.accessible ? null : (componentHasSettings('trigger', 0) && handleRowClick('trigger', 0, $event))">
-                        <div class="odcm-drag-handle" aria-hidden="true">⋮⋮</div>
                         <div class="odcm-component-summary" x-html="getComponentSummary(rule.trigger, 'trigger', 0)"></div>
                         <div class="odcm-component-actions">
                             <button type="button" 
@@ -1477,10 +1476,9 @@ final class RuleBuilder
                         </div>
 
                         <!-- Primary Action Row -->
-                        <div x-show="rule.primaryAction" class="odcm-rule-row odcm-primary-action" 
-                             :class="{ 'odcm-expanded': editingPrimaryAction, 'odcm-no-settings': !componentHasSettings('primaryAction', 0), 'odcm-component-inaccessible': !getComponentDefinition('primaryAction', rule.primaryAction?.id)?.accessible }" 
+                        <div x-show="rule.primaryAction" class="odcm-rule-row odcm-primary-action"
+                             :class="{ 'odcm-expanded': editingPrimaryAction, 'odcm-no-settings': !componentHasSettings('primaryAction', 0), 'odcm-component-inaccessible': !getComponentDefinition('primaryAction', rule.primaryAction?.id)?.accessible }"
                              @click="!getComponentDefinition('primaryAction', rule.primaryAction?.id)?.accessible ? null : (componentHasSettings('primaryAction', 0) && handleRowClick('primaryAction', 0, $event))">
-                            <div class="odcm-drag-handle" aria-hidden="true">⋮⋮</div>
                             <div class="odcm-component-summary" x-html="getComponentSummary(rule.primaryAction, 'primaryAction', 0)"></div>
                             <div class="odcm-component-actions">
                                     <div class="odcm-component-badge odcm-badge-primary">
@@ -1490,7 +1488,7 @@ final class RuleBuilder
                                             @click="removePrimaryAction()" 
                                             class="odcm-remove-button"
                                             x-show="components.primaryActions && components.primaryActions.length > 1">
-                                        <?php esc_html_e('admin.rule_builder.change_button', 'order-daemon'); ?>
+                                        <?php esc_html_e('admin.rule_builder.remove_button', 'order-daemon'); ?>
                                     </button>
                             </div>
                         </div>

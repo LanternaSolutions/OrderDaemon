@@ -109,11 +109,7 @@
 /* Mobile responsiveness */
 @media screen and (max-width: 782px) {
     .odcm-rule-builder-wrapper {
-        border-radius: 0;
-        border-left: none;
-        border-right: none;
-        margin-left: -20px;
-        margin-right: -20px;
+        border-radius: var(--odcm-component-border-radius);
     }
 
     /* Enlarge touch targets for interactive buttons (WCAG 2.5.5) */
@@ -1367,33 +1363,30 @@
 
 @media (max-width: 782px) {
     .odcm-rule-row {
-        flex-direction: column;
         align-items: flex-start;
-        gap: var(--odcm-theme-spacing-sm);
+        gap: var(--odcm-theme-spacing-xs) var(--odcm-theme-spacing-sm);
         padding: var(--odcm-theme-spacing-md);
     }
 
+    .odcm-drag-handle {
+        flex-shrink: 0;
+        margin-top: 2px; /* optical alignment with first line of text */
+    }
+
     .odcm-component-summary {
+        flex: 1;
+        min-width: 0;
         margin-right: 0;
-        margin-bottom: var(--odcm-theme-spacing-xs);
+        margin-bottom: 0;
     }
 
     .odcm-component-actions {
-        align-self: flex-end;
-    }
-
-    .odcm-drag-handle {
-        display: none;
-    }
-
-    .odcm-section-title {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--odcm-theme-spacing-xs);
+        flex-shrink: 0;
+        justify-content: flex-end;
     }
 
     .odcm-component-count {
-        margin-left: 0;
+        margin-left: auto;
     }
 
     .odcm-inline-selector {
