@@ -274,6 +274,12 @@ function ruleBuilder() {
          * @return {string|null} HTML summary or null for generic handling
          */
         getComponentSpecificSummary(componentId, settings, componentDef) {
+            // Allow external plugins (e.g. pro) to register component-specific builders.
+            // Called with this = ruleBuilderInstance so builders can use formatValue, escapeHtml, etc.
+            if (window.odcmSummaryBuilders?.[componentId]) {
+                return window.odcmSummaryBuilders[componentId].call(this, settings, componentDef);
+            }
+
             switch (componentId) {
                 case 'product_category':
                     return this.buildProductCategorySummary(settings, componentDef);
@@ -305,18 +311,16 @@ function ruleBuilder() {
          * Build Product Category condition summary.
          */
         buildProductCategorySummary(settings, componentDef) {
-            // Product category uses single select (category), not multi-select (categories)
-            const category = settings.category || '';
-            const categoriesEnum = componentDef?.schema?.properties?.category?.enum || {};
-
-            if (!category || category === '0') {
-                // No category selected means match all orders
+            const selected = settings.categories || [];
+            if (selected.length === 0) {
                 return `<span class="odcm-summary-title">Product Category</span>: <span class="odcm-summary-values">Any category</span>`;
-            } else {
-                // Specific category selected
-                const categoryLabel = categoriesEnum[category] || category;
-                return `<span class="odcm-summary-title">Product Category</span>: <span class="odcm-summary-values">${this.escapeHtml(categoryLabel)}</span>`;
             }
+
+            const categories = this.formatValue(selected, componentDef?.schema?.properties?.categories);
+            const operatorEnum = componentDef?.schema?.properties?.operator?.enum || {};
+            const operatorLabel = operatorEnum[settings.operator || 'in'] || settings.operator || 'In';
+
+            return `<span class="odcm-summary-title">Product Category</span>: <span class="odcm-summary-operator">${this.escapeHtml(operatorLabel)}</span> <span class="odcm-summary-values">${this.escapeHtml(categories)}</span>`;
         },
 
         /**
@@ -451,8 +455,9 @@ function ruleBuilder() {
          * @return {string|null} Operator symbol or null
          */
         extractOperator(settings) {
-            // Check various operator keys
-            const operatorKeys = ['operator', 'match_mode', 'comparison', 'condition'];
+            // Check various operator keys (match_mode is intentionally excluded —
+            // it is already handled by extractMatchMode and is not an operator symbol)
+            const operatorKeys = ['operator', 'comparison', 'condition'];
             
             for (const key of operatorKeys) {
                 if (settings[key]) {
@@ -491,11 +496,13 @@ function ruleBuilder() {
                 'amount_gte': '≥',
                 'amount_lte': '≤',
                 'amount_eq': '=',
+                'amount_ne': '≠',
                 'count_gt': '>',
                 'count_lt': '<',
                 'count_gte': '≥',
                 'count_lte': '≤',
                 'count_eq': '=',
+                'count_ne': '≠',
                 
                 // Inclusion operators
                 'includes': '∈',
@@ -859,6 +866,21 @@ function ruleBuilder() {
             }
         },
         
+        // Build a settings object pre-populated with schema defaults.
+        // Called when a new component is added so the summary immediately
+        // reflects the same values that the settings panel UI shows.
+        buildDefaultSettings(schema) {
+            const settings = {};
+            if (schema?.properties) {
+                Object.entries(schema.properties).forEach(([key, prop]) => {
+                    if (prop.default !== undefined) {
+                        settings[key] = Array.isArray(prop.default) ? [...prop.default] : prop.default;
+                    }
+                });
+            }
+            return settings;
+        },
+
         // Component Selection (Inline Expander Pattern)
         selectComponent(type, id) {
             // Get component definition
@@ -875,7 +897,7 @@ function ruleBuilder() {
             }
 
             if (type === 'trigger') {
-                this.rule.trigger = { id: id, settings: {} };
+                this.rule.trigger = { id: id, settings: this.buildDefaultSettings(component.schema) };
                 this.isAddingTrigger = false;
                 this.triggerSearchTerm = '';
                 // Only auto-expand if component has settings
@@ -886,7 +908,7 @@ function ruleBuilder() {
                     });
                 }
             } else if (type === 'condition') {
-                this.rule.conditions.push({ id: id, settings: {} });
+                this.rule.conditions.push({ id: id, settings: this.buildDefaultSettings(component.schema) });
                 this.isAddingCondition = false;
                 this.conditionSearchTerm = '';
                 // Only auto-expand if component has settings
@@ -894,7 +916,7 @@ function ruleBuilder() {
                     this.editingConditionIndex = this.rule.conditions.length - 1;
                 }
             } else if (type === 'primaryAction') {
-                this.rule.primaryAction = { id: id, settings: {} };
+                this.rule.primaryAction = { id: id, settings: this.buildDefaultSettings(component.schema) };
                 this.isAddingPrimaryAction = false;
                 this.primaryActionSearchTerm = '';
                 // Only auto-expand if component has settings
@@ -903,7 +925,7 @@ function ruleBuilder() {
                 }
                 // No need to update summaries - they're generated on-demand client-side
             } else if (type === 'action') {
-                this.rule.secondaryActions.push({ id: id, settings: {} });
+                this.rule.secondaryActions.push({ id: id, settings: this.buildDefaultSettings(component.schema) });
                 this.isAddingAction = false;
                 this.actionSearchTerm = '';
                 // Only auto-expand if component has settings

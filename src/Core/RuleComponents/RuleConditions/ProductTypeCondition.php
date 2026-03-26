@@ -40,6 +40,18 @@ class ProductTypeCondition implements ConditionInterface
         return [
             'type' => 'object',
             'properties' => [
+                'match_mode' => [
+                    'type' => 'string',
+                    'title' => __('rule_component.condition.product_type.match_mode_label', 'order-daemon'),
+                    'description' => __('rule_component.condition.product_type.match_mode_description', 'order-daemon'),
+                    'enum' => [
+                        'all' => __('rule_component.condition.product_type.match_mode.all', 'order-daemon'),
+                        'any' => __('rule_component.condition.product_type.match_mode.any', 'order-daemon'),
+                        'none' => __('rule_component.condition.product_type.match_mode.none', 'order-daemon'),
+                    ],
+                    'default' => 'all',
+                    'ui:widget' => 'button_radio_group',
+                ],
                 'types' => [
                     'type' => 'array',
                     'title' => __('rule_component.condition.product_type.field_label', 'order-daemon'),
@@ -52,17 +64,6 @@ class ProductTypeCondition implements ConditionInterface
                     'ui:searchable' => true,
                     'ui:placeholder' => __('rule_component.condition.product_type.search_placeholder', 'order-daemon'),
                     'default' => ['virtual', 'downloadable'],
-                ],
-                'match_mode' => [
-                    'type' => 'string',
-                    'title' => __('rule_component.condition.product_type.match_mode_label', 'order-daemon'),
-                    'description' => __('rule_component.condition.product_type.match_mode_description', 'order-daemon'),
-                    'enum' => [
-                        'all' => __('rule_component.condition.product_type.match_mode.all', 'order-daemon'),
-                        'any' => __('rule_component.condition.product_type.match_mode.any', 'order-daemon'),
-                        'none' => __('rule_component.condition.product_type.match_mode.none', 'order-daemon'),
-                    ],
-                    'default' => 'all',
                 ],
             ],
             'required' => ['types'],

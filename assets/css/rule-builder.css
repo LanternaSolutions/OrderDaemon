@@ -80,6 +80,24 @@
     margin-top: var(--odcm-theme-spacing-md);
 }
 
+/* Compact phone adjustments */
+@media (max-width: 480px) {
+    .odcm-rule-builder-content {
+        padding: var(--odcm-theme-spacing-sm);
+    }
+
+    .odcm-settings-panel {
+        margin: var(--odcm-theme-spacing-xs);
+        padding: var(--odcm-theme-spacing-sm);
+    }
+
+    .odcm-rule-builder-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--odcm-theme-spacing-xs);
+    }
+}
+
 /* Responsive behavior for WordPress two-column layout */
 @media screen and (min-width: 783px) {
     .odcm-rule-builder-wrapper {
@@ -96,6 +114,18 @@
         border-right: none;
         margin-left: -20px;
         margin-right: -20px;
+    }
+
+    /* Enlarge touch targets for interactive buttons (WCAG 2.5.5) */
+    .odcm-edit-button,
+    .odcm-remove-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Cap selector height to avoid consuming most of the viewport */
+    .odcm-inline-selector.odcm-expanded {
+        max-height: min(400px, 50vh);
     }
 }
 
@@ -1268,7 +1298,6 @@
     font-weight: var(--odcm-theme-font-weight-str);
     color: var(--odcm-component-text-color-header);
     margin-bottom: var(--odcm-theme-spacing-xs);
-    text-wrap: nowrap;
 }
 
 .odcm-option-description {
@@ -1336,7 +1365,7 @@
    RESPONSIVE DESIGN
    ========================================================================== */
 
-@media (max-width: calc(var(--odcm-theme-side-pane-width) * 2.5)) {
+@media (max-width: 782px) {
     .odcm-rule-row {
         flex-direction: column;
         align-items: flex-start;
@@ -1440,14 +1469,20 @@
 .odcm-rule-row::after {
     content: "Click to edit";
     position: absolute;
-    right: calc(var(--odcm-theme-spacing-md) + 80px); /* Position away from action buttons */
-    top: 50%;
-    transform: translateY(-50%);
+    left: var(--odcm-theme-spacing-md);
+    bottom: calc(100% + 4px);
     font-size: var(--odcm-theme-font-size-xs);
-    color: var(--odcm-theme-grey-500);
+    color: var(--odcm-theme-grey-600);
+    background: var(--odcm-theme-white);
+    border: 1px solid var(--odcm-theme-grey-300);
+    border-radius: var(--odcm-component-border-radius);
+    padding: 2px 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    white-space: nowrap;
     opacity: 0;
     transition: opacity 0.2s ease;
     pointer-events: none;
+    z-index: 10;
 }
 
 .odcm-rule-row:hover::after {
