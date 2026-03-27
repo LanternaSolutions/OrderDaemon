@@ -910,10 +910,10 @@ function insightDashboard() {
                 const savedTab = localStorage.getItem('odcm_active_filter_tab');
                 this.activeFilterTab = (savedTab === 'filters' || savedTab === 'settings') ? savedTab : 'filters';
 
-                // Load filter pane visibility state (default: true on desktop, false on mobile)
+                // Load filter pane visibility state (default: true on desktop, always false on mobile)
                 const savedPaneVisible = localStorage.getItem('odcm_filter_pane_visible');
                 const isMobileViewport = window.innerWidth <= 782;
-                this.filterPaneVisible = savedPaneVisible !== null ? savedPaneVisible === 'true' : !isMobileViewport;
+                this.filterPaneVisible = isMobileViewport ? false : (savedPaneVisible !== null ? savedPaneVisible === 'true' : true);
 
                 // Load settings accordion state
                 const savedAccordionState = localStorage.getItem('odcm_settings_accordion_state');

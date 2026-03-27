@@ -1677,11 +1677,11 @@ class InsightDashboard
                             <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'log && selectLog(log)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
 
                         <div class="odcm-log-entry-checkbox" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('log && log.id'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click.stop', ''); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click.stop', 'null'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                             <input type="checkbox"
                                 <?php echo DashboardComponentUIToolkit::createAlpineBind('id', "'log-checkbox-' + (log?.id || 'invalid')"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                 <?php echo DashboardComponentUIToolkit::createAlpineCheckedBinding('isLogSelected(log.id)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleLogSelection(log.id)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click.stop', 'toggleLogSelection(log.id)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                 class="odcm-log-checkbox">
                             <label <?php echo DashboardComponentUIToolkit::createAlpineBind('for', "'log-checkbox-' + (log?.id || 'invalid')"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                                     class="odcm-log-checkbox-label">
