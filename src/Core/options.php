@@ -137,22 +137,13 @@ $odcm_registry->register_trigger([
 //
 // CONDITION TYPES:
 // - Product-based: product_type, product_category
-// - Customer-based: user_role
-// - Payment-based: payment_gateway, order_total
-// - Fulfillment-based: shipping_method
-// - Marketing-based: coupon_used
+// - Amount-based: order_total_amount
 //
 // IMPLEMENTATION NOTES:
 // - Conditions are evaluated in the order they're registered
 // - Each condition should fail fast for performance
 // - Use WooCommerce's built-in data structures when possible
 // - Cache expensive lookups (categories, user roles, etc.)
-//
-// ADDING NEW CONDITIONS:
-// 1. Identify the order/customer property to check
-// 2. Register the condition here
-// 3. Implement the evaluation logic in the UniversalEventProcessor class
-// 4. Create render callback for condition-specific settings
 
 /**
  * Product Type Condition
