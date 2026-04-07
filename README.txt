@@ -152,17 +152,13 @@ Order Daemon does not collect, store, or transmit any personal data outside of y
 
 == Changelog ==
 
-= 1.3.28 =
-Add custom webhook support to Insight Dashboard
-* New REST route: POST /odcm/v1/webhooks/generic/{slug}
-* GenericAdapter validateAuthenticity() supports none/bearer/HMAC-SHA256 auth
-* odcm_encrypt_value() / odcm_decrypt_value() added to functions.php
-* Insight Dashboard settings pane: enable toggle, slug editor, auth method tabs, secret/header fields, save button with toast feedback
-* Webhook config synced to odcm_generic_connections on save so the auth adapter can resolve connection settings at runtime
-* Copy-to-clipboard button copies the full webhook URL
-* apply_filters('odcm_has_webhooks_page') hook: when true, replaces the form with a notice pointing users to the dedicated webhooks page
+= 1.3.27 =
+* Improved: Rule Builder mobile responsivity — fixed broken responsive breakpoint, enlarged touch targets on mobile, and improved layout on narrow screens
+* Improved: Rule Builder condition component summaries are now more descriptive and extensible
+* Improved: Insight Dashboard mobile responsivity and several UI improvements
+* Fixed: Gateway adapter validation no longer blocked by missing log method
 
 == Upgrade Notice ==
 
-= 1.3.28 =
-Custom webhook configuration added to Insight Dashboard settings, including on/off toggle. Recommended upgrade for all users.
+= 1.3.27 =
+UI and mobile usability improvements for the Rule Builder and Insights Dashboard. Recommended update for all users.
