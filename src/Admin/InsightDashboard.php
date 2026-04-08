@@ -320,12 +320,15 @@ class InsightDashboard
                 'startOfWeek' => (int) get_option('start_of_week', 0),
                 'use24Hour' => strpos(get_option('time_format', 'g:i a'), 'H') !== false || strpos(get_option('time_format', 'g:i a'), 'G') !== false,
             ],
-            'customWebhook' => [
-                'enabled'    => (bool) get_option('odcm_custom_webhook_enabled', false),
-                'authMethod' => (string) get_option('odcm_custom_webhook_auth_method', 'none'),
-                'slug'       => sanitize_title(get_option('odcm_custom_webhook_slug', 'custom-webhook')) ?: 'custom-webhook',
-                'urlBase'    => rest_url('odcm/v1/webhooks/generic/'),
-            ],
+            'customWebhook' => (function () {
+                $cw = $this->get_free_webhook_connection();
+                return [
+                    'enabled'    => (bool) ($cw['enabled'] ?? false),
+                    'authMethod' => (string) ($cw['auth_method'] ?? 'none'),
+                    'slug'       => sanitize_title($cw['slug'] ?? 'custom-webhook') ?: 'custom-webhook',
+                    'urlBase'    => rest_url('odcm/v1/webhooks/generic/'),
+                ];
+            })(),
             'i18n' => [
             'loading' => __('admin.insight_dashboard.loading', 'order-daemon'),
             'error' => __('admin.insight_dashboard.error_loading_data', 'order-daemon'),
@@ -1194,27 +1197,17 @@ class InsightDashboard
      */
     private function render_custom_webhook_section(): void
     {
-        if (apply_filters('odcm_has_webhooks_page', false)) {
-            $webhooks_url = admin_url('admin.php?page=order-daemon-webhooks');
-            ?>
-            <div class="odcm-settings-section">
-                <div class="odcm-settings-group">
-                    <h3 class="odcm-settings-section-title">Custom Webhook</h3>
-                    <div class="odcm-setting-row">
-                        <span class="odcm-setting-hint">
-                            Webhook connections are managed in the
-                            <a href="<?php echo esc_url($webhooks_url); ?>">Webhooks</a> page.
-                        </span>
-                    </div>
-                </div>
-            </div>
-            <?php
+        // Allow extensions to replace this section entirely.
+        $override = apply_filters('odcm_custom_webhook_section_html', null);
+        if ($override !== null) {
+            echo $override; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             return;
         }
 
-        $hmac_header  = get_option('odcm_custom_webhook_hmac_header', '');
-        $has_secret   = '' !== get_option('odcm_custom_webhook_secret', '');
-        $current_slug = sanitize_title(get_option('odcm_custom_webhook_slug', 'custom-webhook')) ?: 'custom-webhook';
+        $cw_conn      = $this->get_free_webhook_connection();
+        $hmac_header  = $cw_conn['hmac_header'] ?? '';
+        $has_secret   = '' !== ($cw_conn['bearer_token'] ?? '') || '' !== ($cw_conn['hmac_secret'] ?? '');
+        $current_slug = sanitize_title($cw_conn['slug'] ?? 'custom-webhook') ?: 'custom-webhook';
         $url_base     = esc_url(rest_url('odcm/v1/webhooks/generic/'));
         ?>
         <div class="odcm-settings-section">
@@ -1396,6 +1389,27 @@ class InsightDashboard
     }
 
     /**
+     * Return the free-plugin webhook connection entry from odcm_generic_connections, or [].
+     */
+    private function get_free_webhook_connection(): array
+    {
+        return $this->find_free_webhook_entry((array) get_option('odcm_generic_connections', [])) ?? [];
+    }
+
+    /**
+     * Find and return the first connection entry with source='free', or null.
+     */
+    private function find_free_webhook_entry(array $connections): ?array
+    {
+        foreach ($connections as $conn) {
+            if (($conn['source'] ?? '') === 'free') {
+                return $conn;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Handle AJAX request to save Custom Webhook settings.
      */
     public function handle_custom_webhook_settings_ajax(): void
@@ -1409,42 +1423,48 @@ class InsightDashboard
         }
 
         $enabled = isset($_POST['odcm_custom_webhook_enabled']) && $_POST['odcm_custom_webhook_enabled'] === '1';
-        update_option('odcm_custom_webhook_enabled', $enabled, 'no');
 
         $auth_method = sanitize_key(wp_unslash($_POST['odcm_custom_webhook_auth_method'] ?? 'none'));
         if (!in_array($auth_method, ['none', 'bearer', 'hmac'], true)) {
             $auth_method = 'none';
         }
-        update_option('odcm_custom_webhook_auth_method', $auth_method, 'no');
 
         $hmac_header = sanitize_text_field(wp_unslash($_POST['odcm_custom_webhook_hmac_header'] ?? ''));
-        update_option('odcm_custom_webhook_hmac_header', $hmac_header, 'no');
+
+        $connections = (array) get_option('odcm_generic_connections', []);
+        $existing    = $this->find_free_webhook_entry($connections);
+        $old_slug    = $existing['slug'] ?? 'custom-webhook';
+        $new_slug    = sanitize_title(wp_unslash($_POST['odcm_custom_webhook_slug'] ?? '')) ?: $old_slug;
 
         $secret_post  = wp_unslash($_POST['odcm_custom_webhook_secret'] ?? '');
         $secret_saved = false;
         if ($secret_post !== '' && $secret_post !== '__saved__') {
-            update_option('odcm_custom_webhook_secret', odcm_encrypt_value($secret_post), 'no');
-            $secret_saved = true;
+            $encrypted_secret = odcm_encrypt_value($secret_post);
+            $secret_saved     = true;
+        } else {
+            $encrypted_secret = null;
         }
 
-        $old_slug = sanitize_title(get_option('odcm_custom_webhook_slug', 'custom-webhook')) ?: 'custom-webhook';
-        $new_slug = sanitize_title(wp_unslash($_POST['odcm_custom_webhook_slug'] ?? '')) ?: $old_slug;
-        update_option('odcm_custom_webhook_slug', $new_slug, 'no');
-
-        // Sync odcm_generic_connections so the auth adapter can find this connection.
-        $connections = get_option('odcm_generic_connections', []);
-        // Remove old slug entry if slug changed.
         if ($old_slug !== $new_slug && isset($connections[$old_slug])) {
             unset($connections[$old_slug]);
         }
-        $connections[$new_slug] = [
-            'name'         => 'Custom Webhook',
-            'slug'         => $new_slug,
-            'auth_method'  => $auth_method,
-            'hmac_secret'  => $auth_method === 'hmac' ? get_option('odcm_custom_webhook_secret', '') : '',
-            'hmac_header'  => $hmac_header,
-            'bearer_token' => $auth_method === 'bearer' ? get_option('odcm_custom_webhook_secret', '') : '',
-        ];
+
+        $entry = $existing ?? [];
+        $entry = array_merge($entry, [
+            'name'        => 'Custom Webhook',
+            'slug'        => $new_slug,
+            'source'      => 'free',
+            'enabled'     => $enabled,
+            'auth_method' => $auth_method,
+            'hmac_header' => $hmac_header,
+        ]);
+
+        if ($encrypted_secret !== null) {
+            $entry['bearer_token'] = $auth_method === 'bearer' ? $encrypted_secret : '';
+            $entry['hmac_secret']  = $auth_method === 'hmac'   ? $encrypted_secret : '';
+        }
+
+        $connections[$new_slug] = $entry;
         update_option('odcm_generic_connections', $connections, 'no');
 
         wp_send_json_success([

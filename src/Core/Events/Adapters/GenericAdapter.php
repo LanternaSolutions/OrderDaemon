@@ -131,18 +131,27 @@ class GenericAdapter extends AbstractGatewayAdapter
             return true;
         }
 
+        // Connection explicitly disabled.
+        if (($connection['enabled'] ?? true) === false) {
+            $this->log('Generic webhook is disabled');
+            return false;
+        }
+
         $auth_method = $connection['auth_method'] ?? 'none';
         $slug        = $connection['slug'] ?? ($input['connection'] ?? '');
 
         if ($auth_method === 'none') {
             $result = true;
         } elseif ($auth_method === 'bearer') {
-            $auth_header = $input['headers']['authorization'] ?? '';
+            $auth_header = $input['headers']['authorization'] ?? $input['headers']['http_authorization'] ?? '';
             $stored      = odcm_decrypt_value($connection['bearer_token'] ?? '');
             $result      = $stored !== '' && hash_equals('Bearer ' . $stored, $auth_header);
         } elseif ($auth_method === 'hmac') {
-            $header_name = strtolower($connection['hmac_header'] ?? 'x-signature');
-            $sig_header  = $input['headers'][$header_name] ?? '';
+            // WP_REST_Request normalizes header names to lowercase with underscores.
+            // Try both hyphen and underscore forms so the lookup works in all contexts.
+            $header_name       = strtolower($connection['hmac_header'] ?? 'x-signature');
+            $header_name_under = str_replace('-', '_', $header_name);
+            $sig_header        = $input['headers'][$header_name] ?? $input['headers'][$header_name_under] ?? '';
             $raw_body    = $input['raw_body'] ?? '';
             $secret      = odcm_decrypt_value($connection['hmac_secret'] ?? '');
             $expected    = hash_hmac('sha256', $raw_body, $secret);
