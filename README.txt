@@ -152,6 +152,10 @@ Order Daemon does not collect, store, or transmit any personal data outside of y
 
 == Changelog ==
 
+= 1.3.28 =
+* Added: Custom webhook connections in Insight Dashboard — configure a slug-based webhook URL with none, bearer token, or HMAC-SHA256 authentication
+* Added: Discount total source option for the Order Amount condition — rules can now compare the order's discount total against a threshold
+
 = 1.3.27 =
 * Improved: Rule Builder mobile responsivity — fixed broken responsive breakpoint, enlarged touch targets on mobile, and improved layout on narrow screens
 * Improved: Rule Builder condition component summaries are now more descriptive and extensible
@@ -159,6 +163,9 @@ Order Daemon does not collect, store, or transmit any personal data outside of y
 * Fixed: Gateway adapter validation no longer blocked by missing log method
 
 == Upgrade Notice ==
+
+= 1.3.28 =
+Adds custom webhook connections and a new discount total source option for the Order Amount condition.
 
 = 1.3.27 =
 UI and mobile usability improvements for the Rule Builder and Insights Dashboard. Recommended update for all users.
