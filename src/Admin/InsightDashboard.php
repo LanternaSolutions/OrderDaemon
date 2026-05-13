@@ -76,6 +76,7 @@ class InsightDashboard
         add_action('wp_ajax_odcm_save_debug_settings', [$this, 'handle_debug_settings_ajax']);
         add_action('wp_ajax_odcm_save_uninstall_data_setting', [$this, 'handle_uninstall_data_setting_ajax']);
         add_action('wp_ajax_odcm_reprocess_pending_orders', [$this, 'handle_reprocess_pending_orders_ajax']);
+        add_action('wp_ajax_odcm_save_custom_webhook_settings', [$this, 'handle_custom_webhook_settings_ajax']);
 
         // Register AJAX handlers for onboarding
         add_action('wp_ajax_odcm_check_welcome_scenario', [$this, 'handle_welcome_scenario_check']);
@@ -319,6 +320,15 @@ class InsightDashboard
                 'startOfWeek' => (int) get_option('start_of_week', 0),
                 'use24Hour' => strpos(get_option('time_format', 'g:i a'), 'H') !== false || strpos(get_option('time_format', 'g:i a'), 'G') !== false,
             ],
+            'customWebhook' => (function () {
+                $cw = $this->get_free_webhook_connection();
+                return [
+                    'enabled'    => (bool) ($cw['enabled'] ?? false),
+                    'authMethod' => (string) ($cw['auth_method'] ?? 'none'),
+                    'slug'       => sanitize_title($cw['slug'] ?? 'custom-webhook') ?: 'custom-webhook',
+                    'urlBase'    => rest_url('odcm/v1/webhooks/generic/'),
+                ];
+            })(),
             'i18n' => [
             'loading' => __('admin.insight_dashboard.loading', 'order-daemon'),
             'error' => __('admin.insight_dashboard.error_loading_data', 'order-daemon'),
@@ -1170,11 +1180,121 @@ class InsightDashboard
                 </div>
             </div>
 
+            <!-- Custom Webhook Section -->
+            <?php $this->render_custom_webhook_section(); ?>
+
             <?php
             // Allow extension plugins to add additional settings sections
             // Placed at the bottom to maintain UI consistency - extensions should appear after core settings
             do_action('odcm_insight_dashboard_settings_sections');
             ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the Custom Webhook settings section.
+     */
+    private function render_custom_webhook_section(): void
+    {
+        // Allow extensions to replace this section entirely.
+        $override = apply_filters('odcm_custom_webhook_section_html', null);
+        if ($override !== null) {
+            echo $override; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            return;
+        }
+
+        $cw_conn      = $this->get_free_webhook_connection();
+        $hmac_header  = $cw_conn['hmac_header'] ?? '';
+        $has_secret   = '' !== ($cw_conn['bearer_token'] ?? '') || '' !== ($cw_conn['hmac_secret'] ?? '');
+        $current_slug = sanitize_title($cw_conn['slug'] ?? 'custom-webhook') ?: 'custom-webhook';
+        $url_base     = esc_url(rest_url('odcm/v1/webhooks/generic/'));
+        ?>
+        <div class="odcm-settings-section">
+            <div class="odcm-settings-group">
+                <div class="odcm-setting-row">
+                    <h3 class="odcm-settings-section-title">Custom Webhook</h3>
+                    <label for="odcm_custom_webhook_enabled" class="odcm-setting-label">
+                        <input type="checkbox"
+                               id="odcm_custom_webhook_enabled"
+                               <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('cwEnabled'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                               <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'saveCwEnabled($event.target.checked)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                        Enable Custom Webhook
+                    </label>
+                    <span class="odcm-setting-hint">Accept incoming webhook events from a third-party service.</span>
+                </div>
+
+                <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('cwEnabled'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                    <div class="odcm-setting-row">
+                        <label for="odcm_cw_slug" class="odcm-setting-label">Webhook URL</label>
+                        <span class="odcm-setting-hint odcm-cw-url-base"><?php echo $url_base; ?></span>
+                        <div class="odcm-setting-row-pair">
+                            <input type="text"
+                                   id="odcm_cw_slug"
+                                   value="<?php echo esc_attr($current_slug); ?>"
+                                   class="regular-text"
+                                   placeholder="custom-webhook"
+                                   pattern="[a-z0-9_-]+"
+                                   spellcheck="false">
+                            <button type="button"
+                                    class="odcm-cw-copy-btn"
+                                    title="Copy webhook URL"
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'copyWebhookUrl()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                                <span class="dashicons dashicons-clipboard"></span>
+                            </button>
+                        </div>
+                        <span class="odcm-setting-hint">Lowercase letters, numbers, hyphens and underscores only. Changing this updates the URL. Make sure to update your third-party service.</span>
+                    </div>
+
+                    <div class="odcm-setting-row">
+                        <span class="odcm-setting-label">Auth Method</span>
+                        <div class="odcm-cw-auth-buttons">
+                            <button type="button"
+                                    class="button"
+                                    <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{'button-primary': cwAuthMethod === 'none'}"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', "cwAuthMethod = 'none'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>None</button>
+                            <button type="button"
+                                    class="button"
+                                    <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{'button-primary': cwAuthMethod === 'bearer'}"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', "cwAuthMethod = 'bearer'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>Bearer Token</button>
+                            <button type="button"
+                                    class="button"
+                                    <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{'button-primary': cwAuthMethod === 'hmac'}"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', "cwAuthMethod = 'hmac'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>HMAC-SHA256</button>
+                        </div>
+                    </div>
+
+                    <div class="odcm-setting-row" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute("cwAuthMethod === 'bearer' || cwAuthMethod === 'hmac'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                        <label for="odcm_cw_secret" class="odcm-setting-label">
+                            <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding("cwAuthMethod === 'bearer' ? 'Bearer Token' : 'HMAC Secret'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+                        </label>
+                        <input type="password"
+                               id="odcm_cw_secret"
+                               value="<?php echo $has_secret ? '__saved__' : ''; ?>"
+                               class="regular-text"
+                               placeholder="<?php echo $has_secret ? esc_attr('(saved)') : ''; ?>">
+                    </div>
+
+                    <div class="odcm-setting-row" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute("cwAuthMethod === 'hmac'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                        <label for="odcm_cw_hmac_header" class="odcm-setting-label">Signature Header</label>
+                        <input type="text"
+                               id="odcm_cw_hmac_header"
+                               value="<?php echo esc_attr($hmac_header); ?>"
+                               class="regular-text"
+                               placeholder="X-Signature">
+                    </div>
+
+                    <div class="odcm-setting-row">
+                        <button type="button"
+                                class="button button-primary"
+                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('cwSaving'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'saveCustomWebhookSettings()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                            <span <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('cwSaving'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> class="dashicons dashicons-update is-spinning"></span>
+                            <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding("cwSaving ? 'Saving\u2026' : 'Save'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
         <?php
     }
@@ -1269,8 +1389,94 @@ class InsightDashboard
     }
 
     /**
+     * Return the free-plugin webhook connection entry from odcm_generic_connections, or [].
+     */
+    private function get_free_webhook_connection(): array
+    {
+        return $this->find_free_webhook_entry((array) get_option('odcm_generic_connections', [])) ?? [];
+    }
+
+    /**
+     * Find and return the first connection entry with source='free', or null.
+     */
+    private function find_free_webhook_entry(array $connections): ?array
+    {
+        foreach ($connections as $conn) {
+            if (($conn['source'] ?? '') === 'free') {
+                return $conn;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Handle AJAX request to save Custom Webhook settings.
+     */
+    public function handle_custom_webhook_settings_ajax(): void
+    {
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.permission_denied', 'order-daemon')]);
+        }
+
+        if (!isset($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_wpnonce'])), 'wp_rest')) {
+            wp_send_json_error(['message' => __('admin.insight_dashboard.ajax.security_check_failed', 'order-daemon')]);
+        }
+
+        $enabled = isset($_POST['odcm_custom_webhook_enabled']) && $_POST['odcm_custom_webhook_enabled'] === '1';
+
+        $auth_method = sanitize_key(wp_unslash($_POST['odcm_custom_webhook_auth_method'] ?? 'none'));
+        if (!in_array($auth_method, ['none', 'bearer', 'hmac'], true)) {
+            $auth_method = 'none';
+        }
+
+        $hmac_header = sanitize_text_field(wp_unslash($_POST['odcm_custom_webhook_hmac_header'] ?? ''));
+
+        $connections = (array) get_option('odcm_generic_connections', []);
+        $existing    = $this->find_free_webhook_entry($connections);
+        $old_slug    = $existing['slug'] ?? 'custom-webhook';
+        $new_slug    = sanitize_title(wp_unslash($_POST['odcm_custom_webhook_slug'] ?? '')) ?: $old_slug;
+
+        $secret_post  = wp_unslash($_POST['odcm_custom_webhook_secret'] ?? '');
+        $secret_saved = false;
+        if ($secret_post !== '' && $secret_post !== '__saved__') {
+            $encrypted_secret = odcm_encrypt_value($secret_post);
+            $secret_saved     = true;
+        } else {
+            $encrypted_secret = null;
+        }
+
+        if ($old_slug !== $new_slug && isset($connections[$old_slug])) {
+            unset($connections[$old_slug]);
+        }
+
+        $entry = $existing ?? [];
+        $entry = array_merge($entry, [
+            'name'        => 'Custom Webhook',
+            'slug'        => $new_slug,
+            'source'      => 'free',
+            'enabled'     => $enabled,
+            'auth_method' => $auth_method,
+            'hmac_header' => $hmac_header,
+        ]);
+
+        if ($encrypted_secret !== null) {
+            $entry['bearer_token'] = $auth_method === 'bearer' ? $encrypted_secret : '';
+            $entry['hmac_secret']  = $auth_method === 'hmac'   ? $encrypted_secret : '';
+        }
+
+        $connections[$new_slug] = $entry;
+        update_option('odcm_generic_connections', $connections, 'no');
+
+        wp_send_json_success([
+            'message'      => 'Custom webhook settings saved.',
+            'secret_saved' => $secret_saved,
+            'new_slug'     => $new_slug,
+        ]);
+    }
+
+    /**
      * Handle AJAX request to save uninstall data removal setting
-     * 
+     *
      * This endpoint specifically handles the "Remove all Order Daemon data on uninstall" checkbox.
      * It provides dedicated toast responses for success/failure of this specific setting.
      */

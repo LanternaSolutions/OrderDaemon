@@ -54,6 +54,11 @@ class EventRouter
                 throw new \InvalidArgumentException("No adapter available for gateway: {$gateway}");
             }
 
+            // Inject connection config for named generic connections
+            if ($gateway === 'generic' && isset($input_data['connection'])) {
+                $connections = get_option('odcm_generic_connections', []);
+                $input_data['_connection'] = $connections[$input_data['connection']] ?? null;
+            }
 
             // Validate authenticity
             if (!$adapter->validateAuthenticity($input_data)) {

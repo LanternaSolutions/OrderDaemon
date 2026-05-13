@@ -35,6 +35,15 @@ class OrderTotalAmountCondition implements ConditionInterface
         return [
             'type' => 'object',
             'properties' => [
+                'amount_source' => [
+                    'type'    => 'string',
+                    'title'   => __('rule_component.condition.order_total.amount_source_label', 'order-daemon'),
+                    'enum'    => [
+                        'order_total'    => __('rule_component.condition.order_total.amount_source.order_total', 'order-daemon'),
+                        'order_discount' => __('rule_component.condition.order_total.amount_source.order_discount', 'order-daemon'),
+                    ],
+                    'default' => 'order_total',
+                ],
                 'operator' => [
                     'type' => 'string',
                     'title' => __('rule_component.condition.order_total.operator_label', 'order-daemon'),
@@ -97,11 +106,14 @@ class OrderTotalAmountCondition implements ConditionInterface
     public function evaluate(WC_Order $order, array $settings): bool
     {
         $operator = $settings['operator'] ?? 'amount_gt';
-        
+        $amount_source = $settings['amount_source'] ?? 'order_total';
+
         // Get the amount value based on the selected operator
         $amount_field = $operator . '_value';
         $amount = isset($settings[$amount_field]) ? (float) $settings[$amount_field] : 0.0;
-        $order_total = (float) $order->get_total();
+        $order_total = $amount_source === 'order_discount'
+            ? (float) $order->get_discount_total()
+            : (float) $order->get_total();
 
         // Use WooCommerce decimals and epsilon for equality
         $decimals = function_exists('wc_get_price_decimals') ? (int) wc_get_price_decimals() : 2;

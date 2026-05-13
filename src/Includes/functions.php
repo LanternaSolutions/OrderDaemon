@@ -1841,14 +1841,14 @@ function odcm_get_content_dir(): string {
  */
 function odcm_get_cache_directory(): string {
     static $cached_dir = null;
-    
+
     if ($cached_dir !== null) {
         return $cached_dir;
     }
-    
+
     $uploads_dir = odcm_get_uploads_dir();
     $cache_dir = $uploads_dir . '/order-daemon-cache';
-    
+
     // Ensure the cache directory exists and is writable
     if (odcm_ensure_directory_writable($cache_dir)) {
         $cached_dir = $cache_dir;
@@ -1856,6 +1856,79 @@ function odcm_get_cache_directory(): string {
         // Fallback to uploads directory
         $cached_dir = $uploads_dir;
     }
-    
+
     return $cached_dir;
+}
+
+/**
+ * Encrypt a string value using AES-256-CBC.
+ *
+ * A random IV is generated per call and prepended to the ciphertext before
+ * base64-encoding. Falls back to plain base64 when OpenSSL is unavailable.
+ * Uses wp_salt('auth') as the key source so values are site-specific.
+ *
+ * @param string $value Plaintext value to encrypt.
+ * @return string Base64-encoded ciphertext (IV + cipher), or '' on failure.
+ */
+function odcm_encrypt_value(string $value): string
+{
+    if ('' === $value) {
+        return '';
+    }
+
+    if (!function_exists('openssl_encrypt')) {
+        return base64_encode($value);
+    }
+
+    $key    = substr(hash('sha256', wp_salt('auth'), true), 0, 32);
+    $iv_len = (int) openssl_cipher_iv_length('AES-256-CBC');
+    $iv     = openssl_random_pseudo_bytes($iv_len);
+
+    if (false === $iv) {
+        return '';
+    }
+
+    $cipher = openssl_encrypt($value, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv);
+
+    if (false === $cipher) {
+        return '';
+    }
+
+    return base64_encode($iv . $cipher);
+}
+
+/**
+ * Decrypt a value encrypted by odcm_encrypt_value().
+ *
+ * @param string $encrypted Base64-encoded ciphertext produced by odcm_encrypt_value().
+ * @return string Plaintext, or '' on failure.
+ */
+function odcm_decrypt_value(string $encrypted): string
+{
+    if ('' === $encrypted) {
+        return '';
+    }
+
+    if (!function_exists('openssl_decrypt')) {
+        return (string) base64_decode($encrypted);
+    }
+
+    $decoded = base64_decode($encrypted, true);
+
+    if (false === $decoded) {
+        return '';
+    }
+
+    $key    = substr(hash('sha256', wp_salt('auth'), true), 0, 32);
+    $iv_len = (int) openssl_cipher_iv_length('AES-256-CBC');
+
+    if (strlen($decoded) <= $iv_len) {
+        return '';
+    }
+
+    $iv         = substr($decoded, 0, $iv_len);
+    $ciphertext = substr($decoded, $iv_len);
+    $plaintext  = openssl_decrypt($ciphertext, 'AES-256-CBC', $key, OPENSSL_RAW_DATA, $iv);
+
+    return false === $plaintext ? '' : $plaintext;
 }

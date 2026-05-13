@@ -55,6 +55,23 @@ class WebhookController extends WP_REST_Controller
      */
     public function register_routes(): void
     {
+        // Named connection endpoint — must be registered before the catch-all gateway route
+        register_rest_route(self::NAMESPACE, '/' . self::BASE_ROUTE . '/generic/(?P<connection>[a-z0-9_-]+)', [
+            [
+                'methods'             => WP_REST_Server::CREATABLE,
+                'callback'            => [$this, 'handle_connection_webhook'],
+                'permission_callback' => [$this, 'webhook_permissions_check'],
+                'args'                => [
+                    'connection' => [
+                        'required'          => true,
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_key',
+                        'validate_callback' => [$this, 'validate_gateway_name'],
+                    ],
+                ],
+            ],
+        ]);
+
         // Generic webhook endpoint
         register_rest_route(self::NAMESPACE, '/' . self::BASE_ROUTE . '/(?P<gateway>[a-zA-Z0-9_-]+)', [
             [
@@ -194,8 +211,62 @@ class WebhookController extends WP_REST_Controller
     }
 
     /**
+     * Handle incoming named connection webhook requests.
+     *
+     * @param WP_REST_Request $request The REST API request.
+     * @return WP_REST_Response|WP_Error
+     */
+    public function handle_connection_webhook(WP_REST_Request $request)
+    {
+        $start_time  = microtime(true);
+        $connection  = $request->get_param('connection') ?? 'unknown';
+        $process_id  = 'odcm_webhook_' . uniqid();
+
+        try {
+            $raw_body   = $request->get_body();
+            $input_data = $this->extract_webhook_data($request);
+            $input_data['raw_body']   = $raw_body;
+            $input_data['connection'] = $connection;
+
+            $this->log_webhook_reception('generic', $input_data, $process_id);
+
+            $events = $this->event_router->processWebhook('generic', $input_data);
+
+            if (empty($events)) {
+                return new WP_REST_Response([
+                    'success'    => false,
+                    'message'    => 'No events processed',
+                    'process_id' => $process_id,
+                ], 200);
+            }
+
+            $execution_time = microtime(true) - $start_time;
+            $this->log_webhook_success('generic', count($events), $execution_time, $process_id);
+
+            return new WP_REST_Response([
+                'success'          => true,
+                'message'          => sprintf('Processed %d event(s)', count($events)),
+                'events_processed' => count($events),
+                'process_id'       => $process_id,
+                'execution_time'   => round($execution_time * 1000, 2) . 'ms',
+            ], 200);
+
+        } catch (\Throwable $e) {
+            $execution_time = microtime(true) - $start_time;
+            $this->log_webhook_error('generic', $e, $execution_time, $process_id);
+
+            return new WP_REST_Response([
+                'success'    => false,
+                'message'    => 'Webhook processing failed',
+                'error'      => defined('ODCM_DEBUG') && ODCM_DEBUG ? $e->getMessage() : 'Internal error',
+                'process_id' => $process_id,
+            ], 200);
+        }
+    }
+
+    /**
      * Health check endpoint for webhook monitoring
-     * 
+     *
      * @param WP_REST_Request $request The REST request
      * @return WP_REST_Response Response object
      */

@@ -185,6 +185,12 @@ function insightDashboard() {
         // Reprocess pending orders state
         isReprocessing: false,
 
+        // Custom Webhook settings state
+        cwEnabled: window.odcmInsightConfig?.customWebhook?.enabled || false,
+        cwAuthMethod: window.odcmInsightConfig?.customWebhook?.authMethod || 'none',
+        cwSlug: window.odcmInsightConfig?.customWebhook?.slug || 'custom-webhook',
+        cwSaving: false,
+
         // =================================================================
         // INITIALIZATION
         // =================================================================
@@ -1169,6 +1175,95 @@ function insightDashboard() {
                 }
             } catch (e) {
                 this.showToast('Failed to save debug setting', 'error');
+            }
+        },
+        async saveCwEnabled(checked) {
+            try {
+                const payload = new URLSearchParams({
+                    action: 'odcm_save_custom_webhook_settings',
+                    _wpnonce: this.config.nonce,
+                    odcm_custom_webhook_enabled: checked ? '1' : '0',
+                    odcm_custom_webhook_auth_method: this.cwAuthMethod,
+                    odcm_custom_webhook_secret: '__saved__',
+                    odcm_custom_webhook_hmac_header: document.getElementById('odcm_cw_hmac_header')?.value || '',
+                    odcm_custom_webhook_slug: this.cwSlug,
+                });
+                const resp = await fetch(this.config.ajaxUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: payload,
+                });
+                const data = await resp.json().catch(() => null);
+                if (data && data.success) {
+                    this.showToast(checked ? 'Custom webhook enabled' : 'Custom webhook disabled', 'success');
+                } else {
+                    this.showToast((data && data.data?.message) || 'Failed to save webhook setting', 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to save webhook setting', 'error');
+            }
+        },
+        async saveCustomWebhookSettings() {
+            if (this.cwSaving) return;
+            this.cwSaving = true;
+            try {
+                const secret = document.getElementById('odcm_cw_secret');
+                const header = document.getElementById('odcm_cw_hmac_header');
+                const slugInput = document.getElementById('odcm_cw_slug');
+                const payload = new URLSearchParams({
+                    action: 'odcm_save_custom_webhook_settings',
+                    _wpnonce: this.config.nonce,
+                    odcm_custom_webhook_enabled: this.cwEnabled ? '1' : '0',
+                    odcm_custom_webhook_auth_method: this.cwAuthMethod,
+                    odcm_custom_webhook_secret: secret ? secret.value : '',
+                    odcm_custom_webhook_hmac_header: header ? header.value : '',
+                    odcm_custom_webhook_slug: slugInput ? slugInput.value : this.cwSlug,
+                });
+                const resp = await fetch(this.config.ajaxUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: payload,
+                });
+                const data = await resp.json().catch(() => null);
+                if (!resp.ok) {
+                    this.showToast(`Server error (${resp.status}) — settings not saved`, 'error');
+                    return;
+                }
+                if (data && data.success) {
+                    if (data.data?.secret_saved && secret) secret.value = '__saved__';
+                    if (data.data?.new_slug) this.cwSlug = data.data.new_slug;
+                    this.showToast('Webhook settings saved', 'success');
+                } else {
+                    this.showToast((data && data.data?.message) || 'Failed to save webhook settings', 'error');
+                }
+            } catch (e) {
+                this.showToast('Failed to save webhook settings — check your connection', 'error');
+            } finally {
+                this.cwSaving = false;
+            }
+        },
+        copyWebhookUrl() {
+            const urlBase = this.config?.customWebhook?.urlBase || '';
+            const slug = (document.getElementById('odcm_cw_slug')?.value || this.cwSlug).trim();
+            const url = urlBase + slug;
+            const fallback = () => {
+                const el = document.createElement('textarea');
+                el.value = url;
+                el.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+                document.body.appendChild(el);
+                el.focus();
+                el.select();
+                let ok = false;
+                try { ok = document.execCommand('copy'); } catch (_) {}
+                document.body.removeChild(el);
+                this.showToast(ok ? 'Webhook URL copied' : 'Copy failed — URL: ' + url, ok ? 'success' : 'error');
+            };
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(url)
+                    .then(() => this.showToast('Webhook URL copied', 'success'))
+                    .catch(fallback);
+            } else {
+                fallback();
             }
         },
         async saveUninstallDataSetting(checked) {

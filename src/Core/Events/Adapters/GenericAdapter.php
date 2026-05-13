@@ -115,21 +115,52 @@ class GenericAdapter extends AbstractGatewayAdapter
      */
     public function validateAuthenticity(array $input): bool
     {
-        // Generic adapter has relaxed authentication for flexibility
-        // In production, you might want to implement signature validation
-        
         $payload = $input['payload'] ?? [];
-        
+
         // Always allow test events
         if (isset($payload['_odcm_test']) && $payload['_odcm_test']) {
             $this->log('Allowing test event through generic adapter');
             return true;
         }
 
-        // For now, allow all generic webhooks
-        // TODO: Implement configurable authentication methods
-        $this->log('Generic webhook authentication passed (permissive mode)');
-        return true;
+        $connection = $input['_connection'] ?? null;
+
+        // No connection config — legacy permissive mode
+        if ($connection === null) {
+            $this->log('Generic webhook authentication passed (permissive mode)');
+            return true;
+        }
+
+        // Connection explicitly disabled.
+        if (($connection['enabled'] ?? true) === false) {
+            $this->log('Generic webhook is disabled');
+            return false;
+        }
+
+        $auth_method = $connection['auth_method'] ?? 'none';
+        $slug        = $connection['slug'] ?? ($input['connection'] ?? '');
+
+        if ($auth_method === 'none') {
+            $result = true;
+        } elseif ($auth_method === 'bearer') {
+            $auth_header = $input['headers']['authorization'] ?? $input['headers']['http_authorization'] ?? '';
+            $stored      = odcm_decrypt_value($connection['bearer_token'] ?? '');
+            $result      = $stored !== '' && hash_equals('Bearer ' . $stored, $auth_header);
+        } elseif ($auth_method === 'hmac') {
+            // WP_REST_Request normalizes header names to lowercase with underscores.
+            // Try both hyphen and underscore forms so the lookup works in all contexts.
+            $header_name       = strtolower($connection['hmac_header'] ?? 'x-signature');
+            $header_name_under = str_replace('-', '_', $header_name);
+            $sig_header        = $input['headers'][$header_name] ?? $input['headers'][$header_name_under] ?? '';
+            $raw_body    = $input['raw_body'] ?? '';
+            $secret      = odcm_decrypt_value($connection['hmac_secret'] ?? '');
+            $expected    = hash_hmac('sha256', $raw_body, $secret);
+            $result      = $secret !== '' && hash_equals($expected, $sig_header);
+        } else {
+            $result = false;
+        }
+
+        return (bool) apply_filters('odcm_webhook_connection_auth', $result, $slug, $input);
     }
 
     /**
