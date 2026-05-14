@@ -9,6 +9,7 @@ use OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry;
 use OrderDaemon\CompletionManager\API\Timeline\TimelineBuilderInterface;
 use OrderDaemon\CompletionManager\API\Timeline\TimelineRendererInterface;
 use OrderDaemon\CompletionManager\API\Timeline\TimelineRequest;
+use OrderDaemon\CompletionManager\API\Timeline\EnhancedTimelineBuilder;
 use OrderDaemon\CompletionManager\API\Timeline\DatabaseTimelineBuilder;
 use OrderDaemon\CompletionManager\API\Timeline\ProcessLoggerComponentExtractor;
 use OrderDaemon\CompletionManager\API\Timeline\RegistryTimelineRenderer;
@@ -36,6 +37,9 @@ if (!class_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\TimelineData')
 }
 if (!class_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\TimelineRequest')) {
     require_once dirname(__DIR__) . '/API/Timeline/TimelineRequest.php';
+}
+if (!class_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\EnhancedTimelineBuilder')) {
+    require_once dirname(__DIR__) . '/API/Timeline/EnhancedTimelineBuilder.php';
 }
 if (!class_exists('OrderDaemon\\CompletionManager\\API\\Timeline\\DatabaseTimelineBuilder')) {
     require_once dirname(__DIR__) . '/API/Timeline/DatabaseTimelineBuilder.php';
@@ -85,9 +89,7 @@ class AuditLogEndpoint extends WP_REST_Controller
     ) {
         // Dependency injection with sensible defaults, but be defensive about class availability
         try {
-            $this->timelineBuilder = $timelineBuilder ?: new DatabaseTimelineBuilder(
-                new ProcessLoggerComponentExtractor()
-            );
+            $this->timelineBuilder = $timelineBuilder ?: new EnhancedTimelineBuilder();
         } catch (\Throwable $e) {
             // Defer initialization to runtime in render_components()
             $this->timelineBuilder = $timelineBuilder ?: null;
@@ -817,7 +819,7 @@ class AuditLogEndpoint extends WP_REST_Controller
             // Ensure services are initialized (lazy init to avoid early fatals)
             if (!$this->timelineBuilder instanceof TimelineBuilderInterface) {
                 try {
-                    $this->timelineBuilder = new DatabaseTimelineBuilder(new ProcessLoggerComponentExtractor());
+                    $this->timelineBuilder = new EnhancedTimelineBuilder();
                 } catch (\Throwable $e) {
                     throw $e; // Re-throw to be caught by main catch block
                 }
@@ -3067,7 +3069,7 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
 
             // Ensure services are initialized
             if (!$this->timelineBuilder) {
-                $this->timelineBuilder = new DatabaseTimelineBuilder(new ProcessLoggerComponentExtractor());
+                $this->timelineBuilder = new EnhancedTimelineBuilder();
             }
 
             // Get the raw timeline data

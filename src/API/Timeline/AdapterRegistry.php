@@ -488,9 +488,10 @@ class AdapterRegistry
                                       !empty($payload['rule_name']) ||
                                       !empty($payload['data']['rule_name']);
 
+                // Do NOT include data['status'] — in EnhancedTimelineBuilder components that key
+                // is the DB row status column, not a processing-state indicator.
                 $hasProcessingMetadata = !empty($payload['data']['correlation_id']) ||
-                                       !empty($payload['data']['process_type']) ||
-                                       !empty($payload['data']['status']);
+                                       !empty($payload['data']['process_type']);
 
                 // Only filter if it's an incomplete rule event (processing started)
                 // Complete rule execution events should be treated as business events, not debug events

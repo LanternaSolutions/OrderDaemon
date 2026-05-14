@@ -204,10 +204,15 @@ class UniversalEventProcessor
                 return true; // Not an error, just already processed
             }
 
+            // Queue the business event BEFORE rules run so Action Scheduler processes it
+            // first — this ensures parent_id resolution in odcm_resolve_parent_id() finds
+            // the parent row already inserted when the rule_execution entry is processed.
+            $this->logBusinessEventToTimeline($context, $process_id);
+
             // Process through rule engine
             $result = $this->processUniversalEventRules($context, $process_id);
 
-            // Log final processing result
+            // Log final processing result (debug metadata only — business event already queued above)
             $execution_time = microtime(true) - ($this->getValidatedRequestTimeFloat() ?? $start_time);
             $this->logProcessingResult($context, $result, $execution_time, $process_id);
 
@@ -518,29 +523,10 @@ class UniversalEventProcessor
         
         // Determine if this event should create rule execution timeline entries
         $is_canonical_rule_event = $this->isCanonicalTimelineEvent($event->eventType);
-        
-        // FIRST: Always log business events with components to preserve the timeline
-        if ($has_components) {
-            $summary = $event->getSummary();
-            $gateway = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
-            $order_id = $context->getOrderId();
-            $amount = $event->amount;
-            $currency = $event->currency;
 
-            // Generate user-friendly message based on event type
-            $message = $this->generateUserFriendlyMessage($event->eventType, $gateway, $order_id, $amount, $currency, $summary);
+        // Business event logging is handled by logBusinessEventToTimeline() which is called
+        // before processUniversalEventRules() to guarantee correct AS queue ordering.
 
-            \odcm_log_event(
-                $message,
-                $payload_for_storage,
-                $context->getOrderId(),
-                'info', // Use info level for business events
-                'universal_event_processing',
-                false,
-                $process_id
-            );
-        }
-        
         // DISABLED: Standard rule execution event creation is now disabled to prevent duplicates
         // All rule execution events are now handled through the consolidated event system
         // This ensures a single source of truth and prevents duplicate timeline entries
@@ -612,8 +598,79 @@ class UniversalEventProcessor
     }
 
     /**
+     * Queue the business event timeline entry before rules run.
+     *
+     * Called before processUniversalEventRules() so that Action Scheduler inserts
+     * the business event into wp_odcm_audit_log before the rule_execution entry
+     * is processed, allowing odcm_resolve_parent_id() to find the parent row.
+     */
+    private function logBusinessEventToTimeline(EvaluationContext $context, string $process_id): void
+    {
+        $event    = $context->event;
+        $eventData = $event->toArray();
+
+        if (empty($eventData['components'])) {
+            return;
+        }
+
+        $payload = [
+            'event_type'          => $event->eventType,
+            'source_gateway'      => $event->sourceGateway,
+            'channel'             => $event->channel,
+            'primary_object_type' => $event->primaryObjectType,
+            'primary_object_id'   => $event->primaryObjectID,
+            'transaction_id'      => $event->transactionID,
+            'amount'              => $event->amount,
+            'currency'            => $event->currency,
+            'idempotency_key'     => $event->idempotencyKey,
+            'has_order'           => $context->order !== null,
+            'has_subscription'    => $context->subscription !== null,
+            'customer_id'         => $context->getCustomerId(),
+            'components'          => $eventData['components'],
+            'rawData'             => $event->rawData,
+        ];
+
+        // Enrich checkout_processed with order-level data from the component
+        if ($event->eventType === 'checkout_processed' && !empty($eventData['components'])) {
+            foreach ($eventData['components'] as $component) {
+                if (isset($component['event_type']) && $component['event_type'] === 'checkout_processed' && !empty($component['data'])) {
+                    $payload['order_id']       = $component['data']['order_id'] ?? $event->primaryObjectID;
+                    $payload['status']         = $component['data']['status'] ?? $event->status ?? null;
+                    $payload['payment_method'] = $component['data']['payment_method'] ?? '';
+                    if (isset($component['data']['total']) && (!isset($payload['total']) || $payload['total'] === 0)) {
+                        $payload['total'] = $component['data']['total'];
+                    }
+                    if (isset($component['data']['currency']) && empty($payload['currency'])) {
+                        $payload['currency'] = $component['data']['currency'];
+                    }
+                    if (isset($component['data']['checkout_type'])) {
+                        $payload['checkout_type'] = $component['data']['checkout_type'];
+                    }
+                    break;
+                }
+            }
+        }
+
+        $gateway  = $event->sourceGateway ? ucfirst($event->sourceGateway) : 'Payment gateway';
+        $order_id = $context->getOrderId();
+        $message  = $this->generateUserFriendlyMessage(
+            $event->eventType, $gateway, $order_id, $event->amount, $event->currency, $event->getSummary()
+        );
+
+        \odcm_log_event(
+            $message,
+            $payload,
+            $order_id,
+            'info',
+            'universal_event_processing',
+            false,
+            $process_id
+        );
+    }
+
+    /**
      * Log processing error
-     * 
+     *
      * @param \Throwable $error Error that occurred
      * @param array $event_data Original event data
      * @param float $execution_time Execution time in seconds

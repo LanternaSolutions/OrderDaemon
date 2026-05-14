@@ -180,7 +180,7 @@ function odcm_handle_log_processing($args) {
     // HIERARCHY: Add parent_id resolution logic
     // Check if we have parent_event_type in the compressed data for hierarchy resolution
     if (isset($comp_data['parent_event_type']) && !empty($comp_data['parent_event_type']) && $order_id) {
-        $parent_id = odcm_resolve_parent_id($comp_data['parent_event_type'], (int) $order_id);
+        $parent_id = odcm_resolve_parent_id($comp_data['parent_event_type'], (int) $order_id, $process_id ?? null);
         if ($parent_id !== null) {
             $log_data['parent_id'] = $parent_id;
             odcm_log_message("HIERARCHY: Resolved parent_id={$parent_id} for event_type='{$event_type}' using parent_event_type='{$comp_data['parent_event_type']}'", 'debug');
@@ -970,7 +970,11 @@ function odcm_process_queued_log_entry($args): void
         // Resolve parent_id if parent_event_type is provided
         $parent_id = null;
         if ($parent_event_type && !empty($event_data['order_id'])) {
-            $parent_id = odcm_resolve_parent_id($parent_event_type, (int) $event_data['order_id']);
+            $parent_id = odcm_resolve_parent_id(
+                $parent_event_type,
+                (int) $event_data['order_id'],
+                $event_data['process_id'] ?? null
+            );
         }
         
         // Create payload ID if we have envelope data
@@ -1152,21 +1156,49 @@ function odcm_process_queued_log_entry($args): void
  * @param int $order_id The order ID to search within
  * @return int|null The parent event log_id or null if not found
  */
-function odcm_resolve_parent_id(string $parent_event_type, int $order_id): ?int
+function odcm_resolve_parent_id(string $parent_event_type, int $order_id, ?string $process_id = null): ?int
 {
     global $wpdb;
 
     // Direct database access required for parent ID resolution in custom audit log tables
     // @codingStandardsIgnoreStart - Custom table operations
-    
-    // Debug logging to understand what's happening
-    $debug_data = [
+
+    odcm_log_message("PARENT_ID_RESOLUTION: Starting lookup", 'debug', [
         'parent_event_type' => $parent_event_type,
-        'order_id' => $order_id,
-        'table_name' => $wpdb->prefix . 'odcm_audit_log'
-    ];
-    odcm_log_message("PARENT_ID_RESOLUTION: Starting lookup", 'debug', $debug_data);
-    
+        'order_id'          => $order_id,
+        'process_id'        => $process_id,
+        'table_name'        => $wpdb->prefix . 'odcm_audit_log',
+    ]);
+
+    $actual_event_type = odcm_map_to_actual_event_type($parent_event_type);
+
+    // Precise lookup: when process_id is known both events share it, so we can pinpoint the
+    // exact parent row without risk of matching a different event for the same order.
+    if ($process_id) {
+        $precise_cache_key = 'odcm_parent_pid_' . md5($order_id . '_' . $actual_event_type . '_' . $process_id);
+        $precise_result = wp_cache_get($precise_cache_key);
+        if (false === $precise_result) {
+            $precise_result = $wpdb->get_row($wpdb->prepare(
+                "SELECT log_id FROM {$wpdb->prefix}odcm_audit_log
+                 WHERE order_id = %d AND event_type = %s AND process_id = %s
+                 ORDER BY timestamp DESC, log_id DESC LIMIT 1",
+                $order_id,
+                $actual_event_type,
+                $process_id
+            ));
+            // Only cache positive results — a null here might mean the parent isn't in the DB
+            // yet (parallel AS runners). Not caching null allows a later retry to find it.
+            if ($precise_result) {
+                wp_cache_set($precise_cache_key, $precise_result, '', 5 * MINUTE_IN_SECONDS);
+            }
+        }
+        if ($precise_result) {
+            odcm_log_message("PARENT_ID_RESOLUTION: Precise match by process_id - ID:{$precise_result->log_id}", 'debug');
+            return (int) $precise_result->log_id;
+        }
+    }
+
+    // Fallback: broader lookup without process_id (older entries or parallel AS edge case)
     // First, let's see what events exist for this order (with caching)
     $cache_key = 'odcm_parent_resolution_events_' . $order_id;
     $all_events = wp_cache_get($cache_key);
@@ -1193,11 +1225,7 @@ function odcm_resolve_parent_id(string $parent_event_type, int $order_id): ?int
         }
     }
     
-    // Look for the most recent event of this type for this order.
-    // Map original event types to actual database event types.
-    $actual_event_type = odcm_map_to_actual_event_type($parent_event_type);
-    
-    // Look up parent event with caching
+    // Look up parent event with caching (fallback — no process_id to narrow by)
     $parent_cache_key = 'odcm_parent_event_' . md5($order_id . '_' . $actual_event_type);
     $result = wp_cache_get($parent_cache_key);
 

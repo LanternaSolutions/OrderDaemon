@@ -215,95 +215,6 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             }
         }
         
-        // 7. Use heuristics for components that don't have explicit parent IDs
-        // For example: Rules executed right after a status change are likely related
-        
-        // Create timestamp-based index to match events happening in sequence
-        $timeBasedComponents = [];
-        foreach ($components as $idx => $component) {
-            $ts = $component['ts'] ?? null;
-            if ($ts) {
-                if (!isset($timeBasedComponents[$ts])) {
-                    $timeBasedComponents[$ts] = [];
-                }
-                $timeBasedComponents[$ts][] = $idx;
-            }
-        }
-        
-        // Process components chronologically
-        $orderedTimestamps = array_keys($timeBasedComponents);
-        sort($orderedTimestamps);
-        
-        $lastStatusChangeIdx = null;
-        $lastCheckoutProcessedIdx = null;
-        $lastOrderEventIdx = null;
-        
-        foreach ($orderedTimestamps as $ts) {
-            foreach ($timeBasedComponents[$ts] as $idx) {
-                $component = $components[$idx];
-                $eventType = $component['event_type'] ?? '';
-                
-                // Skip components that already have a parent
-                if (isset($hierarchyMap['children'][$idx])) {
-                    continue;
-                }
-                
-                // Track status change events
-                if (strpos($eventType, 'status_changed') !== false) {
-                    $lastStatusChangeIdx = $idx;
-                }
-                
-                // Track checkout processed events
-                if (strpos($eventType, 'checkout_processed') !== false) {
-                    $lastCheckoutProcessedIdx = $idx;
-                }
-                
-                // Track order events
-                if (strpos($eventType, 'order_') !== false) {
-                    $lastOrderEventIdx = $idx;
-                }
-                
-                // Connect rule executions to status changes
-                if (strpos($eventType, 'rule_execution') !== false && $lastStatusChangeIdx !== null &&
-                    !isset($hierarchyMap['children'][$idx])) {
-                    
-                    // Check if the rule is responding to the last status change
-                    $ruleCreatedTime = $component['ts'] ?? 0;
-                    $statusChangeTime = $components[$lastStatusChangeIdx]['ts'] ?? 0;
-                    
-                    // If rule was executed right after a status change (within 5 seconds)
-                    if (abs($ruleCreatedTime - $statusChangeTime) <= 5) {
-                        $hierarchyMap['children'][$idx] = $lastStatusChangeIdx;
-                        
-                        if (!isset($hierarchyMap['parents'][$lastStatusChangeIdx])) {
-                            $hierarchyMap['parents'][$lastStatusChangeIdx] = [];
-                        }
-                        $hierarchyMap['parents'][$lastStatusChangeIdx][] = $idx;
-                        
-                        if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                            $this->logDebugMessage("ODCM TIMELINE DEBUG: Inferred rule-status relationship: parent=$lastStatusChangeIdx, child=$idx", 'debug');
-                        }
-                    }
-                }
-                
-                // Connect payment processing to checkout events
-                if (strpos($eventType, 'payment') !== false && $lastCheckoutProcessedIdx !== null &&
-                    !isset($hierarchyMap['children'][$idx])) {
-                    
-                    $hierarchyMap['children'][$idx] = $lastCheckoutProcessedIdx;
-                    
-                    if (!isset($hierarchyMap['parents'][$lastCheckoutProcessedIdx])) {
-                        $hierarchyMap['parents'][$lastCheckoutProcessedIdx] = [];
-                    }
-                    $hierarchyMap['parents'][$lastCheckoutProcessedIdx][] = $idx;
-                    
-                    if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                        $this->logDebugMessage("ODCM TIMELINE DEBUG: Inferred payment-checkout relationship: parent=$lastCheckoutProcessedIdx, child=$idx", 'debug');
-                    }
-                }
-            }
-        }
-        
         // Log the final hierarchy map for debugging
         if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
             $this->logDebugMessage("ODCM TIMELINE DEBUG: Final hierarchy map - Parents: " . count($hierarchyMap['parents']) . ", Children: " . count($hierarchyMap['children']), 'debug');
@@ -823,9 +734,11 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
                                   !empty($payload['rule_name']) ||
                                   !empty($payload['data']['rule_name']);
 
+            // Use only ProcessLogger-specific fields as "processing started" indicators.
+            // Do NOT include data['status'] — in EnhancedTimelineBuilder components that key
+            // holds the DB row's status column, causing false positives for every rule event.
             $hasProcessingMetadata = !empty($payload['data']['correlation_id']) ||
-                                   !empty($payload['data']['process_type']) ||
-                                   !empty($payload['data']['status']);
+                                   !empty($payload['data']['process_type']);
 
             // Only filter if it's an incomplete rule event (processing started)
             // Complete rule execution events should be treated as business events, not debug events

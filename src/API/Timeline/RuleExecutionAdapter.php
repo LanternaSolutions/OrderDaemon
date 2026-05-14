@@ -44,10 +44,11 @@ class RuleExecutionAdapter extends DisplayAdapter
                           !empty($payload['rule_name']) ||
                           !empty($payload['data']['rule_name']);
 
-        // If no complete rule data but has processing metadata, it's incomplete
+        // If no complete rule data but has processing metadata, it's incomplete.
+        // Do NOT include data['status'] — in EnhancedTimelineBuilder components that key is the
+        // DB row status column (e.g. 'success'), not a processing-state indicator.
         $hasProcessingData = !empty($payload['data']['correlation_id']) ||
-                            !empty($payload['data']['process_type']) ||
-                            !empty($payload['data']['status']);
+                            !empty($payload['data']['process_type']);
 
         return !$hasCompleteData && $hasProcessingData;
     }

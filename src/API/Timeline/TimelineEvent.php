@@ -38,6 +38,9 @@ final class TimelineEvent
     // Actions (for rule executions)
     public array $actions_taken = []; // Array of actions taken by the rule, not separate events
 
+    // Status
+    public ?string $status = null;   // Event status (e.g., 'success', 'error', 'failed')
+
     // Technical Info
     public array $tech_data = [];    // Hidden by default, available in debug mode
 
@@ -61,6 +64,7 @@ final class TimelineEvent
         array $display_sections = [],
         array $detail_sections = [],
         array $actions_taken = [],
+        ?string $status = null,
         array $tech_data = [],
         array $raw_payload = []
     ) {
@@ -77,6 +81,7 @@ final class TimelineEvent
         $this->display_sections = $display_sections;
         $this->detail_sections = $detail_sections;
         $this->actions_taken = $actions_taken;
+        $this->status = $status;
         $this->tech_data = $tech_data;
         $this->raw_payload = $raw_payload;
     }
@@ -170,7 +175,9 @@ final class TimelineEvent
      */
     public static function fromLegacyLogEntry(array $logEntry): self
     {
-        $order_id = $logEntry['order_id'] ?? null;
+        $order_id = isset($logEntry['order_id']) && $logEntry['order_id'] !== null
+            ? (int) $logEntry['order_id']
+            : null;
         $event_type = $logEntry['event_type'] ?? 'unknown';
         $process_id = $logEntry['process_id'] ?? '';
         $timestamp = $logEntry['timestamp'] ?? current_time('mysql');
@@ -181,12 +188,16 @@ final class TimelineEvent
             $type = 'rule_execution';
         }
 
+        $parent_id = isset($logEntry['parent_id']) && $logEntry['parent_id'] !== null
+            ? (int) $logEntry['parent_id']
+            : null;
+
         return new self(
-            $logEntry['log_id'] ?? null,
+            isset($logEntry['log_id']) ? (int) $logEntry['log_id'] : null,
             $type,
             $event_type,
             $process_id,
-            null, // parent_id
+            $parent_id,
             [], // children
             $order_id,
             $timestamp,
@@ -195,6 +206,7 @@ final class TimelineEvent
             [], // display_sections
             [], // detail_sections
             [], // actions_taken
+            $logEntry['status'] ?? null,
             [], // tech_data
             $logEntry // raw_payload
         );
@@ -219,6 +231,7 @@ final class TimelineEvent
             'display_sections' => $this->display_sections,
             'detail_sections' => $this->detail_sections,
             'actions_taken' => $this->actions_taken,
+            'status' => $this->status,
             'tech_data' => $this->tech_data,
             'raw_payload' => $this->raw_payload
         ];
@@ -243,6 +256,7 @@ final class TimelineEvent
             $data['display_sections'] ?? [],
             $data['detail_sections'] ?? [],
             $data['actions_taken'] ?? [],
+            $data['status'] ?? null,
             $data['tech_data'] ?? [],
             $data['raw_payload'] ?? []
         );

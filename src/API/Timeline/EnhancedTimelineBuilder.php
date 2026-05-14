@@ -15,17 +15,9 @@ namespace OrderDaemon\CompletionManager\API\Timeline;
 class EnhancedTimelineBuilder implements TimelineBuilderInterface
 {
     /**
-     * @var AdapterRegistry
+     * Constructor — AdapterRegistry is purely static, no instance needed.
      */
-    private AdapterRegistry $adapterRegistry;
-
-    /**
-     * Constructor
-     */
-    public function __construct(?AdapterRegistry $adapterRegistry = null)
-    {
-        $this->adapterRegistry = $adapterRegistry ?? AdapterRegistry::createDefaultRegistry();
-    }
+    public function __construct() {}
 
     /**
      * Build timeline data from a log entry request
@@ -62,7 +54,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         $timelineEvent = TimelineEvent::fromLegacyLogEntry($logEntry);
 
         // Extract display data using adapter
-        $adapter = $this->adapterRegistry->getAdapterForEvent($timelineEvent->event_type, $timelineEvent->raw_payload);
+        $adapter = AdapterRegistry::getAdapterForEvent($timelineEvent->raw_payload);
         $displayData = $adapter->extractDisplayData($timelineEvent->raw_payload);
 
         // Update TimelineEvent with display data
@@ -115,7 +107,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
             $timelineEvent = TimelineEvent::fromLegacyLogEntry($logEntry);
 
             // Extract display data using adapter
-            $adapter = $this->adapterRegistry->getAdapterForEvent($timelineEvent->event_type, $timelineEvent->raw_payload);
+            $adapter = AdapterRegistry::getAdapterForEvent($timelineEvent->raw_payload);
             $displayData = $adapter->extractDisplayData($timelineEvent->raw_payload);
 
             // Update TimelineEvent with display data
@@ -135,7 +127,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
             }
         }
 
-        // Sort components chronologically
+        // Sort components chronologically; use log_id as tiebreaker for same-second events
         usort($components, function($a, $b) {
             $ts_a = $a['ts'] ?? 0;
             $ts_b = $b['ts'] ?? 0;
@@ -157,7 +149,11 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
                 $time_b = (float)strtotime($ts_b);
             }
 
-            return $time_a <=> $time_b;
+            if ($time_a !== $time_b) {
+                return $time_a <=> $time_b;
+            }
+            // Same timestamp: lower log_id was inserted first
+            return ($a['id'] ?? 0) <=> ($b['id'] ?? 0);
         });
 
         // Select the highest priority event for the consolidated summary
@@ -254,9 +250,10 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
      */
     private function establishParentChildRelationships(array &$timelineEvents): void
     {
-        // Sort events chronologically first
+        // Sort events chronologically first; use log_id as tiebreaker for same-second events
         usort($timelineEvents, function($a, $b) {
-            return strtotime($a->timestamp) <=> strtotime($b->timestamp);
+            $diff = strtotime($a->timestamp) <=> strtotime($b->timestamp);
+            return $diff !== 0 ? $diff : ($a->id ?? 0) <=> ($b->id ?? 0);
         });
 
         // For each rule execution event, find its triggering business event
@@ -280,16 +277,26 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         $ruleTimestamp = strtotime($ruleEvent->timestamp);
         $triggeringEvent = null;
 
-        // Look for business events that happened just before this rule execution
+        // Look for business events that happened at or before this rule execution
         foreach ($allEvents as $event) {
             if ($event->isBusinessEvent() && !$event->isRuleExecution()) {
                 $eventTimestamp = strtotime($event->timestamp);
 
-                // Event must be before the rule execution
-                if ($eventTimestamp < $ruleTimestamp) {
-                    // If we don't have a triggering event yet, or this one is closer in time
-                    if (!$triggeringEvent || ($ruleTimestamp - $eventTimestamp) < ($ruleTimestamp - strtotime($triggeringEvent->timestamp))) {
+                // Event must be at or before the rule execution (same second is valid —
+                // WooCommerce fires payment/status/rule in the same PHP request)
+                if ($eventTimestamp <= $ruleTimestamp) {
+                    if (!$triggeringEvent) {
                         $triggeringEvent = $event;
+                    } else {
+                        $existingTs = strtotime($triggeringEvent->timestamp);
+                        $existingDiff = $ruleTimestamp - $existingTs;
+                        $newDiff = $ruleTimestamp - $eventTimestamp;
+
+                        // Prefer the closest event; break ties with log_id (lower = inserted first = is the cause)
+                        if ($newDiff < $existingDiff ||
+                            ($newDiff === $existingDiff && ($event->id ?? 0) > ($triggeringEvent->id ?? 0))) {
+                            $triggeringEvent = $event;
+                        }
                     }
                 }
             }
@@ -301,7 +308,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
     /**
      * Convert TimelineEvent to component format for backward compatibility
      */
-    private function convertTimelineEventToComponent(TimelineEvent $timelineEvent, bool $includeDebug): array
+    private function convertTimelineEventToComponent(TimelineEvent $timelineEvent, bool $includeDebug): ?array
     {
         // Check if this is a debug-only event that should be filtered out
         if (!$includeDebug && $this->isDebugOnlyEvent($timelineEvent)) {
@@ -309,6 +316,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         }
 
         $component = [
+            'id' => $timelineEvent->id,
             'event_type' => $timelineEvent->event_type,
             'label' => $timelineEvent->label,
             'summary' => $timelineEvent->summary,
@@ -359,10 +367,11 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
             // Check if this has the full rule execution context
             $hasFullRuleExecutionContext = !empty($rawPayload['rule_execution']) && is_array($rawPayload['rule_execution']);
 
-            // Check for processing metadata that indicates this is a processing event
+            // Use only ProcessLogger-specific fields as "processing started" indicators.
+            // Do NOT include data['status'] — in EnhancedTimelineBuilder, raw_payload is the
+            // DB log entry where 'data.status' maps to the DB status column, not process state.
             $hasProcessingData = !empty($rawPayload['data']['correlation_id']) ||
-                               !empty($rawPayload['data']['process_type']) ||
-                               !empty($rawPayload['data']['status']);
+                               !empty($rawPayload['data']['process_type']);
 
             // It's a debug-only event if it has processing data but lacks the full rule execution context
             if ($hasProcessingData && !$hasFullRuleExecutionContext) {
@@ -404,6 +413,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
                     l.payload_id,
                     l.is_test,
                     l.process_id,
+                    l.parent_id,
                     COALESCE(p.payload, l.details, %s) as payload
                 FROM {$wpdb->prefix}odcm_audit_log l
                     LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
@@ -763,11 +773,12 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
                     l.payload_id,
                     l.is_test,
                     l.process_id,
+                    l.parent_id,
                     COALESCE(p.payload, l.details, %s) as payload
                 FROM {$wpdb->prefix}odcm_audit_log l
                     LEFT JOIN {$wpdb->prefix}odcm_audit_log_payloads p ON l.payload_id = p.payload_id
                 WHERE l.process_id = %s
-                ORDER BY l.timestamp ASC",
+                ORDER BY l.timestamp ASC, l.log_id ASC",
                 '',
                 $processId
             ),
