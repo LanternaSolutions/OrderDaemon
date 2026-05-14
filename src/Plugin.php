@@ -15,6 +15,7 @@ use OrderDaemon\CompletionManager\API\RuleBuilderApiController;
 use OrderDaemon\CompletionManager\API\WebhookController;
 use OrderDaemon\CompletionManager\Core\Core;
 use OrderDaemon\CompletionManager\Core\ManualStatusTracker;
+use OrderDaemon\CompletionManager\Core\SiteUrlMonitor;
 use OrderDaemon\CompletionManager\Includes\Installer;
 
 /**
@@ -248,7 +249,7 @@ final class Plugin {
 		if (is_admin()) {
 			$admin = new Admin();
 			$admin->init();
-			
+
 			// Initialize Insight Dashboard
 			$insight_dashboard = new InsightDashboard();
 			$insight_dashboard->init();
@@ -257,6 +258,8 @@ final class Plugin {
 			$diagnostic_dashboard = new DiagnosticDashboard();
 			$diagnostic_dashboard->init();
 
+			// Detect site URL changes and surface an admin notice
+			SiteUrlMonitor::register();
 		}
 	}
 
