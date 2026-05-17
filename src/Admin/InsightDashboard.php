@@ -1227,7 +1227,7 @@ class InsightDashboard
                 <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('cwEnabled'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                     <div class="odcm-setting-row">
                         <label for="odcm_cw_slug" class="odcm-setting-label">Webhook URL</label>
-                        <span class="odcm-setting-hint odcm-cw-url-base"><?php echo $url_base; ?></span>
+                        <span class="odcm-setting-hint odcm-cw-url-base"><?php echo esc_html( $url_base ); ?></span>
                         <div class="odcm-setting-row-pair">
                             <input type="text"
                                    id="odcm_cw_slug"
@@ -1270,7 +1270,7 @@ class InsightDashboard
                         </label>
                         <input type="password"
                                id="odcm_cw_secret"
-                               value="<?php echo $has_secret ? '__saved__' : ''; ?>"
+                               value="<?php echo esc_attr( $has_secret ? '__saved__' : '' ); ?>"
                                class="regular-text"
                                placeholder="<?php echo $has_secret ? esc_attr('(saved)') : ''; ?>">
                     </div>
