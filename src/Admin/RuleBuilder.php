@@ -266,11 +266,13 @@ final class RuleBuilder
         );
 
         // Enqueue modern rule builder CSS with design system dependency
+        $rb_path = defined('ODCM_PLUGIN_DIR') ? ODCM_PLUGIN_DIR . 'assets/css/rule-builder.css' : '';
+        $rb_version = file_exists($rb_path) ? filemtime($rb_path) : $plugin_version;
         wp_enqueue_style(
             'odcm-rule-builder',
             $assets_url . 'css/rule-builder.css',
             ['odcm-design-system'],
-            $plugin_version
+            $rb_version
         );
 
         // Hide WP-generated heading and screen options on the rule editor
@@ -884,8 +886,10 @@ final class RuleBuilder
             </div>
             <span class="odcm-unified-header__sep" aria-hidden="true">/</span>
             <a class="odcm-unified-header__crumb" href="<?php echo esc_url($rules_url); ?>"><?php echo esc_html__('admin.list_table.page_title', 'order-daemon'); ?></a>
-            <span class="odcm-unified-header__sep" aria-hidden="true">/</span>
-            <span class="odcm-unified-header__crumb"><?php echo esc_html__('admin.rule_builder.page_title', 'order-daemon'); ?></span>
+            <span class="odcm-unified-header__crumb-group">
+                <span class="odcm-unified-header__sep" aria-hidden="true">/</span>
+                <span class="odcm-unified-header__crumb"><?php echo esc_html__('admin.rule_builder.page_title', 'order-daemon'); ?></span>
+            </span>
         </div>
         </div>
         <?php

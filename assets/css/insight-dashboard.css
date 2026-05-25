@@ -3903,10 +3903,10 @@ label.odcm-retention-option {
   .odcm-filter-field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 3px;
   }
   .odcm-filter-field__label {
-    font-size: var(--odcm-text-xs);
+    font-size: 11px;
     color: var(--odcm-ink-2);
     font-weight: 500;
   }
@@ -4524,10 +4524,10 @@ label.odcm-retention-option {
     color: var(--odcm-ink);
 }
 
-/* Filter pane header: tighter side padding than default 16px for the narrow 260px pane */
+/* Filter pane header: 8px side padding for the narrow 260px pane */
 #odcm-insight-dashboard .odcm-filter-pane .odcm-pane-header {
-    padding-left: var(--odcm-space-3);
-    padding-right: var(--odcm-space-3);
+    padding-left: var(--odcm-space-2);
+    padding-right: var(--odcm-space-2);
 }
 
 /* Pane icon buttons: WP admin generic button rules beat the new design's 0,1,0
@@ -4618,6 +4618,7 @@ label.odcm-retention-option {
 #odcm-insight-dashboard .odcm-filter-section-title,
 #odcm-insight-dashboard .odcm-checkbox-item label {
     color: var(--odcm-ink-2);
+    font-size: 11px;
 }
 
 /* Advanced filter group: old CSS sets --odcm-theme-grey-100 bg */
@@ -5011,48 +5012,82 @@ label.odcm-retention-option {
 }
 
 /* ==========================================================================
-   FILTER PANE FIX — border, spacing, scroll ownership, checkbox layout
+   FILTER PANE FIX — border, overflow containment, spacing
    ========================================================================== */
 
-/* Right border: old common rule sets border-left too, making total box wider than
-   the grid column with content-box sizing → right border clips off. Remove left
-   border (screen edge, invisible anyway) and force border-box so width fits exactly. */
+/* Pane: position:relative makes it the containing block for any absolute children.
+   border-left:0 removes the old common-rule left border that would add to total width.
+   overflow:hidden at this level guarantees nothing escapes the column boundary. */
 #odcm-insight-dashboard .odcm-filter-pane {
+    position: relative;
     box-sizing: border-box;
-    width: 100%;
+    max-width: 100%;
     border-left: 0;
     border-right: 1px solid var(--odcm-border) !important;
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
-/* Tab-content bridge: stretch to fill pane-body height */
-#odcm-insight-dashboard .odcm-tab-content {
+/* Pane body + tab-content: min-width:0 is critical — without it flex items default
+   to intrinsic content min-width (widest select option), making the element expand
+   wider than the pane. overflow:hidden + max-width:100% contain everything else. */
+#odcm-insight-dashboard .odcm-filter-pane .odcm-pane-body {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    max-width: 100%;
+    width: 100%;
+}
+#odcm-insight-dashboard .odcm-filter-pane .odcm-tab-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    max-width: 100%;
+    width: auto;
 }
 
-/* Filter form: sole owner of padding and vertical scroll; compact spacing for 260px pane */
+/* Filter form: sole scroll owner, minimal padding */
 #odcm-insight-dashboard .odcm-filter-form {
-    padding: var(--odcm-space-2);
-    gap: var(--odcm-space-2);
+    padding: 4px;
+    gap: 3px;
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
+    min-width: 0;
     box-sizing: border-box;
     width: 100%;
 }
 
-/* Remove old margin-based spacing — form gap handles it */
-#odcm-insight-dashboard .odcm-filter-group           { margin-bottom: 0; }
-#odcm-insight-dashboard .odcm-filter-group:last-child { margin-bottom: 0; }
-#odcm-insight-dashboard .odcm-filter-section          { margin-bottom: 0; }
+/* Remove all old margin-based spacing */
+#odcm-insight-dashboard .odcm-filter-group,
+#odcm-insight-dashboard .odcm-filter-group:last-child { margin: 0; }
+#odcm-insight-dashboard .odcm-filter-section          { margin: 0; }
 #odcm-insight-dashboard .odcm-advanced-filter-group   { margin: 0; }
 
-/* Search filter group: no box chrome in new design */
+/* Advanced filter group: strip old padding and border chrome; gap handles spacing */
+#odcm-insight-dashboard .odcm-advanced-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* Search filter group: no box chrome */
 #odcm-insight-dashboard .odcm-search-filter-group {
     background: transparent;
     border: none;
@@ -5060,39 +5095,75 @@ label.odcm-retention-option {
     border-radius: 0;
 }
 
-/* Checkbox group: vertical stack, compact gap */
+/* Checkbox group: vertical stack, tight */
 #odcm-insight-dashboard .odcm-checkbox-group {
     flex-direction: column;
-    gap: var(--odcm-space-2);
+    gap: 0;
     flex-wrap: nowrap;
 }
 #odcm-insight-dashboard .odcm-checkbox-item {
-    gap: 8px;
-    font-size: var(--odcm-text-sm);
+    gap: 4px;
+    font-size: 11px;
+    padding: 2px 4px;
+    border-radius: var(--odcm-radius-1);
+    cursor: pointer;
 }
+#odcm-insight-dashboard .odcm-checkbox-item:hover {
+    background: var(--odcm-surface-3);
+}
+/* Reset .odcm-filter-group label cascade (display:block, margin-bottom:4px, font-weight) */
 #odcm-insight-dashboard .odcm-checkbox-item label {
-    font-size: var(--odcm-text-sm);
-    color: var(--odcm-ink-2);
+    display: inline;
+    margin: 0;
+    padding: 0;
+    line-height: 1.2;
+    font-size: 11px;
     font-weight: normal;
+    color: var(--odcm-ink-2);
+    cursor: pointer;
+}
+#odcm-insight-dashboard .odcm-checkbox-item:hover label {
+    color: var(--odcm-ink);
+}
+#odcm-insight-dashboard .odcm-checkbox-item input[type="checkbox"] {
+    margin: 0;
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
 }
 
-/* Form elements: force border-box so width:100% + padding never exceeds container */
+/* Form elements: compact height + constrained to container width */
 #odcm-insight-dashboard .odcm-filter-form input:not([type="checkbox"]):not([type="radio"]),
 #odcm-insight-dashboard .odcm-filter-form select,
 #odcm-insight-dashboard .odcm-filter-form textarea {
     box-sizing: border-box;
-    max-width: 100%;
     width: 100%;
+    max-width: 100%;
+    height: 26px;
+    min-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 11px;
+    line-height: 26px;
+}
+#odcm-insight-dashboard .odcm-filter-form select {
+    padding-right: 20px; /* room for native arrow */
 }
 
-/* Advanced filter group: flex column, compact gap; border-box + reduced padding */
-#odcm-insight-dashboard .odcm-advanced-filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--odcm-space-2);
-    box-sizing: border-box;
-    width: 100%;
-    padding: var(--odcm-space-2);
+/* Filter actions: sit immediately below fields, not pushed to viewport bottom */
+#odcm-insight-dashboard .odcm-filter-actions {
+    margin-top: 0;
+    padding-top: 4px;
+    padding-bottom: 0;
+    gap: 4px;
+    border-top: 1px solid var(--odcm-border);
+}
+#odcm-insight-dashboard .odcm-filter-actions .odcm-btn {
+    height: 26px;
+    font-size: 11px;
+    padding: 0 8px;
 }
 
 /* ==========================================================================

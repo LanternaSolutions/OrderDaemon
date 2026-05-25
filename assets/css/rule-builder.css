@@ -2526,31 +2526,34 @@ body.post-type-odcm_order_rule #poststuff {
 body.post-type-odcm_order_rule #post-body {
     border: none;
 }
-
-/* Sidebar width. --odcm-sidebar-w drives both the margin-right on the main
-   column and the negative pull-back on the sidebar container. */
-body.post-type-odcm_order_rule {
-    /* 280px card + 20px inner gap + 28px right clearance = 328px */
-    --odcm-sidebar-w: 328px;
-}
-body.post-type-odcm_order_rule #post-body.columns-2 {
-    margin-right: var(--odcm-sidebar-w);
-}
 body.post-type-odcm_order_rule #postbox-container-1 {
     padding-top: 28px;
 }
-/* Higher specificity needed to beat WP's #post-body.columns-2 #postbox-container-1 (2,1,0) */
-body.post-type-odcm_order_rule #post-body.columns-2 #postbox-container-1 {
-    width: 280px;
-    /* positions sidebar 28px from the viewport right edge */
-    margin-right: calc(-1 * (var(--odcm-sidebar-w) - 28px));
+body.post-type-odcm_order_rule #postbox-container-1 .postbox {
+    margin-right: 28px;
 }
 @media (max-width: 960px) {
-    body.post-type-odcm_order_rule #post-body.columns-2 { margin-right: 0; }
-    body.post-type-odcm_order_rule #postbox-container-1 { width: 100%; margin-right: 0; float: none; padding: 0 28px; }
+    /* Collapse to single column; reorder so main content appears before sidebar */
+    body.post-type-odcm_order_rule #post-body {
+        display: flex;
+        flex-direction: column;
+    }
+    body.post-type-odcm_order_rule #post-body-content       { order: 1; }
+    body.post-type-odcm_order_rule #postbox-container-2     { order: 2; }
+    body.post-type-odcm_order_rule #post-body.columns-2 #postbox-container-1 {
+        order: 3;
+        box-sizing: border-box;
+        width: 100%;
+        float: none;
+        margin-right: 0;
+        padding: 0 28px;
+    }
+    body.post-type-odcm_order_rule #postbox-container-1 .postbox { margin-right: 0; }
 }
 @media (max-width: 782px) {
-    body.post-type-odcm_order_rule #postbox-container-1 { padding: 0 16px; }
+    body.post-type-odcm_order_rule #post-body.columns-2 #postbox-container-1 {
+        padding: 0 16px;
+    }
 }
 
 /* Screenreader text and misc WP editor flotsam */

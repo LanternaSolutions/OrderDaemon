@@ -1395,7 +1395,9 @@ tr.odcm-log-details-row:hover > td {
   border-bottom: 1px solid var(--odcm-border);
   display: flex;
   align-items: center;
-  gap: var(--odcm-space-4);
+  flex-wrap: wrap;
+  column-gap: var(--odcm-space-4);
+  row-gap: 2px;
   padding: 10px var(--odcm-space-6);
   min-height: var(--odcm-h-topbar);
 }
@@ -1417,12 +1419,20 @@ tr.odcm-log-details-row:hover > td {
   color: var(--odcm-muted-2);
   font-size: var(--odcm-text-md);
   user-select: none;
+  white-space: nowrap;
 }
 .odcm-scope .odcm-unified-header__crumb {
   font-size: var(--odcm-text-md);
   font-weight: 500;
   color: var(--odcm-ink-2);
   letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+.odcm-scope .odcm-unified-header__crumb-group {
+  display: flex;
+  align-items: center;
+  gap: var(--odcm-space-4);
+  white-space: nowrap;
 }
 .odcm-scope .odcm-unified-header__controls {
   margin-left: auto;
