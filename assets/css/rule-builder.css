@@ -192,7 +192,7 @@
     border: var(--odcm-component-border-width) solid var(--odcm-component-border-color);
     border-radius: var(--odcm-component-border-radius);
     background-color: var(--odcm-component-bg);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--odcm-shadow-1);
     transition: var(--odcm-component-transition);
     overflow: hidden; /* Ensure clean borders with theme variants */
 }
@@ -216,7 +216,7 @@
     --odcm-component-bg: var(--odcm-theme-green-200);
     --odcm-component-border-color: var(--odcm-theme-green-700);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
-    box-shadow: 0 2px 8px rgba(41, 168, 71, 0.15);
+    box-shadow: 0 0 0 1px var(--odcm-success), var(--odcm-shadow-1);
 }
 
 .odcm-rule-section--disabled {
@@ -365,7 +365,7 @@
 
 .odcm-rule-row:hover {
     border-color: var(--odcm-theme-blue-700);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--odcm-shadow-2);
     transform: translateY(-1px); /* Subtle lift effect - vertical only */
     /* Ensure the element stays within its container bounds */
     position: relative;
@@ -652,25 +652,29 @@
     margin-bottom: var(--odcm-compact-spacing-micro);
 }
 
-.odcm-form-input,
-.odcm-form-textarea {
+.odcm-scope .odcm-form-input,
+.odcm-scope .odcm-form-textarea,
+.odcm-scope .odcm-input {
     width: 100%;
     padding: var(--odcm-form-input-padding);
     border: var(--odcm-form-input-border);
     border-radius: var(--odcm-form-input-border-radius);
     background-color: var(--odcm-form-input-bg);
+    color: var(--odcm-ink);
     font-size: var(--odcm-theme-font-size-md);
     transition: var(--odcm-component-transition);
 }
 
-.odcm-form-input:focus,
-.odcm-form-textarea:focus {
+.odcm-scope .odcm-form-input:focus,
+.odcm-scope .odcm-form-textarea:focus,
+.odcm-scope .odcm-input:focus {
     outline: none;
     border: var(--odcm-form-input-border-focus);
     box-shadow: 0 0 0 3px var(--odcm-accent-soft);
 }
 
-.odcm-form-textarea {
+.odcm-scope .odcm-form-textarea,
+.odcm-scope textarea.odcm-input {
     resize: vertical;
     min-height: calc(var(--odcm-theme-pane-header-height) + var(--odcm-theme-spacing-lg) * 2);
 }
@@ -704,50 +708,43 @@
     line-height: 1.2;
 }
 
-/* Button-style Radio Groups */
-.odcm-button-radio-group {
-    display: block;
-    border: 1px solid var(--odcm-component-border-color);
-    border-radius: var(--odcm-component-border-radius);
-    overflow: hidden;
-    background-color: var(--odcm-theme-white);
+/* Segmented controls (replaces legacy odcm-button-radio-group / odcm-radio-button) */
+.odcm-scope .odcm-segmented {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    background: var(--odcm-surface-2);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-2);
+    gap: 0;
 }
 
-.odcm-radio-button {
-    flex: 1;
-    padding: var(--odcm-theme-spacing-sm) var(--odcm-theme-spacing-md);
-    background: none;
-    border: none;
+.odcm-scope .odcm-segmented__item {
+    background: transparent;
+    border: 0;
+    padding: 4px 10px;
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-xs);
+    font-weight: 400;
+    color: var(--odcm-muted);
+    border-radius: var(--odcm-radius-1);
     cursor: pointer;
-    font-size: var(--odcm-theme-font-size-md);
-    color: var(--odcm-component-text-color-body);
-    transition: var(--odcm-component-transition);
-    position: relative;
-    text-align: center;
+    transition: background-color var(--odcm-dur-fast) var(--odcm-ease), color var(--odcm-dur-fast) var(--odcm-ease);
 }
 
-.odcm-radio-button:last-child {
-    border-right: none;
+.odcm-scope .odcm-segmented__item:hover { color: var(--odcm-ink); }
+
+.odcm-scope .odcm-segmented__item.is-active,
+.odcm-scope .odcm-segmented__item[aria-pressed="true"] {
+    background: var(--odcm-surface);
+    color: var(--odcm-ink);
+    font-weight: 500;
+    box-shadow: var(--odcm-shadow-1);
 }
 
-.odcm-radio-button:hover {
-    background-color: var(--odcm-theme-grey-100);
-}
-
-.odcm-radio-button:focus {
-    outline: none;
-    box-shadow: inset 0 0 0 2px var(--odcm-theme-blue-700);
-    z-index: 1;
-}
-
-.odcm-radio-button.is-active {
-    background-color: var(--odcm-theme-blue-700);
-    color: var(--odcm-theme-white);
-    font-weight: var(--odcm-theme-font-weight-str);
-}
-
-.odcm-radio-button.is-active:hover {
-    background-color: var(--odcm-theme-blue-700);
+.odcm-scope .odcm-segmented__item:focus-visible {
+    outline: 2px solid var(--odcm-accent);
+    outline-offset: -2px;
 }
 
 
@@ -822,19 +819,20 @@
     border-bottom: var(--odcm-component-border-width) solid var(--odcm-theme-grey-200);
 }
 
-.odcm-search-header .odcm-search-input {
+.odcm-scope .odcm-search-header .odcm-search-input {
     flex: 1;
     margin: 0;
     padding: var(--odcm-theme-spacing-xs) var(--odcm-theme-spacing-sm);
-    border: var(--odcm-component-border-width) solid var(--odcm-theme-grey-300);
+    border: var(--odcm-component-border-width) solid var(--odcm-border-strong);
     border-radius: var(--odcm-component-border-radius);
     font-size: var(--odcm-theme-font-size-sm);
-    background-color: var(--odcm-theme-white);
+    background-color: var(--odcm-surface);
+    color: var(--odcm-ink);
 }
 
-.odcm-search-header .odcm-search-input:focus {
+.odcm-scope .odcm-search-header .odcm-search-input:focus {
     outline: none;
-    border-color: var(--odcm-theme-blue-700);
+    border-color: var(--odcm-accent);
     box-shadow: 0 0 0 3px var(--odcm-accent-soft);
 }
 
@@ -1194,7 +1192,7 @@
     border: 1px solid var(--odcm-theme-grey-300);
     border-radius: var(--odcm-component-border-radius);
     background-color: var(--odcm-theme-white);
-    box-shadow: 0 calc(var(--odcm-component-border-width) * 2) calc(var(--odcm-theme-spacing-sm)) rgba(0, 0, 0, 0.1);
+    box-shadow: var(--odcm-shadow-2);
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease-in-out;
@@ -1469,7 +1467,7 @@
     border: 1px solid var(--odcm-theme-grey-300);
     border-radius: var(--odcm-component-border-radius);
     padding: 2px 8px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--odcm-shadow-1);
     white-space: nowrap;
     opacity: 0;
     transition: opacity 0.2s ease;
@@ -1719,7 +1717,8 @@
 }
 
 /* Flexible width for number inputs in horizontal groups */
-.odcm-horizontal-field-group .odcm-form-input[type="number"] {
+.odcm-horizontal-field-group .odcm-form-input[type="number"],
+.odcm-horizontal-field-group .odcm-input[type="number"] {
     width: auto;
     min-width: 100px;
 }
@@ -1981,7 +1980,8 @@
     max-width: 150px;
 }
 
-.odcm-inline-group--relative_inputs .odcm-form-input {
+.odcm-inline-group--relative_inputs .odcm-form-input,
+.odcm-inline-group--relative_inputs .odcm-input {
     width: 100%;
 }
 
@@ -2192,8 +2192,10 @@
   .rb__picker-head p { margin: 4px 0 0; font-size: var(--odcm-text-xs); color: var(--odcm-muted); max-width: 52ch; line-height: 1.5; }
 
   .rb__picker-search { position: relative; }
-  .rb__picker-search .icon { position: absolute; left: 11px; top: 10px; color: var(--odcm-muted); pointer-events: none; }
-  .rb__picker-search input { padding-left: 32px; }
+  .rb__picker-search .icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--odcm-muted); pointer-events: none; }
+  .odcm-scope .rb__picker-search input { padding-left: 32px; }
+
+  .rb__picker-list { padding-right: 4px; }
 
   .rb__picker-categories {
     display: inline-flex;
@@ -2465,18 +2467,32 @@ body.post-type-odcm_order_rule #delete-action a {
 /* These rules add CSS properties that have no equivalent legacy token.
    Background/border/color are handled via token aliases in odcm-design-system.css. */
 
+/* Scope inherits color-scheme from :root[data-theme] but set explicitly for native chrome */
+.odcm-scope { color-scheme: light dark; }
+
 /* Native date/time picker chrome adapts to colour scheme */
 .odcm-scope .odcm-date-picker,
 .odcm-scope .odcm-time-picker { color-scheme: light dark; }
 
 /* Radio and checkbox accent colour */
-.odcm-scope .odcm-radio-label input[type="radio"] { accent-color: var(--odcm-accent); }
+.odcm-scope .odcm-radio-label input[type="radio"],
+.odcm-scope input[type="checkbox"] { accent-color: var(--odcm-accent); }
+
+/* Inline number input (in radio groups) */
+.odcm-scope .odcm-inline-number-input {
+    color: var(--odcm-ink);
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border-strong);
+    border-radius: var(--odcm-radius-2);
+}
 
 /* Placeholder text */
 .odcm-scope .odcm-form-input::placeholder,
 .odcm-scope .odcm-form-textarea::placeholder,
+.odcm-scope .odcm-input::placeholder,
 .odcm-scope .odcm-search-header .odcm-search-input::placeholder { color: var(--odcm-muted); }
 
-/* Button-style radio tab — right-side divider between options */
-.odcm-scope .odcm-radio-button { border-right: 1px solid var(--odcm-border); }
+/* Segmented item — right-side divider between options */
+.odcm-scope .odcm-segmented__item { border-right: 1px solid var(--odcm-border); }
+.odcm-scope .odcm-segmented__item:last-child { border-right: 0; }
 

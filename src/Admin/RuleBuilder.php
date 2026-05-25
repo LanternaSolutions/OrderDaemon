@@ -899,8 +899,9 @@ final class RuleBuilder
                             <div class="rb__row-actions">
                                 <button type="button"
                                         @click.stop="removeTrigger()"
-                                        class="rb__icon-btn rb__icon-btn--danger">
-                                    <?php esc_html_e('admin.rule_builder.remove_button', 'order-daemon'); ?>
+                                        class="rb__icon-btn rb__icon-btn--danger"
+                                        title="<?php esc_attr_e('admin.rule_builder.remove_button', 'order-daemon'); ?>">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
                                 </button>
                             </div>
                         </div>
@@ -1057,10 +1058,10 @@ final class RuleBuilder
                                             
                                             <!-- Button-style radio group -->
                                             <template x-if="field.widget === 'button_radio_group'">
-                                                <div class="odcm-button-radio-group" role="radiogroup" :aria-labelledby="field.id + '_label'">
+                                                <div class="odcm-segmented" role="radiogroup" :aria-labelledby="field.id + '_label'">
                                                     <template x-for="(label, val) in field.enumOptions" :key="val">
                                                         <button type="button"
-                                                                class="odcm-radio-button"
+                                                                class="odcm-segmented__item"
                                                                 :class="{ 'is-active': (rule.trigger?.settings[field.key] ?? field.value) === val }"
                                                                 :aria-pressed="String((rule.trigger?.settings[field.key] ?? field.value) === val)"
                                                                 @click="updateSetting(field.key, val, 'trigger', 0)"
@@ -1073,7 +1074,7 @@ final class RuleBuilder
                                             <!-- Textarea field -->
                                             <template x-if="field.widget === 'textarea'">
                                                 <textarea :id="field.id"
-                                                          class="odcm-form-textarea"
+                                                          class="odcm-input"
                                                           rows="6"
                                                           :placeholder="field.placeholder || ''"
                                                           :value="field.value"
@@ -1084,7 +1085,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'text'">
                                                 <input type="text"
                                                        :id="field.id"
-                                                       class="odcm-form-input"
+                                                       class="odcm-input"
                                                        :value="field.value"
                                                        :placeholder="field.placeholder || ''"
                                                        @input="updateSetting(field.key, $event.target.value, 'trigger', 0)">
@@ -1171,8 +1172,9 @@ final class RuleBuilder
                                 <div class="rb__row-actions">
                                     <button type="button"
                                             @click.stop="removeCondition(index)"
-                                            class="rb__icon-btn rb__icon-btn--danger">
-                                        <?php esc_html_e('admin.rule_builder.remove_button', 'order-daemon'); ?>
+                                            class="rb__icon-btn rb__icon-btn--danger"
+                                            title="<?php esc_attr_e('admin.rule_builder.remove_button', 'order-daemon'); ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
                                     </button>
                                 </div>
                             </div>
@@ -1346,10 +1348,10 @@ final class RuleBuilder
                                             
                                             <!-- Button-style radio group -->
                                             <template x-if="field.widget === 'button_radio_group'">
-                                                <div class="odcm-button-radio-group" role="radiogroup" :aria-labelledby="field.id + '_label'">
+                                                <div class="odcm-segmented" role="radiogroup" :aria-labelledby="field.id + '_label'">
                                                     <template x-for="(label, val) in field.enumOptions" :key="val">
                                                         <button type="button"
-                                                                class="odcm-radio-button"
+                                                                class="odcm-segmented__item"
                                                                 :class="{ 'is-active': (rule.conditions[index]?.settings[field.key] ?? field.value) === val }"
                                                                 :aria-pressed="String((rule.conditions[index]?.settings[field.key] ?? field.value) === val)"
                                                                 @click="updateRadioSetting(field.key, val, 'condition', index)"
@@ -1362,7 +1364,7 @@ final class RuleBuilder
                                             <!-- Textarea field -->
                                             <template x-if="field.widget === 'textarea'">
                                                 <textarea :id="field.id"
-                                                          class="odcm-form-textarea"
+                                                          class="odcm-input"
                                                           rows="6"
                                                           :placeholder="field.placeholder || ''"
                                                           :value="field.value"
@@ -1373,7 +1375,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'date_picker'">
                                                 <input type="date"
                                                        :id="field.id"
-                                                       class="odcm-form-input odcm-date-picker"
+                                                       class="odcm-input odcm-date-picker"
                                                        :value="field.value"
                                                        @input="updateSetting(field.key, $event.target.value, 'condition', index)">
                                             </template>
@@ -1382,7 +1384,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'time_picker'">
                                                 <input type="time"
                                                        :id="field.id"
-                                                       class="odcm-form-input odcm-time-picker"
+                                                       class="odcm-input odcm-time-picker"
                                                        :value="field.value"
                                                        @input="updateSetting(field.key, $event.target.value, 'condition', index)">
                                             </template>
@@ -1391,7 +1393,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'number'">
                                                 <input type="number"
                                                        :id="field.id"
-                                                       class="odcm-form-input odcm-number-input"
+                                                       class="odcm-input odcm-number-input"
                                                        :value="field.value"
                                                        :min="field.minimum"
                                                        :max="field.maximum"
@@ -1403,7 +1405,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'text'">
                                                 <input type="text"
                                                        :id="field.id"
-                                                       class="odcm-form-input"
+                                                       class="odcm-input"
                                                        :value="field.value"
                                                        :placeholder="field.placeholder || ''"
                                                        @input="updateSetting(field.key, $event.target.value, 'condition', index)">
@@ -1496,8 +1498,9 @@ final class RuleBuilder
                                 <button type="button"
                                         @click.stop="removePrimaryAction()"
                                         class="rb__icon-btn rb__icon-btn--danger"
-                                        x-show="components.primaryActions && components.primaryActions.length > 1">
-                                    <?php esc_html_e('admin.rule_builder.remove_button', 'order-daemon'); ?>
+                                        x-show="components.primaryActions && components.primaryActions.length > 1"
+                                        title="<?php esc_attr_e('admin.rule_builder.remove_button', 'order-daemon'); ?>">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
                                 </button>
                             </div>
                         </div>
@@ -1579,7 +1582,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'text'">
                                                 <input type="text"
                                                        :id="field.id"
-                                                       class="odcm-form-input"
+                                                       class="odcm-input"
                                                        :value="field.value"
                                                        :placeholder="field.placeholder || ''"
                                                        @input="updateSetting(field.key, $event.target.value, 'primaryAction', null)">
@@ -1644,9 +1647,10 @@ final class RuleBuilder
                                 <div class="rb__row-actions">
                                     <button type="button"
                                             @click.stop="removeAction(index)"
-                                            class="rb__icon-btn rb__icon-btn--danger">
-                                        <?php esc_html_e('admin.rule_builder.remove_button', 'order-daemon'); ?>
-                                        </button>
+                                            class="rb__icon-btn rb__icon-btn--danger"
+                                            title="<?php esc_attr_e('admin.rule_builder.remove_button', 'order-daemon'); ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                                    </button>
                                     </div>
                                 </div>
 
@@ -1750,10 +1754,10 @@ final class RuleBuilder
 
                                                 <!-- Button-style radio group -->
                                                 <template x-if="field.widget === 'button_radio_group'">
-                                                    <div class="odcm-button-radio-group" role="radiogroup" :aria-labelledby="field.id + '_label'">
+                                                    <div class="odcm-segmented" role="radiogroup" :aria-labelledby="field.id + '_label'">
                                                         <template x-for="(label, val) in field.enumOptions" :key="val">
                                                             <button type="button"
-                                                                    class="odcm-radio-button"
+                                                                    class="odcm-segmented__item"
                                                                     :class="{ 'is-active': (rule.secondaryActions[index]?.settings[field.key] ?? field.value) === val }"
                                                                     :aria-pressed="String((rule.secondaryActions[index]?.settings[field.key] ?? field.value) === val)"
                                                                     @click="updateSetting(field.key, val, 'action', index)"
@@ -1768,7 +1772,7 @@ final class RuleBuilder
                                                 <template x-if="field.widget === 'text'">
                                                     <input type="text"
                                                            :id="field.id"
-                                                           class="odcm-form-input"
+                                                           class="odcm-input"
                                                            :value="field.value"
                                                            :placeholder="field.placeholder || ''"
                                                            @input="updateSetting(field.key, $event.target.value, 'action', index)">
@@ -1776,7 +1780,7 @@ final class RuleBuilder
 
                                                 <template x-if="field.widget === 'textarea'">
                                                     <textarea :id="field.id"
-                                                           class="odcm-form-textarea"
+                                                           class="odcm-input"
                                                            rows="4"
                                                            :placeholder="field.placeholder || ''"
                                                            :value="field.value"
