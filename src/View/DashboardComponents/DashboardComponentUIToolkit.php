@@ -58,6 +58,8 @@ class DashboardComponentUIToolkit
             'x-on:click', 'x-on:change', 'x-on:input', 'x-on:submit',
             // Add missing x-bind attributes used in dashboard
             'x-bind:disabled', 'x-bind:title', 'x-bind:key', 'x-bind:min', 'x-bind:max', 'x-bind:checked', 'x-bind:value', 'x-bind:style',
+            'x-bind:aria-expanded', 'x-bind:aria-label', 'x-bind:aria-selected', 'x-bind:aria-controls',
+            'x-on:click.away', 'x-on:keydown.escape', 'x-on:keydown.enter',
 
         ];
 

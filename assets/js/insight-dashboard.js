@@ -374,13 +374,22 @@ function insightDashboard() {
          * Set up watchers for dynamic content that needs Prism.js highlighting
          */
         setupPrismWatchers() {
-            // Watch for detail content changes and re-highlight
             this.$watch('detailHtml', () => {
                 this.$nextTick(() => {
                     const detailPane = document.querySelector('.odcm-detail-content');
                     if (detailPane) {
                         this.highlightCodeBlocks(detailPane);
+                        this.initTimelineExpanders(detailPane);
                     }
+                });
+            });
+        },
+
+        initTimelineExpanders(container) {
+            container.querySelectorAll('.odcm-tl-node__expand').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const expanded = btn.getAttribute('aria-expanded') === 'true';
+                    btn.setAttribute('aria-expanded', String(!expanded));
                 });
             });
         },
@@ -921,6 +930,13 @@ function insightDashboard() {
                 const isMobileViewport = window.innerWidth <= 782;
                 this.filterPaneVisible = isMobileViewport ? false : (savedPaneVisible !== null ? savedPaneVisible === 'true' : true);
 
+                // Sync initial data-* grid attributes for new design CSS
+                const grid = this.$el.querySelector('.odcm-content-grid');
+                if (grid) {
+                    if (!this.filterPaneVisible) grid.setAttribute('data-filter-collapsed', 'true');
+                    grid.setAttribute('data-detail-collapsed', 'true'); // no log selected initially
+                }
+
                 // Load settings accordion state
                 const savedAccordionState = localStorage.getItem('odcm_settings_accordion_state');
                 if (savedAccordionState) {
@@ -1016,12 +1032,31 @@ function insightDashboard() {
                 this.saveSettings();
                 if (odcmIsDebug()) { console.log('ODCM: Filter pane visibility changed to:', visible); }
 
+                // Sync data-* attribute for new design CSS column selectors
+                const grid = this.$el.querySelector('.odcm-content-grid');
+                if (grid) {
+                    if (visible) {
+                        grid.removeAttribute('data-filter-collapsed');
+                    } else {
+                        grid.setAttribute('data-filter-collapsed', 'true');
+                    }
+                }
+
                 // Re-measure header bottom after pane state changes (header content may change)
                 requestAnimationFrame(() => this.updateHeaderBottom());
             });
 
             // Re-measure header bottom when detail pane opens/closes (swaps header content)
-            this.$watch('selectedLog', () => {
+            this.$watch('selectedLog', (log) => {
+                // Sync data-* attribute for new design CSS column selectors
+                const grid = this.$el.querySelector('.odcm-content-grid');
+                if (grid) {
+                    if (log) {
+                        grid.removeAttribute('data-detail-collapsed');
+                    } else {
+                        grid.setAttribute('data-detail-collapsed', 'true');
+                    }
+                }
                 requestAnimationFrame(() => this.updateHeaderBottom());
             });
 
@@ -1815,6 +1850,21 @@ function insightDashboard() {
             };
             this.currentPage = 1;
             this.fetchLogs();
+        },
+
+        applyDatePreset(preset) {
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const toDateStr = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+            const offsets = { '1h': 1/24, '24h': 1, '7d': 7, '30d': 30, '90d': 90 };
+            if (preset === 'all') {
+                this.filters.date_start = '';
+                this.filters.date_end = '';
+            } else if (offsets[preset] !== undefined) {
+                const from = new Date(now.getTime() - offsets[preset] * 86400000);
+                this.filters.date_start = toDateStr(from);
+                this.filters.date_end = toDateStr(now);
+            }
         },
 
         /**

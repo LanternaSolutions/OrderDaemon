@@ -49,6 +49,7 @@ class DiagnosticDashboard
         add_action('wp_ajax_odcm_run_diagnostics', [$this, 'ajax_run_diagnostics']);
         add_action('wp_ajax_odcm_run_single_diagnostic', [$this, 'ajax_run_single_diagnostic']);
         add_action('wp_ajax_odcm_generate_dual_report', [$this, 'ajax_generate_dual_report']);
+        add_action('wp_ajax_odcm_toggle_debug_option', [$this, 'ajax_toggle_debug_option']);
         
         // Enqueue assets on our page
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
@@ -96,11 +97,13 @@ class DiagnosticDashboard
         );
 
         // Enqueue design system CSS first (contains shared styles and CSS variables)
+        $ds_path = defined('ODCM_PLUGIN_DIR') ? ODCM_PLUGIN_DIR . 'assets/css/odcm-design-system.css' : '';
+        $ds_version = (file_exists($ds_path)) ? filemtime($ds_path) : $script_version;
         wp_enqueue_style(
             'odcm-design-system',
             $assets_url . 'css/odcm-design-system.css',
             [],
-            $script_version
+            $ds_version
         );
 
         wp_enqueue_style(
@@ -175,122 +178,302 @@ class DiagnosticDashboard
      */
     public function render_dashboard_page(): void
     {
-        $health_status = $this->runner->get_health_status();
-        $available_diagnostics = $this->runner->get_available_diagnostics();
-        
+        $results = $this->runner->run_all_diagnostics();
+        $report  = $this->runner->generate_report($results);
+
+        $total_passed   = (int) ($report['summary']['passed'] ?? 0);
+        $total_failed   = (int) ($report['summary']['failed'] ?? 0);
+        $total_warnings = (int) ($report['summary']['warnings'] ?? 0);
+        $total_tests    = (int) ($report['summary']['total_tests'] ?? 0);
+
+        if ($total_failed > 0) {
+            $banner_mod   = 'dx__banner--danger';
+            $status_text  = sprintf('%d error%s', $total_failed, $total_failed > 1 ? 's' : '');
+            $status_class = 'value--warn';
+        } elseif ($total_warnings > 0) {
+            $banner_mod   = 'dx__banner--warn';
+            $status_text  = sprintf('%d warning%s', $total_warnings, $total_warnings > 1 ? 's' : '');
+            $status_class = 'value--warn';
+        } else {
+            $banner_mod   = '';
+            $status_text  = esc_html__('diagnostics.ui.status.system_healthy', 'order-daemon');
+            $status_class = '';
+        }
+
+        $sys        = $report['system_info'];
+        $od_version = $sys['order_daemon_version'] ?? (defined('ODCM_VERSION') ? ODCM_VERSION : 'unknown');
+        $wp_version = $sys['wordpress_version'] ?? get_bloginfo('version');
+        $php_version = $sys['php_version'] ?? PHP_VERSION;
+        $wc_active  = (bool) ($sys['woocommerce_active'] ?? false);
+        $wc_version = $wc_active && defined('WC_VERSION') ? WC_VERSION : 'inactive';
+
+        $is_multisite = is_multisite() ? 'yes' : 'no';
+        $active_theme = wp_get_theme();
+        $theme_name   = $active_theme->get('Name') . ' ' . $active_theme->get('Version');
+        $site_url     = site_url();
+        $tz_string    = get_option('timezone_string');
+        $tz           = $tz_string ?: 'UTC' . get_option('gmt_offset', '0');
+        $hpos_on      = class_exists('Automattic\\WooCommerce\\Internal\\DataStores\\Orders\\CustomOrdersTableController');
+        $wp_debug_on  = defined('WP_DEBUG') && WP_DEBUG;
+
+        $active_rules  = wp_count_posts('odcm_order_rule');
+        $rules_publish = (int) ($active_rules->publish ?? 0);
+        $rules_draft   = (int) ($active_rules->draft ?? 0);
+        $rules_total   = $rules_publish + $rules_draft;
+
+        $debug_on = InsightDashboard::is_global_debug_active();
+        $nonce    = wp_create_nonce('odcm_diagnostics');
+        $ajax_url = admin_url('admin-ajax.php');
+
+        $chevron = '<svg class="dx__section-toggle" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
         ?>
-        <div class="wrap odcm-diagnostics-unified">
-            
-            <!-- Hero Section -->
-            <div class="odcm-diagnostic-hero">
-                <div class="odcm-hero-left">
-                    <h1><?php echo esc_html__('diagnostics.page.title', 'order-daemon'); ?></h1>
-                    <p class="odcm-hero-description">
-                        <?php echo esc_html__('diagnostics.page.description', 'order-daemon'); ?>
-                    </p>
-                    <button class="button button-primary button-hero" id="run-diagnostics">
-                        <?php echo esc_html__('diagnostics.page.button.run_full', 'order-daemon'); ?>
-                    </button>
-                    <div class="odcm-hero-meta">
-                        <span><?php echo esc_html__('diagnostics.page.label.last_run', 'order-daemon'); ?> <time id="last-run-time"><?php echo esc_html__('diagnostics.page.label.never', 'order-daemon'); ?></time></span>
-                        <span><?php echo esc_html__('diagnostics.page.label.status', 'order-daemon'); ?> <strong id="status-summary"><?php echo esc_html__('diagnostics.page.label.pending', 'order-daemon'); ?></strong></span>
+        <div class="wrap odcm-scope">
+        <div class="dx">
+
+          <div class="dx__header">
+            <div class="dx__header-text">
+              <h3 class="dx__title"><?php echo esc_html__('diagnostics.page.title', 'order-daemon'); ?></h3>
+              <p class="dx__sub"><?php echo esc_html__('diagnostics.page.description', 'order-daemon'); ?></p>
+            </div>
+            <div class="dx__header-actions">
+              <button class="odcm-btn odcm-btn--secondary odcm-btn--sm" id="odcm-run-health-check"
+                      data-nonce="<?php echo esc_attr($nonce); ?>">
+                <?php echo esc_html__('diagnostics.page.button.run_full', 'order-daemon'); ?>
+              </button>
+              <button class="odcm-btn odcm-btn--primary odcm-btn--sm" id="odcm-copy-full-report"
+                      data-nonce="<?php echo esc_attr($nonce); ?>">
+                <?php echo esc_html__('diagnostics.page.button.copy_to_clipboard', 'order-daemon'); ?>
+              </button>
+            </div>
+          </div>
+
+          <div class="dx__banner <?php echo esc_attr($banner_mod); ?>">
+            <div class="dx__banner-status">
+              <span class="label"><?php echo esc_html__('diagnostics.page.label.status', 'order-daemon'); ?></span>
+              <span class="value <?php echo esc_attr($status_class); ?>"><?php echo esc_html($status_text); ?></span>
+            </div>
+            <div class="dx__banner-stats">
+              <div class="dx__stat">
+                <span class="label"><?php echo esc_html__('diagnostics.page.stat.health_checks', 'order-daemon'); ?></span>
+                <span class="value"><?php echo esc_html("$total_passed / $total_tests passing"); ?></span>
+              </div>
+              <div class="dx__stat">
+                <span class="label"><?php echo esc_html__('diagnostics.page.stat.rules_active', 'order-daemon'); ?></span>
+                <span class="value"><?php echo esc_html("$rules_publish of $rules_total"); ?></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Health checks -->
+          <section class="dx__section" data-collapsed="false">
+            <div class="dx__section-head" data-toggle-section>
+              <?php echo $chevron; // phpcs:ignore WordPress.Security.EscapeOutput ?>
+              <h4 class="dx__section-title"><?php echo esc_html__('diagnostics.page.section.health_checks', 'order-daemon'); ?></h4>
+              <div class="dx__section-meta">
+                <?php if ($total_warnings > 0): ?>
+                <span class="odcm-pill odcm-pill--warn"><span class="odcm-pill__dot"></span><?php echo esc_html(sprintf('%d warning%s', $total_warnings, $total_warnings > 1 ? 's' : '')); ?></span>
+                <?php endif; ?>
+                <?php if ($total_failed > 0): ?>
+                <span class="odcm-pill odcm-pill--danger"><?php echo esc_html(sprintf('%d failed', $total_failed)); ?></span>
+                <?php endif; ?>
+                <span class="odcm-pill odcm-pill--success"><?php echo esc_html(sprintf('%d passing', $total_passed)); ?></span>
+              </div>
+            </div>
+            <div class="dx__section-body">
+              <?php foreach ($report['categories'] as $cat_name => $cat_data): ?>
+                <?php foreach ($cat_data['tests'] as $test_key => $test): ?>
+                  <?php
+                  $is_warn  = ($test['status'] === 'warning');
+                  $is_fail  = ($test['status'] === 'error' || $test['status'] === 'failed');
+                  $mod      = $is_warn ? ' dx__check--warn' : ($is_fail ? ' dx__check--fail' : '');
+                  $icon     = $is_warn ? '!' : ($is_fail ? '✕' : '✓');
+                  $pill_mod = $is_warn ? 'odcm-pill--warn' : ($is_fail ? 'odcm-pill--danger' : 'odcm-pill--success');
+                  $pill_lbl = $is_warn ? 'warn' : ($is_fail ? 'fail' : 'pass');
+                  $has_detail = !empty($test['message']) && ($is_warn || $is_fail);
+                  ?>
+                  <div class="dx__check<?php echo esc_attr($mod); ?>">
+                    <span class="dx__check-icon"><?php echo esc_html($icon); ?></span>
+                    <div class="dx__check-name">
+                      <?php echo esc_html($test['name']); ?>
+                      <span class="hint"><?php echo esc_html($cat_name); ?></span>
                     </div>
-                </div>
-                
-                <div class="odcm-hero-right">
-                    <!-- Advanced Options Box -->
-                    <div class="odcm-hero-advanced-options">
-                        <h3><?php echo esc_html__('diagnostics.page.advanced_options.title', 'order-daemon'); ?></h3>
-                        <div class="odcm-hero-advanced-content">
-                            <div class="odcm-hero-advanced-section">
-                                <h4><?php echo esc_html__('diagnostics.page.advanced_options.run_by_category', 'order-daemon'); ?></h4>
-                                <div class="odcm-button-group">
-                                    <?php
-                                    // Get all unique categories dynamically from available diagnostics
-                                    $categories = [];
-                                    foreach ($available_diagnostics as $diag) {
-                                        $category = $diag['category'];
-                                        if (!in_array($category, $categories)) {
-                                            $categories[] = $category;
-                                        }
-                                    }
-                                    // Sort categories for consistent display
-                                    sort($categories);
-                                    foreach ($categories as $category):
-                                        if (empty(array_filter($available_diagnostics, function($diag) use ($category) { return $diag['category'] === $category; }))) continue;
-                                    ?>
-                                    <button class="button" data-category="<?php echo esc_attr($category); ?>" id="run-category-<?php echo esc_attr($category); ?>">
-                                        <?php echo esc_html( $this->format_category_name($category) ); ?>
-                                    </button>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                            <div class="odcm-hero-advanced-section">
-                                <h4><?php echo esc_html__('diagnostics.page.advanced_options.run_individual', 'order-daemon'); ?></h4>
-                                <select id="individual-test-select">
-                                    <option value=""><?php echo esc_html__('diagnostics.page.advanced_options.select_test', 'order-daemon'); ?></option>
-                                    <?php foreach ($available_diagnostics as $key => $diagnostic): ?>
-                                    <option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($diagnostic['name']); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                                <button class="button" id="run-individual"><?php echo esc_html__('diagnostics.page.button.run_selected', 'order-daemon'); ?></button>
-                            </div>
-                        </div>
+                    <span class="odcm-pill <?php echo esc_attr($pill_mod); ?>"><?php echo esc_html($pill_lbl); ?></span>
+                    <span></span>
+                    <?php if ($has_detail): ?>
+                    <div class="dx__check-detail">
+                      <?php echo esc_html($test['message']); ?>
+                      <?php if (!empty($test['recommendations'])): ?>
+                      <div class="fix"><?php echo esc_html(implode(' · ', $test['recommendations'])); ?></div>
+                      <?php endif; ?>
                     </div>
-                </div>
+                    <?php endif; ?>
+                  </div>
+                <?php endforeach; ?>
+              <?php endforeach; ?>
             </div>
+          </section>
 
-            <!-- Status Banner (shown after run) -->
-            <div class="odcm-status-banner" id="status-banner" style="display: none;">
-                <div class="odcm-status-banner-left">
-                    <span class="odcm-status-icon" id="banner-status-icon">✅</span>
-                        <span class="odcm-status-text" id="banner-status-text"><?php esc_html_e('diagnostics.ui.status.system_healthy', 'order-daemon'); ?></span>
-                </div>
-                <div class="odcm-status-banner-center" id="banner-status-summary">
-                    <?php
-                    /* translators: 1: Number of tests passed, 2: Number of tests failed */
-                    printf(esc_html__('diagnostics.page.summary.passed_failed', 'order-daemon'), 0, 0);
-                    ?>
-                </div>
-                <div class="odcm-status-banner-right">
-                    <button class="button button-secondary" id="copy-report">
-                        <span class="dashicons dashicons-clipboard"></span>
-                        <?php esc_html_e('diagnostics.page.button.copy_to_clipboard', 'order-daemon'); ?>
-                    </button>
-                </div>
+          <!-- Environment -->
+          <section class="dx__section" data-collapsed="false">
+            <div class="dx__section-head" data-toggle-section>
+              <?php echo $chevron; // phpcs:ignore WordPress.Security.EscapeOutput ?>
+              <h4 class="dx__section-title"><?php echo esc_html__('diagnostics.page.section.environment', 'order-daemon'); ?></h4>
             </div>
+            <div class="dx__section-body">
 
-            <!-- Loading State -->
-            <div class="odcm-loading-state" id="loading-state" style="display: none;">
-                <div class="odcm-loading-hero">
-                    <h2><?php esc_html_e('diagnostics.page.loading.title', 'order-daemon'); ?></h2>
-                    <div class="odcm-loading-progress">
-                        <div class="odcm-progress-bar">
-                            <div class="odcm-progress-fill" id="progress-bar"></div>
-                        </div>
-                        <span class="odcm-progress-text" id="progress-text">0/8 tests</span>
-                    </div>
-                    <p class="odcm-current-test" id="current-test"><?php esc_html_e('diagnostics.ui.status.preparing_tests', 'order-daemon'); ?></p>
+              <div class="dx__group">
+                <span class="dx__group-label"><?php echo esc_html__('diagnostics.page.env.plugin', 'order-daemon'); ?></span>
+                <div class="dx__group-body">
+                  <dl class="dx__row"><dt>order-daemon</dt><dd><?php echo esc_html('v' . $od_version); ?></dd><span></span></dl>
+                  <?php if (defined('ODCM_PLUGIN_FILE')): ?>
+                  <dl class="dx__row"><dt>install path</dt><dd><?php echo esc_html(plugin_dir_path(ODCM_PLUGIN_FILE)); ?></dd><span></span></dl>
+                  <?php endif; ?>
                 </div>
+              </div>
+
+              <div class="dx__group">
+                <span class="dx__group-label">WordPress</span>
+                <div class="dx__group-body">
+                  <dl class="dx__row"><dt>wp version</dt><dd><?php echo esc_html($wp_version); ?></dd><span></span></dl>
+                  <dl class="dx__row"><dt>multisite</dt><dd><?php echo esc_html($is_multisite); ?></dd><span></span></dl>
+                  <dl class="dx__row"><dt>active theme</dt><dd><?php echo esc_html($theme_name); ?></dd><span></span></dl>
+                  <dl class="dx__row"><dt>wp_debug</dt><dd><?php echo esc_html($wp_debug_on ? 'on' : 'off'); ?></dd><span></span></dl>
+                  <dl class="dx__row"><dt>site_url</dt><dd><?php echo esc_html($site_url); ?></dd><span></span></dl>
+                  <dl class="dx__row"><dt>timezone</dt><dd><?php echo esc_html($tz); ?></dd><span></span></dl>
+                </div>
+              </div>
+
+              <?php if ($wc_active): ?>
+              <div class="dx__group">
+                <span class="dx__group-label">WooCommerce</span>
+                <div class="dx__group-body">
+                  <dl class="dx__row"><dt>woocommerce</dt><dd><?php echo esc_html($wc_version); ?></dd><span></span></dl>
+                  <dl class="dx__row"><dt>hpos</dt><dd><?php echo esc_html($hpos_on ? 'enabled' : 'disabled'); ?></dd><span></span></dl>
+                </div>
+              </div>
+              <?php endif; ?>
+
+              <div class="dx__group">
+                <span class="dx__group-label">Server</span>
+                <div class="dx__group-body">
+                  <dl class="dx__row"><dt>php</dt><dd><?php echo esc_html($php_version); ?></dd><span></span></dl>
+                </div>
+              </div>
+
             </div>
+          </section>
 
-            <!-- Unified Results Container -->
-            <div class="odcm-unified-results" id="unified-results" style="display: none;">
-                    <div class="odcm-results-header">
-                    <h2><?php esc_html_e('diagnostics.page.results.title', 'order-daemon'); ?></h2>
-                    <span class="odcm-results-timestamp" id="results-timestamp"><?php 
-                                        /* translators: %s: timestamp of when diagnostics were executed */
-                                        printf(esc_html__('diagnostics.page.label.executed_at', 'order-daemon'), 'Nov 21, 12:30 PM');
-                                        ?></span>
-                </div>
-
-                <div class="odcm-results-content" id="odcm-results-content">
-                    <!-- Dynamic results will be inserted here -->
-                </div>
+          <!-- Debug controls -->
+          <section class="dx__section" data-collapsed="false">
+            <div class="dx__section-head" data-toggle-section>
+              <?php echo $chevron; // phpcs:ignore WordPress.Security.EscapeOutput ?>
+              <h4 class="dx__section-title"><?php echo esc_html__('diagnostics.page.section.debug_controls', 'order-daemon'); ?></h4>
+              <div class="dx__section-meta">
+                <span class="odcm-pill"><span class="odcm-pill__dot"></span><?php echo esc_html($debug_on ? '1 enabled' : '0 enabled'); ?></span>
+              </div>
             </div>
-            
-        </div>
+            <div class="dx__section-body">
+              <div class="dx__controls">
+                <div class="dx__control-row">
+                  <span class="desc">
+                    <?php echo esc_html__('diagnostics.page.debug.verbose_logging.label', 'order-daemon'); ?>
+                    <span class="sub"><?php echo esc_html__('diagnostics.page.debug.verbose_logging.desc', 'order-daemon'); ?></span>
+                  </span>
+                  <button class="odcm-toggle" role="switch"
+                          aria-checked="<?php echo esc_attr($debug_on ? 'true' : 'false'); ?>"
+                          data-toggle-option="odcm_debug"
+                          data-nonce="<?php echo esc_attr($nonce); ?>">
+                    <span class="odcm-toggle__thumb"></span>
+                  </button>
+                </div>
+              </div>
+              <div class="dx__actions">
+                <button class="odcm-btn odcm-btn--secondary odcm-btn--sm" id="odcm-export-logs"
+                        data-nonce="<?php echo esc_attr($nonce); ?>">
+                  <?php echo esc_html__('diagnostics.page.action.export_logs', 'order-daemon'); ?>
+                </button>
+                <button class="odcm-btn odcm-btn--secondary odcm-btn--sm" id="odcm-flush-caches"
+                        data-nonce="<?php echo esc_attr($nonce); ?>">
+                  <?php echo esc_html__('diagnostics.page.action.flush_caches', 'order-daemon'); ?>
+                </button>
+              </div>
+            </div>
+          </section>
+
+        </div><!-- .dx -->
+        </div><!-- .wrap -->
+        <script>
+        (function(){
+          document.querySelectorAll('[data-toggle-section]').forEach(function(head) {
+            head.addEventListener('click', function() {
+              var sect = head.closest('.dx__section');
+              sect.setAttribute('data-collapsed', sect.getAttribute('data-collapsed') === 'true' ? 'false' : 'true');
+            });
+          });
+          document.querySelectorAll('[data-toggle-option]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              var checked = btn.getAttribute('aria-checked') === 'true';
+              var newVal  = !checked;
+              btn.setAttribute('aria-checked', String(newVal));
+              var fd = new FormData();
+              fd.append('action', 'odcm_toggle_debug_option');
+              fd.append('nonce',  btn.dataset.nonce);
+              fd.append('option', btn.dataset.toggleOption);
+              fd.append('value',  newVal ? '1' : '0');
+              fetch(<?php echo wp_json_encode($ajax_url); ?>, { method: 'POST', body: fd, credentials: 'same-origin' });
+            });
+          });
+          var runBtn = document.getElementById('odcm-run-health-check');
+          if (runBtn) {
+            runBtn.addEventListener('click', function() {
+              runBtn.disabled = true;
+              location.reload();
+            });
+          }
+          var copyBtn = document.getElementById('odcm-copy-full-report');
+          if (copyBtn) {
+            copyBtn.addEventListener('click', function() {
+              var fd = new FormData();
+              fd.append('action', 'odcm_generate_dual_report');
+              fd.append('nonce',  copyBtn.dataset.nonce);
+              fetch(<?php echo wp_json_encode($ajax_url); ?>, { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(function(r){ return r.json(); })
+                .then(function(d){
+                  if (d.success && d.data && d.data.report) {
+                    navigator.clipboard.writeText(d.data.report).catch(function(){});
+                    var orig = copyBtn.textContent;
+                    copyBtn.textContent = <?php echo wp_json_encode(__('diagnostics.ui.button.copied', 'order-daemon')); ?>;
+                    setTimeout(function(){ copyBtn.textContent = orig; }, 1400);
+                  }
+                });
+            });
+          }
+        })();
+        </script>
         <?php
+    }
+
+    /**
+     * AJAX handler for toggling a debug option
+     *
+     * @return void
+     */
+    public function ajax_toggle_debug_option(): void
+    {
+        if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'] ?? '')), 'odcm_diagnostics')) {
+            wp_send_json_error(['message' => __('admin.ajax.security_check_failed', 'order-daemon')]);
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('security.permission_denied', 'order-daemon')]);
+        }
+        $allowed_options = ['odcm_debug'];
+        $option = sanitize_text_field(wp_unslash($_POST['option'] ?? ''));
+        if (!in_array($option, $allowed_options, true)) {
+            wp_send_json_error(['message' => 'Invalid option.']);
+        }
+        $value = !empty($_POST['value']) && $_POST['value'] !== '0' ? 1 : 0;
+        update_option($option, $value, 'no');
+        wp_send_json_success(['option' => $option, 'value' => $value]);
     }
 
     /**

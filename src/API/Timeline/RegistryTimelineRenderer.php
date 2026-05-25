@@ -63,38 +63,72 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             return $this->renderEmptyTimeline($timeline);
         }
 
-        // Build parent-child relationship map for hierarchy visualization
         $hierarchyMap = $this->buildHierarchyMap($timeline->components);
-
-        $html = '<div class="odcm-timeline-list">';
-        $renderedComponentCount = 0;
+        $nodes = [];
 
         foreach ($timeline->components as $idx => $component) {
             try {
-                // Get hierarchy info for this component
                 $isParent = isset($hierarchyMap['parents'][$idx]);
-                $isChild = isset($hierarchyMap['children'][$idx]);
-
-                $renderedComponent = $this->renderComponent($component, $isParent, $isChild, $includeDebug);
+                $isChild  = isset($hierarchyMap['children'][$idx]);
+                $rendered = $this->renderComponent($component, $isParent, $isChild, $includeDebug);
             } catch (\Throwable $e) {
-                // Never let a single component break the whole timeline
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {
-                    $this->logDebugMessage("ODCM TIMELINE DEBUG: Component render threw exception: " . $e->getMessage(), 'error');
-                    $this->logDebugMessage("ODCM TIMELINE DEBUG: Exception stack trace: " . $e->getTraceAsString(), 'error');
+                    $this->logDebugMessage('Component render threw: ' . $e->getMessage(), 'error');
                 }
-
-                $renderedComponent = '';
+                $rendered = '';
             }
 
-            if (!empty($renderedComponent)) {
-                $html .= $renderedComponent;
-                $renderedComponentCount++;
+            if (!empty($rendered)) {
+                $nodes[] = ['html' => $rendered, 'ts' => $this->extractTimestamp($component)];
             }
         }
 
+        if (empty($nodes)) {
+            return $this->renderEmptyTimeline($timeline);
+        }
+
+        $lastIdx = count($nodes) - 1;
+        $nodes[$lastIdx]['html'] = str_replace(
+            'class="odcm-tl-node ',
+            'class="odcm-tl-node odcm-tl-node--last ',
+            $nodes[$lastIdx]['html']
+        );
+
+        $html = '<div class="odcm-timeline">';
+        foreach ($nodes as $i => $node) {
+            $html .= $node['html'];
+            if ($i < $lastIdx) {
+                $html .= $this->renderDelta($node['ts'], $nodes[$i + 1]['ts']);
+            }
+        }
         $html .= '</div>';
 
         return $html;
+    }
+
+    private function extractTimestamp(array $component): int
+    {
+        $ts = $component['ts'] ?? $component['data']['ts'] ?? $component['timestamp'] ?? time();
+        if (!is_numeric($ts)) {
+            $ts = strtotime((string) $ts) ?: time();
+        }
+        return (int) $ts;
+    }
+
+    private function renderDelta(int $prevTs, int $nextTs): string
+    {
+        $diff = max(0, $nextTs - $prevTs);
+        if ($diff < 60) {
+            $label = '+ ' . $diff . 's';
+        } elseif ($diff < 3600) {
+            $label = '+ ' . round($diff / 60, 1) . 'm';
+        } else {
+            $label = '+ ' . round($diff / 3600, 1) . 'h';
+        }
+        return '<div class="odcm-tl-delta">' .
+               '<div class="odcm-tl-delta__spine"></div>' .
+               '<span class="odcm-tl-delta__value">' . esc_html($label) . '</span>' .
+               '</div>';
     }
     
     /**
@@ -281,43 +315,114 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
      */
     private function renderThreeTierComponent(array $displayData, array $rawPayload): string
     {
-        // Get event type configuration for theme class
         $eventType = $rawPayload['event_type'] ?? 'unknown';
         $eventConfig = DisplayAdapter::getEventTypeConfig($eventType);
-        $themeClass = $eventConfig['theme_class'] ?? 'odcm-component--system';
+        $themeClass  = $eventConfig['theme_class'] ?? 'odcm-component--system';
 
-        // Override theme class for incomplete rule events
         if (RuleExecutionAdapter::isIncompleteRuleEvent($rawPayload)) {
             $themeClass = 'odcm-component--debug';
         }
 
-        $html = '<div class="odcm-component ' . esc_attr($themeClass) . '">';
+        $variant = $this->mapThemeToNodeVariant($themeClass, $rawPayload);
 
-        // Extract basic info
-        $rawTimestamp = $rawPayload['ts'] ?? time();
-        $level = $rawPayload['level'] ?? 'info';
+        // Timestamp — formatted server-side in WP timezone
+        $ts = $rawPayload['ts'] ?? time();
+        if (!is_numeric($ts)) {
+            $ts = strtotime((string) $ts) ?: time();
+        }
+        $timeDisplay = wp_date('H:i:s', (int) $ts) ?: '';
 
-        // Header with component header structure without redundant nesting
-        $html .= '<div class="odcm-component__header">';
-        $html .= '<div class="odcm-component__header-top">';
-        // Call renderPrimaryInfo() directly without wrapping
-        $html .= $this->renderPrimaryInfo($displayData, $rawPayload);
+        // Title and status pill
+        $unifiedData = DisplayAdapter::generateUnifiedEventData($rawPayload, []);
+        $title       = $unifiedData['summary'] ?? '';
+        $statusData  = $unifiedData['status']  ?? null;
+        $pillHtml    = $statusData ? $this->renderNodePill($statusData['label'], $statusData['type']) : '';
+
+        // Key-value rows as DL content
+        $rowsHtml = $this->renderNodeRows($displayData['display_sections'] ?? [], $rawPayload);
+
+        $html  = '<div class="odcm-tl-node odcm-tl-node--' . esc_attr($variant) . '">';
+        $html .= '<div class="odcm-tl-node__spine"><span class="odcm-tl-node__dot"></span></div>';
+        $html .= '<div>';
+        $html .= '<div class="odcm-tl-node__card">';
+        $html .= '<div class="odcm-tl-node__head">';
+        $html .= '<span class="odcm-tl-node__time">' . esc_html($timeDisplay) . '</span>';
+        $html .= $pillHtml;
         $html .= '</div>';
+        $html .= '<div class="odcm-tl-node__title">' . esc_html($title) . '</div>';
+        if ($rowsHtml) {
+            $html .= '<dl class="odcm-tl-node__rows">' . $rowsHtml . '</dl>';
+        }
+        $html .= $this->renderNodeJson($rawPayload);
         $html .= '</div>';
-
-        // Body with unified business section and improved technical section
-        $html .= '<div class="odcm-component__body">';
-
-        // Unified Business Section: All business-relevant data in one clean section
-        $html .= $this->renderUnifiedBusinessSection($displayData['display_sections'] ?? [], $rawPayload);
-
-        // Improved Technical Section: Clear labeling, complete raw data
-        $html .= $this->renderImprovedTechnicalSection($rawPayload);
-
         $html .= '</div>';
         $html .= '</div>';
 
         return $html;
+    }
+
+    private function mapThemeToNodeVariant(string $themeClass, array $rawPayload): string
+    {
+        $level = strtolower($rawPayload['level'] ?? 'info');
+        if ($level === 'error' || $level === 'critical') return 'danger';
+        if ($level === 'warning' || $level === 'warn')   return 'warn';
+
+        return match ($themeClass) {
+            'odcm-component--error'   => 'danger',
+            'odcm-component--payment' => 'success',
+            default                   => 'info',
+        };
+    }
+
+    private function renderNodePill(string $label, string $type): string
+    {
+        $variantMap = [
+            'error'     => 'danger',
+            'warning'   => 'warn',
+            'success'   => 'success',
+            'completed' => 'success',
+            'info'      => 'info',
+            'pending'   => 'warn',
+            'skipped'   => 'info',
+            'debug'     => 'info',
+        ];
+        $variant = $variantMap[strtolower($type)] ?? 'info';
+        return '<span class="odcm-pill odcm-pill--' . esc_attr($variant) . '">' . esc_html($label) . '</span>';
+    }
+
+    private function renderNodeRows(array $displaySections, array $rawPayload): string
+    {
+        if (empty($displaySections)) return '';
+
+        $rows = '';
+        foreach ($displaySections as $key => $section) {
+            if ('event_description' === $key || 'order_id' === $key) continue;
+
+            $label = $section['label'] ?? '';
+            $value = $section['value'] ?? '';
+
+            if ('timestamp' === $key || str_contains((string) $label, 'Timestamp')) {
+                $rawTs = $rawPayload['ts'] ?? time();
+                if (!is_numeric($rawTs)) $rawTs = strtotime((string) $rawTs) ?: time();
+                $rows .= '<dt>' . esc_html($label) . '</dt>';
+                $rows .= '<dd><span class="js-format-timestamp" x-text="formatTimestamp(' . esc_attr((string)(int) $rawTs) . ', $el)"></span></dd>';
+            } else {
+                $rows .= '<dt>' . esc_html($label) . '</dt>';
+                $rows .= '<dd>' . esc_html($value) . '</dd>';
+            }
+        }
+        return $rows;
+    }
+
+    private function renderNodeJson(array $rawPayload): string
+    {
+        $json = wp_json_encode($rawPayload, JSON_PRETTY_PRINT);
+        return '<button type="button" class="odcm-tl-node__expand" aria-expanded="false">' .
+               esc_html__('api.timeline.display_mode.show_raw_json', 'order-daemon') .
+               '</button>' .
+               '<div class="odcm-tl-node__json">' .
+               '<div class="odcm-code-block"><pre><code class="language-json">' . esc_html($json) . '</code></pre></div>' .
+               '</div>';
     }
 
 
@@ -553,9 +658,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
         // Convert classes array to string
         $classString = implode(' ', $hierarchyClasses);
         
-        // Look for component containers to add classes to
-        // The main pattern is: <div class="odcm-component ...">
-        $pattern = '/(<div[^>]*class="[^"]*odcm-component[^"]*")/i';
+        $pattern = '/(<div[^>]*class="[^"]*odcm-tl-node[^"]*")/i';
         
         $html = preg_replace_callback($pattern, function($matches) use ($classString) {
             $openingTag = $matches[1];
@@ -637,7 +740,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             
             // If still nothing worked, wrap everything
             if (strpos($html, 'is-parent') === false && strpos($html, 'is-child') === false) {
-                $wrapperClasses = 'odcm-component ' . $classString;
+                $wrapperClasses = 'odcm-tl-node ' . $classString;
                 $html = '<div class="' . esc_attr($wrapperClasses) . '">' . $html . '</div>';
                 
                 if (defined('ODCM_DEBUG') && ODCM_DEBUG) {

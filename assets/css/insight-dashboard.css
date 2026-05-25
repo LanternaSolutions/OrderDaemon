@@ -229,8 +229,8 @@
     margin: 0 !important;
     padding: 0 !important;
     gap: 0px !important;
-    background: var(--odcm-theme-white) !important;
-    border-bottom: 1px solid var(--odcm-component-border-color) !important;
+    background: var(--odcm-bg) !important;
+    border-bottom: 1px solid var(--odcm-border) !important;
     position: relative !important;
     box-sizing: border-box !important;
     height: calc(100vh - var(--odcm-calculated-admin-bar-height)); /* Fill viewport; mobile overrides this */
@@ -849,90 +849,6 @@
 .odcm-setting-row-pair input,
 .odcm-setting-row-pair button {
     height: min-content;
-}
-
-/* Input and select elements inside settings groups fill available width */
-.odcm-settings-group input[type="text"],
-.odcm-settings-group input[type="password"],
-.odcm-settings-group select {
-    width: 100%;
-    max-width: none;
-    box-sizing: border-box;
-    border-radius: var(--odcm-component-border-radius);
-}
-
-/* In a row-pair the input expands, buttons stay auto-width */
-.odcm-setting-row-pair input[type="text"],
-.odcm-setting-row-pair input[type="password"] {
-    flex: 1;
-    width: auto;
-}
-
-/* Auth method tab group */
-.odcm-cw-auth-buttons {
-    display: flex;
-    border: 1px solid var(--odcm-component-border-color);
-    border-radius: var(--odcm-component-border-radius);
-    overflow: hidden;
-}
-
-.odcm-cw-auth-buttons .button {
-    flex: 1;
-    text-align: center;
-    justify-content: center;
-    border: none;
-    border-right: 1px solid var(--odcm-component-border-color);
-    border-radius: 0;
-    box-shadow: none;
-    background: var(--odcm-theme-white);
-    color: var(--odcm-theme-grey-600);
-    font-size: var(--odcm-theme-font-size-sm);
-    padding: 4px 8px;
-    margin: 0;
-    transition: var(--odcm-component-transition);
-}
-
-.odcm-cw-auth-buttons .button:last-child {
-    border-right: none;
-}
-
-.odcm-cw-auth-buttons .button:hover:not(.button-primary) {
-    background: var(--odcm-theme-grey-100);
-    color: var(--odcm-theme-grey-800);
-}
-
-.odcm-cw-auth-buttons .button.button-primary {
-    background: var(--odcm-theme-blue-700);
-    color: var(--odcm-theme-white);
-    border-color: var(--odcm-theme-blue-700);
-}
-
-.odcm-cw-copy-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px;
-    background: var(--odcm-theme-white);
-    border: 1px solid var(--odcm-component-border-color);
-    border-radius: var(--odcm-component-border-radius);
-    color: var(--odcm-theme-grey-700);
-    cursor: pointer;
-    transition: var(--odcm-component-transition);
-    height: min-content;
-    flex-shrink: 0;
-}
-
-.odcm-cw-copy-btn:hover {
-    background: var(--odcm-theme-grey-100);
-    border-color: var(--odcm-theme-blue-700);
-    color: var(--odcm-theme-blue-700);
-}
-
-.odcm-cw-copy-btn .dashicons {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-    line-height: 16px;
 }
 
 .odcm-retention-options {
@@ -3539,5 +3455,1435 @@ label.odcm-retention-option {
 @media screen and (max-width: 600px) {
     .odcm-insight-dashboard {
         --odcm-calculated-admin-bar-height: 0px;
+    }
+}
+
+/* ==========================================================================
+   NEW DESIGN COMPONENTS (v2 — from design handoff)
+   New pane structure, time range picker, segmented control, pill badges,
+   filter trigger, pane rail, log rows, timeline nodes, refresh controls.
+   These extend and override the layout above.
+   ========================================================================== */
+
+  /* ============================================================
+     PAGE SHELL
+     ============================================================ */
+
+  .odcm-insight-dashboard {
+    display: flex;
+    flex-direction: column;
+    background: var(--odcm-bg);
+    font-family: var(--odcm-font-sans);
+    color: var(--odcm-ink);
+  }
+
+  /* ============================================================
+     UNIFIED HEADER (top bar)
+     ============================================================ */
+
+  .odcm-unified-header {
+    position: sticky;
+    top: var(--wp-admin--admin-bar--height, 32px);
+    z-index: 50;
+    background: var(--odcm-surface);
+    border-bottom: 1px solid var(--odcm-border);
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-space-4);
+    padding: 10px var(--odcm-space-6);
+    min-height: var(--odcm-h-topbar);
+  }
+
+  .odcm-unified-header__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--odcm-ink);
+    flex-shrink: 0;
+  }
+  .odcm-unified-header__brand svg { flex-shrink: 0; }
+  .odcm-unified-header__title {
+    font-size: var(--odcm-text-md);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    white-space: nowrap;
+  }
+
+  .odcm-unified-header__sep {
+    color: var(--odcm-muted-2);
+    font-size: var(--odcm-text-md);
+    user-select: none;
+  }
+
+  .odcm-unified-header__crumb {
+    font-size: var(--odcm-text-md);
+    font-weight: 500;
+    color: var(--odcm-ink-2);
+    letter-spacing: -0.005em;
+  }
+
+  .odcm-unified-header__controls {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* Time range trigger + popover */
+  .odcm-time-range {
+    position: relative;
+    display: inline-block;
+  }
+  .odcm-time-range-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border-strong);
+    border-radius: var(--odcm-radius-2);
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-xs);
+    color: var(--odcm-ink-2);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color var(--odcm-dur-fast) var(--odcm-ease), border-color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-time-range-btn:hover { background: var(--odcm-surface-2); }
+  .odcm-time-range-btn svg { color: var(--odcm-muted); }
+  .odcm-time-range-btn__chev { transition: transform var(--odcm-dur-fast) var(--odcm-ease); }
+  .odcm-time-range[aria-expanded="true"] .odcm-time-range-btn__chev { transform: rotate(180deg); }
+
+  .odcm-time-range__pop {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 260px;
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-3);
+    box-shadow: var(--odcm-shadow-3);
+    padding: 6px;
+    display: flex;
+    z-index: 1000;
+    flex-direction: column;
+  }
+  .odcm-time-range[aria-expanded="true"] .odcm-time-range__pop { display: flex; }
+  .odcm-time-range__pop-head {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px 8px;
+    border-bottom: 1px solid var(--odcm-rule);
+    margin-bottom: 4px;
+  }
+  .odcm-time-range__pop-title {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--odcm-muted);
+  }
+  .odcm-time-range__pop-meta {
+    margin-left: auto;
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    color: var(--odcm-muted);
+  }
+  .odcm-time-range__opt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 10px;
+    background: transparent;
+    border: 0;
+    border-radius: var(--odcm-radius-2);
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-sm);
+    color: var(--odcm-ink-2);
+    text-align: left;
+    cursor: pointer;
+  }
+  .odcm-time-range__opt:hover { background: var(--odcm-surface-2); }
+  .odcm-time-range__opt[aria-checked="true"] { color: var(--odcm-ink); background: var(--odcm-accent-soft); }
+  .odcm-time-range__opt-check {
+    width: 14px;
+    height: 14px;
+    color: var(--odcm-accent);
+    visibility: hidden;
+  }
+  .odcm-time-range__opt[aria-checked="true"] .odcm-time-range__opt-check { visibility: visible; }
+  .odcm-time-range__opt-label { flex: 1; }
+  .odcm-time-range__opt-hint {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    color: var(--odcm-muted);
+    letter-spacing: 0.04em;
+  }
+  .odcm-time-range__opt--custom { border-top: 1px solid var(--odcm-rule); margin-top: 4px; padding-top: 10px; }
+  .odcm-time-range__custom {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px 4px;
+    border-top: 1px solid var(--odcm-rule);
+    margin-top: 4px;
+  }
+  .odcm-time-range[data-mode="custom"] .odcm-time-range__custom { display: flex; }
+  .odcm-time-range__custom-label {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--odcm-muted);
+  }
+  .odcm-time-range__custom-row { display: flex; gap: 6px; }
+  .odcm-time-range__custom-row input {
+    flex: 1;
+    height: 30px;
+    padding: 0 10px;
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border-strong);
+    border-radius: var(--odcm-radius-2);
+    color: var(--odcm-ink);
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-xs);
+  }
+  .odcm-time-range__apply { display: flex; gap: 6px; padding: 6px 0 2px; }
+  .odcm-time-range__apply button { flex: 1; justify-content: center; }
+
+  /* Refresh — unified pill with manual + interval picker */
+  .odcm-refresh {
+    display: inline-flex;
+    align-items: stretch;
+    height: 28px;
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border-strong);
+    border-radius: var(--odcm-radius-pill);
+    /* overflow is intentionally NOT hidden — the popover must escape this box.
+       Inner pieces clip themselves with border-radius. */
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-xs);
+    color: var(--odcm-ink-2);
+    transition: border-color var(--odcm-dur-fast) var(--odcm-ease);
+    position: relative;
+  }
+  .odcm-refresh > .odcm-refresh__manual { border-top-left-radius: var(--odcm-radius-pill); border-bottom-left-radius: var(--odcm-radius-pill); }
+  .odcm-refresh > .odcm-refresh__picker { border-top-right-radius: var(--odcm-radius-pill); border-bottom-right-radius: var(--odcm-radius-pill); }
+  .odcm-refresh:hover { border-color: var(--odcm-accent); }
+
+  .odcm-refresh__manual {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    background: transparent;
+    border: 0;
+    color: var(--odcm-ink-2);
+    cursor: pointer;
+    transition: background-color var(--odcm-dur-fast) var(--odcm-ease), color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-refresh__manual:hover { background: var(--odcm-surface-2); color: var(--odcm-accent); }
+  .odcm-refresh__manual .icon { transition: transform 320ms var(--odcm-ease); }
+  .odcm-refresh__manual:active .icon { transform: rotate(180deg); }
+
+  .odcm-refresh__sep { width: 1px; background: var(--odcm-border); align-self: stretch; }
+
+  .odcm-refresh__picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px 0 10px;
+    background: transparent;
+    border: 0;
+    color: var(--odcm-ink-2);
+    cursor: pointer;
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-xs);
+    transition: background-color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-refresh__picker:hover { background: var(--odcm-surface-2); }
+
+  .odcm-refresh__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--odcm-success);
+    box-shadow: 0 0 0 0 var(--odcm-success);
+    animation: odcm-refresh-pulse 2s ease-out infinite;
+  }
+  @keyframes odcm-refresh-pulse {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--odcm-success) 50%, transparent); }
+    70%  { box-shadow: 0 0 0 6px color-mix(in oklab, var(--odcm-success) 0%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--odcm-success) 0%, transparent); }
+  }
+  .odcm-refresh--paused .odcm-refresh__dot { background: var(--odcm-muted-2); animation: none; }
+
+  .odcm-refresh__label {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    letter-spacing: 0.04em;
+    color: var(--odcm-ink-2);
+    line-height: 1;
+  }
+  .odcm-refresh__chev {
+    color: var(--odcm-muted);
+    transition: transform var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-refresh[aria-expanded="true"] .odcm-refresh__chev { transform: rotate(180deg); }
+
+  /* Popover with interval options */
+  .odcm-refresh__pop {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 220px;
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-3);
+    box-shadow: var(--odcm-shadow-3);
+    padding: 6px;
+    display: flex;
+    z-index: 1000;
+    flex-direction: column;
+  }
+  .odcm-refresh[aria-expanded="true"] .odcm-refresh__pop { display: flex; }
+  .odcm-refresh__pop-head {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px 8px;
+    border-bottom: 1px solid var(--odcm-rule);
+    margin-bottom: 4px;
+  }
+  .odcm-refresh__pop-title {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--odcm-muted);
+  }
+  .odcm-refresh__pop-since {
+    margin-left: auto;
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    color: var(--odcm-muted);
+  }
+  .odcm-refresh__opt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 7px 10px;
+    background: transparent;
+    border: 0;
+    border-radius: var(--odcm-radius-2);
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-sm);
+    color: var(--odcm-ink-2);
+    text-align: left;
+    cursor: pointer;
+  }
+  .odcm-refresh__opt:hover { background: var(--odcm-surface-2); }
+  .odcm-refresh__opt-check {
+    width: 14px;
+    height: 14px;
+    color: var(--odcm-accent);
+    visibility: hidden;
+  }
+  .odcm-refresh__opt[aria-checked="true"] { color: var(--odcm-ink); background: var(--odcm-accent-soft); }
+  .odcm-refresh__opt[aria-checked="true"] .odcm-refresh__opt-check { visibility: visible; }
+  .odcm-refresh__opt-label { flex: 1; }
+  .odcm-refresh__opt-hint {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    color: var(--odcm-muted);
+    letter-spacing: 0.04em;
+  }
+  .odcm-refresh__opt--off { border-top: 1px solid var(--odcm-rule); margin-top: 4px; padding-top: 10px; }
+
+  /* Legacy class kept around in case some markup still references it */
+  .odcm-refresh-controls { display: inline-flex; align-items: center; gap: 8px; }
+
+  .odcm-vrule {
+    width: 1px;
+    height: 20px;
+    background: var(--odcm-border);
+    flex-shrink: 0;
+  }
+
+  /* ============================================================
+     CONTENT GRID (three-pane)
+     ============================================================ */
+
+  .odcm-content-grid {
+    display: grid;
+    grid-template-areas: "filters stream details";
+    grid-template-columns: 260px 1fr 360px;
+    grid-template-rows: minmax(0, 1fr);
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+    transition: grid-template-columns var(--odcm-dur-slow) var(--odcm-ease);
+  }
+  .odcm-content-grid[data-filter-collapsed="true"]   { grid-template-columns: 44px 1fr 360px; }
+  .odcm-content-grid[data-detail-collapsed="true"]   { grid-template-columns: 260px 1fr 44px; }
+  .odcm-content-grid[data-filter-collapsed="true"][data-detail-collapsed="true"] { grid-template-columns: 44px 1fr 44px; }
+
+  /* Override the old class-based column rules — new design shows detail pane at 360px always.
+     These selectors match the old rules exactly (same specificity) but come later, so they win. */
+  .odcm-insight-dashboard.filter-pane-visible.details-pane-visible .odcm-content-grid,
+  .odcm-insight-dashboard.filter-pane-visible:not(.details-pane-visible) .odcm-content-grid {
+    grid-template-columns: 260px 1fr 360px;
+  }
+  .odcm-insight-dashboard:not(.filter-pane-visible).details-pane-visible .odcm-content-grid,
+  .odcm-insight-dashboard:not(.filter-pane-visible):not(.details-pane-visible) .odcm-content-grid {
+    grid-template-columns: 44px 1fr 360px;
+  }
+
+  /* ============================================================
+     PANES (shared)
+     ============================================================ */
+
+  .odcm-filter-pane,
+  .odcm-log-stream,
+  .odcm-detail-pane {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    background: var(--odcm-surface);
+  }
+  .odcm-filter-pane  { background: var(--odcm-surface-2); border-right: 1px solid var(--odcm-border); }
+  .odcm-detail-pane  { background: var(--odcm-surface);   border-left:  1px solid var(--odcm-border); }
+  .odcm-log-stream   { background: var(--odcm-bg); }
+
+  /* Pane header (shared) */
+  .odcm-pane-header,
+  .odcm-filter-pane-header,
+  .odcm-log-stream-header,
+  .odcm-detail-pane-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: var(--odcm-h-pane-head);
+    padding: 0 var(--odcm-space-4);
+    border-bottom: 1px solid var(--odcm-border);
+    flex-shrink: 0;
+  }
+  .odcm-pane-header__label {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--odcm-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .odcm-pane-header__title {
+    font-size: var(--odcm-text-md);
+    font-weight: 500;
+    color: var(--odcm-ink);
+  }
+  .odcm-pane-header__count {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    color: var(--odcm-muted);
+  }
+  .odcm-pane-header__spacer { flex: 1; }
+
+  /* Pane body (scroll region) */
+  .odcm-pane-body,
+  .odcm-filter-pane-content,
+  .odcm-filter-form {
+    padding: var(--odcm-space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-space-3);
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* Pane icon button (existing class) — re-uses base icon-button look */
+  .odcm-pane-icon-button,
+  .odcm-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: 0;
+    border-radius: var(--odcm-radius-1);
+    color: var(--odcm-muted);
+    cursor: pointer;
+    transition: color var(--odcm-dur-fast) var(--odcm-ease), background-color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-pane-icon-button:hover,
+  .odcm-icon-button:hover {
+    color: var(--odcm-ink);
+    background: var(--odcm-surface-3);
+  }
+  .odcm-pane-icon-button.is-active,
+  .odcm-pane-icon-button[aria-pressed="true"] {
+    color: var(--odcm-accent);
+    background: var(--odcm-accent-soft);
+  }
+
+  /* Collapsed pane rail (when filter/detail pane is collapsed) */
+  .odcm-pane-rail {
+    background: var(--odcm-surface-2);
+    border-right: 1px solid var(--odcm-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 0;
+    gap: 14px;
+  }
+  .odcm-pane-rail--right {
+    border-right: 0;
+    border-left: 1px solid var(--odcm-border);
+  }
+  .odcm-pane-rail__label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--odcm-muted);
+  }
+
+  /* ============================================================
+     FILTER PANE
+     ============================================================ */
+
+  .odcm-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .odcm-filter-field__label {
+    font-size: var(--odcm-text-xs);
+    color: var(--odcm-ink-2);
+    font-weight: 500;
+  }
+
+  .odcm-search-input,
+  .odcm-search {
+    position: relative;
+  }
+  .odcm-search__icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--odcm-muted);
+    pointer-events: none;
+  }
+  .odcm-search input,
+  input.odcm-search-input {
+    padding-left: 30px;
+  }
+
+  .odcm-filter-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 6px;
+  }
+  .odcm-filter-actions .odcm-btn { flex: 1; justify-content: center; }
+  .odcm-filter-actions .odcm-btn--ghost { flex: 0; }
+
+  /* ============================================================
+     LOG STREAM
+     ============================================================ */
+
+  .odcm-log-stream-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: var(--odcm-space-3) var(--odcm-space-4);
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .odcm-log-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-2);
+    cursor: pointer;
+    transition: background-color var(--odcm-dur-fast) var(--odcm-ease),
+                border-color var(--odcm-dur-fast) var(--odcm-ease),
+                box-shadow var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-log-row:hover {
+    border-color: var(--odcm-border-strong);
+  }
+  .odcm-log-row.is-active,
+  .odcm-log-row[aria-selected="true"] {
+    background: var(--odcm-accent-soft);
+    border-color: var(--odcm-accent);
+    box-shadow: 0 0 0 3px var(--odcm-accent-soft);
+  }
+  .odcm-log-row__check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--odcm-accent);
+    cursor: pointer;
+  }
+  .odcm-log-row__main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .odcm-log-row__meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .odcm-log-row__time {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    color: var(--odcm-muted);
+    letter-spacing: 0.04em;
+  }
+  .odcm-log-row__order {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    color: var(--odcm-ink-2);
+  }
+  .odcm-log-row__label {
+    font-size: var(--odcm-text-sm);
+    color: var(--odcm-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Stream controls (existing class) */
+  .odcm-stream-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+  }
+
+  /* ============================================================
+     DETAIL PANE — TIMELINE
+     ============================================================ */
+
+  .odcm-tl-session-meta {
+    padding: var(--odcm-space-3) var(--odcm-space-4) 4px;
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-3xs);
+    color: var(--odcm-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .odcm-timeline {
+    padding: 8px var(--odcm-space-4) var(--odcm-space-4);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: clip;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .odcm-tl-node {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .odcm-tl-node__spine {
+    position: relative;
+    align-self: stretch;
+    min-height: 30px;
+  }
+  .odcm-tl-node__spine::before {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 22px;
+    bottom: -100px;
+    width: 2px;
+    background: var(--odcm-rule);
+    border-radius: 1px;
+  }
+  .odcm-tl-node--last .odcm-tl-node__spine::before { display: none; }
+
+  .odcm-tl-node__dot {
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--odcm-muted);
+    box-shadow: 0 0 0 3px var(--odcm-surface), 0 0 0 4px var(--odcm-border-strong);
+  }
+  .odcm-tl-node--info    .odcm-tl-node__dot { background: var(--odcm-accent); }
+  .odcm-tl-node--success .odcm-tl-node__dot { background: var(--odcm-success); }
+  .odcm-tl-node--warn    .odcm-tl-node__dot { background: var(--odcm-warn); }
+  .odcm-tl-node--danger  .odcm-tl-node__dot { background: var(--odcm-danger); }
+
+  .odcm-tl-node__card {
+    padding: 12px 14px;
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-3);
+    margin-bottom: 14px;
+    transition: border-color var(--odcm-dur-fast) var(--odcm-ease),
+                box-shadow var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-tl-node__card:hover {
+    border-color: var(--odcm-border-strong);
+    box-shadow: var(--odcm-shadow-1);
+  }
+  .odcm-tl-node--info    .odcm-tl-node__card { background: color-mix(in oklab, var(--odcm-accent)  6%, var(--odcm-surface)); }
+  .odcm-tl-node--success .odcm-tl-node__card { background: color-mix(in oklab, var(--odcm-success) 6%, var(--odcm-surface)); }
+  .odcm-tl-node--warn    .odcm-tl-node__card { background: color-mix(in oklab, var(--odcm-warn)    6%, var(--odcm-surface)); }
+  .odcm-tl-node--danger  .odcm-tl-node__card { background: color-mix(in oklab, var(--odcm-danger)  6%, var(--odcm-surface)); }
+
+  .odcm-tl-node__head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .odcm-tl-node__time {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    color: var(--odcm-muted);
+    letter-spacing: 0.04em;
+  }
+  .odcm-tl-node__title {
+    font-size: var(--odcm-text-sm);
+    font-weight: 500;
+    color: var(--odcm-ink);
+  }
+  .odcm-tl-node__rows {
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-2);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+    font-size: var(--odcm-text-xs);
+  }
+  .odcm-tl-node__rows dt {
+    margin: 0;
+    color: var(--odcm-muted);
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+  }
+  .odcm-tl-node__rows dd {
+    margin: 0;
+    color: var(--odcm-ink-2);
+  }
+  .odcm-tl-node__expand {
+    margin-top: 8px;
+    margin-left: -4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 0;
+    padding: 4px 6px;
+    border-radius: var(--odcm-radius-1);
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-3xs);
+    color: var(--odcm-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-tl-node__expand:hover { color: var(--odcm-ink); }
+  .odcm-tl-node__expand[aria-expanded="true"] { color: var(--odcm-ink); }
+  .odcm-tl-node__json {
+    margin-top: 8px;
+    display: none;
+  }
+  .odcm-tl-node__expand[aria-expanded="true"] + .odcm-tl-node__json {
+    display: block;
+  }
+
+  /* Time-delta marker between nodes — value sits vertically centered between cards */
+  .odcm-tl-delta {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: 12px;
+    align-items: center;
+    margin: 0;
+    padding: 0 0 14px 0;
+  }
+  .odcm-tl-delta__spine {
+    position: relative;
+    height: 22px;
+  }
+  .odcm-tl-delta__spine::before {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: -40px;
+    bottom: -40px;
+    width: 2px;
+    background: var(--odcm-rule);
+  }
+  .odcm-tl-delta__value {
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-3xs);
+    color: var(--odcm-muted);
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+
+  /* Filter trigger — shown on tablet/mobile only when filter is collapsed.
+     Merges into the log stream header at top-left. NOT a button — it reads
+     as a hint pair: <filter icon> <right caret> before the "Log Stream" title. */
+  .odcm-filter-trigger {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 6px;
+    margin-right: 2px;
+    background: transparent;
+    border: 0;
+    border-radius: var(--odcm-radius-1);
+    color: var(--odcm-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color var(--odcm-dur-fast) var(--odcm-ease), background-color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-filter-trigger:hover { color: var(--odcm-accent); background: var(--odcm-accent-soft); }
+  /* Separator lives between the trigger and the title, not on the trigger itself */
+  .odcm-filter-trigger + .odcm-pane-header__title::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 18px;
+    background: var(--odcm-border);
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+
+  /* ============================================================
+     RESPONSIVE — tablet: timeline slides over log stream
+     ============================================================ */
+
+  /* Tablet header — tighter at 768-1023px */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .odcm-unified-header {
+      gap: 8px;
+      padding: 8px 14px;
+      flex-wrap: wrap;
+    }
+    .odcm-unified-header__title { display: none; }
+    .odcm-unified-header__controls { gap: 6px; flex-wrap: wrap; margin-left: auto; }
+    .odcm-unified-header__controls .odcm-vrule:first-of-type { display: none; }
+    .odcm-time-range-btn { height: 26px; padding: 0 8px; font-size: var(--odcm-text-xs); }
+    .odcm-refresh { height: 26px; }
+    .odcm-refresh__manual { width: 28px; }
+    .odcm-refresh__picker { padding: 0 8px; gap: 6px; }
+    .odcm-pane-header { padding: 0 12px; height: 32px; }
+    .odcm-filter-pane,
+    .odcm-detail-pane {
+      font-size: var(--odcm-text-sm);
+    }
+  }
+
+  /* Below 1024px: filter pane becomes part of the grid (full-height column);
+     collapsed state has no column at all — a small "open filters" button merges
+     into the log stream header instead. Timeline still overlays from the right. */
+  @media (max-width: 1023px) {
+    /* Explicit override of ALL desktop collapsed-state column rules so they don't
+       leak through with the desktop's 3-column track sizing. */
+    .odcm-content-grid,
+    .odcm-content-grid[data-detail-collapsed="true"],
+    .odcm-content-grid[data-filter-collapsed="true"][data-detail-collapsed="true"] {
+      grid-template-columns: 280px 1fr;
+      position: relative;
+    }
+    .odcm-content-grid[data-filter-collapsed="true"],
+    .odcm-content-grid[data-filter-collapsed="true"][data-detail-collapsed="true"] {
+      grid-template-columns: 1fr;
+    }
+    .odcm-filter-pane {
+      position: relative;
+      transform: none;
+      box-shadow: none;
+      transition: none;
+      border-right: 1px solid var(--odcm-border);
+      z-index: 5;
+    }
+    /* Rail disappears entirely on tablet/mobile — the trigger lives in the log stream header */
+    .odcm-pane-rail:not(.odcm-pane-rail--right) { display: none !important; }
+    /* The merged-in filter trigger button — shows only when filter is collapsed */
+    .odcm-filter-trigger { display: inline-flex; }
+    .odcm-content-grid:not([data-filter-collapsed="true"]) .odcm-filter-trigger { display: none; }
+    /* Timeline still overlays from the right */
+    .odcm-detail-pane {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(400px, 80%);
+      grid-column: auto;
+      grid-row: auto;
+      border-left: 1px solid var(--odcm-border);
+      box-shadow: -8px 0 24px rgba(20, 19, 15, 0.08);
+      z-index: 10;
+      transform: translateX(0);
+      transition: transform var(--odcm-dur-slow) var(--odcm-ease), box-shadow var(--odcm-dur-slow) var(--odcm-ease);
+    }
+    :root[data-theme="dark"] .odcm-detail-pane { box-shadow: -8px 0 24px rgba(0, 0, 0, 0.45); }
+    .odcm-content-grid[data-detail-collapsed="true"] .odcm-detail-pane {
+      transform: translateX(100%);
+      box-shadow: none;
+    }
+    .odcm-pane-rail--right {
+      display: none !important;
+    }
+    .odcm-content-grid:not([data-detail-collapsed="true"]) .odcm-pane-rail--right { display: none; }
+  }
+
+  /* Auto dark-mode shadow for the slide-over (flattened — can't nest @media) */
+  @media (prefers-color-scheme: dark) and (max-width: 1023px) {
+    :root:not([data-theme]) .odcm-detail-pane { box-shadow: -8px 0 24px rgba(0, 0, 0, 0.45); }
+  }
+
+  /* Mobile floor: filter pane is a slide-over (not part of grid), full-height. */
+  @media (max-width: 767px) {
+    .odcm-content-grid {
+      grid-template-columns: 1fr;
+    }
+    .odcm-content-grid[data-filter-collapsed="true"] {
+      grid-template-columns: 1fr;
+    }
+    .odcm-filter-pane {
+      position: fixed;
+      top: 32px;
+      left: 0;
+      bottom: 0;
+      width: min(280px, 80%);
+      max-width: none;
+      z-index: 60;
+      border-right: 1px solid var(--odcm-border);
+      border-left: 0;
+      border-bottom: 0;
+      box-shadow: 8px 0 24px rgba(20, 19, 15, 0.18);
+      transform: translateX(0);
+      transition: transform var(--odcm-dur-slow) var(--odcm-ease);
+    }
+    .odcm-content-grid[data-filter-collapsed="true"] .odcm-filter-pane {
+      transform: translateX(-100%);
+      box-shadow: none;
+    }
+    /* Detail pane on mobile: slide-over on the right with the log stream
+       still visible behind it on the left so the user can pick another row. */
+    .odcm-detail-pane {
+      position: fixed;
+      top: 32px;
+      right: 0;
+      bottom: 0;
+      left: auto;
+      width: min(340px, 75%);
+      z-index: 50;
+      border: 0;
+      border-left: 1px solid var(--odcm-border);
+      box-shadow: -8px 0 24px rgba(20, 19, 15, 0.18);
+      transform: translateX(0);
+      transition: transform var(--odcm-dur-slow) var(--odcm-ease);
+    }
+    .odcm-content-grid[data-detail-collapsed="true"] .odcm-detail-pane {
+      transform: translateX(100%);
+      box-shadow: none;
+    }
+    .odcm-pane-rail--right { display: none; }
+    .odcm-pane-rail__label {
+      writing-mode: horizontal-tb;
+      transform: none;
+    }
+    /* Header: single tight row. Hide controls behind a menu if needed,
+       keep only essentials visible. */
+    .odcm-unified-header {
+      flex-wrap: nowrap;
+      gap: 8px;
+      padding: 8px 12px;
+      min-height: auto;
+      align-items: center;
+    }
+    .odcm-unified-header__brand { gap: 8px; flex-shrink: 0; }
+    .odcm-unified-header__title { display: none; }
+    .odcm-unified-header__sep { display: none; }
+    .odcm-unified-header__crumb {
+      font-size: var(--odcm-text-sm);
+      font-weight: 500;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .odcm-unified-header__controls {
+      margin-left: auto;
+      gap: 6px;
+      flex-shrink: 0;
+      flex-wrap: nowrap;
+      width: auto;
+      justify-content: flex-end;
+    }
+    /* Hide non-essentials on mobile; keep theme + refresh as the two key controls. */
+    .odcm-unified-header__controls .odcm-vrule { display: none; }
+    .odcm-unified-header__controls > .odcm-pill { display: none; }
+    .odcm-unified-header__controls > .odcm-time-range-btn { display: none; }
+    .odcm-refresh { height: 26px; flex-shrink: 0; }
+    .odcm-refresh__manual { width: 28px; }
+    .odcm-refresh__picker { padding: 0 8px; gap: 6px; }
+    .odcm-refresh__label { font-size: var(--odcm-text-3xs); display: none; }
+    .odcm-theme-toggle { padding: 2px; flex-shrink: 0; }
+    .odcm-theme-toggle__btn { width: 26px; height: 22px; }
+    /* Pane headers tighter */
+    .odcm-pane-header { padding: 0 var(--odcm-space-3); }
+    /* Log rows: stack meta + label on mobile */
+    .odcm-log-row {
+      grid-template-columns: 18px 1fr;
+      gap: 8px;
+      padding: 10px 12px;
+    }
+    .odcm-log-row > .odcm-pill {
+      grid-column: 2;
+      justify-self: flex-start;
+      margin-top: 2px;
+    }
+    .odcm-log-stream-content { padding: var(--odcm-space-3) var(--odcm-space-3); }
+    .odcm-log-row__time, .odcm-log-row__order { font-size: var(--odcm-text-3xs); }
+    /* Time-range collapses to icon only */
+    .odcm-time-range-btn span { display: none; }
+    .odcm-time-range-btn::after { content: 'Last 7d'; }
+    /* Refresh popover: anchor right, extend left so it stays on screen */
+    .odcm-refresh__pop { right: 0; left: auto; min-width: 240px; }
+    /* Stream controls: hide segmented on mobile */
+    .odcm-log-stream-header .odcm-segmented { display: none; }
+  }
+
+/* ==========================================================================
+   ST__ SETTINGS TAB — new design system
+   ========================================================================== */
+
+.st { padding: 24px 28px 40px; max-width: 760px; display: flex; flex-direction: column; gap: 18px; }
+.st__title { font-size: var(--odcm-text-xl); font-weight: 500; letter-spacing: -0.01em; margin: 0; }
+.st__card { background: var(--odcm-surface); border: 1px solid var(--odcm-border); border-radius: var(--odcm-radius-3); padding: 22px; display: flex; flex-direction: column; gap: 18px; }
+.st__sect-title { font-size: var(--odcm-text-md); font-weight: 600; margin: 0 0 4px; }
+.st__sect-sub { font-size: var(--odcm-text-sm); color: var(--odcm-muted); margin: 0; }
+.st__field { display: grid; grid-template-columns: 1fr 200px; gap: 16px; align-items: flex-start; padding-top: 18px; border-top: 1px solid var(--odcm-rule); }
+.st__field:first-of-type { padding-top: 0; border-top: 0; }
+.st__field-label { font-size: var(--odcm-text-sm); font-weight: 500; color: var(--odcm-ink); margin-bottom: 4px; }
+.st__field-help { font-size: var(--odcm-text-xs); color: var(--odcm-muted); line-height: 1.5; }
+.st__field-input { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.st__danger { border-color: var(--odcm-danger); background: var(--odcm-danger-soft); }
+.st__danger .st__sect-title { color: var(--odcm-danger); }
+@media (max-width: 767px) { .st__field { grid-template-columns: 1fr; } .st__field-input { justify-content: flex-start; } }
+
+/* ==========================================================================
+   LAYOUT FIX — ID-specificity grid control for three-pane layout
+
+   Fixes three bugs:
+   1. Pane rails had no grid-area → auto-placed into a new implicit row below
+      the content instead of occupying the collapsed column.
+   2. Legacy transform: translateX(100%) on detail pane conflicts with the
+      new design's data-attribute collapse approach on desktop.
+   3. Old class-based rules (0,4,0) beat new data-* rules (0,2,0).
+      ID selector gives (1,1,0+) which definitively wins.
+   ========================================================================== */
+
+/* Rails must sit in their correct grid areas, not auto-place into row 2 */
+#odcm-insight-dashboard .odcm-pane-rail:not(.odcm-pane-rail--right) { grid-area: filters; }
+#odcm-insight-dashboard .odcm-pane-rail--right                       { grid-area: details; }
+
+/* Desktop (≥1024px): three-column layout with data-attribute collapse control */
+@media (min-width: 1024px) {
+    /* Reset legacy transform hide; display:none handles collapse on desktop */
+    #odcm-insight-dashboard .odcm-detail-pane { transform: none !important; }
+    #odcm-insight-dashboard .odcm-content-grid[data-detail-collapsed="true"] .odcm-detail-pane {
+        display: none !important;
+    }
+
+    /* Definitive three-column grid — ID(1,1,0) beats all class-only rules (0,4,0) */
+    #odcm-insight-dashboard .odcm-content-grid {
+        display: grid;
+        grid-template-areas: "filters stream details";
+        grid-template-columns: 260px 1fr 360px;
+        grid-template-rows: minmax(0, 1fr);
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        transition: grid-template-columns 0.3s ease;
+    }
+    #odcm-insight-dashboard .odcm-content-grid[data-filter-collapsed="true"] {
+        grid-template-columns: 44px 1fr 360px;
+    }
+    #odcm-insight-dashboard .odcm-content-grid[data-detail-collapsed="true"] {
+        grid-template-columns: 260px 1fr 44px;
+    }
+    #odcm-insight-dashboard .odcm-content-grid[data-filter-collapsed="true"][data-detail-collapsed="true"] {
+        grid-template-columns: 44px 1fr 44px;
+    }
+}
+
+/* Tablet (≤1023px): 2-column grid; detail pane overlays as position:absolute.
+   Existing CSS handles rail hiding, absolute positioning, and transform slide-over.
+   Only fix needed: remove "details" from grid-template-areas (prevents 0px phantom
+   column) and override the old class-based 300px column width. */
+@media (max-width: 1023px) {
+    #odcm-insight-dashboard .odcm-content-grid {
+        grid-template-areas: "filters stream";
+        grid-template-columns: 280px 1fr;
+    }
+    #odcm-insight-dashboard .odcm-content-grid[data-filter-collapsed="true"] {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==========================================================================
+   COLOR FIX — Override old hardcoded colors for dark / light mode parity
+   The old CSS section (lines 1-3460) uses --odcm-theme-* variables that are
+   fixed light-mode values and cannot respond to data-theme="dark".
+   ID-selector rules here beat all old class-only rules.
+   ========================================================================== */
+
+/* Pane headers: old CSS sets background: --odcm-theme-grey-100 (fixed light). */
+#odcm-insight-dashboard .odcm-pane-header,
+#odcm-insight-dashboard .odcm-filter-pane-header,
+#odcm-insight-dashboard .odcm-log-stream-header,
+#odcm-insight-dashboard .odcm-detail-pane-header {
+    background: var(--odcm-surface);
+    border-bottom-color: var(--odcm-border);
+    color: var(--odcm-ink);
+}
+
+/* Pane icon buttons: WP admin generic button rules beat the new design's 0,1,0
+   selector. ID specificity locks in the correct display, size, and color. */
+#odcm-insight-dashboard .odcm-pane-icon-button,
+#odcm-insight-dashboard .odcm-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    color: var(--odcm-muted);
+    background: transparent;
+    border: 0;
+    border-radius: var(--odcm-radius-1);
+    cursor: pointer;
+    line-height: 1;
+}
+#odcm-insight-dashboard .odcm-pane-icon-button:hover,
+#odcm-insight-dashboard .odcm-icon-button:hover {
+    color: var(--odcm-ink);
+    background: var(--odcm-surface-3);
+}
+#odcm-insight-dashboard .odcm-pane-icon-button.is-active,
+#odcm-insight-dashboard .odcm-pane-icon-button[aria-pressed="true"] {
+    color: var(--odcm-accent);
+    background: var(--odcm-accent-soft);
+}
+
+/* Pane rails — vertical collapsed-pane strips. Inherit ink color so SVGs show. */
+#odcm-insight-dashboard .odcm-pane-rail {
+    color: var(--odcm-muted);
+    background: var(--odcm-surface-2);
+    border: 0;
+    cursor: pointer;
+}
+
+/* Refresh and time-range widget buttons: WP generic button rules override the new
+   design's 0,1,0 selector — same fix as pane icon buttons above. */
+#odcm-insight-dashboard .odcm-refresh__manual,
+#odcm-insight-dashboard .odcm-refresh__picker {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--odcm-ink-2);
+    background: transparent;
+    border: 0;
+}
+#odcm-insight-dashboard .odcm-refresh__manual:hover {
+    background: var(--odcm-surface-2);
+    color: var(--odcm-accent);
+}
+/* Time-range button: only fix color — background/border come from new design section. */
+#odcm-insight-dashboard .odcm-time-range-btn {
+    color: var(--odcm-ink-2);
+}
+
+/* Utility: horizontal flip for directional chevrons (e.g. detail pane expand toggle). */
+.odcm-icon--flip {
+    transform: scaleX(-1);
+}
+
+/* Mobile dropdown containment — popups have right:0 and a fixed min-width.
+   On narrow screens max-width prevents leftward overflow. */
+@media (max-width: 600px) {
+    #odcm-insight-dashboard .odcm-time-range__pop,
+    #odcm-insight-dashboard .odcm-refresh__pop {
+        max-width: calc(100vw - 16px);
+        min-width: 200px;
+    }
+}
+
+/* Unified header sections: old CSS sets background: --odcm-theme-grey-100 */
+#odcm-insight-dashboard .odcm-unified-header-section {
+    background: var(--odcm-surface);
+    border-right-color: var(--odcm-border);
+}
+
+/* Filter form: old class names with fixed dark text on potentially dark bg */
+#odcm-insight-dashboard .odcm-filter-group label,
+#odcm-insight-dashboard .odcm-filter-section-title,
+#odcm-insight-dashboard .odcm-checkbox-item label {
+    color: var(--odcm-ink-2);
+}
+
+/* Advanced filter group: old CSS sets --odcm-theme-grey-100 bg */
+#odcm-insight-dashboard .odcm-advanced-filter-group {
+    background: var(--odcm-surface);
+    border-color: var(--odcm-border);
+}
+
+/* Date range separator */
+#odcm-insight-dashboard .odcm-date-range span { color: var(--odcm-muted); }
+
+/* WP native form elements inside the dashboard */
+#odcm-insight-dashboard input[type="text"],
+#odcm-insight-dashboard input[type="number"],
+#odcm-insight-dashboard input[type="date"],
+#odcm-insight-dashboard input[type="email"],
+#odcm-insight-dashboard input[type="search"],
+#odcm-insight-dashboard input[type="url"],
+#odcm-insight-dashboard select {
+    background: var(--odcm-surface);
+    border-color: var(--odcm-border-strong);
+    color: var(--odcm-ink);
+    box-shadow: none;
+}
+#odcm-insight-dashboard input[type="text"]:focus,
+#odcm-insight-dashboard input[type="number"]:focus,
+#odcm-insight-dashboard input[type="date"]:focus,
+#odcm-insight-dashboard input[type="email"]:focus,
+#odcm-insight-dashboard input[type="search"]:focus,
+#odcm-insight-dashboard input[type="url"]:focus,
+#odcm-insight-dashboard select:focus {
+    border-color: var(--odcm-accent);
+    box-shadow: 0 0 0 3px var(--odcm-accent-soft);
+    outline: none;
+}
+
+/* WP native .button class (secondary/default) */
+#odcm-insight-dashboard .button,
+#odcm-insight-dashboard .button-secondary {
+    background: var(--odcm-surface);
+    border-color: var(--odcm-border-strong);
+    color: var(--odcm-ink);
+    box-shadow: none;
+}
+#odcm-insight-dashboard .button:hover,
+#odcm-insight-dashboard .button-secondary:hover {
+    background: var(--odcm-surface-2);
+    border-color: var(--odcm-border-strong);
+    color: var(--odcm-ink);
+}
+
+/* WP native .button-primary */
+#odcm-insight-dashboard .button-primary {
+    background: var(--odcm-accent) !important;
+    border-color: var(--odcm-accent-hover) !important;
+    color: var(--odcm-on-accent) !important;
+    box-shadow: none !important;
+}
+#odcm-insight-dashboard .button-primary:hover {
+    background: var(--odcm-accent-hover) !important;
+    border-color: var(--odcm-accent-press) !important;
+}
+
+/* Log entries: old CSS sets background: --odcm-theme-white (fixed white) */
+#odcm-insight-dashboard .odcm-log-entry {
+    background: var(--odcm-surface);
+    border-color: var(--odcm-border);
+    color: var(--odcm-ink);
+}
+#odcm-insight-dashboard .odcm-log-entry:hover {
+    border-color: var(--odcm-border-strong);
+    box-shadow: var(--odcm-shadow-1);
+}
+#odcm-insight-dashboard .odcm-log-entry.is-selected {
+    background: var(--odcm-accent-soft);
+    border-color: var(--odcm-accent);
+}
+#odcm-insight-dashboard .odcm-log-entry.is-checkbox-selected {
+    background: var(--odcm-surface-2);
+    border-color: var(--odcm-border-strong);
+}
+
+/* Search filter group container: old CSS sets --odcm-theme-grey-100 bg */
+#odcm-insight-dashboard .odcm-search-filter-group {
+    background: var(--odcm-surface-2);
+    border-color: var(--odcm-border);
+}
+
+/* Component blocks in detail pane: old CSS sets --odcm-theme-grey-300 bg */
+#odcm-insight-dashboard .odcm-component {
+    background-color: var(--odcm-surface);
+    border-color: var(--odcm-border);
+}
+#odcm-insight-dashboard .odcm-component__header {
+    background-color: var(--odcm-surface-2);
+    color: var(--odcm-ink);
+    border-bottom-color: var(--odcm-border);
+}
+
+/* Segmented control (grouped/individual toggle) — ensure design-system tokens apply */
+#odcm-insight-dashboard .odcm-segmented {
+    background: var(--odcm-surface-2);
+    border-color: var(--odcm-border);
+}
+#odcm-insight-dashboard .odcm-segmented__item {
+    color: var(--odcm-muted);
+}
+#odcm-insight-dashboard .odcm-segmented__item.is-active,
+#odcm-insight-dashboard .odcm-segmented__item[aria-pressed="true"] {
+    background: var(--odcm-surface);
+    color: var(--odcm-ink);
+}
+
+/* View documentation link */
+#odcm-insight-dashboard .odcm-docs-link {
+    color: var(--odcm-ink-2);
+}
+#odcm-insight-dashboard .odcm-docs-link:hover {
+    color: var(--odcm-accent);
+}
+
+/* Checkboxes: accent color */
+/* Custom checkbox styling — appearance:none lets CSS variables control both states */
+#odcm-insight-dashboard input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    border: 1.5px solid var(--odcm-border-strong);
+    border-radius: 3px;
+    background: var(--odcm-surface);
+    cursor: pointer;
+    position: relative;
+    vertical-align: middle;
+    margin: 0;
+    flex-shrink: 0;
+    transition: border-color 0.15s, background 0.15s;
+}
+#odcm-insight-dashboard input[type="checkbox"]:checked {
+    background: var(--odcm-accent);
+    border-color: var(--odcm-accent);
+}
+#odcm-insight-dashboard input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: 2px solid #fff;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+}
+#odcm-insight-dashboard input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--odcm-accent);
+    outline-offset: 2px;
+}
+#odcm-insight-dashboard input[type="checkbox"]:indeterminate {
+    background: var(--odcm-accent);
+    border-color: var(--odcm-accent);
+}
+#odcm-insight-dashboard input[type="checkbox"]:indeterminate::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 6px;
+    width: 8px;
+    height: 2px;
+    background: #fff;
+}
+
+/* ==========================================================================
+   POSITIONING FIX — Universal header and pane placement relative to WP chrome
+
+   WP admin bar occupies: 32px (>782px) | 46px (≤782px) | 0px hidden (≤600px).
+   WP sets --wp-admin--admin-bar--height to 32 or 46 but does NOT reset it to 0
+   when the bar is visually hidden at ≤600px. --odcm-admin-bar-offset is a local
+   variable that correctly represents the occupied height at every breakpoint.
+   The formula top = admin-bar-offset + header-height works universally.
+   ========================================================================== */
+
+/* Default: trust WP's variable — handles 46px (≤782px) and 32px (>782px) */
+#odcm-insight-dashboard {
+    --odcm-admin-bar-offset: var(--wp-admin--admin-bar--height, 32px);
+}
+
+/* ≤600px: admin bar is hidden — WP does not reset the variable, so we do */
+@media (max-width: 600px) {
+    #odcm-insight-dashboard {
+        --odcm-admin-bar-offset: 0px;
+    }
+}
+
+/* Unified header: the dashboard container has overflow:hidden, which collapses
+   position:sticky to position:relative. top:0 keeps it at its natural position.
+   The WP admin bar (position:fixed, z-index:99999) floats above everything. */
+#odcm-insight-dashboard .odcm-unified-header {
+    top: 0;
+}
+
+/* ==========================================================================
+   MOBILE FIX — grid single-column when panes are position:fixed
+   ========================================================================== */
+
+@media (max-width: 767px) {
+    /* Filter and detail panes are position:fixed (out of grid flow).
+       Remove the dead "filters" track so log stream fills full width. */
+    #odcm-insight-dashboard .odcm-content-grid,
+    #odcm-insight-dashboard .odcm-content-grid[data-filter-collapsed="true"] {
+        grid-template-areas: "stream";
+        grid-template-columns: 1fr;
+    }
+    /* Panes must start below the unified header.
+       Uses --odcm-admin-bar-offset which correctly handles the hidden-bar case. */
+    #odcm-insight-dashboard .odcm-filter-pane,
+    #odcm-insight-dashboard .odcm-detail-pane {
+        top: calc(var(--odcm-admin-bar-offset) + var(--odcm-h-topbar));
     }
 }

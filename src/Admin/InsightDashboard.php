@@ -65,6 +65,9 @@ class InsightDashboard
         // Apply debug override early in the lifecycle
         $this->apply_debug_override();
 
+        // Init rules list page handlers (delete + bulk)
+        (new RulesListPage())->init();
+
         add_action('admin_menu', [$this, 'register_menu_page'], 15);
         add_action('admin_menu', [$this, 'remove_duplicate_submenu'], 999); // Late priority to ensure removal after WordPress processes menus
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets'], 10, 1);
@@ -145,12 +148,12 @@ class InsightDashboard
         // 3. Then add remaining submenu items
         // Keep manage_woocommerce for order rules management (requires admin)
         add_submenu_page(
-                self::PAGE_SLUG,
-                __('admin.insight_dashboard.submenu.all_order_rules', 'order-daemon'),
-                __('admin.insight_dashboard.filter.all_order_rules', 'order-daemon'),
-                'manage_woocommerce',
-                'edit.php?post_type=odcm_order_rule',
-                null
+            self::PAGE_SLUG,
+            __('admin.insight_dashboard.submenu.all_order_rules', 'order-daemon'),
+            __('admin.insight_dashboard.filter.all_order_rules', 'order-daemon'),
+            'manage_woocommerce',
+            'odcm-rules-list',
+            [new RulesListPage(), 'render']
         );
 
         // Add "Diagnostics" as third submenu item
@@ -251,11 +254,13 @@ class InsightDashboard
         );
 
         // Enqueue design system CSS first (contains shared styles including toasts)
+        $ds_path = defined('ODCM_PLUGIN_DIR') ? ODCM_PLUGIN_DIR . 'assets/css/odcm-design-system.css' : '';
+        $ds_version = (file_exists($ds_path)) ? filemtime($ds_path) : $plugin_version;
         wp_enqueue_style(
             'odcm-design-system',
             $assets_url . 'css/odcm-design-system.css',
             [],
-            $plugin_version
+            $ds_version
         );
 
         // Dashboard-specific CSS - use filemtime for cache busting during development/updates
@@ -284,7 +289,7 @@ class InsightDashboard
         // CSS loading validation and emergency fallback styles
         wp_add_inline_script(
             'odcm-insight-dashboard-js',
-            "(function(){try{var r=document.documentElement;var v=getComputedStyle(r).getPropertyValue('--odcm-theme-grey-100');if(!v||v.trim()===''){var s=document.createElement('style');s.setAttribute('data-odcm-inline-fallback','1');s.textContent='/* ODCM minimal fallback */ .odcm-insight-dashboard{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:#222;background:#fff;} .odcm-insight-dashboard .odcm-unified-header{position:sticky;top:0;background:#fff;border-bottom:1px solid #ddd;padding:8px;z-index:10;} .odcm-insight-dashboard .odcm-content-grid{display:flex;gap:8px;margin-top:8px;} .odcm-insight-dashboard .odcm-filter-pane,.odcm-insight-dashboard .odcm-log-stream,.odcm-insight-dashboard .odcm-detail-pane{border:1px solid #ddd;border-radius:4px;background:#fff;min-height:200px;padding:8px;flex:1;} @media(max-width:782px){.odcm-insight-dashboard .odcm-content-grid{flex-direction:column;}} .odcm-css-warning{border:1px solid #f0c36d;background:#fff8e5;color:#5f3b00;padding:8px;border-radius:4px;margin:8px 0;font-size:13px;} .odcm-badge--error{display:inline-block;background:#dc3545;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;} .odcm-advanced-filter-group input:disabled,.odcm-advanced-filter-group select:disabled{background:#eee;cursor:not-allowed;opacity:.7;}';document.head.appendChild(s);var b=document.createElement('div');b.className='odcm-css-warning';b.textContent='Order Daemon: Some styles failed to load. Using minimal fallback for safe display.';var c=document.getElementById('odcm-insight-dashboard');if(c){c.insertBefore(b,c.firstChild);}document.body.classList.add('odcm-css-fallback-mode');}}catch(e){}})();",
+            "(function(){try{var r=document.documentElement;var v=getComputedStyle(r).getPropertyValue('--odcm-theme-grey-100');if(!v||v.trim()===''){var s=document.createElement('style');s.setAttribute('data-odcm-inline-fallback','1');s.textContent='/* ODCM minimal fallback */ .odcm-insight-dashboard{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:#222;background:#fff;display:flex;flex-direction:column;height:calc(100vh - 32px);overflow:hidden;} .odcm-insight-dashboard .odcm-unified-header{background:#fff;border-bottom:1px solid #ddd;padding:8px;flex-shrink:0;} .odcm-insight-dashboard .odcm-content-grid{display:grid;grid-template-columns:260px 1fr 360px;grid-template-areas:\"filters stream details\";flex:1;min-height:0;} .odcm-insight-dashboard .odcm-content-grid[data-filter-collapsed]{grid-template-columns:44px 1fr 360px;} .odcm-insight-dashboard .odcm-content-grid[data-detail-collapsed]{grid-template-columns:260px 1fr 44px;} .odcm-insight-dashboard .odcm-filter-pane{grid-area:filters;border-right:1px solid #ddd;background:#fafafa;overflow-y:auto;} .odcm-insight-dashboard .odcm-log-stream{grid-area:stream;overflow-y:auto;} .odcm-insight-dashboard .odcm-detail-pane{grid-area:details;border-left:1px solid #ddd;overflow-y:auto;} @media(max-width:782px){.odcm-insight-dashboard .odcm-content-grid{display:flex;flex-direction:column;} .odcm-insight-dashboard .odcm-filter-pane,.odcm-insight-dashboard .odcm-detail-pane{display:none;}} .odcm-css-warning{border:1px solid #f0c36d;background:#fff8e5;color:#5f3b00;padding:8px;border-radius:4px;margin:8px 0;font-size:13px;} .odcm-badge--error{display:inline-block;background:#dc3545;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;} .odcm-advanced-filter-group input:disabled,.odcm-advanced-filter-group select:disabled{background:#eee;cursor:not-allowed;opacity:.7;}';document.head.appendChild(s);var b=document.createElement('div');b.className='odcm-css-warning';b.textContent='Order Daemon: Some styles failed to load. Using minimal fallback for safe display.';var c=document.getElementById('odcm-insight-dashboard');if(c){c.insertBefore(b,c.firstChild);}document.body.classList.add('odcm-css-fallback-mode');}}catch(e){}})();",
             'before'
         );
 
@@ -728,49 +733,71 @@ class InsightDashboard
         ?>
         <div class="wrap">
             <!-- Alpine.js App Container -->
-            <div id="odcm-insight-dashboard" 
+            <div id="odcm-insight-dashboard"
                  x-data="insightDashboard()"
                  x-init="init()"
-             class="odcm-insight-dashboard"
-             :class="dashboardClasses">
+                 class="odcm-insight-dashboard"
+                 :class="dashboardClasses">
 
-            <!-- Unified Sticky Header Bar -->
-            <div class="odcm-unified-header">
-                <?php $this->componentRenderers['unified_header']->renderWithContext($context); ?>
-            </div>
-
-            <!-- Content Grid -->
-            <div class="odcm-content-grid">
-                <!-- Filter Pane -->
-                <div class="odcm-filter-pane">
-                    <?php $this->componentRenderers['filter_pane']->renderWithContext($context); ?>
-                <!--</div> DO NOT UNCOMMENT THIS DIV - IT WILL BREAK UI -->
-
-                <!-- Log Stream -->
-                <div class="odcm-log-stream">
-                    <?php $this->componentRenderers['log_stream']->renderWithContext($context); ?>
+                <!-- Unified Sticky Header Bar -->
+                <div class="odcm-unified-header">
+                    <?php $this->componentRenderers['unified_header']->renderWithContext($context); ?>
                 </div>
 
-                <!-- Detail Pane -->
-                <div class="odcm-detail-pane">
-                    <?php $this->componentRenderers['detail_pane']->renderWithContext($context); ?>
-                </div>
-            </div>
+                <!-- Content Grid -->
+                <div class="odcm-content-grid" data-grid>
 
-            <!-- Toast Notifications -->
-            <div class="odcm-toast-container">
-                <template x-for="toast in (typeof ODCMToasts !== 'undefined' ? ODCMToasts.toasts : [])" :key="toast.id">
-                    <div class="odcm-toast" 
-                         :class="'odcm-toast--' + toast.type"
-                         x-show="true"
-                         x-transition:enter="odcm-toast-enter"
-                         x-transition:leave="odcm-toast-leave">
-                        <span x-text="toast.message"></span>
-                        <button type="button" @click="removeToast(toast.id)">×</button>
-                    </div>
-                </template>
+                    <!-- Filter Pane -->
+                    <aside class="odcm-filter-pane" data-pane="filter"
+                           <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('filterPaneVisible'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                        <?php $this->componentRenderers['filter_pane']->renderWithContext($context); ?>
+                    </aside>
+
+                    <!-- Filter Rail (shown when filter pane is collapsed) -->
+                    <button class="odcm-pane-rail" data-pane="filter-rail"
+                            <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!filterPaneVisible'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'openLastOpenedPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                            aria-label="<?php echo esc_attr__('admin.insight_dashboard.filters', 'order-daemon'); ?>">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+                    </button>
+
+                    <!-- Log Stream -->
+                    <main class="odcm-log-stream">
+                        <?php $this->componentRenderers['log_stream']->renderWithContext($context); ?>
+                    </main>
+
+                    <!-- Detail Pane -->
+                    <aside class="odcm-detail-pane" data-pane="detail">
+                        <?php $this->componentRenderers['detail_pane']->renderWithContext($context); ?>
+                    </aside>
+
+                    <!-- Detail Rail (shown when no log is selected) -->
+                    <button class="odcm-pane-rail odcm-pane-rail--right" data-pane="detail-rail"
+                            <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!selectedLog'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                            aria-label="<?php echo esc_attr__('admin.insight_dashboard.detail_pane.events_timeline', 'order-daemon'); ?>">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform:rotate(180deg)"><path d="m9 6 6 6-6 6"/></svg>
+                        <span class="odcm-pane-rail__label"><?php echo esc_html__('admin.insight_dashboard.detail_pane.events_timeline', 'order-daemon'); ?></span>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+                    </button>
+
+                </div>
+
+                <!-- Toast Notifications -->
+                <div class="odcm-toast-container">
+                    <template x-for="toast in (typeof ODCMToasts !== 'undefined' ? ODCMToasts.toasts : [])" :key="toast.id">
+                        <div class="odcm-toast"
+                             :class="'odcm-toast--' + toast.type"
+                             x-show="true"
+                             x-transition:enter="odcm-toast-enter"
+                             x-transition:leave="odcm-toast-leave">
+                            <span x-text="toast.message"></span>
+                            <button type="button" @click="removeToast(toast.id)">×</button>
+                        </div>
+                    </template>
+                </div>
+
             </div>
-        </div>
         </div>
         <?php
     }
@@ -813,127 +840,131 @@ class InsightDashboard
      */
     private function render_unified_header(): void
     {
-        $refresh_text  = esc_js(__('admin.insight_dashboard.logs.refresh_button', 'order-daemon'));
-        $every_text    = esc_js(__('admin.insight_dashboard.logs.refresh_interval_prefix', 'order-daemon'));
-        $seconds_text  = esc_js(__('admin.insight_dashboard.logs.refresh_interval_suffix', 'order-daemon'));
-
+        $refresh_label_expr = 'autoRefreshEnabled ? "' . esc_js(__('admin.insight_dashboard.logs.refresh_interval_prefix', 'order-daemon')) . ' " + refreshInterval + "s" : "' . esc_js(__('admin.insight_dashboard.actions.manual', 'order-daemon')) . '"';
         ?>
-        <div class="odcm-unified-header-content">
-            <!-- Filter Header with Icon Buttons -->
-            <div class="odcm-unified-header-section odcm-unified-header-filters">
-                <div class="odcm-filter-pane-header-actions">
-                    <!-- Static Controls: Always visible in the same order -->
-                    <div class="odcm-pane-icon-buttons">
-                        <!-- Left arrow: close current pane (visible only when pane is open) -->
-                        <button type="button"
-                                <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('filterPaneVisible'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'closeFilterPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-pane-icon-button']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                title="<?php echo esc_attr__('admin.insight_dashboard.pane.close', 'order-daemon'); ?>">
-                            <span class="dashicons dashicons-arrow-left-alt"></span>
-                        </button>
+        <!-- Brand -->
+        <div class="odcm-unified-header__brand">
+            <svg width="22" height="22" viewBox="0 0 128 128" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M115.575 38.0075C116.022 37.9874 116.467 38.0076 116.911 38.0682C117.074 38.4076 117.013 38.7113 116.728 38.9793C110.372 46.5109 104.341 54.2856 98.6351 62.3033C96.4699 65.5014 94.365 68.7407 92.3207 72.0217C91.9153 72.364 91.4499 72.4652 90.9242 72.3254C90.2886 71.689 89.7422 70.9803 89.2849 70.1995C86.957 66.4332 84.6903 62.6269 82.4847 58.7804C82.0502 57.6476 82.4348 57.2225 83.6383 57.5049C84.8632 58.3251 85.9359 59.3171 86.8562 60.4811C88.0448 62.0349 89.2794 63.5533 90.5599 65.0366C90.8192 65.1137 91.062 65.0732 91.2885 64.9151C93.8523 61.257 96.4631 57.6329 99.1209 54.0427C102.193 50.037 105.492 46.2104 109.018 42.563C110.486 41.1616 112.064 39.9062 113.753 38.7971C114.358 38.4955 114.965 38.2322 115.575 38.0075Z"/>
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M35.5513 43.3525C42.0969 42.9637 47.8042 44.9275 52.6732 49.2443C55.272 51.6805 57.5994 54.3328 59.6555 57.2011C59.9332 57.5996 60.1558 58.0248 60.3234 58.4767C59.7453 59.6333 59.0167 60.6861 58.1376 61.6351C57.9623 61.73 57.8004 61.7097 57.6519 61.5744C55.3649 57.9691 52.5719 54.7904 49.2731 52.0383C45.2311 48.7875 40.6167 47.3702 35.4299 47.7865C28.6765 48.9939 24.2036 52.8611 22.0117 59.3878C20.1255 67.2545 22.4934 73.4702 29.1154 78.0348C36.2941 81.8873 42.9729 81.1584 49.1517 75.8482C51.201 73.9197 53.1236 71.8747 54.9197 69.7135C57.8808 65.82 60.7952 61.8921 63.6628 57.93C66.5835 53.9957 69.9633 50.4931 73.8023 47.4221C79.2353 43.7409 85.1045 42.85 91.41 44.7495C93.6407 45.4694 95.5633 46.6639 97.178 48.3332C97.8828 49.5333 97.5387 50.0395 96.1458 49.8517C88.3096 45.9676 81.0641 46.818 74.4095 52.4027C71.581 55.1104 68.9702 58.0056 66.5771 61.0885C63.2644 65.6579 59.9047 70.1931 56.4983 74.6941C53.4913 78.5538 49.7472 81.449 45.2659 83.3799C36.2004 86.3776 28.4086 84.4137 21.8902 77.4882C17.7008 72.3713 16.2032 66.5403 17.3973 59.9952C19.2203 52.0575 23.9764 46.7731 31.6655 44.1421C32.9642 43.8115 34.2594 43.5482 35.5513 43.3525Z"/>
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M103.31 62.6677C103.51 62.6417 103.692 62.6823 103.857 62.7892C104.012 63.0585 104.133 63.3421 104.221 63.6396C104.425 70.9849 101.692 76.9577 96.0244 81.5578C89.3454 85.7966 82.4643 86.1206 75.381 82.5296C70.5663 79.657 66.6198 75.8708 63.5414 71.1713C63.4421 70.7505 63.4827 70.3455 63.6628 69.9565C63.8724 69.8258 64.095 69.8055 64.3307 69.8958C67.5089 73.4036 71.1114 76.3595 75.1381 78.7637C79.4853 81.2028 84.0998 81.9317 88.9813 80.9504C93.9758 79.5176 97.7605 76.5414 100.335 72.0216C101.837 69.3362 102.728 66.4613 103.007 63.3966C103.076 63.1365 103.177 62.8936 103.31 62.6677Z"/>
+            </svg>
+            <span class="odcm-unified-header__title">Order Daemon</span>
+        </div>
+        <span class="odcm-unified-header__sep" aria-hidden="true">/</span>
+        <span class="odcm-unified-header__crumb"><?php echo esc_html__('admin.insight_dashboard.submenu.insight_dashboard', 'order-daemon'); ?></span>
 
-                        <!-- Right arrow: open last opened pane (visible only when pane is closed) -->
-                        <button type="button"
-                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-pane-icon-button']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!filterPaneVisible'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'openLastOpenedPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                title="<?php echo esc_attr__('admin.insight_dashboard.pane.open_last', 'order-daemon'); ?>">
-                            <span class="dashicons dashicons-arrow-right-alt"></span>
-                        </button>
+        <div class="odcm-unified-header__controls">
 
-                        <!-- Filters tab button -->
-                        <button type="button"
-                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'showFiltersPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-pane-icon-button', 'odcm-active' => 'activeFilterTab === "filters" && filterPaneVisible']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                title="<?php echo esc_attr__('admin.insight_dashboard.filters', 'order-daemon'); ?>">
-                            <span class="dashicons dashicons-search"></span>
-                        </button>
+            <!-- Live / paused indicator -->
+            <span class="odcm-pill odcm-pill--success" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('autoRefreshEnabled'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                <span class="odcm-pill__dot"></span><?php echo esc_html__('admin.insight_dashboard.status.live', 'order-daemon'); ?>
+            </span>
+            <span class="odcm-pill" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!autoRefreshEnabled'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                <?php echo esc_html__('admin.insight_dashboard.status.paused', 'order-daemon'); ?>
+            </span>
 
-                        <!-- Settings tab button -->
-                        <button type="button"
-                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'showSettingsPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-pane-icon-button', 'odcm-active' => 'activeFilterTab === "settings" && filterPaneVisible']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                title="<?php echo esc_attr__('admin.insight_dashboard.settings.title', 'order-daemon'); ?>">
-                            <span class="dashicons dashicons-admin-generic"></span>
-                        </button>
+            <span class="odcm-vrule" aria-hidden="true"></span>
+
+            <!-- Time range picker (maps to existing date filter state) -->
+            <div class="odcm-time-range"
+                 x-data="{open: false, label: '<?php echo esc_js(__('admin.insight_dashboard.filters.date_range.label', 'order-daemon')); ?>'}"
+                 x-on:click.away="open = false"
+                 x-bind:aria-expanded="open">
+                <button class="odcm-time-range-btn" type="button"
+                        x-on:click="open = !open"
+                        aria-haspopup="true">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+                    <span x-text="label"></span>
+                    <svg class="odcm-time-range-btn__chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="odcm-time-range__pop" role="menu" x-show="open" x-cloak>
+                    <div class="odcm-time-range__pop-head">
+                        <span class="odcm-time-range__pop-title"><?php echo esc_html__('admin.insight_dashboard.filters.date_range.label', 'order-daemon'); ?></span>
                     </div>
-
-                    <!-- Documentation link -->
-                    <a href="<?php echo esc_url(ODCM_DOCS_URL); ?>"
-                       target="_blank"
-                       class="odcm-docs-link"
-                       title="<?php echo esc_attr__('admin.insight_dashboard.docs.view_documentation', 'order-daemon'); ?>">
-                        Docs&nbsp;
-                        <span class="dashicons dashicons-external"></span>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Log Stream Header -->
-            <div class="odcm-unified-header-section odcm-unified-header-stream">
-                <div class="odcm-stream-header-content">
-                    <h3><?php echo esc_html__('admin.insight_dashboard.stream.title', 'order-daemon'); ?></h3>
-                </div>
-                <div class="odcm-stream-controls">
-                    <div class="odcm-refresh-controls">
-                        <button type="button"
-                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'manualRefresh()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                <?php echo DashboardComponentUIToolkit::createClassAttribute(['odcm-refresh-button', 'odcm-button', 'is-disabled' => 'loading']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('loading'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                            <span <?php echo DashboardComponentUIToolkit::createClassAttribute(['dashicons', 'dashicons-update', 'is-spinning' => 'loading']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
-                            <span class="odcm-button-text" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding("'" . esc_js($refresh_text) . "'"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
-                        </button>
-
-                        <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('autoRefreshEnabled ? "' . $every_text . '" : ""'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
-
-                        <template x-if="autoRefreshEnabled">
-                            <input type="number"
-                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('refreshInterval'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                min="1"
-                                max="60"
-                                class="odcm-interval-input"
-                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', '$event.stopPropagation()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                        </template>
-
-                        <template x-if="autoRefreshEnabled">
-                            <span><?php echo esc_html($seconds_text); ?></span>
-                        </template>
-
-                        <label class="odcm-toggle-switch">
-                            <input type="checkbox" <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('autoRefreshEnabled'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                            <span class="odcm-toggle-slider"></span>
-                            <span class="odcm-toggle-label"><?php echo esc_html__('admin.insight_dashboard.actions.auto_refresh', 'order-daemon'); ?></span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Detail Header -->
-            <div class="odcm-unified-header-section odcm-unified-header-details" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('selectedLog'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                <h3><?php echo esc_html__('admin.insight_dashboard.detail_pane.events_timeline', 'order-daemon'); ?></h3>
-                <div class="odcm-detail-pane-header-actions">
-                    <button type="button"
-                            class="odcm-detail-pane-expand-toggle"
-                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleDetailPaneExpansion()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                            <?php
-                            echo DashboardComponentUIToolkit::createAlpineTitleBinding( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-                                'detailPaneExpanded ? ' .
-                                wp_json_encode(esc_attr__('admin.insight_dashboard.detail_pane.contract_details_pane', 'order-daemon')) .
-                                ' : ' .
-                                wp_json_encode(esc_attr__('admin.insight_dashboard.detail_pane.expand_details_pane', 'order-daemon'))
-                            );
-                            ?>>
-                        <span class="dashicons dashicons-arrow-left-alt icon-expand"></span>
-                        <span class="dashicons dashicons-arrow-right-alt icon-collapse"></span>
+                    <?php
+                    $ranges = [
+                        '1h'     => __('admin.insight_dashboard.filters.date_range.last_hour', 'order-daemon'),
+                        '24h'    => __('admin.insight_dashboard.filters.date_range.last_24h', 'order-daemon'),
+                        '7d'     => __('admin.insight_dashboard.filters.date_range.last_7d', 'order-daemon'),
+                        '30d'    => __('admin.insight_dashboard.filters.date_range.last_30d', 'order-daemon'),
+                        '90d'    => __('admin.insight_dashboard.filters.date_range.last_90d', 'order-daemon'),
+                        'all'    => __('admin.insight_dashboard.filters.date_range.all_time', 'order-daemon'),
+                    ];
+                    foreach ($ranges as $range_key => $range_label) :
+                        $encoded_label = esc_js($range_label);
+                        $encoded_key   = esc_attr($range_key);
+                    ?>
+                    <button class="odcm-time-range__opt" role="menuitemradio" type="button"
+                            data-range="<?php echo $encoded_key; ?>"
+                            x-on:click="applyDatePreset('<?php echo $encoded_key; ?>'); label = '<?php echo $encoded_label; ?>'; open = false; applyFilters()">
+                        <svg class="odcm-time-range__opt-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-11"/></svg>
+                        <span class="odcm-time-range__opt-label"><?php echo esc_html($range_label); ?></span>
                     </button>
-                    <button type="button"
-                            class="odcm-close-pane"
-                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'closeDetails()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                        <span class="dashicons dashicons-no-alt"></span>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <span class="odcm-vrule" aria-hidden="true"></span>
+
+            <!-- Refresh controls -->
+            <div class="odcm-refresh"
+                 x-data="{open: false}"
+                 x-on:click.away="open = false"
+                 x-bind:aria-expanded="open"
+                 x-bind:class="{'odcm-refresh--paused': !autoRefreshEnabled}">
+                <button class="odcm-refresh__manual" type="button"
+                        <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'manualRefresh()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                        <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{'is-spinning': loading}"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                        <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('loading'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                        title="<?php echo esc_attr__('admin.insight_dashboard.logs.refresh_button', 'order-daemon'); ?>"
+                        aria-label="<?php echo esc_attr__('admin.insight_dashboard.logs.refresh_button', 'order-daemon'); ?>">
+                    <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+                </button>
+                <span class="odcm-refresh__sep" aria-hidden="true"></span>
+                <button class="odcm-refresh__picker" type="button"
+                        x-on:click="open = !open"
+                        aria-haspopup="true">
+                    <span class="odcm-refresh__dot"></span>
+                    <span class="odcm-refresh__label" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding($refresh_label_expr); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+                    <svg class="odcm-refresh__chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <div class="odcm-refresh__pop" role="menu" x-show="open" x-cloak>
+                    <div class="odcm-refresh__pop-head">
+                        <span class="odcm-refresh__pop-title"><?php echo esc_html__('admin.insight_dashboard.actions.auto_refresh', 'order-daemon'); ?></span>
+                    </div>
+                    <?php
+                    $intervals = [3, 5, 10, 30, 60];
+                    foreach ($intervals as $secs) :
+                    ?>
+                    <button class="odcm-refresh__opt" role="menuitemradio" type="button"
+                            <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{'is-active': autoRefreshEnabled && refreshInterval === {$secs}}"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', "autoRefreshEnabled = true; refreshInterval = {$secs}; open = false"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                        <svg class="odcm-refresh__opt-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-11"/></svg>
+                        <span class="odcm-refresh__opt-label"><?php printf(esc_html__('admin.insight_dashboard.logs.refresh_every_n_seconds', 'order-daemon'), $secs); ?></span>
+                        <span class="odcm-refresh__opt-hint"><?php echo esc_html($secs . 's'); ?></span>
+                    </button>
+                    <?php endforeach; ?>
+                    <button class="odcm-refresh__opt odcm-refresh__opt--off" role="menuitemradio" type="button"
+                            <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{'is-active': !autoRefreshEnabled}"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'autoRefreshEnabled = false; open = false'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                        <svg class="odcm-refresh__opt-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-11"/></svg>
+                        <span class="odcm-refresh__opt-label"><?php echo esc_html__('admin.insight_dashboard.actions.manual_only', 'order-daemon'); ?></span>
+                        <span class="odcm-refresh__opt-hint">off</span>
                     </button>
                 </div>
             </div>
+
+            <span class="odcm-vrule" aria-hidden="true"></span>
+
+            <!-- Docs link -->
+            <a href="<?php echo esc_url(ODCM_DOCS_URL); ?>"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="odcm-btn odcm-btn--ghost odcm-btn--sm">
+                <?php echo esc_html__('admin.insight_dashboard.docs.view_documentation', 'order-daemon'); ?>
+            </a>
+
         </div>
         <?php
     }
@@ -944,12 +975,35 @@ class InsightDashboard
     private function render_filter_pane(): void
     {
         ?>
-        <div class="odcm-filter-pane-content">
+        <!-- Pane Header -->
+        <div class="odcm-pane-header">
+            <span class="odcm-pane-header__label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></svg>
+                <?php echo esc_html__('admin.insight_dashboard.filters', 'order-daemon'); ?>
+            </span>
+            <span class="odcm-pane-header__spacer"></span>
+            <!-- Settings tab toggle -->
+            <button type="button" class="odcm-pane-icon-button"
+                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'showSettingsPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                    <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{'is-active': activeFilterTab === 'settings'}"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                    title="<?php echo esc_attr__('admin.insight_dashboard.settings.title', 'order-daemon'); ?>">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+            <!-- Collapse button -->
+            <button type="button" class="odcm-pane-icon-button"
+                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'closeFilterPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                    title="<?php echo esc_attr__('admin.insight_dashboard.pane.close', 'order-daemon'); ?>">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform:rotate(180deg)"><path d="m9 6 6 6-6 6"/></svg>
+            </button>
+        </div>
+
+        <!-- Pane Body -->
+        <div class="odcm-pane-body">
             <!-- Filters Tab Content -->
             <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('activeFilterTab === "filters"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> class="odcm-tab-content">
                 <?php $this->render_filters_tab_content(); ?>
             </div>
-            
+
             <!-- Settings Tab Content -->
             <div <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('activeFilterTab === "settings"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> class="odcm-settings-pane-content">
                 <?php $this->render_settings_tab_content(); ?>
@@ -1061,7 +1115,6 @@ class InsightDashboard
                     </button>
                 </div>
             </form>
-        </div>
         <?php
     }
 
@@ -1070,124 +1123,127 @@ class InsightDashboard
      */
     private function render_settings_tab_content(): void
     {
-        // Get current setting values
         $detailed_notes = get_option('odcm_detailed_notes', false);
-        $global_debug = self::is_global_debug_active(); // Use the override-aware method
+        $global_debug   = self::is_global_debug_active();
+        $remove_data    = get_option('odcm_remove_all_data_on_uninstall', false);
 
         $processing_text = esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon'));
         $reprocess_text  = esc_js(__('admin.insight_dashboard.settings.reprocess_orders.label', 'order-daemon'));
-
         ?>
-        <div class="odcm-tab-content">
-            <!-- Display Settings Section -->
-            <div class="odcm-settings-section">
-                <div class="odcm-settings-group">
-                    <h3 class="odcm-settings-section-title"><?php echo esc_html__('admin.insight_dashboard.settings.display_label', 'order-daemon'); ?></h3>
-                    <div class="odcm-setting-row">
-                        <label class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.timestamp_format_label', 'order-daemon'); ?></label>
-                        <div class="odcm-setting-control">
-                            <button type="button"
-                                    class="odcm-timestamp-toggle button"
-                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleTimestampMode()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                    <?php echo DashboardComponentUIToolkit::createAlpineTitleBinding("'Current: ' + (timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime)"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                                <span class="dashicons dashicons-clock"></span>
-                                <span class="odcm-button-text"
-                                      <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('timestampDisplayMode === "timeOnly" ? i18n.timeOnly : timestampDisplayMode === "relative" ? i18n.relativeTime : i18n.dateAndTime'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                                    <?php echo esc_html__('admin.insight_dashboard.settings.timestamp_format_datetime', 'order-daemon'); ?>
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="odcm-setting-row">
-                        <label for="odcm_logs_per_page" class="odcm-setting-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_entries_per_page', 'order-daemon'); ?></label>
-                        <div class="odcm-setting-control">
-                            <input type="number" 
-                                id="odcm_logs_per_page"
-                                <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('perPage'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'updatePerPageSetting()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                min="10" 
-                                max="200" 
-                                class="small-text">
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Order Processing Section -->
-            <div class="odcm-settings-section">
-                <div class="odcm-settings-group">
-                    <div class="odcm-setting-row">
-                    <h3 class="odcm-settings-section-title">Order Processing</h3>
-                        <label class="odcm-setting-label">Reprocess Pending Orders</label>
-                        <div class="odcm-setting-control">
-                            <span class="odcm-setting-hint">Batch operation to reprocess orders with processing/on-hold statuses. (Useful after payment system failures and rule changes.)</span>
-                            <button type="button"
-                                    class="odcm-refresh-button odcm-button"
-                                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'reprocessPendingOrders()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                    <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('isReprocessing'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                                <span <?php echo DashboardComponentUIToolkit::createClassAttribute(['dashicons', 'dashicons-update', 'is-spinning' => 'isReprocessing']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
-                                <span class="odcm-button-text" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('isReprocessing ? "' . esc_js($processing_text) . '" : "' . esc_js($reprocess_text) . '"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="st">
 
-            <!-- Debug Settings Section -->
-            <div class="odcm-settings-section">
-                <div class="odcm-settings-group">
-                    <div class="odcm-setting-row">
-                        <h3 class="odcm-settings-section-title">Debug</h3>
-                        <label for="odcm_global_debug" class="odcm-setting-label">
-                            <input type="checkbox"
-                                   name="odcm_global_debug"
-                                   id="odcm_global_debug"
-                                   <?php checked($global_debug); ?>
-                                   <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'saveDebugSetting(\'odcm_global_debug\', $event.target.checked)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                            Toggle Global ODCM Debug Mode
-                        </label>
-                        <span class="odcm-setting-hint">Enable server-wide debug logging (use with caution)</span>
-                    </div>
-                    <div class="odcm-setting-row">
-                        <label for="odcm_detailed_notes" class="odcm-setting-label">
-                            <input type="checkbox"
-                                   name="odcm_detailed_notes"
-                                   id="odcm_detailed_notes"
-                                   <?php checked($detailed_notes); ?>
-                                   <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'saveDebugSetting(\'odcm_detailed_notes\', $event.target.checked)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                            Add Detailed Order Notes
-                        </label>
-                        <span class="odcm-setting-hint">Add debug info to order notes when rules don't match</span>
-                    </div>
-                </div>
+          <!-- Display -->
+          <div class="st__card">
+            <div>
+              <h4 class="st__sect-title"><?php echo esc_html__('admin.insight_dashboard.settings.display_label', 'order-daemon'); ?></h4>
+              <p class="st__sect-sub"><?php echo esc_html__('admin.insight_dashboard.settings.display_sub', 'order-daemon'); ?></p>
             </div>
-
-            <!-- DANGER ZONE Settings Section -->
-            <div class="odcm-settings-section">
-                <div class="odcm-settings-group">
-                    <div class="odcm-setting-row">
-                        <h3 class="odcm-settings-section-title">DANGER ZONE</h3>
-                        <label for="odcm_remove_all_data_on_uninstall" class="odcm-setting-label">
-                            <input type="checkbox"
-                                name="odcm_remove_all_data_on_uninstall"
-                                id="odcm_remove_all_data_on_uninstall"
-                                <?php checked(get_option('odcm_remove_all_data_on_uninstall', false)); ?>
-                                <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'saveUninstallDataSetting($event.target.checked)'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                            Uninstall Removes All Order Daemon Data
-                        </label>
-                        <span class="odcm-setting-hint">When this plugin is uninstalled, also remove all audit log tables, options, and rules. This cannot be undone.</span>
-                    </div>
-                </div>
+            <div class="st__field">
+              <div>
+                <div class="st__field-label"><?php echo esc_html__('admin.insight_dashboard.settings.log_entries_per_page', 'order-daemon'); ?></div>
+                <div class="st__field-help"><?php echo esc_html__('admin.insight_dashboard.settings.log_entries_per_page_help', 'order-daemon'); ?></div>
+              </div>
+              <div class="st__field-input">
+                <input class="odcm-input" type="number" id="odcm_logs_per_page"
+                  <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('perPage'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                  <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'updatePerPageSetting()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                  min="10" max="200" style="width: 80px; text-align: center;" />
+              </div>
             </div>
+            <div class="st__field">
+              <div>
+                <div class="st__field-label"><?php echo esc_html__('admin.insight_dashboard.settings.timestamp_format_label', 'order-daemon'); ?></div>
+              </div>
+              <div class="st__field-input">
+                <button type="button" class="odcm-btn odcm-btn--secondary odcm-btn--sm"
+                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleTimestampMode()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                    <?php echo DashboardComponentUIToolkit::createAlpineTitleBinding("'Current: ' + (timestampDisplayMode === 'timeOnly' ? i18n.timeOnly : timestampDisplayMode === 'relative' ? i18n.relativeTime : i18n.dateAndTime)"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                  <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('timestampDisplayMode === "timeOnly" ? i18n.timeOnly : timestampDisplayMode === "relative" ? i18n.relativeTime : i18n.dateAndTime'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>><?php echo esc_html__('admin.insight_dashboard.settings.timestamp_format_datetime', 'order-daemon'); ?></span>
+                </button>
+              </div>
+            </div>
+          </div>
 
-            <!-- Custom Webhook Section -->
-            <?php $this->render_custom_webhook_section(); ?>
+          <!-- Order Processing -->
+          <div class="st__card">
+            <div>
+              <h4 class="st__sect-title"><?php echo esc_html__('admin.insight_dashboard.settings.order_processing_title', 'order-daemon'); ?></h4>
+            </div>
+            <div class="st__field">
+              <div>
+                <div class="st__field-label"><?php echo esc_html__('admin.insight_dashboard.settings.reprocess_orders.label', 'order-daemon'); ?></div>
+                <div class="st__field-help"><?php echo esc_html__('admin.insight_dashboard.settings.reprocess_orders.hint', 'order-daemon'); ?></div>
+              </div>
+              <div class="st__field-input">
+                <button type="button" class="odcm-btn odcm-btn--secondary odcm-btn--sm"
+                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'reprocessPendingOrders()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                    <?php echo DashboardComponentUIToolkit::createAlpineDisabledBinding('isReprocessing'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                  <span <?php echo DashboardComponentUIToolkit::createClassAttribute(['dashicons', 'dashicons-update', 'is-spinning' => 'isReprocessing']); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+                  <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('isReprocessing ? "' . $processing_text . '" : "' . $reprocess_text . '"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+                </button>
+              </div>
+            </div>
+          </div>
 
-            <?php
-            // Allow extension plugins to add additional settings sections
-            // Placed at the bottom to maintain UI consistency - extensions should appear after core settings
-            do_action('odcm_insight_dashboard_settings_sections');
-            ?>
+          <!-- Debug -->
+          <div class="st__card">
+            <div>
+              <h4 class="st__sect-title"><?php echo esc_html__('admin.insight_dashboard.settings.debug_title', 'order-daemon'); ?></h4>
+            </div>
+            <div class="st__field">
+              <div>
+                <div class="st__field-label"><?php echo esc_html__('admin.insight_dashboard.settings.debug.global_debug.label', 'order-daemon'); ?></div>
+                <div class="st__field-help"><?php echo esc_html__('admin.insight_dashboard.settings.debug.global_debug.hint', 'order-daemon'); ?></div>
+              </div>
+              <div class="st__field-input">
+                <button class="odcm-toggle" role="switch"
+                    aria-checked="<?php echo esc_attr($global_debug ? 'true' : 'false'); ?>"
+                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'saveDebugSetting(\'odcm_global_debug\', $el.getAttribute(\'aria-checked\') !== \'true\'); $el.setAttribute(\'aria-checked\', $el.getAttribute(\'aria-checked\') === \'true\' ? \'false\' : \'true\')'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                  <span class="odcm-toggle__thumb"></span>
+                </button>
+              </div>
+            </div>
+            <div class="st__field">
+              <div>
+                <div class="st__field-label"><?php echo esc_html__('admin.insight_dashboard.settings.debug.detailed_notes.label', 'order-daemon'); ?></div>
+                <div class="st__field-help"><?php echo esc_html__('admin.insight_dashboard.settings.debug.detailed_notes.hint', 'order-daemon'); ?></div>
+              </div>
+              <div class="st__field-input">
+                <button class="odcm-toggle" role="switch"
+                    aria-checked="<?php echo esc_attr($detailed_notes ? 'true' : 'false'); ?>"
+                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'saveDebugSetting(\'odcm_detailed_notes\', $el.getAttribute(\'aria-checked\') !== \'true\'); $el.setAttribute(\'aria-checked\', $el.getAttribute(\'aria-checked\') === \'true\' ? \'false\' : \'true\')'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                  <span class="odcm-toggle__thumb"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Custom Webhook -->
+          <?php $this->render_custom_webhook_section(); ?>
+
+          <!-- Data management (danger zone) -->
+          <div class="st__card st__danger">
+            <div>
+              <h4 class="st__sect-title"><?php echo esc_html__('admin.insight_dashboard.settings.danger_zone_title', 'order-daemon'); ?></h4>
+              <p class="st__sect-sub"><?php echo esc_html__('admin.insight_dashboard.settings.danger_zone_sub', 'order-daemon'); ?></p>
+            </div>
+            <div class="st__field">
+              <div>
+                <div class="st__field-label"><?php echo esc_html__('admin.insight_dashboard.settings.uninstall_data.label', 'order-daemon'); ?></div>
+                <div class="st__field-help"><?php echo esc_html__('admin.insight_dashboard.settings.uninstall_data.hint', 'order-daemon'); ?></div>
+              </div>
+              <div class="st__field-input">
+                <select class="odcm-select" style="width: 200px;"
+                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('change', 'saveUninstallDataSetting($event.target.value === \'delete\')'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                  <option value="keep" <?php selected(!$remove_data); ?>><?php echo esc_html__('admin.insight_dashboard.settings.uninstall_data.keep', 'order-daemon'); ?></option>
+                  <option value="delete" <?php selected($remove_data); ?>><?php echo esc_html__('admin.insight_dashboard.settings.uninstall_data.delete', 'order-daemon'); ?></option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <?php do_action('odcm_insight_dashboard_settings_sections'); ?>
+
         </div>
         <?php
     }
@@ -1725,6 +1781,41 @@ class InsightDashboard
     private function render_log_stream(): void
     {
         ?>
+        <!-- Stream Header -->
+        <div class="odcm-log-stream-header odcm-pane-header">
+            <button type="button" class="odcm-filter-trigger"
+                    <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!filterPaneVisible'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'showFiltersPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                    aria-label="<?php echo esc_attr__('admin.insight_dashboard.filters', 'order-daemon'); ?>">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></svg>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+            </button>
+            <h4 class="odcm-pane-header__title"><?php echo esc_html__('admin.insight_dashboard.stream.title', 'order-daemon'); ?></h4>
+            <span class="odcm-pane-header__count"
+                  <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('total > 0'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                &middot; <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('total.toLocaleString()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span> <?php echo esc_html__('admin.insight_dashboard.log_stream.events_label', 'order-daemon'); ?>
+            </span>
+            <span class="odcm-pane-header__spacer"></span>
+            <!-- Grouped / Individual segmented control (mirrors existing view mode toggle) -->
+            <div class="odcm-segmented" role="radiogroup"
+                 aria-label="<?php echo esc_attr__('admin.insight_dashboard.log_stream.view_mode_label', 'order-daemon'); ?>">
+                <button type="button" class="odcm-segmented__item"
+                        role="radio"
+                        <?php echo DashboardComponentUIToolkit::createAlpineBind('aria-pressed', 'viewMode === "consolidated"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                        <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{'is-active': viewMode === 'consolidated'}"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                        <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', "setViewMode('consolidated')"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                    <?php echo esc_html__('admin.insight_dashboard.log_stream.view_grouped', 'order-daemon'); ?>
+                </button>
+                <button type="button" class="odcm-segmented__item"
+                        role="radio"
+                        <?php echo DashboardComponentUIToolkit::createAlpineBind('aria-pressed', 'viewMode === "flat"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                        <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{'is-active': viewMode === 'flat'}"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                        <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', "setViewMode('flat')"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                    <?php echo esc_html__('admin.insight_dashboard.log_stream.view_individual', 'order-daemon'); ?>
+                </button>
+            </div>
+        </div>
+
         <div class="odcm-log-stream-content">
 
             <!-- Loading State -->
@@ -1845,34 +1936,6 @@ class InsightDashboard
                                 <span class="odcm-delete-label-desktop" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('isDeleting ? "' . esc_js(__('admin.insight_dashboard.log_stream.deleting', 'order-daemon')) . '" : "' . esc_js(__('admin.insight_dashboard.log_stream.delete_selected', 'order-daemon')) . '"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
                                 <span class="odcm-delete-label-mobile" <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('isDeleting ? "' . esc_js(__('admin.insight_dashboard.log_stream.deleting', 'order-daemon')) . '" : "' . esc_js(__('admin.ui.delete', 'order-daemon')) . ' " + selectedCount'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
                             </button>
-                        </div>
-                        <div class="odcm-controls-divider" aria-hidden="true"></div>
-                        <div class="odcm-stream-view-toggle odcm-segmented" role="radiogroup" aria-label="Toggle view mode">
-                            <div class="odcm-segmented-track">
-                                <div class="odcm-segmented-thumb"
-                                        <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{ 'is-right': viewMode === 'flat', 'is-left': viewMode !== 'flat' }"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                                </div>
-
-                                <button type="button"
-                                        class="odcm-segmented-option"
-                                        role="radio"
-                                        <?php echo DashboardComponentUIToolkit::createAlpineBind('aria-checked', 'viewMode === "consolidated"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                        <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{ 'is-active': viewMode === 'consolidated' }"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                        <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'setViewMode(\'consolidated\')'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                                    <?php echo esc_html__('admin.insight_dashboard.log_stream.view_grouped', 'order-daemon'); ?>
-                                </button>
-
-                                <button type="button"
-                                        class="odcm-segmented-option"
-                                        role="radio"
-                                        <?php echo DashboardComponentUIToolkit::createAlpineBind('aria-checked', 'viewMode === "flat"'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                        <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{ 'is-active': viewMode === 'flat' }"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                        <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'setViewMode(\'flat\')'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                                        title="<?php echo esc_attr__('admin.insight_dashboard.log_stream.view_individual_title', 'order-daemon'); ?>">
-                                    <?php echo esc_html__('admin.insight_dashboard.log_stream.view_individual', 'order-daemon'); ?>
-                                </button>
-                                
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -2033,6 +2096,27 @@ class InsightDashboard
     private function render_detail_pane(): void
     {
         ?>
+        <!-- Detail Pane Header (shown when a log is selected) -->
+        <div class="odcm-pane-header" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('selectedLog'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+            <button type="button" class="odcm-pane-icon-button"
+                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleDetailPaneExpansion()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                    <?php echo DashboardComponentUIToolkit::createAlpineTitleBinding('detailPaneExpanded ? ' . wp_json_encode(esc_attr__('admin.insight_dashboard.detail_pane.contract_details_pane', 'order-daemon')) . ' : ' . wp_json_encode(esc_attr__('admin.insight_dashboard.detail_pane.expand_details_pane', 'order-daemon'))); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+                     <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{'odcm-icon--flip': detailPaneExpanded}"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>><path d="m9 6 6 6-6 6"/></svg>
+            </button>
+            <h4 class="odcm-pane-header__title"><?php echo esc_html__('admin.insight_dashboard.detail_pane.events_timeline', 'order-daemon'); ?></h4>
+            <span class="odcm-pane-header__spacer"></span>
+            <span class="odcm-pill odcm-pill--info" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('selectedLog && selectedLog.order_id'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                <span class="odcm-pill__dot"></span>
+                Order&nbsp;#<span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('selectedLog ? selectedLog.order_id : ""'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
+            </span>
+            <button type="button" class="odcm-pane-icon-button"
+                    <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'closeDetails()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                    title="<?php echo esc_attr__('admin.insight_dashboard.close', 'order-daemon'); ?>">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+
         <div class="odcm-detail-pane-content">
             <!-- Loading State -->
             <div class="odcm-detail-loading" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('detailLoading'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
@@ -2041,14 +2125,14 @@ class InsightDashboard
             </div>
 
             <!-- Detail Content -->
-            <div class="odcm-detail-content" 
+            <div class="odcm-detail-content"
                  <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!detailLoading && selectedLog'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                  <?php echo DashboardComponentUIToolkit::createAlpineHtmlBinding('detailHtml'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
             </div>
 
             <!-- Empty State -->
             <div class="odcm-detail-empty" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!detailLoading && !selectedLog'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                <span class="dashicons dashicons-info"></span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
                 <span <?php echo DashboardComponentUIToolkit::createAlpineTextBinding('i18n.selectLog'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>></span>
             </div>
         </div>

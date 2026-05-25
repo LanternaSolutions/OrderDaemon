@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(done)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(docker compose*)",
+      "Bash(curl*)",
+      "Bash(git -C*)",
+      "Bash(mkdir -p*)",
+      "Bash(journalctl*)",
+      "Bash(chmod +x*)",
+      "Bash(php -l*)"
     ]
   }
 }

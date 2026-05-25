@@ -56,23 +56,22 @@
    RULE BUILDER APPLICATION SHELL
    ========================================================================== */
 
-/* App Wrapper */
+/* App Wrapper — transparent shell; visual containment is on .rb__body */
 .odcm-rule-builder-wrapper {
-    background: var(--odcm-theme-white);
-    border: 1px solid var(--odcm-component-border-color);
-    border-radius: var(--odcm-component-border-radius);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin: 0 0 var(--odcm-theme-spacing-md) 0;
-    overflow: visible; /* Allow content to extend beyond bounds for hover effects */
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+    overflow: visible;
     display: flex;
     flex-direction: column;
     max-width: 100%;
     width: 100%;
-    /* STANDARDIZED FONT STYLING - Applied to entire rule builder */
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: var(--odcm-theme-font-size-md);
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-sm);
     line-height: 1.5;
-    color: var(--odcm-component-text-color-body);
+    color: var(--odcm-ink);
 }
 
 /* Ensure proper spacing in WordPress admin context */
@@ -126,8 +125,8 @@
 }
 
 .odcm-rule-builder-header {
-    background: var(--odcm-theme-grey-100);
-    border-bottom: 1px solid var(--odcm-component-border-color);
+    background: var(--odcm-surface-2);
+    border-bottom: 1px solid var(--odcm-border);
     padding: var(--odcm-theme-spacing-md);
     display: flex;
     justify-content: space-between;
@@ -2019,3 +2018,452 @@
         margin-right: 0;
     }
 }
+
+
+/* ==========================================================================
+   RULE BUILDER v2 — Component Styles (from design handoff)
+   Compact rb__ BEM system for the Rule Builder page.
+   Requires: odcm-design-system.css (for --odcm-* tokens).
+   ========================================================================== */
+  .rb { padding: 22px 28px 64px; max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  @media (max-width: 767px) { .rb { padding: 18px 14px 64px; } }
+
+  /* Title row */
+  .rb__title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .rb__title { font-size: var(--odcm-text-xl); font-weight: 500; letter-spacing: -0.01em; margin: 0; }
+  .rb__title-actions { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+  @media (max-width: 767px) { .rb__title-row { gap: 8px; } .rb__title-actions { gap: 6px; margin-left: 0; width: 100%; } .rb__title-actions .odcm-btn { flex: 1; justify-content: center; } }
+
+  /* Name input */
+  .rb__name { width: 100%; height: 44px; font-size: var(--odcm-text-md); padding: 0 14px; }
+
+  /* Body */
+  .rb__body { background: var(--odcm-surface); border: 1px solid var(--odcm-border); border-radius: var(--odcm-radius-4); padding: 20px; display: flex; flex-direction: column; gap: 22px; }
+  @media (max-width: 767px) { .rb__body { padding: 16px; gap: 18px; } }
+
+  .rb__meta-row { display: flex; align-items: center; gap: 10px; }
+  .rb__meta-label { font-family: var(--odcm-font-mono); font-size: var(--odcm-text-2xs); color: var(--odcm-muted); letter-spacing: 0.1em; text-transform: uppercase; }
+  .rb__meta-id { font-family: var(--odcm-font-mono); font-size: var(--odcm-text-2xs); color: var(--odcm-muted); margin-left: auto; }
+  .rb__meta-summary { font-size: var(--odcm-text-xs); color: var(--odcm-muted); }
+
+  /* Section */
+  .rb__section { display: flex; flex-direction: column; gap: 10px; }
+  .rb__section-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .rb__section-sub { font-size: var(--odcm-text-xs); color: var(--odcm-muted); }
+  .rb__section-count { font-family: var(--odcm-font-mono); font-size: var(--odcm-text-2xs); color: var(--odcm-muted); }
+  .rb__section-help { font-size: var(--odcm-text-xs); color: var(--odcm-muted); margin: 0; line-height: 1.5; max-width: 64ch; }
+
+  /* Component row (closed) */
+  .rb__row {
+    background: var(--odcm-surface-2);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: border-color var(--odcm-dur-fast) var(--odcm-ease), box-shadow var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .rb__row:hover { border-color: var(--odcm-border-strong); }
+  .rb__row[data-expanded="true"] {
+    background: var(--odcm-accent-soft);
+    border-color: var(--odcm-accent);
+    box-shadow: 0 0 0 3px var(--odcm-accent-soft);
+  }
+
+  .rb__row-head {
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: 16px 1fr auto;
+    gap: 10px;
+    align-items: center;
+  }
+  .rb__row-head .drag {
+    color: var(--odcm-muted);
+    cursor: grab;
+    user-select: none;
+    line-height: 1;
+    font-size: 14px;
+  }
+  .rb__row-head .drag:active { cursor: grabbing; }
+  .rb__row-summary {
+    font-size: var(--odcm-text-sm);
+    color: var(--odcm-ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .rb__row-summary .label { font-weight: 500; }
+  .rb__row-summary .value { color: var(--odcm-ink-2); }
+  .rb__row-summary .qualifier { color: var(--odcm-muted); font-size: var(--odcm-text-xs); }
+  .rb__row-summary .success { color: var(--odcm-success); font-weight: 500; }
+
+  .rb__row-actions { display: inline-flex; align-items: center; gap: 4px; }
+  .rb__icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: transparent;
+    border: 0;
+    border-radius: var(--odcm-radius-1);
+    color: var(--odcm-muted);
+    cursor: pointer;
+    transition: color var(--odcm-dur-fast) var(--odcm-ease), background-color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .rb__icon-btn:hover { color: var(--odcm-ink); background: var(--odcm-surface-3); }
+  .rb__icon-btn--danger:hover { color: var(--odcm-danger); background: var(--odcm-danger-soft); }
+
+  /* Expanded settings panel */
+  .rb__row-body {
+    display: none;
+    padding: 0 12px 12px;
+  }
+  .rb__row[data-expanded="true"] .rb__row-body { display: block; }
+  .rb__settings {
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-2);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .rb__field { display: flex; flex-direction: column; gap: 6px; }
+  .rb__field-label { font-size: var(--odcm-text-sm); font-weight: 500; color: var(--odcm-ink); }
+  .rb__field-help { font-size: var(--odcm-text-xs); color: var(--odcm-muted); line-height: 1.5; }
+  .rb__field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 767px) { .rb__field-row { grid-template-columns: 1fr; } }
+
+  /* Checkbox group inside settings */
+  .rb__checks { display: flex; flex-direction: column; gap: 4px; }
+  .rb__check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--odcm-radius-1);
+    border: 1px solid transparent;
+    font-size: var(--odcm-text-sm);
+    color: var(--odcm-ink-2);
+    cursor: pointer;
+    transition: background-color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .rb__check:hover { background: var(--odcm-surface-2); }
+  .rb__check input { accent-color: var(--odcm-accent); }
+  .rb__check--on {
+    background: var(--odcm-success-soft);
+    color: var(--odcm-success);
+    font-weight: 500;
+  }
+  .rb__check--on input { accent-color: var(--odcm-success); }
+  .rb__check-meta { margin-left: auto; font-family: var(--odcm-font-mono); font-size: var(--odcm-text-2xs); color: var(--odcm-muted); letter-spacing: 0.04em; }
+  .rb__check--on .rb__check-meta { color: var(--odcm-success); }
+
+  /* Settings footer */
+  .rb__settings-foot { display: flex; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px solid var(--odcm-rule); }
+  .rb__settings-foot .preview { font-family: var(--odcm-font-mono); font-size: var(--odcm-text-2xs); color: var(--odcm-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Pills inside summary */
+  .rb__pill-primary { background: var(--odcm-accent-soft); color: var(--odcm-accent); }
+
+  /* Add component picker — collapsed (dashed button) */
+  .rb__add {
+    padding: 12px 14px;
+    background: transparent;
+    border: 1px dashed var(--odcm-border-strong);
+    border-radius: var(--odcm-radius-2);
+    color: var(--odcm-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-sm);
+    transition: border-color var(--odcm-dur-fast) var(--odcm-ease), color var(--odcm-dur-fast) var(--odcm-ease), background-color var(--odcm-dur-fast) var(--odcm-ease);
+    width: 100%;
+    text-align: left;
+  }
+  .rb__add:hover { border-color: var(--odcm-accent); color: var(--odcm-accent); background: var(--odcm-accent-soft); }
+  .rb__add .plus { font-size: 18px; line-height: 1; }
+
+  /* Add component picker — expanded (open panel) */
+  .rb__picker {
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-accent);
+    border-radius: var(--odcm-radius-3);
+    box-shadow: var(--odcm-shadow-2);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .rb__picker-head { display: flex; align-items: flex-start; gap: 12px; }
+  .rb__picker-head h4 { margin: 0; font-size: var(--odcm-text-md); font-weight: 600; letter-spacing: -0.005em; }
+  .rb__picker-head p { margin: 4px 0 0; font-size: var(--odcm-text-xs); color: var(--odcm-muted); max-width: 52ch; line-height: 1.5; }
+
+  .rb__picker-search { position: relative; }
+  .rb__picker-search .icon { position: absolute; left: 11px; top: 10px; color: var(--odcm-muted); pointer-events: none; }
+  .rb__picker-search input { padding-left: 32px; }
+
+  .rb__picker-categories {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    background: var(--odcm-surface-2);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-2);
+    gap: 0;
+    align-self: flex-start;
+  }
+  .rb__picker-categories button {
+    background: transparent;
+    border: 0;
+    padding: 4px 10px;
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-xs);
+    color: var(--odcm-muted);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color var(--odcm-dur-fast) var(--odcm-ease), color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .rb__picker-categories button.is-active {
+    background: var(--odcm-surface);
+    color: var(--odcm-ink);
+    font-weight: 500;
+    box-shadow: var(--odcm-shadow-1);
+  }
+
+  .rb__picker-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+  .rb__picker-item {
+    text-align: left;
+    padding: 12px 14px;
+    background: transparent;
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-2);
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    font-family: var(--odcm-font-sans);
+    transition: background-color var(--odcm-dur-fast) var(--odcm-ease), border-color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .rb__picker-item:hover { background: var(--odcm-accent-soft); border-color: var(--odcm-accent); }
+  .rb__picker-item:disabled,
+  .rb__picker-item[disabled] { opacity: 0.55; cursor: not-allowed; background: var(--odcm-surface-2); }
+  .rb__picker-item-icon {
+    width: 28px; height: 28px;
+    border-radius: var(--odcm-radius-2);
+    background: var(--odcm-accent-soft);
+    color: var(--odcm-accent);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .rb__picker-item-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .rb__picker-item-head { display: flex; align-items: center; gap: 8px; }
+  .rb__picker-item-label { font-size: var(--odcm-text-sm); font-weight: 500; color: var(--odcm-ink); }
+  .rb__picker-item-desc { font-size: var(--odcm-text-xs); color: var(--odcm-muted); line-height: 1.45; }
+  .rb__picker-item-chev { color: var(--odcm-muted); }
+
+  /* Bottom action bar in body */
+  .rb__foot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--odcm-rule);
+    flex-wrap: wrap;
+  }
+  .rb__foot-meta { font-size: var(--odcm-text-xs); color: var(--odcm-muted); }
+  .rb__foot-actions { margin-left: auto; display: inline-flex; gap: 8px; }
+  @media (max-width: 767px) { .rb__foot-actions { width: 100%; margin-left: 0; } .rb__foot-actions .odcm-btn { flex: 1; justify-content: center; } }
+
+  /* Validation banner */
+  .rb__validation {
+    background: var(--odcm-success-soft);
+    border-left: 3px solid var(--odcm-success);
+    border-radius: var(--odcm-radius-2);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: var(--odcm-text-sm);
+    color: var(--odcm-success);
+  }
+  .rb__validation .icon { flex-shrink: 0; }
+  .rb__validation .text { color: var(--odcm-ink-2); font-weight: 400; }
+  .rb__validation .text strong { color: var(--odcm-ink); font-weight: 500; }
+
+/* ==========================================================================
+   WP CHROME SKINNING — POST TITLE + PUBLISH METABOX
+   Scoped to the rule CPT so other post types are untouched.
+   ========================================================================== */
+
+/* Post title input */
+body.post-type-odcm_order_rule #titlediv {
+    margin: 0 0 16px;
+}
+body.post-type-odcm_order_rule #titlewrap {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+}
+body.post-type-odcm_order_rule #title {
+    background: var(--odcm-surface);
+    color: var(--odcm-ink);
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-xl);
+    font-weight: 500;
+    border: 1px solid var(--odcm-border-strong);
+    box-shadow: none;
+    outline: none;
+    padding: 10px 14px;
+    width: 100%;
+    height: auto;
+    line-height: 1.4;
+    border-radius: var(--odcm-radius-2);
+}
+body.post-type-odcm_order_rule #title:focus {
+    border-color: var(--odcm-accent);
+    box-shadow: 0 0 0 3px var(--odcm-accent-soft);
+    outline: none;
+}
+
+/* Publish metabox */
+body.post-type-odcm_order_rule #submitdiv {
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-3);
+    box-shadow: none;
+}
+body.post-type-odcm_order_rule #submitdiv .postbox-header {
+    background: var(--odcm-surface-2);
+    border-bottom: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-3) var(--odcm-radius-3) 0 0;
+}
+body.post-type-odcm_order_rule #submitdiv .postbox-header h2,
+body.post-type-odcm_order_rule #submitdiv .hndle {
+    color: var(--odcm-ink);
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-sm);
+    font-weight: 500;
+}
+body.post-type-odcm_order_rule #submitdiv .inside {
+    padding: 0;
+    margin: 0;
+}
+body.post-type-odcm_order_rule #minor-publishing {
+    background: var(--odcm-surface-2);
+    border-bottom: 1px solid var(--odcm-border);
+    padding: 10px 14px;
+    color: var(--odcm-ink-2);
+    font-size: var(--odcm-text-sm);
+}
+body.post-type-odcm_order_rule #minor-publishing-actions,
+body.post-type-odcm_order_rule #misc-publishing-actions {
+    background: transparent;
+}
+body.post-type-odcm_order_rule .misc-pub-section {
+    border-bottom: 1px solid var(--odcm-rule);
+    color: var(--odcm-ink-2);
+    font-size: var(--odcm-text-sm);
+}
+body.post-type-odcm_order_rule .misc-pub-section:last-of-type {
+    border-bottom: none;
+}
+body.post-type-odcm_order_rule #major-publishing-actions {
+    background: var(--odcm-surface-2);
+    border-top: 1px solid var(--odcm-border);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+body.post-type-odcm_order_rule #save-post {
+    color: var(--odcm-ink-2);
+    font-size: var(--odcm-text-sm);
+    text-decoration: none;
+}
+body.post-type-odcm_order_rule #save-post:hover {
+    color: var(--odcm-ink);
+    text-decoration: underline;
+}
+body.post-type-odcm_order_rule #publish {
+    background: var(--odcm-accent);
+    border-color: var(--odcm-accent);
+    color: var(--odcm-on-accent);
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-sm);
+    font-weight: 500;
+    height: var(--odcm-h-btn-sm);
+    padding: 0 14px;
+    border-radius: var(--odcm-radius-2);
+    box-shadow: none;
+    text-shadow: none;
+    cursor: pointer;
+}
+body.post-type-odcm_order_rule #publish:hover {
+    background: var(--odcm-accent-hover);
+    border-color: var(--odcm-accent-hover);
+}
+
+/* ==========================================================================
+   WP PAGE CHROME — RULE EDITOR GLOBAL LAYOUT
+   ========================================================================== */
+
+/* Page-level heading ("Edit rule" / "Add New rule") */
+body.post-type-odcm_order_rule .wp-heading-inline {
+    color: var(--odcm-ink);
+    font-family: var(--odcm-font-sans);
+}
+body.post-type-odcm_order_rule .page-title-action {
+    background: var(--odcm-surface);
+    color: var(--odcm-ink-2);
+    border-color: var(--odcm-border-strong);
+    border-radius: var(--odcm-radius-2);
+    box-shadow: none;
+    text-shadow: none;
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-xs);
+}
+body.post-type-odcm_order_rule .page-title-action:hover {
+    background: var(--odcm-surface-2);
+    color: var(--odcm-ink);
+}
+
+/* Poststuff + post body layout */
+body.post-type-odcm_order_rule #poststuff {
+    padding-top: 0;
+}
+body.post-type-odcm_order_rule #post-body {
+    border: none;
+}
+
+/* Columns layout: give sidebar a bit of breathing room */
+body.post-type-odcm_order_rule #post-body.columns-2 {
+    margin-right: 300px;
+}
+body.post-type-odcm_order_rule #postbox-container-1 {
+    width: 280px;
+    margin-right: -300px;
+}
+
+/* Screenreader text and misc WP editor flotsam */
+body.post-type-odcm_order_rule #post-status-info {
+    background: var(--odcm-surface-2);
+    border-top: 1px solid var(--odcm-rule);
+    color: var(--odcm-muted);
+    font-size: var(--odcm-text-xs);
+}
+
+/* Move-to-trash link */
+body.post-type-odcm_order_rule #delete-action a {
+    color: var(--odcm-danger);
+    font-size: var(--odcm-text-sm);
+}
+
+/* rb__title uses inherited color — make explicit */
+.rb__title { color: var(--odcm-ink); }
+
