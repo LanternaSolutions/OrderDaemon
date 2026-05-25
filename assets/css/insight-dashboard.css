@@ -4589,6 +4589,7 @@ label.odcm-retention-option {
 /* Utility: horizontal flip for directional chevrons (e.g. detail pane expand toggle). */
 .odcm-icon--flip {
     transform: scaleX(-1);
+    transform-origin: center center;
 }
 
 /* Mobile dropdown containment — popups have right:0 and a fixed min-width.
@@ -4839,6 +4840,127 @@ label.odcm-retention-option {
     box-shadow: none;
 }
 
+/* Prism.js: operator/entity/url tokens have a white inline bg in the default theme; remove it. */
+#odcm-insight-dashboard .token.operator,
+#odcm-insight-dashboard .token.entity,
+#odcm-insight-dashboard .token.url {
+    background: transparent;
+}
+
+/* ==========================================================================
+   PRISM.JS DARK MODE — override hardcoded light-theme token colors
+   ========================================================================== */
+
+:root[data-theme="dark"] #odcm-insight-dashboard code[class*="language-"],
+:root[data-theme="dark"] #odcm-insight-dashboard pre[class*="language-"] {
+    color: var(--odcm-ink);
+    text-shadow: none;
+}
+:root[data-theme="dark"] #odcm-insight-dashboard .token.property,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.tag,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.constant,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.symbol {
+    color: #79b8ff;
+}
+:root[data-theme="dark"] #odcm-insight-dashboard .token.boolean,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.number,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.deleted {
+    color: #f97583;
+}
+:root[data-theme="dark"] #odcm-insight-dashboard .token.selector,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.string,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.attr-name,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.char,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.builtin,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.inserted {
+    color: #85e89d;
+}
+:root[data-theme="dark"] #odcm-insight-dashboard .token.operator,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.entity,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.url {
+    color: var(--odcm-ink-2);
+    background: transparent;
+}
+:root[data-theme="dark"] #odcm-insight-dashboard .token.atrule,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.attr-value,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.keyword {
+    color: #b392f0;
+}
+:root[data-theme="dark"] #odcm-insight-dashboard .token.function,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.class-name {
+    color: #ffab70;
+}
+:root[data-theme="dark"] #odcm-insight-dashboard .token.regex,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.important,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.variable {
+    color: #ffea7f;
+}
+:root[data-theme="dark"] #odcm-insight-dashboard .token.comment,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.prolog,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.doctype,
+:root[data-theme="dark"] #odcm-insight-dashboard .token.cdata {
+    color: var(--odcm-muted);
+}
+:root[data-theme="dark"] #odcm-insight-dashboard .token.punctuation {
+    color: var(--odcm-ink-2);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) #odcm-insight-dashboard code[class*="language-"],
+    :root:not([data-theme]) #odcm-insight-dashboard pre[class*="language-"] {
+        color: var(--odcm-ink);
+        text-shadow: none;
+    }
+    :root:not([data-theme]) #odcm-insight-dashboard .token.property,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.tag,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.constant,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.symbol {
+        color: #79b8ff;
+    }
+    :root:not([data-theme]) #odcm-insight-dashboard .token.boolean,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.number,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.deleted {
+        color: #f97583;
+    }
+    :root:not([data-theme]) #odcm-insight-dashboard .token.selector,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.string,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.attr-name,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.char,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.builtin,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.inserted {
+        color: #85e89d;
+    }
+    :root:not([data-theme]) #odcm-insight-dashboard .token.operator,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.entity,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.url {
+        color: var(--odcm-ink-2);
+        background: transparent;
+    }
+    :root:not([data-theme]) #odcm-insight-dashboard .token.atrule,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.attr-value,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.keyword {
+        color: #b392f0;
+    }
+    :root:not([data-theme]) #odcm-insight-dashboard .token.function,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.class-name {
+        color: #ffab70;
+    }
+    :root:not([data-theme]) #odcm-insight-dashboard .token.regex,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.important,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.variable {
+        color: #ffea7f;
+    }
+    :root:not([data-theme]) #odcm-insight-dashboard .token.comment,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.prolog,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.doctype,
+    :root:not([data-theme]) #odcm-insight-dashboard .token.cdata {
+        color: var(--odcm-muted);
+    }
+    :root:not([data-theme]) #odcm-insight-dashboard .token.punctuation {
+        color: var(--odcm-ink-2);
+    }
+}
+
 /* ==========================================================================
    MOBILE FIX — grid single-column when panes are position:fixed
    ========================================================================== */
@@ -4856,6 +4978,30 @@ label.odcm-retention-option {
     #odcm-insight-dashboard .odcm-filter-pane,
     #odcm-insight-dashboard .odcm-detail-pane {
         top: calc(var(--odcm-admin-bar-offset) + var(--odcm-h-topbar));
+    }
+
+    /* Stream header: two-row layout on mobile */
+    #odcm-insight-dashboard .odcm-log-stream-header {
+        height: auto;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        padding-top: var(--odcm-space-1);
+        padding-bottom: var(--odcm-space-1);
+        row-gap: var(--odcm-space-1);
+        align-content: center;
+    }
+    #odcm-insight-dashboard .odcm-log-stream-header > * {
+        margin-top: 0;
+        margin-bottom: 0;
+        line-height: 1;
+    }
+    #odcm-insight-dashboard .odcm-log-stream-header .odcm-pane-header__spacer {
+        display: none;
+    }
+    #odcm-insight-dashboard .odcm-log-stream-header .odcm-stream-controls {
+        flex-basis: 100%;
+        order: 10;
+        justify-content: flex-end;
     }
 }
 
@@ -5000,20 +5146,13 @@ label.odcm-retention-option {
 }
 
 .odcm-stream-per-page {
-    width: 30px;
+    width: 44px;
     border: none;
     background: transparent;
     font-size: var(--odcm-text-xs);
     color: var(--odcm-ink);
     text-align: center;
     padding: 0;
-    -moz-appearance: textfield;
-    appearance: textfield;
-}
-.odcm-stream-per-page::-webkit-outer-spin-button,
-.odcm-stream-per-page::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
 }
 
 /* Timestamp mode cycle button — standalone chip */
@@ -5116,13 +5255,15 @@ label.odcm-retention-option {
     border-radius: 0;
 }
 #odcm-insight-dashboard .odcm-stream-per-page {
-    box-shadow: none;
-    border: none;
+    box-shadow: none !important;
+    border: none !important;
     outline: none;
-    margin: 0;
-    padding: 0;
-    height: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 22px !important;
+    min-height: 0 !important;
     box-sizing: border-box;
+    line-height: 22px;
 }
 
 /* ==========================================================================

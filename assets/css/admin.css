@@ -1454,3 +1454,32 @@ tr.odcm-log-details-row:hover > td {
     padding-left: 0 !important;
   }
 }
+
+/* ============================================================
+   PAGE BODY — shared content wrapper and title tokens
+   ============================================================ */
+.odcm-admin-page .odcm-page-body {
+  padding: 28px;
+}
+
+.odcm-page-title {
+  font-size: var(--odcm-text-xl);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0 0 4px;
+  color: var(--odcm-ink);
+}
+
+.odcm-page-sub {
+  font-size: var(--odcm-text-sm);
+  color: var(--odcm-muted);
+  margin: 0;
+  max-width: 60ch;
+  line-height: 1.55;
+}
+
+@media screen and (max-width: 782px) {
+  .odcm-admin-page .odcm-page-body {
+    padding: 16px;
+  }
+}

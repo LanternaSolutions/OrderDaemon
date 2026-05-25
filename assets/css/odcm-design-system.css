@@ -742,10 +742,22 @@
     pointer-events: auto;
     min-width: 250px;
   }
-  .odcm-toast--success { border-left-color: var(--odcm-success); }
-  .odcm-toast--warn    { border-left-color: var(--odcm-warn); }
-  .odcm-toast--danger  { border-left-color: var(--odcm-danger); }
-  .odcm-toast--info    { border-left-color: var(--odcm-accent); }
+  .odcm-toast--success {
+    background-color: var(--odcm-success-soft);
+    border-left-color: var(--odcm-success);
+  }
+  .odcm-toast--warning {
+    background-color: var(--odcm-warn-soft);
+    border-left-color: var(--odcm-warn);
+  }
+  .odcm-toast--error {
+    background-color: var(--odcm-danger-soft);
+    border-left-color: var(--odcm-danger);
+  }
+  .odcm-toast--info {
+    background-color: var(--odcm-accent-soft);
+    border-left-color: var(--odcm-accent);
+  }
   .odcm-toast__close {
     background: transparent;
     border: 0;
@@ -757,6 +769,22 @@
     border-radius: var(--odcm-radius-1);
   }
   .odcm-toast__close:hover { background: var(--odcm-surface-2); color: var(--odcm-ink); }
+
+  /* Dark mode: soft tokens are semi-transparent (14% rgba) — use solid surface instead */
+  :root[data-theme="dark"] .odcm-toast--success,
+  :root[data-theme="dark"] .odcm-toast--warning,
+  :root[data-theme="dark"] .odcm-toast--error,
+  :root[data-theme="dark"] .odcm-toast--info {
+    background-color: var(--odcm-surface-2);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .odcm-toast--success,
+    :root:not([data-theme]) .odcm-toast--warning,
+    :root:not([data-theme]) .odcm-toast--error,
+    :root:not([data-theme]) .odcm-toast--info {
+      background-color: var(--odcm-surface-2);
+    }
+  }
 }
 
 /* ==========================================================================

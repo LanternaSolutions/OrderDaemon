@@ -273,11 +273,13 @@ final class RuleBuilder
             $plugin_version
         );
 
-        // Hide WP-generated heading so the unified header is the only one
+        // Hide WP-generated heading and screen options on the rule editor
         wp_add_inline_style('odcm-rule-builder', '
             .post-type-odcm_order_rule .wrap > .wp-heading-inline,
             .post-type-odcm_order_rule .wrap > .page-title-action,
             .post-type-odcm_order_rule hr.wp-header-end { display: none; }
+            .post-type-odcm_order_rule #screen-options-link-wrap,
+            .post-type-odcm_order_rule #screen-options-wrap { display: none !important; }
         ');
 
         // Enqueue shared toast system
@@ -1209,6 +1211,7 @@ final class RuleBuilder
                         <div class="rb__row"
                              :data-expanded="editingConditionIndex === index ? 'true' : 'false'"
                              :data-test-state="$store.odcmTestHighlight?.conditionStates[index] ?? ''"
+                             :data-drag-over="draggedCondition !== null && dragOverIndex === index ? 'true' : 'false'"
                              draggable="true"
                              @dragstart="startDragCondition(index, $event)"
                              @dragover="dragOverCondition(index, $event)"
@@ -1554,7 +1557,7 @@ final class RuleBuilder
                         </div>
                         <div class="rb__row-body">
                             <div class="rb__settings">
-                            <div x-data="settingsPanel('primaryAction', null)" x-init="initSettings(getPrimaryActionComponent(rule.primaryAction?.id)?.schema, rule.primaryAction?.settings || {})">
+                            <div x-data="settingsPanel('primaryAction', null)" x-effect="initSettings(getPrimaryActionComponent(rule.primaryAction?.id)?.schema, rule.primaryAction?.settings || {})">
                                 <template x-for="(field, fieldKey) in fields" :key="fieldKey">
                                     <div class="rb__field">
                                         <!-- Field Label -->
@@ -1689,8 +1692,15 @@ final class RuleBuilder
                     <template x-for="(action, index) in rule.secondaryActions" :key="index">
                         <!-- Secondary Action Row (with nested settings) -->
                         <div class="rb__row"
-                             :data-expanded="editingActionIndex === index ? 'true' : 'false'">
+                             :data-expanded="editingActionIndex === index ? 'true' : 'false'"
+                             :data-drag-over="draggedAction !== null && dragOverIndex === index ? 'true' : 'false'"
+                             draggable="true"
+                             @dragstart="startDragAction(index, $event)"
+                             @dragover="dragOverAction(index, $event)"
+                             @drop="dropAction(index, $event)"
+                             @dragend="endDrag()">
                             <div class="rb__row-head" @click="!getComponentDefinition('action', action.id)?.accessible ? null : (componentHasSettings('action', index) && handleRowClick('action', index, $event))">
+                                <span class="drag" aria-hidden="true">⋮⋮</span>
                                 <div class="rb__row-summary" x-html="getComponentSummary(action, 'action', index)"></div>
                                 <div class="rb__row-actions">
                                     <button type="button"

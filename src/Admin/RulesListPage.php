@@ -97,13 +97,13 @@ class RulesListPage
           <span class="odcm-unified-header__crumb"><?php esc_html_e('admin.list_table.page_title', 'order-daemon'); ?></span>
         </div>
 
-        <div class="rl">
+        <div class="rl odcm-page-body">
 
           <!-- Header -->
           <div class="rl__head">
             <div class="rl__head-text">
-              <h1 class="rl__title"><?php esc_html_e('admin.list_table.page_title', 'order-daemon'); ?></h1>
-              <p class="rl__sub"><?php echo esc_html(number_format_i18n($total)); ?> <?php esc_html_e('admin.list_table.rules_count_label', 'order-daemon'); ?></p>
+              <h1 class="rl__title odcm-page-title"><?php esc_html_e('admin.list_table.page_title', 'order-daemon'); ?></h1>
+              <p class="rl__sub odcm-page-sub"><?php echo esc_html(number_format_i18n($total)); ?> <?php esc_html_e('admin.list_table.rules_count_label', 'order-daemon'); ?></p>
             </div>
             <div class="rl__head-actions">
               <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=odcm_export_rules'), 'odcm_export_rules')); ?>" class="odcm-btn odcm-btn--ghost odcm-btn--sm">

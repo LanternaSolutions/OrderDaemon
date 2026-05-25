@@ -2072,21 +2072,21 @@
    Compact rb__ BEM system for the Rule Builder page.
    Requires: odcm-design-system.css (for --odcm-* tokens).
    ========================================================================== */
-  .rb { padding: 22px 28px 64px; max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
-  @media (max-width: 767px) { .rb { padding: 18px 14px 64px; } }
+  .rb { padding: 0 28px 28px; max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  @media (max-width: 782px) { .rb { padding: 0 16px 16px; } body.post-type-odcm_order_rule #titlediv { margin-top: 16px; padding-left: 16px; padding-right: 16px; } }
 
   /* Title row */
   .rb__title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .rb__title { font-size: var(--odcm-text-xl); font-weight: 500; letter-spacing: -0.01em; margin: 0; }
   .rb__title-actions { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
-  @media (max-width: 767px) { .rb__title-row { gap: 8px; } .rb__title-actions { gap: 6px; margin-left: 0; width: 100%; } .rb__title-actions .odcm-btn { flex: 1; justify-content: center; } }
+  @media (max-width: 782px) { .rb__title-row { gap: 8px; } .rb__title-actions { gap: 6px; margin-left: 0; width: 100%; } .rb__title-actions .odcm-btn { flex: 1; justify-content: center; } }
 
   /* Name input */
   .rb__name { width: 100%; height: 44px; font-size: var(--odcm-text-md); padding: 0 14px; }
 
   /* Body */
   .rb__body { background: var(--odcm-surface); border: 1px solid var(--odcm-border); border-radius: var(--odcm-radius-4); padding: 20px; display: flex; flex-direction: column; gap: 22px; }
-  @media (max-width: 767px) { .rb__body { padding: 16px; gap: 18px; } }
+  @media (max-width: 782px) { .rb__body { padding: 16px; gap: 18px; } }
 
   .rb__meta-row { display: flex; align-items: center; gap: 10px; }
   .rb__meta-label { font-family: var(--odcm-font-mono); font-size: var(--odcm-text-2xs); color: var(--odcm-muted); letter-spacing: 0.1em; text-transform: uppercase; }
@@ -2116,13 +2116,39 @@
     border-color: var(--odcm-accent);
     box-shadow: 0 0 0 3px var(--odcm-accent-soft);
   }
+  .rb__row.odcm-dragging {
+    background: var(--odcm-surface-3);
+    border-style: dashed;
+    box-shadow: none;
+  }
+  :root[data-theme="dark"] .rb__row.odcm-dragging {
+    background: var(--odcm-surface);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .rb__row.odcm-dragging {
+      background: var(--odcm-surface);
+    }
+  }
+  .rb__row[data-drag-over="true"] {
+    border-color: var(--odcm-accent);
+    background: var(--odcm-accent-soft);
+    box-shadow: 0 3px 0 -1px var(--odcm-accent);
+  }
 
   .rb__row-head {
     padding: 10px 12px;
     display: grid;
-    grid-template-columns: 16px 1fr auto;
+    grid-template-columns: 1fr auto;
     gap: 10px;
     align-items: center;
+  }
+  /* Draggable rows: drag handle + summary + actions */
+  .rb__row[draggable="true"] .rb__row-head {
+    grid-template-columns: 16px 1fr auto;
+  }
+  /* Condition rows also carry an icon column */
+  .rb__row[draggable="true"]:has(.rb__row-icon) .rb__row-head {
+    grid-template-columns: 16px 20px 1fr auto;
   }
   .rb__row-head .drag {
     color: var(--odcm-muted);
@@ -2132,6 +2158,14 @@
     font-size: 14px;
   }
   .rb__row-head .drag:active { cursor: grabbing; }
+  .rb__row-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--odcm-accent);
+    flex-shrink: 0;
+  }
+  .rb__row-icon svg { width: 16px; height: 16px; flex-shrink: 0; }
   .rb__row-summary {
     font-size: var(--odcm-text-sm);
     color: var(--odcm-ink);
@@ -2182,7 +2216,7 @@
   .rb__field-label { font-size: var(--odcm-text-sm); font-weight: 500; color: var(--odcm-ink); }
   .rb__field-help { font-size: var(--odcm-text-xs); color: var(--odcm-muted); line-height: 1.5; }
   .rb__field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  @media (max-width: 767px) { .rb__field-row { grid-template-columns: 1fr; } }
+  @media (max-width: 782px) { .rb__field-row { grid-template-columns: 1fr; } }
 
   /* Checkbox group inside settings */
   .rb__checks { display: flex; flex-direction: column; gap: 4px; }
@@ -2327,7 +2361,7 @@
   }
   .rb__foot-meta { font-size: var(--odcm-text-xs); color: var(--odcm-muted); }
   .rb__foot-actions { margin-left: auto; display: inline-flex; gap: 8px; }
-  @media (max-width: 767px) { .rb__foot-actions { width: 100%; margin-left: 0; } .rb__foot-actions .odcm-btn { flex: 1; justify-content: center; } }
+  @media (max-width: 782px) { .rb__foot-actions { width: 100%; margin-left: 0; } .rb__foot-actions .odcm-btn { flex: 1; justify-content: center; } }
 
   /* Validation banner */
   .rb__validation {
@@ -2352,7 +2386,8 @@
 
 /* Post title input */
 body.post-type-odcm_order_rule #titlediv {
-    margin: 0 0 16px;
+    margin: 28px 0 16px;
+    padding: 0 28px;
 }
 body.post-type-odcm_order_rule #titlewrap {
     background: transparent;
@@ -2495,18 +2530,27 @@ body.post-type-odcm_order_rule #post-body {
 /* Sidebar width. --odcm-sidebar-w drives both the margin-right on the main
    column and the negative pull-back on the sidebar container. */
 body.post-type-odcm_order_rule {
-    --odcm-sidebar-w: 300px;
+    /* 280px card + 20px inner gap + 28px right clearance = 328px */
+    --odcm-sidebar-w: 328px;
 }
 body.post-type-odcm_order_rule #post-body.columns-2 {
     margin-right: var(--odcm-sidebar-w);
 }
 body.post-type-odcm_order_rule #postbox-container-1 {
-    width: calc(var(--odcm-sidebar-w) - 20px);
-    margin-right: calc(-1 * var(--odcm-sidebar-w));
+    padding-top: 28px;
+}
+/* Higher specificity needed to beat WP's #post-body.columns-2 #postbox-container-1 (2,1,0) */
+body.post-type-odcm_order_rule #post-body.columns-2 #postbox-container-1 {
+    width: 280px;
+    /* positions sidebar 28px from the viewport right edge */
+    margin-right: calc(-1 * (var(--odcm-sidebar-w) - 28px));
 }
 @media (max-width: 960px) {
     body.post-type-odcm_order_rule #post-body.columns-2 { margin-right: 0; }
-    body.post-type-odcm_order_rule #postbox-container-1 { width: 100%; margin-right: 0; float: none; }
+    body.post-type-odcm_order_rule #postbox-container-1 { width: 100%; margin-right: 0; float: none; padding: 0 28px; }
+}
+@media (max-width: 782px) {
+    body.post-type-odcm_order_rule #postbox-container-1 { padding: 0 16px; }
 }
 
 /* Screenreader text and misc WP editor flotsam */

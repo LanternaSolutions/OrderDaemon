@@ -250,12 +250,12 @@ class DiagnosticDashboard
           <span class="odcm-unified-header__crumb"><?php echo esc_html__('diagnostics.page.title', 'order-daemon'); ?></span>
         </div>
 
-        <div class="dx">
+        <div class="dx odcm-page-body">
 
           <div class="dx__header">
             <div class="dx__header-text">
-              <h3 class="dx__title"><?php echo esc_html__('diagnostics.page.title', 'order-daemon'); ?></h3>
-              <p class="dx__sub"><?php echo esc_html__('diagnostics.page.description', 'order-daemon'); ?></p>
+              <h3 class="dx__title odcm-page-title"><?php echo esc_html__('diagnostics.page.title', 'order-daemon'); ?></h3>
+              <p class="dx__sub odcm-page-sub"><?php echo esc_html__('diagnostics.page.description', 'order-daemon'); ?></p>
             </div>
             <div class="dx__header-actions">
               <button class="odcm-btn odcm-btn--secondary odcm-btn--sm" id="odcm-run-health-check"

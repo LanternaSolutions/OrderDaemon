@@ -110,8 +110,8 @@ class SettingsPage
                 <span class="odcm-unified-header__crumb"><?php echo esc_html__('admin.settings.submenu', 'order-daemon'); ?></span>
             </div>
 
-            <div class="st">
-                <h3 class="st__title"><?php echo esc_html__('admin.settings.page_title', 'order-daemon'); ?></h3>
+            <div class="st odcm-page-body">
+                <h3 class="st__title odcm-page-title"><?php echo esc_html__('admin.settings.page_title', 'order-daemon'); ?></h3>
 
                 <!-- Display -->
                 <div class="st__card">
