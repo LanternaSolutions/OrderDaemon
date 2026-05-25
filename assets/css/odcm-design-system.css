@@ -53,7 +53,7 @@
     --odcm-palette-warm-800: #3A3833;
     --odcm-palette-warm-900: #14130F;
 
-    /* Cool neutral (dark-mode surfaces + Pro register) */
+    /* Cool neutral (dark-mode surfaces) */
     --odcm-palette-cool-0:   #ECEAE3;
     --odcm-palette-cool-100: #C2BFB6;
     --odcm-palette-cool-200: #9C998F;
@@ -65,11 +65,6 @@
     --odcm-palette-cool-800: #1D2127;
     --odcm-palette-cool-850: #161A1F;
     --odcm-palette-cool-900: #0E1013;
-
-    /* Pro ink */
-    --odcm-palette-pro-base:   #131822;
-    --odcm-palette-pro-raised: #1B2230;
-    --odcm-palette-pro-deep:   #0A0E14;
 
     /* Status */
     --odcm-palette-success-100: #E2EFE2;
@@ -166,14 +161,6 @@
     --odcm-danger:       var(--odcm-palette-danger-700);
     --odcm-danger-soft:  var(--odcm-palette-danger-100);
 
-    /* Pro register */
-    --odcm-pro:          var(--odcm-palette-pro-base);
-    --odcm-pro-2:        var(--odcm-palette-pro-raised);
-    --odcm-pro-on:       var(--odcm-palette-cool-0);
-    --odcm-pro-on-muted: rgba(236, 234, 227, 0.62);
-    --odcm-pro-accent:   var(--odcm-palette-blue-300);
-    --odcm-pro-border:   rgba(236, 234, 227, 0.12);
-
     /* Shadows */
     --odcm-shadow-1: 0 1px 2px rgba(20, 19, 15, 0.04), 0 1px 1px rgba(20, 19, 15, 0.03);
     --odcm-shadow-2: 0 4px 12px rgba(20, 19, 15, 0.06), 0 1px 2px rgba(20, 19, 15, 0.04);
@@ -223,11 +210,6 @@
     --odcm-danger:       var(--odcm-palette-danger-300);
     --odcm-danger-soft:  rgba(230, 145, 133, 0.14);
 
-    --odcm-pro:          var(--odcm-palette-pro-deep);
-    --odcm-pro-2:        var(--odcm-palette-pro-base);
-    --odcm-pro-accent:   var(--odcm-palette-blue-200);
-    --odcm-pro-border:   rgba(236, 234, 227, 0.10);
-
     --odcm-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3);
     --odcm-shadow-2: 0 6px 16px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
     --odcm-shadow-3: 0 14px 36px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
@@ -267,11 +249,6 @@
       --odcm-warn-soft:    rgba(229, 185, 115, 0.14);
       --odcm-danger:       var(--odcm-palette-danger-300);
       --odcm-danger-soft:  rgba(230, 145, 133, 0.14);
-
-      --odcm-pro:          var(--odcm-palette-pro-deep);
-      --odcm-pro-2:        var(--odcm-palette-pro-base);
-      --odcm-pro-accent:   var(--odcm-palette-blue-200);
-      --odcm-pro-border:   rgba(236, 234, 227, 0.10);
 
       --odcm-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3);
       --odcm-shadow-2: 0 6px 16px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -512,8 +489,6 @@
   .odcm-pill--warn    { background: var(--odcm-warn-soft);    color: var(--odcm-warn);    border-color: transparent; }
   .odcm-pill--danger  { background: var(--odcm-danger-soft);  color: var(--odcm-danger);  border-color: transparent; }
   .odcm-pill--info    { background: var(--odcm-accent-soft);  color: var(--odcm-accent);  border-color: transparent; }
-  .odcm-pill--pro     { background: transparent; color: var(--odcm-accent); border-color: var(--odcm-accent); }
-
   /* --- INPUT / SELECT --- */
   .odcm-input,
   .odcm-select {
@@ -601,33 +576,6 @@
     color: var(--odcm-accent);
     line-height: 1;
   }
-
-  /* --- PRO MARK --- */
-  .odcm-pro-mark {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 18px;
-    padding: 0 7px;
-    font-family: var(--odcm-font-mono);
-    font-size: var(--odcm-text-2xs);
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--odcm-pro-on);
-    background: var(--odcm-pro-2);
-    border: 1px solid transparent;
-    border-radius: var(--odcm-radius-1);
-    line-height: 1;
-    white-space: nowrap;
-  }
-  .odcm-pro-mark::before {
-    content: '//';
-    font-size: inherit;
-    opacity: 0.7;
-    letter-spacing: -0.05em;
-  }
-  .odcm-pro-mark--on-dark { }
 
   /* --- CODE BLOCK --- */
   .odcm-code {
