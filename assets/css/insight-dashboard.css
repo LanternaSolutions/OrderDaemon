@@ -1387,7 +1387,7 @@ label.odcm-retention-option {
     padding: var(--odcm-theme-spacing-sm);
     background: transparent;
     margin-bottom: var(--odcm-theme-spacing-sm);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     min-height: 36px;
 }
 
@@ -1401,13 +1401,24 @@ label.odcm-retention-option {
     gap: var(--odcm-theme-spacing-md);
     flex-wrap: wrap;
     flex: 1;
-    width: 100%;
 }
 
 .odcm-select-all-container {
     display: flex;
     align-items: center;
     gap: var(--odcm-theme-spacing-xs);
+}
+
+.odcm-stream-display-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--odcm-theme-spacing-xs);
+    flex-shrink: 0;
+}
+
+.odcm-stream-per-page {
+    height: var(--odcm-h-input);
+    padding: 0 var(--odcm-space-2);
 }
 
 .odcm-select-all-checkbox {
