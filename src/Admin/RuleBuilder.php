@@ -50,7 +50,7 @@ final class RuleBuilder
         add_filter('parent_file', static function(string $parent_file) use ($is_rule_screen): string {
             return $is_rule_screen() ? 'odcm-insight-dashboard' : $parent_file;
         });
-        add_filter('submenu_file', static function(string $submenu_file) use ($is_rule_screen): string {
+        add_filter('submenu_file', static function(?string $submenu_file) use ($is_rule_screen): ?string {
             return $is_rule_screen() ? 'odcm-rules-list' : $submenu_file;
         });
 
