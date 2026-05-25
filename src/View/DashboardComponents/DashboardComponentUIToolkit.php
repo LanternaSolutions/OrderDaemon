@@ -60,6 +60,7 @@ class DashboardComponentUIToolkit
             'x-bind:disabled', 'x-bind:title', 'x-bind:key', 'x-bind:min', 'x-bind:max', 'x-bind:checked', 'x-bind:value', 'x-bind:style',
             'x-bind:aria-expanded', 'x-bind:aria-label', 'x-bind:aria-selected', 'x-bind:aria-controls',
             'x-on:click.away', 'x-on:keydown.escape', 'x-on:keydown.enter',
+            'x-on:submit.prevent', 'x-on:keydown.enter.prevent',
 
         ];
 

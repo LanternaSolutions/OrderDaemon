@@ -205,6 +205,9 @@ function insightDashboard() {
                 // Load persistent settings
                 this.loadSettings();
 
+                // URL params override localStorage — must run after loadSettings()
+                this.loadFiltersFromUrl();
+
                 // Initialize network monitoring
                 this.setupNetworkMonitoring();
 
@@ -1820,7 +1823,7 @@ function insightDashboard() {
             let timer = null;
             this.debouncedFetchLogs = () => {
                 if (timer) clearTimeout(timer);
-                timer = setTimeout(() => this.fetchLogs(), 300);
+                timer = setTimeout(() => { this.syncFiltersToUrl(); this.fetchLogs(); }, 300);
             };
         },
 
@@ -1829,6 +1832,7 @@ function insightDashboard() {
         // =================================================================
         applyFilters() {
             this.currentPage = 1;
+            this.syncFiltersToUrl();
             this.fetchLogs();
         },
 
@@ -1844,7 +1848,47 @@ function insightDashboard() {
                 include_debug: false
             };
             this.currentPage = 1;
+            this.syncFiltersToUrl();
             this.fetchLogs();
+        },
+
+        syncFiltersToUrl() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const filterKeys = ['search', 'event_type', 'source', 'order_id', 'date_from', 'date_to', 'include_tests', 'include_debug'];
+                filterKeys.forEach(k => params.delete(k));
+
+                const f = this.filters;
+                if (f.search)         params.set('search', f.search);
+                if (f.event_type)     params.set('event_type', f.event_type);
+                if (f.source)         params.set('source', f.source);
+                if (f.order_id)       params.set('order_id', f.order_id);
+                if (f.date_start)     params.set('date_from', f.date_start);
+                if (f.date_end)       params.set('date_to', f.date_end);
+                if (f.include_tests)  params.set('include_tests', '1');
+                if (f.include_debug)  params.set('include_debug', '1');
+
+                const qs = params.toString();
+                history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+            } catch (e) {
+                if (odcmIsDebug()) { console.warn('ODCM: syncFiltersToUrl failed:', e); }
+            }
+        },
+
+        loadFiltersFromUrl() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                if (params.has('search'))        this.filters.search        = params.get('search');
+                if (params.has('event_type'))    this.filters.event_type    = params.get('event_type');
+                if (params.has('source'))        this.filters.source        = params.get('source');
+                if (params.has('order_id'))      this.filters.order_id      = params.get('order_id');
+                if (params.has('date_from'))     this.filters.date_start    = params.get('date_from');
+                if (params.has('date_to'))       this.filters.date_end      = params.get('date_to');
+                if (params.has('include_tests')) this.filters.include_tests = params.get('include_tests') === '1';
+                if (params.has('include_debug')) this.filters.include_debug = params.get('include_debug') === '1';
+            } catch (e) {
+                if (odcmIsDebug()) { console.warn('ODCM: loadFiltersFromUrl failed:', e); }
+            }
         },
 
         applyDatePreset(preset) {

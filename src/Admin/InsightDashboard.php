@@ -943,8 +943,10 @@ class InsightDashboard
             <a href="<?php echo esc_url(ODCM_DOCS_URL); ?>"
                target="_blank"
                rel="noopener noreferrer"
-               class="odcm-btn odcm-btn--ghost odcm-btn--sm">
+               class="odcm-btn odcm-btn--ghost odcm-btn--sm odcm-docs-link">
+                <svg class="odcm-docs-link__icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                 <?php echo esc_html__('admin.insight_dashboard.docs.view_documentation', 'order-daemon'); ?>
+                <svg class="odcm-docs-link__ext" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
             </a>
 
         </div>
@@ -987,7 +989,7 @@ class InsightDashboard
     private function render_filters_tab_content(): void
     {
         ?>
-        <form class="odcm-filter-form" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('submit', 'applyFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+        <form class="odcm-filter-form" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('submit.prevent', 'applyFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                 <!-- Omni Search (Free) -->
                 <div class="odcm-filter-section">
                     <label for="filter-search" class="odcm-filter-section-title"><?php echo esc_html__('admin.insight_dashboard.filters.search.label', 'order-daemon'); ?></label>
@@ -997,6 +999,7 @@ class InsightDashboard
                             id="filter-search"
                             <?php echo DashboardComponentUIToolkit::createAlpineModelBinding('filters.search'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                             <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('input', 'debouncedFetchLogs()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('keydown.enter.prevent', 'applyFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                             placeholder="<?php echo esc_attr__('admin.insight_dashboard.filters.search.placeholder', 'order-daemon'); ?>"
                             class="odcm-search-input">
                     </div>
@@ -1077,9 +1080,6 @@ class InsightDashboard
 
                 <!-- Filter Actions -->
                 <div class="odcm-filter-actions">
-                    <button type="submit" class="odcm-btn odcm-btn--primary odcm-btn--sm">
-                        <?php echo esc_html__('admin.insight_dashboard.filters.apply_filters', 'order-daemon'); ?>
-                    </button>
                     <button type="button" class="odcm-btn odcm-btn--ghost odcm-btn--sm" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'clearFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                         <?php echo esc_html__('admin.insight_dashboard.filters.clear_all', 'order-daemon'); ?>
                     </button>

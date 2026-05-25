@@ -230,7 +230,7 @@
     padding: 0 !important;
     gap: 0px !important;
     background: var(--odcm-bg) !important;
-    border-bottom: 1px solid var(--odcm-border) !important;
+    border: 1px solid var(--odcm-border) !important;
     position: relative !important;
     box-sizing: border-box !important;
     height: calc(100vh - var(--odcm-calculated-admin-bar-height)); /* Fill viewport; mobile overrides this */
@@ -4750,9 +4750,26 @@ label.odcm-retention-option {
 /* View documentation link */
 #odcm-insight-dashboard .odcm-docs-link {
     color: var(--odcm-ink-2);
+    border-color: transparent;
+    gap: 5px;
 }
 #odcm-insight-dashboard .odcm-docs-link:hover {
     color: var(--odcm-accent);
+    background: var(--odcm-accent-soft);
+    border-color: transparent;
+}
+#odcm-insight-dashboard .odcm-docs-link__icon {
+    flex-shrink: 0;
+    color: inherit;
+    transition: color var(--odcm-dur-fast) var(--odcm-ease);
+}
+#odcm-insight-dashboard .odcm-docs-link__ext {
+    flex-shrink: 0;
+    opacity: 0.45;
+    transition: opacity var(--odcm-dur-fast) var(--odcm-ease), color var(--odcm-dur-fast) var(--odcm-ease);
+}
+#odcm-insight-dashboard .odcm-docs-link:hover .odcm-docs-link__ext {
+    opacity: 0.8;
 }
 
 /* Checkboxes: accent color */
@@ -5122,14 +5139,25 @@ label.odcm-retention-option {
     color: var(--odcm-ink-2);
     cursor: pointer;
 }
-#odcm-insight-dashboard .odcm-checkbox-item:hover label {
+#odcm-insight-dashboard .odcm-checkbox-item:hover label,
+#odcm-insight-dashboard .odcm-checkbox-item label:hover {
     color: var(--odcm-ink);
+    background: transparent !important;
 }
 #odcm-insight-dashboard .odcm-checkbox-item input[type="checkbox"] {
     margin: 0;
     flex-shrink: 0;
-    width: 12px;
-    height: 12px;
+    width: 13px !important;
+    min-width: 13px !important;
+    height: 13px !important;
+    min-height: 13px !important;
+}
+/* WP admin sets background:#fff on checkbox:hover — override for both states */
+#odcm-insight-dashboard input[type="checkbox"]:hover {
+    background: var(--odcm-surface) !important;
+}
+#odcm-insight-dashboard input[type="checkbox"]:checked:hover {
+    background: var(--odcm-accent) !important;
 }
 
 /* Form elements: compact height + constrained to container width */
