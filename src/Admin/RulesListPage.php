@@ -26,7 +26,7 @@ class RulesListPage
         $version    = defined('ODCM_VERSION') ? ODCM_VERSION : '1.0.0';
         $assets_url = defined('ODCM_PLUGIN_URL') ? ODCM_PLUGIN_URL . 'assets/' : '';
         $ds_path    = defined('ODCM_PLUGIN_DIR') ? ODCM_PLUGIN_DIR . 'assets/css/odcm-design-system.css' : '';
-        $ds_version = ($ds_path && file_exists($ds_path)) ? filemtime($ds_path) : $version;
+        $ds_version = file_exists($ds_path) ? filemtime($ds_path) : $version;
 
         wp_enqueue_style('odcm-design-system', $assets_url . 'css/odcm-design-system.css', [], $ds_version);
         wp_enqueue_style('odcm-admin-styles',   $assets_url . 'css/admin.css', ['odcm-design-system'], $version);

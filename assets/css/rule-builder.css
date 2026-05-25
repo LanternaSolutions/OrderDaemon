@@ -202,14 +202,14 @@
     --odcm-component-bg: var(--odcm-theme-blue-200);
     --odcm-component-border-color: var(--odcm-theme-blue-700);
     --odcm-component-text-color-header: var(--odcm-theme-grey-900);
-    box-shadow: 0 2px 8px rgba(0, 124, 186, 0.15);
+    box-shadow: 0 2px 8px var(--odcm-accent-soft);
 }
 
 .odcm-rule-section--error {
     --odcm-component-bg: var(--odcm-theme-red-200);
     --odcm-component-border-color: var(--odcm-theme-red-700);
     --odcm-component-text-color-header: var(--odcm-theme-red-900);
-    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.15);
+    box-shadow: 0 2px 8px var(--odcm-danger-soft);
 }
 
 .odcm-rule-section--success {
@@ -317,7 +317,7 @@
     color: var(--odcm-theme-blue-700);
     background-color: var(--odcm-theme-blue-200);
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 124, 186, 0.15);
+    box-shadow: 0 2px 4px var(--odcm-accent-soft);
 }
 
 .odcm-add-component-button:focus {
@@ -327,7 +327,7 @@
 
 .odcm-add-component-button:active {
     transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(0, 124, 186, 0.1);
+    box-shadow: 0 1px 2px var(--odcm-accent-soft);
 }
 
 .odcm-add-component-button .odcm-button-icon {
@@ -499,7 +499,7 @@
     border-color: var(--odcm-theme-blue-700);
     color: var(--odcm-theme-blue-700);
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 124, 186, 0.15);
+    box-shadow: 0 2px 4px var(--odcm-accent-soft);
 }
 
 .odcm-remove-button:hover {
@@ -507,7 +507,7 @@
     border-color: var(--odcm-theme-red-700);
     color: var(--odcm-theme-red-700);
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.15);
+    box-shadow: 0 2px 4px var(--odcm-danger-soft);
 }
 
 .odcm-edit-button:focus,
@@ -667,7 +667,7 @@
 .odcm-form-textarea:focus {
     outline: none;
     border: var(--odcm-form-input-border-focus);
-    box-shadow: 0 0 0 calc(var(--odcm-component-border-width) * 2) rgba(0, 124, 186, 0.1);
+    box-shadow: 0 0 0 3px var(--odcm-accent-soft);
 }
 
 .odcm-form-textarea {
@@ -835,7 +835,7 @@
 .odcm-search-header .odcm-search-input:focus {
     outline: none;
     border-color: var(--odcm-theme-blue-700);
-    box-shadow: 0 0 0 calc(var(--odcm-component-border-width) * 2) rgba(0, 124, 186, 0.1);
+    box-shadow: 0 0 0 3px var(--odcm-accent-soft);
 }
 
 .odcm-show-all-button {
@@ -1058,7 +1058,7 @@
     border-color: var(--odcm-theme-red-700);
     color: var(--odcm-theme-red-700);
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.15);
+    box-shadow: 0 2px 4px var(--odcm-danger-soft);
 }
 
 .odcm-select-all-compact:hover {
@@ -1066,7 +1066,7 @@
     border-color: var(--odcm-theme-blue-700);
     color: var(--odcm-theme-blue-700);
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 124, 186, 0.15);
+    box-shadow: 0 2px 4px var(--odcm-accent-soft);
 }
 
 .odcm-clear-all-compact:focus,
@@ -1081,11 +1081,11 @@
 }
 
 .odcm-clear-all-compact:active {
-    box-shadow: 0 1px 2px rgba(220, 53, 69, 0.1);
+    box-shadow: 0 1px 2px var(--odcm-danger-soft);
 }
 
 .odcm-select-all-compact:active {
-    box-shadow: 0 1px 2px rgba(0, 124, 186, 0.1);
+    box-shadow: 0 1px 2px var(--odcm-accent-soft);
 }
 
 /* ==========================================================================
@@ -1224,7 +1224,7 @@
 .odcm-search-input:focus {
     outline: none;
     border-color: var(--odcm-theme-blue-700);
-    box-shadow: 0 0 0 calc(var(--odcm-component-border-width) * 2) rgba(0, 124, 186, 0.1);
+    box-shadow: 0 0 0 3px var(--odcm-accent-soft);
 }
 
 .odcm-close-selector {
@@ -1745,25 +1745,12 @@
     margin-bottom: 0;
 }
 
-/* Debug styling to make inline groups more visible during development */
-.odcm-inline-group--absolute_date {
-    border: 1px dashed #ccc;
-    padding: 5px;
-}
-
-.odcm-inline-group--relative_inputs {
-    border: 1px dashed #ccc;
-    padding: 5px;
-}
-
-.odcm-inline-group--date_range {
-    border: 1px dashed #ccc;
-    padding: 5px;
-}
-
+.odcm-inline-group--absolute_date,
+.odcm-inline-group--relative_inputs,
+.odcm-inline-group--date_range,
 .odcm-inline-group--time_of_day {
-    border: 1px dashed #ccc;
-    padding: 5px;
+    border: none;
+    padding: 0;
 }
 
 /* Time range specific styling */
@@ -1818,7 +1805,7 @@
 .odcm-field-group.odcm-active {
     border-color: var(--odcm-theme-blue-700);
     background-color: var(--odcm-theme-blue-200);
-    box-shadow: 0 2px 4px rgba(0, 124, 186, 0.1);
+    box-shadow: 0 2px 4px var(--odcm-accent-soft);
 }
 
 /* Inactive conditional group styling */
@@ -1858,7 +1845,7 @@
 .odcm-time-picker:focus {
     outline: none;
     border-color: var(--odcm-theme-blue-700);
-    box-shadow: 0 0 0 2px rgba(0, 124, 186, 0.15);
+    box-shadow: 0 0 0 3px var(--odcm-accent-soft);
 }
 
 /* Time picker specific - narrower */
@@ -2310,7 +2297,7 @@ body.post-type-odcm_order_rule #titlewrap {
     box-shadow: none;
     padding: 0;
 }
-body.post-type-odcm_order_rule #title {
+body.wp-admin.post-type-odcm_order_rule #title {
     background: var(--odcm-surface);
     color: var(--odcm-ink);
     font-family: var(--odcm-font-sans);
@@ -2325,7 +2312,7 @@ body.post-type-odcm_order_rule #title {
     line-height: 1.4;
     border-radius: var(--odcm-radius-2);
 }
-body.post-type-odcm_order_rule #title:focus {
+body.wp-admin.post-type-odcm_order_rule #title:focus {
     border-color: var(--odcm-accent);
     box-shadow: 0 0 0 3px var(--odcm-accent-soft);
     outline: none;
@@ -2370,7 +2357,7 @@ body.post-type-odcm_order_rule .misc-pub-section {
     color: var(--odcm-ink-2);
     font-size: var(--odcm-text-sm);
 }
-body.post-type-odcm_order_rule .misc-pub-section:last-of-type {
+body.post-type-odcm_order_rule .misc-pub-section:last-child {
     border-bottom: none;
 }
 body.post-type-odcm_order_rule #major-publishing-actions {
@@ -2441,13 +2428,21 @@ body.post-type-odcm_order_rule #post-body {
     border: none;
 }
 
-/* Columns layout: give sidebar a bit of breathing room */
+/* Sidebar width. --odcm-sidebar-w drives both the margin-right on the main
+   column and the negative pull-back on the sidebar container. */
+body.post-type-odcm_order_rule {
+    --odcm-sidebar-w: 300px;
+}
 body.post-type-odcm_order_rule #post-body.columns-2 {
-    margin-right: 300px;
+    margin-right: var(--odcm-sidebar-w);
 }
 body.post-type-odcm_order_rule #postbox-container-1 {
-    width: 280px;
-    margin-right: -300px;
+    width: calc(var(--odcm-sidebar-w) - 20px);
+    margin-right: calc(-1 * var(--odcm-sidebar-w));
+}
+@media (max-width: 960px) {
+    body.post-type-odcm_order_rule #post-body.columns-2 { margin-right: 0; }
+    body.post-type-odcm_order_rule #postbox-container-1 { width: 100%; margin-right: 0; float: none; }
 }
 
 /* Screenreader text and misc WP editor flotsam */
@@ -2466,4 +2461,22 @@ body.post-type-odcm_order_rule #delete-action a {
 
 /* rb__title uses inherited color — make explicit */
 .rb__title { color: var(--odcm-ink); }
+
+/* These rules add CSS properties that have no equivalent legacy token.
+   Background/border/color are handled via token aliases in odcm-design-system.css. */
+
+/* Native date/time picker chrome adapts to colour scheme */
+.odcm-scope .odcm-date-picker,
+.odcm-scope .odcm-time-picker { color-scheme: light dark; }
+
+/* Radio and checkbox accent colour */
+.odcm-scope .odcm-radio-label input[type="radio"] { accent-color: var(--odcm-accent); }
+
+/* Placeholder text */
+.odcm-scope .odcm-form-input::placeholder,
+.odcm-scope .odcm-form-textarea::placeholder,
+.odcm-scope .odcm-search-header .odcm-search-input::placeholder { color: var(--odcm-muted); }
+
+/* Button-style radio tab — right-side divider between options */
+.odcm-scope .odcm-radio-button { border-right: 1px solid var(--odcm-border); }
 

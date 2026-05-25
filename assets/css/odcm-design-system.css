@@ -281,21 +281,21 @@
     }
   }
 
-  /* --- LEGACY ALIASES (preserves existing odcm-theme-* references during migration) --- */
+  /* --- LEGACY ALIASES (adaptive — uses semantic tokens so they switch in dark mode) --- */
 
   :root {
-    --odcm-theme-white:       var(--odcm-palette-warm-0);
-    --odcm-theme-grey-100:    var(--odcm-palette-warm-50);
-    --odcm-theme-grey-200:    var(--odcm-palette-warm-200);
-    --odcm-theme-grey-300:    var(--odcm-palette-warm-300);
-    --odcm-theme-grey-400:    var(--odcm-palette-warm-400);
-    --odcm-theme-grey-500:    var(--odcm-palette-warm-500);
-    --odcm-theme-grey-600:    var(--odcm-palette-warm-600);
-    --odcm-theme-grey-700:    var(--odcm-palette-warm-700);
-    --odcm-theme-grey-800:    var(--odcm-palette-warm-800);
-    --odcm-theme-grey-900:    var(--odcm-palette-warm-900);
-    --odcm-theme-blue-200:    var(--odcm-palette-blue-50);
-    --odcm-theme-blue-400:    var(--odcm-palette-blue-300);
+    --odcm-theme-white:       var(--odcm-surface);
+    --odcm-theme-grey-100:    var(--odcm-surface-2);
+    --odcm-theme-grey-200:    var(--odcm-rule);
+    --odcm-theme-grey-300:    var(--odcm-border-strong);
+    --odcm-theme-grey-400:    var(--odcm-muted-2);
+    --odcm-theme-grey-500:    var(--odcm-muted);
+    --odcm-theme-grey-600:    var(--odcm-muted);
+    --odcm-theme-grey-700:    var(--odcm-ink-2);
+    --odcm-theme-grey-800:    var(--odcm-ink-2);
+    --odcm-theme-grey-900:    var(--odcm-ink);
+    --odcm-theme-blue-200:    var(--odcm-accent-soft);
+    --odcm-theme-blue-400:    var(--odcm-accent-soft-2);
     --odcm-theme-blue-700:    var(--odcm-accent);
     --odcm-theme-green-200:   var(--odcm-success-soft);
     --odcm-theme-green-400:   var(--odcm-palette-success-300);
@@ -334,6 +334,33 @@
 
     --odcm-theme-border-radius: var(--odcm-radius-2);
     --odcm-theme-transition:    var(--odcm-dur-fast) var(--odcm-ease);
+
+    /* Component-scoped aliases used by rule-builder.css */
+    --odcm-component-border-width:        1px;
+    --odcm-component-border-color:        var(--odcm-border);
+    --odcm-component-border-radius:       var(--odcm-radius-2);
+    --odcm-component-text-color-body:     var(--odcm-ink);
+    --odcm-component-text-color-header:   var(--odcm-ink);
+    --odcm-component-transition:          background var(--odcm-dur-fast) var(--odcm-ease), border-color var(--odcm-dur-fast) var(--odcm-ease), color var(--odcm-dur-fast) var(--odcm-ease);
+
+    --odcm-form-input-padding:        8px 12px;
+    --odcm-form-input-bg:             var(--odcm-surface);
+    --odcm-form-input-border:         1px solid var(--odcm-border-strong);
+    --odcm-form-input-border-focus:   1px solid var(--odcm-accent);
+    --odcm-form-input-border-radius:  var(--odcm-radius-2);
+
+    --odcm-theme-pane-header-height: 44px;
+    --odcm-compact-spacing-micro:    var(--odcm-space-1);
+    --odcm-compact-spacing-tight:    var(--odcm-space-2);
+
+    /* Icon button tokens (also used by rule-builder.css) */
+    --odcm-icon-button-size:         28px;
+    --odcm-icon-button-padding:      4px;
+    --odcm-icon-button-icon-size:    16px;
+    --odcm-icon-button-color:        var(--odcm-ink-2);
+    --odcm-icon-button-transition:   background var(--odcm-dur-fast) var(--odcm-ease), color var(--odcm-dur-fast) var(--odcm-ease);
+    --odcm-icon-button-focus-outline: 2px solid var(--odcm-accent);
+    --odcm-icon-button-focus-offset:  2px;
   }
 }
 
