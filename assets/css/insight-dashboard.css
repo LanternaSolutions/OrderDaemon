@@ -5418,3 +5418,39 @@ label.odcm-retention-option {
         color: var(--odcm-ink-2);
     }
 }
+
+/* ==========================================================================
+   BATCH ACTIONS FLOATING BAR — design system token overrides
+   Replaces fixed --odcm-theme-* primitives with adaptive semantic tokens.
+   ========================================================================== */
+
+#odcm-insight-dashboard .odcm-batch-actions {
+    background: var(--odcm-surface);
+    border-color: var(--odcm-border);
+    box-shadow: var(--odcm-shadow-3);
+}
+
+#odcm-insight-dashboard .odcm-selection-count {
+    color: var(--odcm-ink-2);
+}
+
+#odcm-insight-dashboard .odcm-delete-selected {
+    background: var(--odcm-danger-soft);
+    color: var(--odcm-danger);
+    border-color: var(--odcm-danger) !important;
+    border-radius: var(--odcm-radius-1);
+}
+
+#odcm-insight-dashboard .odcm-delete-selected .dashicons-trash {
+    color: var(--odcm-danger) !important;
+}
+
+#odcm-insight-dashboard .odcm-delete-selected:hover:not(:disabled) {
+    background: var(--odcm-danger);
+    color: var(--odcm-surface);
+    border-color: var(--odcm-danger) !important;
+}
+
+#odcm-insight-dashboard .odcm-delete-selected:hover:not(:disabled) .dashicons-trash {
+    color: var(--odcm-surface) !important;
+}

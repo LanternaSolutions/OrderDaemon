@@ -478,7 +478,7 @@ JS;
     private function get_page_css(): string
     {
         return '
-.st { padding: 28px; max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.st { padding: 28px; display: flex; flex-direction: column; gap: 18px; }
 .st__title { font-size: var(--odcm-text-xl); font-weight: 500; letter-spacing: -0.01em; margin: 0; color: var(--odcm-ink); }
 .st__card { background: var(--odcm-surface); border: 1px solid var(--odcm-border); border-radius: var(--odcm-radius-3); padding: 22px; display: flex; flex-direction: column; gap: 18px; }
 .st__sect-title { font-size: var(--odcm-text-md); font-weight: 600; margin: 0 0 4px; }
