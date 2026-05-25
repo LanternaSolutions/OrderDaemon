@@ -542,7 +542,7 @@
     position: absolute;
     right: 0;
     top: 0;
-    width: 50vw;
+    width: 75vw;
     height: 100%;
     z-index: 20; /* Above content but below WordPress admin elements */
     box-shadow: -5px 0 15px rgba(0,0,0,0.1);
@@ -3792,12 +3792,11 @@ label.odcm-retention-option {
     min-width: 0;
     min-height: 0;
     height: 100%;
-    overflow: hidden;
     background: var(--odcm-surface);
   }
-  .odcm-filter-pane  { background: var(--odcm-surface-2); border-right: 1px solid var(--odcm-border); }
-  .odcm-detail-pane  { background: var(--odcm-surface);   border-left:  1px solid var(--odcm-border); }
-  .odcm-log-stream   { background: var(--odcm-bg); }
+  .odcm-filter-pane  { background: var(--odcm-surface-2); border-right: 1px solid var(--odcm-border); overflow: hidden; }
+  .odcm-detail-pane  { background: var(--odcm-surface);   border-left:  1px solid var(--odcm-border); overflow: hidden; }
+  .odcm-log-stream   { background: var(--odcm-bg); overflow: hidden; }
 
   /* Pane header (shared) */
   .odcm-pane-header,
@@ -4050,6 +4049,9 @@ label.odcm-retention-option {
     grid-template-columns: 20px 1fr;
     gap: 12px;
     align-items: flex-start;
+  }
+  .odcm-tl-node > div {
+    min-width: 0; /* force 1fr column to respect available width so code blocks can't blow out the pane */
   }
 
   .odcm-tl-node__spine {
@@ -4556,7 +4558,12 @@ label.odcm-retention-option {
     color: var(--odcm-muted);
     background: var(--odcm-surface-2);
     border: 0;
+    border-right: 1px solid var(--odcm-border);
     cursor: pointer;
+}
+#odcm-insight-dashboard .odcm-pane-rail--right {
+    border-right: 0;
+    border-left: 1px solid var(--odcm-border);
 }
 
 /* Refresh and time-range widget buttons: WP generic button rules override the new
@@ -4822,11 +4829,14 @@ label.odcm-retention-option {
     top: 0;
 }
 
-/* Prism.js: default theme ships with a white background that breaks dark mode.
-   Override the container so it inherits the surface token. */
+/* Prism.js: strip the default theme's own pre background/padding — the .odcm-code-block
+   div is the visual container; the pre inside it should be transparent and flush. */
 #odcm-insight-dashboard pre[class*="language-"] {
-    background: var(--odcm-surface-2);
-    border: 1px solid var(--odcm-border);
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
 }
 
 /* ==========================================================================
@@ -4900,4 +4910,268 @@ label.odcm-retention-option {
     font-size: var(--odcm-text-sm);
     color: var(--odcm-ink-2);
     font-weight: normal;
+}
+
+/* Form elements: force border-box so width:100% + padding never exceeds container */
+#odcm-insight-dashboard .odcm-filter-form input,
+#odcm-insight-dashboard .odcm-filter-form select,
+#odcm-insight-dashboard .odcm-filter-form textarea {
+    box-sizing: border-box;
+    max-width: 100%;
+}
+
+/* Advanced filter group: flex column so inner groups get consistent gap */
+#odcm-insight-dashboard .odcm-advanced-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-space-3);
+}
+
+/* ==========================================================================
+   STREAM HEADER — controls pill, event count, pipe separator
+   ========================================================================== */
+
+/* Pipe separator: disable on desktop; re-enable on tablet only when filter pane is collapsed */
+#odcm-insight-dashboard .odcm-filter-trigger + .odcm-pane-header__title::before {
+    content: none;
+}
+@media (max-width: 1023px) {
+    #odcm-insight-dashboard .odcm-content-grid[data-filter-collapsed="true"] .odcm-filter-trigger + .odcm-pane-header__title::before {
+        content: '';
+    }
+}
+
+/* Select-all label in the pane header */
+.odcm-stream-select-all {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+.odcm-stream-select-all__label {
+    font-size: var(--odcm-text-xs);
+    color: var(--odcm-ink-2);
+    font-weight: 500;
+    white-space: nowrap;
+}
+#odcm-insight-dashboard .odcm-stream-select-all {
+    margin: 0;
+}
+#odcm-insight-dashboard .odcm-stream-select-all .odcm-select-all-checkbox {
+    margin: 0;
+}
+
+/* Event count */
+.odcm-stream-count {
+    font-size: var(--odcm-text-xs);
+    color: var(--odcm-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Stream controls — row of individual chips */
+.odcm-stream-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+/* Per-page control chip */
+.odcm-stream-ctrl--perpage {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 6px 0 8px;
+    height: 24px;
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-1);
+    background: var(--odcm-surface-2);
+}
+
+.odcm-stream-per-page {
+    width: 30px;
+    border: none;
+    background: transparent;
+    font-size: var(--odcm-text-xs);
+    color: var(--odcm-ink);
+    text-align: center;
+    padding: 0;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+.odcm-stream-per-page::-webkit-outer-spin-button,
+.odcm-stream-per-page::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Timestamp mode cycle button — standalone chip */
+.odcm-stream-ctrl--timestamp {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-1);
+    background: var(--odcm-surface-2);
+    cursor: pointer;
+    color: var(--odcm-ink-2);
+    transition: color var(--odcm-dur-fast) var(--odcm-ease),
+                background-color var(--odcm-dur-fast) var(--odcm-ease);
+}
+.odcm-stream-ctrl--timestamp:hover {
+    color: var(--odcm-accent);
+    background-color: var(--odcm-accent-soft);
+}
+
+/* Shared label: per-page "/" text and timestamp mode abbreviation */
+.odcm-stream-ctrl__label {
+    font-size: var(--odcm-text-2xs);
+    color: var(--odcm-muted);
+    font-weight: 500;
+    white-space: nowrap;
+    line-height: 1;
+}
+.odcm-stream-ctrl--timestamp .odcm-stream-ctrl__label {
+    font-size: var(--odcm-text-xs);
+    color: inherit;
+}
+
+/* Clock icon */
+.odcm-stream-ctrl__icon {
+    flex-shrink: 0;
+    opacity: 0.65;
+}
+.odcm-stream-ctrl--timestamp:hover .odcm-stream-ctrl__icon {
+    opacity: 1;
+}
+
+/* View mode icon pair — standalone chip */
+.odcm-stream-ctrl--viewmode {
+    display: flex;
+    align-items: center;
+    height: 24px;
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-1);
+    background: var(--odcm-surface-2);
+    overflow: hidden;
+}
+.odcm-stream-ctrl--viewmode .odcm-stream-ctrl__btn:first-child {
+    border-right: 1px solid var(--odcm-border);
+}
+
+.odcm-stream-ctrl__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--odcm-muted);
+    transition: color var(--odcm-dur-fast) var(--odcm-ease),
+                background-color var(--odcm-dur-fast) var(--odcm-ease);
+}
+.odcm-stream-ctrl__btn:hover {
+    color: var(--odcm-accent);
+    background-color: var(--odcm-accent-soft);
+}
+.odcm-stream-ctrl__btn.is-active {
+    color: var(--odcm-accent);
+    background-color: var(--odcm-accent-soft);
+}
+
+/* WP admin resets — timestamp chip keeps its own border and radius */
+#odcm-insight-dashboard .odcm-stream-ctrl--timestamp {
+    box-shadow: none;
+    outline: none;
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    text-shadow: none;
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-1);
+}
+#odcm-insight-dashboard .odcm-stream-ctrl__btn {
+    box-shadow: none;
+    outline: none;
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    text-shadow: none;
+    vertical-align: top;
+    border-radius: 0;
+}
+#odcm-insight-dashboard .odcm-stream-per-page {
+    box-shadow: none;
+    border: none;
+    outline: none;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+/* ==========================================================================
+   STATUS PILL DARK MODE — semantic tokens replace fixed light primitives
+   ========================================================================== */
+
+:root[data-theme="dark"] .odcm-status-pill--critical {
+    background-color: var(--odcm-danger-soft);
+    color: var(--odcm-danger);
+    box-shadow: inset 0 0 0 1px var(--odcm-danger);
+}
+:root[data-theme="dark"] .odcm-status-pill--error {
+    background-color: var(--odcm-danger-soft);
+    color: var(--odcm-danger);
+}
+:root[data-theme="dark"] .odcm-status-pill--warning,
+:root[data-theme="dark"] .odcm-status-pill--debug,
+:root[data-theme="dark"] .odcm-status-pill--pending {
+    background-color: var(--odcm-warn-soft);
+    color: var(--odcm-warn);
+}
+:root[data-theme="dark"] .odcm-status-pill--success,
+:root[data-theme="dark"] .odcm-status-pill--notice,
+:root[data-theme="dark"] .odcm-status-pill--completed {
+    background-color: var(--odcm-success-soft);
+    color: var(--odcm-success);
+}
+:root[data-theme="dark"] .odcm-status-pill--info,
+:root[data-theme="dark"] .odcm-status-pill--skipped {
+    background-color: var(--odcm-surface-3);
+    color: var(--odcm-ink-2);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .odcm-status-pill--critical {
+        background-color: var(--odcm-danger-soft);
+        color: var(--odcm-danger);
+        box-shadow: inset 0 0 0 1px var(--odcm-danger);
+    }
+    :root:not([data-theme]) .odcm-status-pill--error {
+        background-color: var(--odcm-danger-soft);
+        color: var(--odcm-danger);
+    }
+    :root:not([data-theme]) .odcm-status-pill--warning,
+    :root:not([data-theme]) .odcm-status-pill--debug,
+    :root:not([data-theme]) .odcm-status-pill--pending {
+        background-color: var(--odcm-warn-soft);
+        color: var(--odcm-warn);
+    }
+    :root:not([data-theme]) .odcm-status-pill--success,
+    :root:not([data-theme]) .odcm-status-pill--notice,
+    :root:not([data-theme]) .odcm-status-pill--completed {
+        background-color: var(--odcm-success-soft);
+        color: var(--odcm-success);
+    }
+    :root:not([data-theme]) .odcm-status-pill--info,
+    :root:not([data-theme]) .odcm-status-pill--skipped {
+        background-color: var(--odcm-surface-3);
+        color: var(--odcm-ink-2);
+    }
 }
