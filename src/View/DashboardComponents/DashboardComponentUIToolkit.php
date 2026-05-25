@@ -103,7 +103,19 @@ class DashboardComponentUIToolkit
             'pre' => array_fill_keys($allowed, []),
             'br' => array_fill_keys($allowed, []),
             'hr' => array_fill_keys($allowed, []),
-            'template' => array_fill_keys($allowed, [])
+            'template' => array_fill_keys($allowed, []),
+            'svg' => [
+                'width' => [], 'height' => [], 'viewbox' => [], 'fill' => [], 'stroke' => [],
+                'stroke-width' => [], 'stroke-linecap' => [], 'stroke-linejoin' => [],
+                'aria-hidden' => [], 'class' => [], 'style' => [], 'xmlns' => [],
+            ],
+            'path' => ['d' => [], 'fill' => [], 'stroke' => [], 'stroke-width' => [], 'stroke-linecap' => [], 'stroke-linejoin' => []],
+            'circle' => ['cx' => [], 'cy' => [], 'r' => [], 'fill' => [], 'stroke' => [], 'stroke-width' => []],
+            'rect' => ['x' => [], 'y' => [], 'width' => [], 'height' => [], 'rx' => [], 'ry' => [], 'fill' => [], 'stroke' => []],
+            'line' => ['x1' => [], 'y1' => [], 'x2' => [], 'y2' => [], 'stroke' => [], 'stroke-width' => []],
+            'polyline' => ['points' => [], 'fill' => [], 'stroke' => [], 'stroke-width' => []],
+            'polygon' => ['points' => [], 'fill' => [], 'stroke' => [], 'stroke-width' => []],
+            'g' => ['fill' => [], 'stroke' => [], 'transform' => [], 'class' => []],
         ];
         
         return wp_kses($content, $allowed_html);
