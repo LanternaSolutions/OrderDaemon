@@ -802,6 +802,12 @@ body.wp-admin:has(.odcm-scope),
   background: var(--odcm-bg);
 }
 
+.odcm-scope {
+  border: 1px solid var(--odcm-border);
+  min-height: calc(100vh - var(--wp-admin--admin-bar--height, 32px));
+  box-sizing: border-box;
+}
+
 /* Inputs & selects --------------------------------------------------------- */
 .odcm-scope .odcm-input,
 .odcm-scope .odcm-select {
@@ -815,6 +821,10 @@ body.wp-admin:has(.odcm-scope),
   border-radius: var(--odcm-radius-2);
   box-shadow: none;
   outline: none;
+}
+.odcm-scope .odcm-select,
+.odcm-scope select {
+  color-scheme: inherit;
 }
 .odcm-scope .odcm-select {
   appearance: none;
