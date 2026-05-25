@@ -1431,3 +1431,26 @@ tr.odcm-log-details-row:hover > td {
   gap: 10px;
   flex-wrap: wrap;
 }
+
+/* ============================================================
+   FULL-WIDTH LAYOUT — strip WP chrome spacing on all plugin pages
+   (mirrors .odcm-is-fullscreen-dashboard rules in insight-dashboard.css)
+   ============================================================ */
+.odcm-admin-page #wpcontent {
+  padding-left: 0 !important;
+}
+.odcm-admin-page #wpbody-content {
+  padding-bottom: 0 !important;
+}
+.odcm-admin-page .wrap {
+  margin: 0 !important;
+}
+/* Mobile: remove WP's 10px padding and allow sticky headers to work */
+@media screen and (max-width: 782px) {
+  .odcm-admin-page #wpwrap {
+    overflow: visible !important;
+  }
+  .odcm-admin-page #wpcontent {
+    padding-left: 0 !important;
+  }
+}
