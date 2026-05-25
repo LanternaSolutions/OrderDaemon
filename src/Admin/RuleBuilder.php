@@ -1601,8 +1601,9 @@ final class RuleBuilder
                                         </template>
                                     </div>
                                 </template>
-                            </div><!-- /rb__settings -->
-                        </div><!-- /rb__row-body -->
+                            </div><!-- /settingsPanel x-data -->
+                        </div><!-- /rb__settings -->
+                    </div><!-- /rb__row-body -->
                     </div><!-- /rb__row (primary action) -->
 
                     <!-- Primary Action Picker -->
