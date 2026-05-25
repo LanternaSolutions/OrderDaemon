@@ -469,6 +469,7 @@ final class RuleBuilder
                 'id'          => $component->get_id(),
                 'label'       => $component->get_label(),
                 'description' => $component->get_description(),
+                'icon'        => method_exists($component, 'get_icon') ? $component->get_icon() : '',
                 'schema'      => $schema,
                 'accessible'  => $can_use,
                 'state'       => $component_state,
@@ -1134,7 +1135,7 @@ final class RuleBuilder
                                 <button type="button"
                                         @click="selectComponent('trigger', trigger.id)"
                                         class="rb__picker-item">
-                                    <span class="rb__picker-item-icon"></span>
+                                    <span class="rb__picker-item-icon" x-html="trigger.icon"></span>
                                     <div class="rb__picker-item-main">
                                         <div class="rb__picker-item-head">
                                             <span class="rb__picker-item-label" x-text="trigger.label"></span>
@@ -1161,6 +1162,7 @@ final class RuleBuilder
                         <!-- Condition Row (with nested settings) -->
                         <div class="rb__row"
                              :data-expanded="editingConditionIndex === index ? 'true' : 'false'"
+                             :data-test-state="$store.odcmTestHighlight?.conditionStates[index] ?? ''"
                              draggable="true"
                              @dragstart="startDragCondition(index, $event)"
                              @dragover="dragOverCondition(index, $event)"
@@ -1458,7 +1460,7 @@ final class RuleBuilder
                                 <button type="button"
                                         @click="selectComponent('condition', condition.id)"
                                         class="rb__picker-item">
-                                    <span class="rb__picker-item-icon"></span>
+                                    <span class="rb__picker-item-icon" x-html="condition.icon"></span>
                                     <div class="rb__picker-item-main">
                                         <div class="rb__picker-item-head">
                                             <span class="rb__picker-item-label" x-text="condition.label"></span>
@@ -1623,7 +1625,7 @@ final class RuleBuilder
                                 <button type="button"
                                         @click="selectComponent('primaryAction', action.id)"
                                         class="rb__picker-item">
-                                    <span class="rb__picker-item-icon"></span>
+                                    <span class="rb__picker-item-icon" x-html="action.icon"></span>
                                     <div class="rb__picker-item-main">
                                         <div class="rb__picker-item-head">
                                             <span class="rb__picker-item-label" x-text="action.label"></span>
@@ -1835,7 +1837,7 @@ final class RuleBuilder
                                 <button type="button"
                                         @click="selectComponent('action', action.id)"
                                         class="rb__picker-item">
-                                    <span class="rb__picker-item-icon"></span>
+                                    <span class="rb__picker-item-icon" x-html="action.icon"></span>
                                     <div class="rb__picker-item-main">
                                         <div class="rb__picker-item-head">
                                             <span class="rb__picker-item-label" x-text="action.label"></span>
