@@ -606,20 +606,28 @@
   .odcm-pro-mark {
     display: inline-flex;
     align-items: center;
-    height: 17px;
-    padding: 0 6px;
+    gap: 6px;
+    height: 18px;
+    padding: 0 7px;
     font-family: var(--odcm-font-mono);
     font-size: var(--odcm-text-2xs);
-    font-weight: 500;
-    letter-spacing: 0.12em;
+    font-weight: 600;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--odcm-accent);
-    border: 1px solid var(--odcm-accent);
+    color: var(--odcm-pro-on);
+    background: var(--odcm-pro-2);
+    border: 1px solid transparent;
     border-radius: var(--odcm-radius-1);
     line-height: 1;
     white-space: nowrap;
   }
-  .odcm-pro-mark--on-dark { color: var(--odcm-pro-accent); border-color: var(--odcm-pro-accent); }
+  .odcm-pro-mark::before {
+    content: '//';
+    font-size: inherit;
+    opacity: 0.7;
+    letter-spacing: -0.05em;
+  }
+  .odcm-pro-mark--on-dark { }
 
   /* --- CODE BLOCK --- */
   .odcm-code {
