@@ -1663,7 +1663,7 @@ details summary:focus {
 
 .dx__header { display: flex; align-items: flex-start; gap: 16px; }
 .dx__header-text { flex: 1; min-width: 0; }
-.dx__title { font-size: var(--odcm-text-xl); font-weight: 500; letter-spacing: -0.01em; margin: 0 0 4px; }
+.dx__title { font-size: var(--odcm-text-xl); font-weight: 500; letter-spacing: -0.01em; margin: 0 0 4px; color: var(--odcm-ink); }
 .dx__sub { color: var(--odcm-muted); font-size: var(--odcm-text-sm); margin: 0; }
 .dx__header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 

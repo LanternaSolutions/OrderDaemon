@@ -86,9 +86,10 @@ class RulesListPage
 
           <!-- Header -->
           <div class="rl__head">
-            <h1 class="rl__title"><?php esc_html_e('admin.list_table.page_title', 'order-daemon'); ?></h1>
-            <span class="rl__count">· <?php echo esc_html(number_format_i18n($total)); ?> <?php esc_html_e('admin.list_table.rules_count_label', 'order-daemon'); ?></span>
-            <span class="rl__grow"></span>
+            <div class="rl__head-text">
+              <h1 class="rl__title"><?php esc_html_e('admin.list_table.page_title', 'order-daemon'); ?></h1>
+              <p class="rl__sub"><?php echo esc_html(number_format_i18n($total)); ?> <?php esc_html_e('admin.list_table.rules_count_label', 'order-daemon'); ?></p>
+            </div>
             <div class="rl__head-actions">
               <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=odcm_export_rules'), 'odcm_export_rules')); ?>" class="odcm-btn odcm-btn--ghost odcm-btn--sm">
                 <?php esc_html_e('admin.list_table.action.export', 'order-daemon'); ?>
