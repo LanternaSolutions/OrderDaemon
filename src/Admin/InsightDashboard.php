@@ -758,8 +758,9 @@ class InsightDashboard
                             <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!filterPaneVisible'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                             <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'openLastOpenedPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                             aria-label="<?php echo esc_attr__('admin.insight_dashboard.filters', 'order-daemon'); ?>">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform:rotate(180deg)"><path d="m9 6 6 6-6 6"/></svg>
+                        <span class="odcm-pane-rail__label"><?php echo esc_html__('admin.insight_dashboard.filters', 'order-daemon'); ?></span>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></svg>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
                     </button>
 
                     <!-- Log Stream -->
@@ -1094,10 +1095,10 @@ class InsightDashboard
 
                 <!-- Filter Actions -->
                 <div class="odcm-filter-actions">
-                    <button type="submit" class="button button-primary">
+                    <button type="submit" class="odcm-btn odcm-btn--primary odcm-btn--sm">
                         <?php echo esc_html__('admin.insight_dashboard.filters.apply_filters', 'order-daemon'); ?>
                     </button>
-                    <button type="button" class="button" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'clearFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
+                    <button type="button" class="odcm-btn odcm-btn--ghost odcm-btn--sm" <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'clearFilters()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                         <?php echo esc_html__('admin.insight_dashboard.filters.clear_all', 'order-daemon'); ?>
                     </button>
                 </div>

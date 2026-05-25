@@ -76,6 +76,7 @@ class DashboardComponentUIToolkit
                     'type' => [],
                     'class' => [],
                     'id' => [],
+                    'title' => [],
                     'data-filter' => [],
                     'data-target' => [],
                 ],

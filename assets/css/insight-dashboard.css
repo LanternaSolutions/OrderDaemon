@@ -3911,7 +3911,7 @@ label.odcm-retention-option {
   .odcm-pane-body,
   .odcm-filter-pane-content,
   .odcm-filter-form {
-    padding: var(--odcm-space-4);
+    padding: var(--odcm-space-3);
     display: flex;
     flex-direction: column;
     gap: var(--odcm-space-3);
@@ -4006,7 +4006,9 @@ label.odcm-retention-option {
   .odcm-filter-actions {
     display: flex;
     gap: 8px;
-    padding-top: 6px;
+    margin-top: auto;
+    padding-top: var(--odcm-space-3);
+    border-top: 1px solid var(--odcm-border);
   }
   .odcm-filter-actions .odcm-btn { flex: 1; justify-content: center; }
   .odcm-filter-actions .odcm-btn--ghost { flex: 0; }
@@ -4687,6 +4689,21 @@ label.odcm-retention-option {
 
 /* Date range separator */
 #odcm-insight-dashboard .odcm-date-range span { color: var(--odcm-muted); }
+
+/* Log stream right border: new design section only sets background for log-stream,
+   leaving the old border-right using --odcm-component-border-color (always light). */
+#odcm-insight-dashboard .odcm-log-stream {
+    border-right-color: var(--odcm-border);
+}
+
+/* Unified header: old CSS sets border on all four sides using the always-light token.
+   New design only uses border-bottom — clear the other three sides. */
+#odcm-insight-dashboard .odcm-unified-header {
+    border-top: 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom-color: var(--odcm-border);
+}
 
 /* WP native form elements inside the dashboard */
 #odcm-insight-dashboard input[type="text"],
