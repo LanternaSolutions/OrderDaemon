@@ -78,18 +78,18 @@ class SettingsPage
         $ds_version = file_exists($ds_path) ? filemtime($ds_path) : $plugin_version;
         wp_enqueue_style('odcm-design-system', $assets_url . 'css/odcm-design-system.css', [], $ds_version);
 
-        // Insight-dashboard CSS (provides .odcm-unified-header and shared layout)
-        $dash_css_path    = $plugin_dir . 'assets/css/insight-dashboard.css';
-        $dash_css_version = file_exists($dash_css_path) ? filemtime($dash_css_path) : $plugin_version;
+        // Admin CSS (provides .odcm-unified-header and shared layout)
+        $admin_css_path    = $plugin_dir . 'assets/css/admin.css';
+        $admin_css_version = file_exists($admin_css_path) ? filemtime($admin_css_path) : $plugin_version;
         wp_enqueue_style(
-            'odcm-insight-dashboard',
-            $assets_url . 'css/insight-dashboard.css',
+            'odcm-admin-styles',
+            $assets_url . 'css/admin.css',
             ['odcm-design-system'],
-            $dash_css_version
+            $admin_css_version
         );
 
         // Page-specific layout CSS (`.st` styles from design handoff)
-        wp_add_inline_style('odcm-insight-dashboard', $this->get_page_css());
+        wp_add_inline_style('odcm-admin-styles', $this->get_page_css());
 
         // Pass settings data + i18n to JS
         wp_localize_script('odcm-shared-toasts', 'odcmSettingsConfig', $this->get_js_config());

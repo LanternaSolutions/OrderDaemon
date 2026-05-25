@@ -236,8 +236,15 @@ class Admin
         if (!$screen) return false;
         // CPT edit / new-post screens
         if ($screen->post_type === 'odcm_order_rule') return true;
-        // All submenu pages under odcm-insight-dashboard (free + pro), plus the top-level page itself
-        return strpos($screen->id, 'odcm-insight-dashboard') !== false;
+        $id = $screen->id;
+        // Top-level dashboard page
+        if ($id === 'toplevel_page_odcm-insight-dashboard') return true;
+        // All subpages: WP builds the hook as "{parent-derived-slug}_page_{menu-slug}".
+        // Free subpages use "order-daemon_page_" (derived from the menu title "Order Daemon").
+        // Some pages (e.g. pro extensions) may use "odcm-insight-dashboard_page_" instead.
+        // Matching the shared "_page_odcm-" and "_page_order-daemon-" patterns covers both.
+        return strpos($id, 'order-daemon_page_') !== false
+            || strpos($id, 'odcm-insight-dashboard_page_') !== false;
     }
 
     /**
