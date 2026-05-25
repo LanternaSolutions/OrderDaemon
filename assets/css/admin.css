@@ -1383,3 +1383,51 @@ tr.odcm-log-details-row:hover > td {
 
 /* Rules list page body scoping */
 .odcm-rules-page { color: var(--odcm-ink); }
+
+/* ============================================================
+   UNIFIED HEADER (top bar — shared across admin pages)
+   ============================================================ */
+.odcm-scope .odcm-unified-header {
+  position: sticky;
+  top: var(--wp-admin--admin-bar--height, 32px);
+  z-index: 50;
+  background: var(--odcm-surface);
+  border-bottom: 1px solid var(--odcm-border);
+  display: flex;
+  align-items: center;
+  gap: var(--odcm-space-4);
+  padding: 10px var(--odcm-space-6);
+  min-height: var(--odcm-h-topbar);
+}
+.odcm-scope .odcm-unified-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--odcm-ink);
+  flex-shrink: 0;
+}
+.odcm-scope .odcm-unified-header__brand svg { flex-shrink: 0; }
+.odcm-scope .odcm-unified-header__title {
+  font-size: var(--odcm-text-md);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+.odcm-scope .odcm-unified-header__sep {
+  color: var(--odcm-muted-2);
+  font-size: var(--odcm-text-md);
+  user-select: none;
+}
+.odcm-scope .odcm-unified-header__crumb {
+  font-size: var(--odcm-text-md);
+  font-weight: 500;
+  color: var(--odcm-ink-2);
+  letter-spacing: -0.005em;
+}
+.odcm-scope .odcm-unified-header__controls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}

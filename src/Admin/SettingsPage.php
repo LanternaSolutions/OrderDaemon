@@ -171,9 +171,19 @@ class SettingsPage
                             <div class="st__field-help"><?php echo esc_html__('admin.settings.audit_log.retention_help', 'order-daemon'); ?></div>
                         </div>
                         <div class="st__field-input">
-                            <select class="odcm-select" style="width:140px;" disabled>
-                                <option><?php echo esc_html__('admin.settings.audit_log.retention_30_days', 'order-daemon'); ?></option>
-                            </select>
+                            <?php if (defined('ODCM_PRO_PLUGIN_FILE')): ?>
+                                <select class="odcm-select" x-model.number="retentionDays" style="width:140px;">
+                                    <option value="7"><?php echo esc_html__('admin.settings.audit_log.retention_7_days', 'order-daemon'); ?></option>
+                                    <option value="14"><?php echo esc_html__('admin.settings.audit_log.retention_14_days', 'order-daemon'); ?></option>
+                                    <option value="30"><?php echo esc_html__('admin.settings.audit_log.retention_30_days', 'order-daemon'); ?></option>
+                                    <option value="60"><?php echo esc_html__('admin.settings.audit_log.retention_60_days', 'order-daemon'); ?></option>
+                                    <option value="90"><?php echo esc_html__('admin.settings.audit_log.retention_90_days', 'order-daemon'); ?></option>
+                                    <option value="180"><?php echo esc_html__('admin.settings.audit_log.retention_180_days', 'order-daemon'); ?></option>
+                                    <option value="365"><?php echo esc_html__('admin.settings.audit_log.retention_1_year', 'order-daemon'); ?></option>
+                                </select>
+                            <?php else: ?>
+                                <span class="st__field-value"><?php echo esc_html__('admin.settings.audit_log.retention_30_days', 'order-daemon'); ?></span>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -242,10 +252,6 @@ class SettingsPage
 
                 <!-- Footer actions -->
                 <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:4px;">
-                    <button type="button" class="odcm-btn odcm-btn--ghost"
-                            @click="cancel()" :disabled="saving">
-                        <?php echo esc_html__('admin.settings.cancel', 'order-daemon'); ?>
-                    </button>
                     <button type="button" class="odcm-btn odcm-btn--primary"
                             @click="saveSettings()" :disabled="saving">
                         <span x-text="saving ? '<?php echo esc_js(__('admin.insight_dashboard.ajax.processing', 'order-daemon')); ?>' : '<?php echo esc_js(__('admin.settings.save', 'order-daemon')); ?>'"></span>
@@ -291,6 +297,14 @@ class SettingsPage
             $theme = sanitize_key(wp_unslash($_POST['default_theme']));
             if (in_array($theme, ['auto', 'light', 'dark'], true)) {
                 update_option('odcm_default_theme', $theme, 'no');
+            }
+        }
+
+        // Log retention (Pro only — free is locked at 30)
+        if (defined('ODCM_PRO_PLUGIN_FILE') && isset($_POST['retention_days'])) {
+            $retention = absint($_POST['retention_days']);
+            if (in_array($retention, [7, 14, 30, 60, 90, 180, 365], true)) {
+                update_option('odcm_log_retention_days', $retention, 'no');
             }
         }
 
@@ -360,6 +374,7 @@ class SettingsPage
             'perPage'               => $per_page_meta ? (int) $per_page_meta : 20,
             'autoRefresh'           => (int) get_option('odcm_auto_refresh_interval', 5),
             'theme'                 => get_option('odcm_default_theme', 'auto'),
+            'retentionDays'         => (int) get_option('odcm_log_retention_days', 30),
             'captureRuleExecution'  => (bool) get_option('odcm_capture_rule_execution', true),
             'captureCheckoutEvents' => (bool) get_option('odcm_capture_checkout_events', true),
             'removeDataOnUninstall' => (bool) get_option('odcm_remove_all_data_on_uninstall', false),
@@ -375,6 +390,7 @@ class SettingsPage
             'perPage'               => $s['perPage'],
             'autoRefresh'           => $s['autoRefresh'],
             'theme'                 => $s['theme'],
+            'retentionDays'         => $s['retentionDays'],
             'captureRuleExecution'  => $s['captureRuleExecution'],
             'captureCheckoutEvents' => $s['captureCheckoutEvents'],
             'removeDataOnUninstall' => $s['removeDataOnUninstall'] ? 'delete' : 'keep',
@@ -397,27 +413,12 @@ document.addEventListener('alpine:init', function () {
             perPage:               odcmSettingsConfig.perPage,
             autoRefresh:           odcmSettingsConfig.autoRefresh,
             theme:                 odcmSettingsConfig.theme,
+            retentionDays:         odcmSettingsConfig.retentionDays,
             captureRuleExecution:  odcmSettingsConfig.captureRuleExecution,
             captureCheckoutEvents: odcmSettingsConfig.captureCheckoutEvents,
             removeDataOnUninstall: odcmSettingsConfig.removeDataOnUninstall,
-            saving:  false,
+            saving:   false,
             clearing: false,
-            _orig:   null,
-
-            init: function () {
-                this._orig = {
-                    perPage:               this.perPage,
-                    autoRefresh:           this.autoRefresh,
-                    theme:                 this.theme,
-                    captureRuleExecution:  this.captureRuleExecution,
-                    captureCheckoutEvents: this.captureCheckoutEvents,
-                    removeDataOnUninstall: this.removeDataOnUninstall,
-                };
-            },
-
-            cancel: function () {
-                Object.assign(this, this._orig);
-            },
 
             saveSettings: async function () {
                 this.saving = true;
@@ -428,6 +429,7 @@ document.addEventListener('alpine:init', function () {
                         per_page:                  this.perPage,
                         auto_refresh_interval:     this.autoRefresh,
                         default_theme:             this.theme,
+                        retention_days:            this.retentionDays,
                         capture_rule_execution:    this.captureRuleExecution ? '1' : '0',
                         capture_checkout_events:   this.captureCheckoutEvents ? '1' : '0',
                         remove_data_on_uninstall:  this.removeDataOnUninstall === 'delete' ? '1' : '0',
@@ -435,14 +437,6 @@ document.addEventListener('alpine:init', function () {
                     var res  = await fetch(odcmSettingsConfig.ajaxUrl, { method: 'POST', body: body });
                     var data = await res.json();
                     if (data.success) {
-                        this._orig = {
-                            perPage:               this.perPage,
-                            autoRefresh:           this.autoRefresh,
-                            theme:                 this.theme,
-                            captureRuleExecution:  this.captureRuleExecution,
-                            captureCheckoutEvents: this.captureCheckoutEvents,
-                            removeDataOnUninstall: this.removeDataOnUninstall,
-                        };
                         if (window.odcmToast) window.odcmToast(odcmSettingsConfig.i18n.saved, 'success');
                     } else {
                         if (window.odcmToast) window.odcmToast(data.data?.message || odcmSettingsConfig.i18n.saveError, 'error');
@@ -485,7 +479,7 @@ JS;
     {
         return '
 .st { padding: 28px; max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
-.st__title { font-size: var(--odcm-text-xl); font-weight: 500; letter-spacing: -0.01em; margin: 0; }
+.st__title { font-size: var(--odcm-text-xl); font-weight: 500; letter-spacing: -0.01em; margin: 0; color: var(--odcm-ink); }
 .st__card { background: var(--odcm-surface); border: 1px solid var(--odcm-border); border-radius: var(--odcm-radius-3); padding: 22px; display: flex; flex-direction: column; gap: 18px; }
 .st__sect-title { font-size: var(--odcm-text-md); font-weight: 600; margin: 0 0 4px; }
 .st__sect-sub { font-size: var(--odcm-text-sm); color: var(--odcm-muted); margin: 0; }
@@ -494,6 +488,7 @@ JS;
 .st__field-label { font-size: var(--odcm-text-sm); font-weight: 500; color: var(--odcm-ink); margin-bottom: 4px; }
 .st__field-help { font-size: var(--odcm-text-xs); color: var(--odcm-muted); line-height: 1.5; }
 .st__field-input { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.st__field-value { font-size: var(--odcm-text-sm); color: var(--odcm-muted); }
 .st__danger { border-color: var(--odcm-danger); background: var(--odcm-danger-soft); }
 .st__danger .st__sect-title { color: var(--odcm-danger); }
 @media (max-width: 767px) { .st__field { grid-template-columns: 1fr; } .st__field-input { justify-content: flex-start; } }

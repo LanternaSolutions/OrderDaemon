@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Order Daemon for WooCommerce 1.3.28\n"
 "Report-Msgid-Bugs-To: support@orderdaemon.com\n"
-"POT-Creation-Date: 2026-05-25 13:22+0200\n"
+"POT-Creation-Date: 2026-05-25 13:56+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -38,10 +38,10 @@ msgid "admin.ajax.rule_order_update_success"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:96
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:464
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:488
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:532
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:575
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:486
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:510
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:554
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:597
 #: /home/yakir/lab/order-daemon/src/Admin/Notices.php:112
 #: /home/yakir/lab/order-daemon/src/Admin/Notices.php:244
 #: /home/yakir/lab/order-daemon/src/Includes/actions.php:1489
@@ -173,13 +173,13 @@ msgstr ""
 #: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1295
 #: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1467
 #: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1799
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:267
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:321
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:273
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:335
 msgid "admin.insight_dashboard.ajax.permission_denied"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:237
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:251
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:247
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:257
 msgid "admin.insight_dashboard.ajax.processing"
 msgstr ""
 
@@ -197,8 +197,8 @@ msgstr[1] ""
 #: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1304
 #: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1472
 #: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1794
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:271
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:325
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:277
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:339
 msgid "admin.insight_dashboard.ajax.security_check_failed"
 msgstr ""
 
@@ -558,11 +558,11 @@ msgstr ""
 msgid "admin.insight_dashboard.select_log_entry"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:213
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:223
 msgid "admin.insight_dashboard.settings.danger_zone_sub"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:212
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:222
 msgid "admin.insight_dashboard.settings.danger_zone_title"
 msgstr ""
 
@@ -587,19 +587,19 @@ msgstr ""
 msgid "admin.insight_dashboard.settings.timestamp_format_datetime"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:224
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:234
 msgid "admin.insight_dashboard.settings.uninstall_data.delete"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:219
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:229
 msgid "admin.insight_dashboard.settings.uninstall_data.hint"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:223
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:233
 msgid "admin.insight_dashboard.settings.uninstall_data.keep"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:218
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:228
 msgid "admin.insight_dashboard.settings.uninstall_data.label"
 msgstr ""
 
@@ -701,36 +701,36 @@ msgstr ""
 
 #. translators: Bulk action to turn on/enable selected rules
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:75
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:229
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:245
 msgid "admin.list_table.action.activate"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:97
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:113
 msgid "admin.list_table.action.add_rule"
 msgstr ""
 
 #. translators: Bulk action to turn off/disable selected rules
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:77
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:230
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:246
 msgid "admin.list_table.action.deactivate"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:94
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:110
 msgid "admin.list_table.action.export"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:78
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:231
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:247
 msgid "admin.list_table.action.move_to_trash"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:228
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:244
 msgid "admin.list_table.bulk.choose_action"
 msgstr ""
 
 #. translators: Column header showing whether a rule is currently active/enabled or inactive/disabled
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:45
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:141
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:157
 msgid "admin.list_table.column.active"
 msgstr ""
 
@@ -743,11 +743,11 @@ msgstr ""
 msgid "admin.list_table.column.drag"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:144
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:160
 msgid "admin.list_table.column.executed"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:143
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:159
 msgid "admin.list_table.column.last_fired"
 msgstr ""
 
@@ -756,49 +756,50 @@ msgid "admin.list_table.column.priority"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:46
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:140
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:156
 msgid "admin.list_table.column.title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:142
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:158
 msgid "admin.list_table.column.trigger"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:230
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:215
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:231
 msgid "admin.list_table.confirm.delete_rule"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:279
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:150
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:166
 msgid "admin.list_table.empty.no_rules_found"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:111
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:127
 msgid "admin.list_table.filter.all_statuses"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:118
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:134
 msgid "admin.list_table.filter.all_triggers"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:205
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:221
 msgid "admin.list_table.fires_label"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:177
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:193
 msgid "admin.list_table.never"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:89
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:97
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:105
 msgid "admin.list_table.page_title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:90
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:106
 msgid "admin.list_table.rules_count_label"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:107
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:123
 msgid "admin.list_table.search_placeholder"
 msgstr ""
 
@@ -861,7 +862,7 @@ msgstr ""
 msgid "admin.rule_builder.action.add_condition"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1486
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1488
 msgid "admin.rule_builder.action.add_primary_action_description"
 msgstr ""
 
@@ -877,15 +878,15 @@ msgstr ""
 msgid "admin.rule_builder.action.remove"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1477
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1479
 msgid "admin.rule_builder.actions_section_label"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1436
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1438
 msgid "admin.rule_builder.add_condition_button"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1811
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1815
 msgid "admin.rule_builder.add_secondary_action_button"
 msgstr ""
 
@@ -893,11 +894,11 @@ msgstr ""
 msgid "admin.rule_builder.condition.any_category"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1451
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1453
 msgid "admin.rule_builder.condition_search_placeholder"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1154
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1155
 msgid "admin.rule_builder.conditions_section_label"
 msgstr ""
 
@@ -913,14 +914,14 @@ msgstr ""
 msgid "admin.rule_builder.page_title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1495
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1497
 msgid "admin.rule_builder.primary_badge"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:903
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1175
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1500
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1648
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1176
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1502
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1651
 msgid "admin.rule_builder.remove_button"
 msgstr ""
 
@@ -932,23 +933,23 @@ msgstr ""
 msgid "admin.rule_builder.search.conditions_placeholder"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1615
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1618
 msgid "admin.rule_builder.search.primary_actions_placeholder"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1826
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1830
 msgid "admin.rule_builder.search.secondary_actions_placeholder"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1128
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1129
 msgid "admin.rule_builder.search.triggers_placeholder"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1153
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1154
 msgid "admin.rule_builder.section.if"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1476
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1478
 msgid "admin.rule_builder.section.then"
 msgstr ""
 
@@ -956,19 +957,19 @@ msgstr ""
 msgid "admin.rule_builder.section.when"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1443
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1445
 msgid "admin.rule_builder.selector.condition_title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1607
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1610
 msgid "admin.rule_builder.selector.primary_action_title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1818
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1822
 msgid "admin.rule_builder.selector.secondary_action_title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1120
+#: /home/yakir/lab/order-daemon/src/Admin/RuleBuilder.php:1121
 msgid "admin.rule_builder.selector.trigger_title"
 msgstr ""
 
@@ -1100,41 +1101,41 @@ msgstr ""
 msgid "admin.rules.view_item"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:386
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:402
 msgid "admin.settings.ajax.confirm_clear_log"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:385
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:401
 msgid "admin.settings.ajax.log_clear_error"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:338
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:384
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:352
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:400
 msgid "admin.settings.ajax.log_cleared"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:383
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:399
 msgid "admin.settings.ajax.save_error"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:315
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:382
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:329
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:398
 msgid "admin.settings.ajax.saved"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:196
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:206
 msgid "admin.settings.audit_log.capture_checkout_events"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:197
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:207
 msgid "admin.settings.audit_log.capture_checkout_events_help"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:182
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:192
 msgid "admin.settings.audit_log.capture_rule_execution"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:183
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:193
 msgid "admin.settings.audit_log.capture_rule_execution_help"
 msgstr ""
 
@@ -1142,8 +1143,33 @@ msgstr ""
 msgid "admin.settings.audit_log.retention"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:175
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:177
+msgid "admin.settings.audit_log.retention_14_days"
+msgstr ""
+
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:181
+msgid "admin.settings.audit_log.retention_180_days"
+msgstr ""
+
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:182
+msgid "admin.settings.audit_log.retention_1_year"
+msgstr ""
+
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:178
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:185
 msgid "admin.settings.audit_log.retention_30_days"
+msgstr ""
+
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:179
+msgid "admin.settings.audit_log.retention_60_days"
+msgstr ""
+
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:176
+msgid "admin.settings.audit_log.retention_7_days"
+msgstr ""
+
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:180
+msgid "admin.settings.audit_log.retention_90_days"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:171
@@ -1158,19 +1184,15 @@ msgstr ""
 msgid "admin.settings.audit_log.title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:247
-msgid "admin.settings.cancel"
-msgstr ""
-
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:231
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:241
 msgid "admin.settings.data_management.clear_log"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:237
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:247
 msgid "admin.settings.data_management.clear_log_button"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:232
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:242
 msgid "admin.settings.data_management.clear_log_help"
 msgstr ""
 
@@ -1211,7 +1233,7 @@ msgstr ""
 msgid "admin.settings.page_title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:251
+#: /home/yakir/lab/order-daemon/src/Admin/SettingsPage.php:257
 msgid "admin.settings.save"
 msgstr ""
 
@@ -1222,38 +1244,38 @@ msgstr ""
 
 #. translators: Tooltip text for an enabled/turned on rule
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:182
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:112
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:166
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:128
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:182
 msgid "admin.ui.active"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:234
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:250
 msgid "admin.ui.apply"
 msgstr ""
 
 #. translators: Link text to permanently remove a rule
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:232
 #: /home/yakir/lab/order-daemon/src/Admin/InsightDashboard.php:1688
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:216
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:232
 msgid "admin.ui.delete"
 msgstr ""
 
 #. translators: Label showing a rule is saved but not yet published/active
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:211
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:172
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:188
 msgid "admin.ui.draft"
 msgstr ""
 
 #. translators: Link text to modify/change a rule
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:219
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:210
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:226
 msgid "admin.ui.edit"
 msgstr ""
 
 #. translators: Tooltip text for a disabled/turned off rule
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:184
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:113
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:169
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:129
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:185
 msgid "admin.ui.inactive"
 msgstr ""
 
@@ -1267,7 +1289,7 @@ msgstr ""
 msgid "admin.ui.published"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:125
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:141
 msgid "admin.ui.search"
 msgstr ""
 
@@ -2540,30 +2562,30 @@ msgstr ""
 msgid "core.refund_diagnostics.system_source"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:550
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:572
 msgid "diagnostics.ajax.error.diagnostic_not_found"
 msgstr ""
 
 #. translators: %s: The error message that occurred while generating dual-audience report
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:600
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:622
 msgid "diagnostics.ajax.error.failed_generate_report_detail"
 msgstr ""
 
 #. translators: %s: The error message that occurred while running a single diagnostic
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:561
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:583
 msgid "diagnostics.ajax.error.failed_run_diagnostic_detail"
 msgstr ""
 
 #. translators: %s: The error message that occurred while running diagnostics
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:518
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:540
 msgid "diagnostics.ajax.error.failed_run_diagnostics_detail"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:544
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:566
 msgid "diagnostics.ajax.error.no_diagnostic_specified"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:593
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:615
 msgid "diagnostics.ajax.report_generated_successfully"
 msgstr ""
 
@@ -2640,63 +2662,64 @@ msgstr ""
 msgid "diagnostics.environment.warning.memory_limit"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:393
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:415
 msgid "diagnostics.page.action.export_logs"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:397
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:419
 msgid "diagnostics.page.action.flush_caches"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:245
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:267
 msgid "diagnostics.page.button.copy_to_clipboard"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:241
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:263
 msgid "diagnostics.page.button.run_full"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:380
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:402
 msgid "diagnostics.page.debug.verbose_logging.desc"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:379
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:401
 msgid "diagnostics.page.debug.verbose_logging.label"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:236
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:258
 msgid "diagnostics.page.description"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:325
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:347
 msgid "diagnostics.page.env.plugin"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:252
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:274
 msgid "diagnostics.page.label.status"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:370
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:392
 msgid "diagnostics.page.section.debug_controls"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:320
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:342
 msgid "diagnostics.page.section.environment"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:271
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:293
 msgid "diagnostics.page.section.health_checks"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:257
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:279
 msgid "diagnostics.page.stat.health_checks"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:261
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:283
 msgid "diagnostics.page.stat.rules_active"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:235
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:250
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:257
 msgid "diagnostics.page.title"
 msgstr ""
 
@@ -2782,167 +2805,167 @@ msgid "diagnostics.plugin_state.warning.unknown_version"
 msgstr ""
 
 #. translators: 1: Category name in uppercase, 2: Number of tests passed, 3: Total number of tests
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1000
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1022
 msgid "diagnostics.report.category.header"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1058
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1080
 msgid "diagnostics.report.end_of_report"
 msgstr ""
 
 #. translators: %s: Date and time when the report was generated
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:952
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:974
 #: /home/yakir/lab/order-daemon/src/Diagnostics/DiagnosticRunner.php:389
 msgid "diagnostics.report.generated_at"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1019
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1041
 msgid "diagnostics.report.label.recommendations"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1027
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1049
 msgid "diagnostics.report.label.technical_details"
 msgstr ""
 
 #. translators: %s: The Order Daemon plugin version number
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:954
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:976
 #: /home/yakir/lab/order-daemon/src/Diagnostics/DiagnosticRunner.php:395
 msgid "diagnostics.report.plugin_version"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:981
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1003
 msgid "diagnostics.report.section.all_recommendations"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:971
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:993
 msgid "diagnostics.report.section.critical_issues"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:992
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1014
 msgid "diagnostics.report.section.detailed_results"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:958
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:980
 msgid "diagnostics.report.section.summary"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1043
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1065
 msgid "diagnostics.report.section.system_info"
 msgstr ""
 
 #. translators: 1: Total tests run, 2: Number passed, 3: Number failed
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:962
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:984
 msgid "diagnostics.report.summary.tests_run"
 msgstr ""
 
 #. translators: %s: Whether debug mode is enabled (Enabled/Disabled)
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1054
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1076
 #: /home/yakir/lab/order-daemon/src/Diagnostics/DiagnosticRunner.php:481
 msgid "diagnostics.report.system_info.debug_mode"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1054
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1076
 msgid "diagnostics.report.system_info.disabled"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1054
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1076
 msgid "diagnostics.report.system_info.enabled"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1052
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1074
 msgid "diagnostics.report.system_info.no"
 msgstr ""
 
 #. translators: %s: The Order Daemon plugin version number
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1050
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1072
 msgid "diagnostics.report.system_info.order_daemon_version"
 msgstr ""
 
 #. translators: %s: The PHP version number
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1048
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1070
 #: /home/yakir/lab/order-daemon/src/Diagnostics/DiagnosticRunner.php:461
 msgid "diagnostics.report.system_info.php_version"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1048
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1070
 msgid "diagnostics.report.system_info.unknown_php_version"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1046
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1068
 msgid "diagnostics.report.system_info.unknown_wordpress_version"
 msgstr ""
 
 #. translators: %s: Whether WooCommerce is active (Yes/No)
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1052
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1074
 msgid "diagnostics.report.system_info.woocommerce_active"
 msgstr ""
 
 #. translators: %s: The WordPress version number
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1046
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1068
 msgid "diagnostics.report.system_info.wordpress_version"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1052
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1074
 msgid "diagnostics.report.system_info.yes"
 msgstr ""
 
 #. translators: %s: The diagnostic message text
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1015
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1037
 msgid "diagnostics.report.test.message"
 msgstr ""
 
 #. translators: %s: The test status (e.g., Success, Error, Warning)
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1013
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1035
 msgid "diagnostics.report.test.status"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:950
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:972
 #: /home/yakir/lab/order-daemon/src/Diagnostics/DiagnosticRunner.php:384
 msgid "diagnostics.report.title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:954
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1050
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:976
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:1072
 msgid "diagnostics.report.unknown_plugin_version"
 msgstr ""
 
 #. translators: 1: Category name, 2: Number passed, 3: Total number
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:667
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:689
 msgid "diagnostics.results.category.passed_count"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:795
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:817
 msgid "diagnostics.results.label.no_details"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:703
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:760
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:725
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:782
 msgid "diagnostics.results.label.recommendations"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:714
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:771
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:736
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:793
 msgid "diagnostics.results.label.technical_details"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:647
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:669
 msgid "diagnostics.results.section.all_recommendations"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:633
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:655
 msgid "diagnostics.results.section.critical_issues"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:661
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:683
 msgid "diagnostics.results.section.detailed_results"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:619
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:641
 msgid "diagnostics.results.section.summary"
 msgstr ""
 
 #. translators: 1: Number of tests run, 2: Number passed, 3: Number failed
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:623
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:645
 msgid "diagnostics.results.summary.tests_ran"
 msgstr ""
 
@@ -3039,172 +3062,172 @@ msgstr ""
 msgid "diagnostics.runner.wp_cli.required_for_pro"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:168
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:445
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:175
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:467
 msgid "diagnostics.ui.button.copied"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:167
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:174
 msgid "diagnostics.ui.button.copying"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:135
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:142
 msgid "diagnostics.ui.button.running"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:169
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:176
 msgid "diagnostics.ui.clipboard.copy_success"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:162
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:169
 msgid "diagnostics.ui.error.auto_copy_failed"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:160
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:167
 msgid "diagnostics.ui.error.check_console"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:161
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:168
 msgid "diagnostics.ui.error.contact_support"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:157
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:164
 msgid "diagnostics.ui.error.diagnostic_error"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:154
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:161
 msgid "diagnostics.ui.error.failed_generate_report"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:153
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:160
 msgid "diagnostics.ui.error.failed_run_diagnostics"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:152
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:159
 msgid "diagnostics.ui.error.failed_run_test"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:156
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:163
 msgid "diagnostics.ui.error.title"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:159
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:166
 msgid "diagnostics.ui.error.try_refresh"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:165
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:172
 msgid "diagnostics.ui.label.details"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:130
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:155
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:137
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:162
 msgid "diagnostics.ui.label.executed"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:163
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:749
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:170
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:771
 msgid "diagnostics.ui.label.individual_test_result"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:158
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:164
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:165
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:171
 msgid "diagnostics.ui.label.recommendations"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:149
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:156
 msgid "diagnostics.ui.select_test_prompt"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:122
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:129
 msgid "diagnostics.ui.status.completed_successfully"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:123
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:130
 msgid "diagnostics.ui.status.error_running"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:126
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:133
 msgid "diagnostics.ui.status.executed"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:125
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:132
 msgid "diagnostics.ui.status.issues_detected"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:124
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:131
 msgid "diagnostics.ui.status.passed"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:134
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:141
 msgid "diagnostics.ui.status.preparing_tests"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:121
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:128
 msgid "diagnostics.ui.status.running"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:127
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:134
 msgid "diagnostics.ui.status.running_tests"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:131
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:199
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:138
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:206
 msgid "diagnostics.ui.status.system_healthy"
 msgstr ""
 
 #. translators: %s: test name
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:151
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:158
 msgid "diagnostics.ui.status.test_completed"
 msgstr ""
 
 #. translators: 1: current test number, 2: total number of tests
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:129
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:136
 msgid "diagnostics.ui.status.test_progress"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:133
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:140
 msgid "diagnostics.ui.status.tests_completed"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:166
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:173
 msgid "diagnostics.ui.status.tests_completed_successfully"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:132
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:139
 msgid "diagnostics.ui.status.warnings_found"
 msgstr ""
 
 #. translators: %d: number of days
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:146
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:153
 msgid "diagnostics.ui.time.day_ago"
 msgstr ""
 
 #. translators: %d: number of days
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:148
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:155
 msgid "diagnostics.ui.time.days_ago"
 msgstr ""
 
 #. translators: %d: number of hours
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:142
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:149
 msgid "diagnostics.ui.time.hour_ago"
 msgstr ""
 
 #. translators: %d: number of hours
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:144
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:151
 msgid "diagnostics.ui.time.hours_ago"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:136
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:143
 msgid "diagnostics.ui.time.just_now"
 msgstr ""
 
 #. translators: %d: number of minutes
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:138
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:145
 msgid "diagnostics.ui.time.minute_ago"
 msgstr ""
 
 #. translators: %d: number of minutes
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:140
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:147
 msgid "diagnostics.ui.time.minutes_ago"
 msgstr ""
 
@@ -3472,16 +3495,16 @@ msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Admin/CompletionRulesListTable.php:101
 #: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:40
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:278
-#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:298
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:294
+#: /home/yakir/lab/order-daemon/src/Admin/RulesListPage.php:314
 #: /home/yakir/lab/order-daemon/src/Includes/actions.php:1497
 msgid "security.no_action_permission"
 msgstr ""
 
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:467
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:493
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:537
-#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:580
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:489
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:515
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:559
+#: /home/yakir/lab/order-daemon/src/Admin/DiagnosticDashboard.php:602
 #: /home/yakir/lab/order-daemon/src/Includes/functions.php:60
 msgid "security.permission_denied"
 msgstr ""
