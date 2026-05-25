@@ -390,6 +390,12 @@ function insightDashboard() {
                 btn.addEventListener('click', () => {
                     const expanded = btn.getAttribute('aria-expanded') === 'true';
                     btn.setAttribute('aria-expanded', String(!expanded));
+                    if (!expanded) {
+                        const jsonDiv = btn.nextElementSibling;
+                        if (jsonDiv) {
+                            this.highlightCodeBlocks(jsonDiv);
+                        }
+                    }
                 });
             });
         },
@@ -3002,7 +3008,7 @@ function insightDashboard() {
                 toggleButton.setAttribute('aria-expanded', 'true');
             } else if (target === 'technical') {
                 toggleButton.textContent = showText.replace('Show', 'Hide');
-                toggleButton.setAttribute('ariaExpanded', 'true');
+                toggleButton.setAttribute('aria-expanded', 'true');
             }
 
             // Add expanded class to component

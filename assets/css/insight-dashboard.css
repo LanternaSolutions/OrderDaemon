@@ -2406,7 +2406,7 @@ label.odcm-retention-option {
    ========================================================================== */
 
 .odcm-code-block {
-    background-color: var(--odcm-theme-grey-100);
+    background: var(--odcm-surface-2);
     /*
     border: 1px solid var(--odcm-component-code-border-color);
     */
@@ -2828,78 +2828,9 @@ label.odcm-retention-option {
     min-width: 0;
 }
 
-/* Detail: consolidated header */
-.odcm-consolidated-timeline-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  border: 1px solid var(--odcm-theme-grey-300);
-  background: var(--odcm-theme-grey-100);
-  border-radius: var(--odcm-theme-border-radius);
-  margin-bottom: 8px;
-}
-
-.odcm-consolidated-timeline-header h4 {
-  margin: 0;
-  font-size: var(--odcm-theme-font-size-md);
-}
-
-.odcm-consolidated-meta {
-  display: flex;
-  gap: 10px;
-  color: var(--odcm-theme-grey-700);
-}
-
 /* Timeline container */
 .odcm-timeline {
   position: relative;
-  margin-left: 12px;
-  padding-left: 16px;
-}
-
-/* Vertical line */
-.odcm-timeline:before {
-  content: '';
-  position: absolute;
-  left: 6px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--odcm-theme-grey-300);
-}
-
-/* Timeline item */
-.odcm-timeline-item {
-  position: relative;
-  margin: 10px 0;
-}
-
-/* Dot icon per item */
-.odcm-timeline-icon {
-  position: absolute;
-  left: -12px;
-  top: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--odcm-theme-grey-400);
-  border: 2px solid var(--odcm-theme-white);
-  box-shadow: 0 0 0 2px var(--odcm-theme-grey-300);
-}
-
-/* Status colors for dots */
-.odcm-status-icon--success { background: var(--odcm-theme-green-700); }
-.odcm-status-icon--error { background: var(--odcm-theme-red-700); }
-.odcm-status-icon--warning { background: var(--odcm-theme-yellow-700); }
-.odcm-status-icon--info { background: var(--odcm-theme-blue-700); }
-
-/* Content */
-.odcm-timeline-content {
-  background: var(--odcm-theme-white);
-  border: 1px solid var(--odcm-theme-grey-300);
-  border-radius: var(--odcm-theme-border-radius);
-  padding: 8px 10px;
 }
 
 .odcm-timeline-header {
@@ -2909,12 +2840,8 @@ label.odcm-retention-option {
   gap: 10px;
 }
 
-.odcm-timeline-summary {
-  font-weight: 500;
-}
-
 .odcm-timeline-timestamp {
-  color: var(--odcm-theme-grey-700);
+  color: var(--odcm-muted);
   font-size: var(--odcm-theme-font-size-sm);
 }
 
@@ -3865,6 +3792,7 @@ label.odcm-retention-option {
     min-width: 0;
     min-height: 0;
     height: 100%;
+    overflow: hidden;
     background: var(--odcm-surface);
   }
   .odcm-filter-pane  { background: var(--odcm-surface-2); border-right: 1px solid var(--odcm-border); }
@@ -3881,6 +3809,7 @@ label.odcm-retention-option {
     gap: 10px;
     height: var(--odcm-h-pane-head);
     padding: 0 var(--odcm-space-4);
+    background: var(--odcm-surface);
     border-bottom: 1px solid var(--odcm-border);
     flex-shrink: 0;
   }
@@ -3907,17 +3836,14 @@ label.odcm-retention-option {
   }
   .odcm-pane-header__spacer { flex: 1; }
 
-  /* Pane body (scroll region) */
+  /* Pane body — flex-fill shell only; the inner form/content owns padding and scroll */
   .odcm-pane-body,
-  .odcm-filter-pane-content,
-  .odcm-filter-form {
-    padding: var(--odcm-space-3);
+  .odcm-filter-pane-content {
     display: flex;
     flex-direction: column;
-    gap: var(--odcm-space-3);
-    overflow-y: auto;
     flex: 1;
     min-height: 0;
+    overflow: hidden;
   }
 
   /* Pane icon button (existing class) — re-uses base icon-button look */
@@ -4896,6 +4822,13 @@ label.odcm-retention-option {
     top: 0;
 }
 
+/* Prism.js: default theme ships with a white background that breaks dark mode.
+   Override the container so it inherits the surface token. */
+#odcm-insight-dashboard pre[class*="language-"] {
+    background: var(--odcm-surface-2);
+    border: 1px solid var(--odcm-border);
+}
+
 /* ==========================================================================
    MOBILE FIX — grid single-column when panes are position:fixed
    ========================================================================== */
@@ -4914,4 +4847,57 @@ label.odcm-retention-option {
     #odcm-insight-dashboard .odcm-detail-pane {
         top: calc(var(--odcm-admin-bar-offset) + var(--odcm-h-topbar));
     }
+}
+
+/* ==========================================================================
+   FILTER PANE FIX — spacing, scroll ownership, checkbox layout, search icon
+   ========================================================================== */
+
+/* Tab-content bridge: stretch to fill pane-body height */
+#odcm-insight-dashboard .odcm-tab-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Filter form: sole owner of padding and vertical scroll */
+#odcm-insight-dashboard .odcm-filter-form {
+    padding: var(--odcm-space-3);
+    gap: var(--odcm-space-3);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Remove old margin-based spacing — form gap handles it */
+#odcm-insight-dashboard .odcm-filter-group           { margin-bottom: 0; }
+#odcm-insight-dashboard .odcm-filter-group:last-child { margin-bottom: 0; }
+#odcm-insight-dashboard .odcm-filter-section          { margin-bottom: 0; }
+#odcm-insight-dashboard .odcm-advanced-filter-group   { margin: 0; }
+
+/* Search filter group: no box chrome in new design */
+#odcm-insight-dashboard .odcm-search-filter-group {
+    background: transparent;
+    border: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+/* Checkbox group: vertical stack, compact gap */
+#odcm-insight-dashboard .odcm-checkbox-group {
+    flex-direction: column;
+    gap: var(--odcm-space-2);
+    flex-wrap: nowrap;
+}
+#odcm-insight-dashboard .odcm-checkbox-item {
+    gap: 8px;
+    font-size: var(--odcm-text-sm);
+}
+#odcm-insight-dashboard .odcm-checkbox-item label {
+    font-size: var(--odcm-text-sm);
+    color: var(--odcm-ink-2);
+    font-weight: normal;
 }
