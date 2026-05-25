@@ -700,8 +700,34 @@
     background-color: var(--odcm-surface-2);
 }
 
-.odcm-radio-label input[type="radio"] {
+.odcm-scope .odcm-radio-label input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    border: 1.5px solid var(--odcm-border-strong);
+    border-radius: 50%;
+    background: var(--odcm-surface);
     margin-right: var(--odcm-theme-spacing-sm);
+    cursor: pointer;
+    transition: border-color var(--odcm-dur-fast) var(--odcm-ease), background-color var(--odcm-dur-fast) var(--odcm-ease);
+}
+
+.odcm-scope .odcm-radio-label input[type="radio"]:checked {
+    border-color: var(--odcm-accent);
+    background: var(--odcm-accent);
+    box-shadow: inset 0 0 0 3px var(--odcm-surface);
+}
+
+.odcm-scope .odcm-radio-label input[type="radio"]:focus-visible {
+    outline: 2px solid var(--odcm-accent);
+    outline-offset: 2px;
+}
+
+.odcm-scope .odcm-radio-label input[type="radio"]:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .odcm-radio-text {
@@ -774,9 +800,38 @@
     background-color: var(--odcm-surface-2);
 }
 
-.odcm-checkbox-label input[type="checkbox"] {
+.odcm-scope .odcm-checkbox-label input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    border: 1.5px solid var(--odcm-border-strong);
+    border-radius: var(--odcm-radius-1);
+    background: var(--odcm-surface);
     margin-right: var(--odcm-theme-spacing-sm);
-    flex-shrink: 0; /* Prevent checkbox from shrinking */
+    cursor: pointer;
+    transition: border-color var(--odcm-dur-fast) var(--odcm-ease), background-color var(--odcm-dur-fast) var(--odcm-ease);
+    position: relative;
+}
+
+.odcm-scope .odcm-checkbox-label input[type="checkbox"]:checked {
+    border-color: var(--odcm-accent);
+    background: var(--odcm-accent);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8l3.5 3.5L13 5'/%3E%3C/svg%3E");
+    background-size: 12px;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.odcm-scope .odcm-checkbox-label input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--odcm-accent);
+    outline-offset: 2px;
+}
+
+.odcm-scope .odcm-checkbox-label input[type="checkbox"]:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .odcm-checkbox-text {
@@ -2477,9 +2532,6 @@ body.post-type-odcm_order_rule #delete-action a {
 .odcm-scope .odcm-date-picker,
 .odcm-scope .odcm-time-picker { color-scheme: light dark; }
 
-/* Radio and checkbox accent colour */
-.odcm-scope .odcm-radio-label input[type="radio"],
-.odcm-scope .odcm-checkbox-label input[type="checkbox"] { accent-color: var(--odcm-accent); }
 
 /* Inline number input (in radio groups) */
 .odcm-scope .odcm-inline-number-input {
