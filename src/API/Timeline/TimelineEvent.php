@@ -131,7 +131,7 @@ final class TimelineEvent
     /**
      * Add display section data
      */
-    public function addDisplaySection(string $key, string $label, string $value): void
+    public function addDisplaySection(string $key, string $label, string|int $value): void
     {
         $this->display_sections[$key] = [
             'label' => $label,
