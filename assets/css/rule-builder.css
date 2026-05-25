@@ -686,17 +686,18 @@
     gap: 0;
 }
 
-.odcm-radio-label {
+.odcm-scope .odcm-radio-label {
     display: flex;
     align-items: center;
     cursor: pointer;
     padding: calc(var(--odcm-theme-spacing-xs) / 2) var(--odcm-theme-spacing-xs);
     border-radius: var(--odcm-component-border-radius);
     transition: var(--odcm-component-transition);
+    color: var(--odcm-ink);
 }
 
-.odcm-radio-label:hover {
-    background-color: var(--odcm-theme-grey-100);
+.odcm-scope .odcm-radio-label:hover {
+    background-color: var(--odcm-surface-2);
 }
 
 .odcm-radio-label input[type="radio"] {
@@ -758,18 +759,19 @@
 }
 
 /* Checkbox Labels */
-.odcm-checkbox-label {
+.odcm-scope .odcm-checkbox-label {
     display: flex;
     align-items: center;
     cursor: pointer;
     padding: var(--odcm-theme-spacing-xs);
     border-radius: var(--odcm-component-border-radius);
     transition: var(--odcm-component-transition);
-    text-align: left; /* Force left alignment */
+    text-align: left;
+    color: var(--odcm-ink);
 }
 
-.odcm-checkbox-label:hover {
-    background-color: var(--odcm-theme-grey-100);
+.odcm-scope .odcm-checkbox-label:hover {
+    background-color: var(--odcm-surface-2);
 }
 
 .odcm-checkbox-label input[type="checkbox"] {
@@ -2302,6 +2304,7 @@ body.post-type-odcm_order_rule #titlewrap {
 body.wp-admin.post-type-odcm_order_rule #title {
     background: var(--odcm-surface);
     color: var(--odcm-ink);
+    color-scheme: light dark;
     font-family: var(--odcm-font-sans);
     font-size: var(--odcm-text-xl);
     font-weight: 500;
@@ -2476,7 +2479,7 @@ body.post-type-odcm_order_rule #delete-action a {
 
 /* Radio and checkbox accent colour */
 .odcm-scope .odcm-radio-label input[type="radio"],
-.odcm-scope input[type="checkbox"] { accent-color: var(--odcm-accent); }
+.odcm-scope .odcm-checkbox-label input[type="checkbox"] { accent-color: var(--odcm-accent); }
 
 /* Inline number input (in radio groups) */
 .odcm-scope .odcm-inline-number-input {
