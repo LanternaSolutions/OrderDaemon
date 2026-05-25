@@ -858,7 +858,8 @@ final class RuleBuilder
         }
         $rules_url = admin_url('admin.php?page=odcm-rules-list');
         ?>
-        <div class="odcm-unified-header odcm-scope">
+        <div class="odcm-scope">
+        <div class="odcm-unified-header">
             <div class="odcm-unified-header__brand">
                 <svg width="22" height="22" viewBox="0 0 128 128" fill="currentColor" aria-hidden="true">
                     <path fill-rule="evenodd" clip-rule="evenodd" d="M115.575 38.0075C116.022 37.9874 116.467 38.0076 116.911 38.0682C117.074 38.4076 117.013 38.7113 116.728 38.9793C110.372 46.5109 104.341 54.2856 98.6351 62.3033C96.4699 65.5014 94.365 68.7407 92.3207 72.0217C91.9153 72.364 91.4499 72.4652 90.9242 72.3254C90.2886 71.689 89.7422 70.9803 89.2849 70.1995C86.957 66.4332 84.6903 62.6269 82.4847 58.7804C82.0502 57.6476 82.4348 57.2225 83.6383 57.5049C84.8632 58.3251 85.9359 59.3171 86.8562 60.4811C88.0448 62.0349 89.2794 63.5533 90.5599 65.0366C90.8192 65.1137 91.062 65.0732 91.2885 64.9151C93.8523 61.257 96.4631 57.6329 99.1209 54.0427C102.193 50.037 105.492 46.2104 109.018 42.563C110.486 41.1616 112.064 39.9062 113.753 38.7971C114.358 38.4955 114.965 38.2322 115.575 38.0075Z"/>
@@ -871,6 +872,7 @@ final class RuleBuilder
             <a class="odcm-unified-header__crumb" href="<?php echo esc_url($rules_url); ?>"><?php echo esc_html__('admin.list_table.page_title', 'order-daemon'); ?></a>
             <span class="odcm-unified-header__sep" aria-hidden="true">/</span>
             <span class="odcm-unified-header__crumb"><?php echo esc_html__('admin.rule_builder.page_title', 'order-daemon'); ?></span>
+        </div>
         </div>
         <?php
     }
