@@ -823,6 +823,9 @@
     background-position: center;
     background-repeat: no-repeat;
 }
+.odcm-scope .odcm-checkbox-label input[type="checkbox"]:checked::after {
+    content: none;
+}
 
 .odcm-scope .odcm-checkbox-label input[type="checkbox"]:focus-visible {
     outline: 2px solid var(--odcm-accent);
@@ -2357,14 +2360,15 @@ body.post-type-odcm_order_rule #titlewrap {
     padding: 0;
 }
 body.wp-admin.post-type-odcm_order_rule #title {
-    background: var(--odcm-surface);
-    color: var(--odcm-ink);
-    color-scheme: light dark;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--odcm-surface) !important;
+    color: var(--odcm-ink) !important;
     font-family: var(--odcm-font-sans);
     font-size: var(--odcm-text-xl);
     font-weight: 500;
-    border: 1px solid var(--odcm-border-strong);
-    box-shadow: none;
+    border: 1px solid var(--odcm-border-strong) !important;
+    box-shadow: none !important;
     outline: none;
     padding: 10px 14px;
     width: 100%;
