@@ -385,19 +385,8 @@ function insightDashboard() {
             });
         },
 
-        initTimelineExpanders(container) {
-            container.querySelectorAll('.odcm-tl-node__expand').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const expanded = btn.getAttribute('aria-expanded') === 'true';
-                    btn.setAttribute('aria-expanded', String(!expanded));
-                    if (!expanded) {
-                        const jsonDiv = btn.nextElementSibling;
-                        if (jsonDiv) {
-                            this.highlightCodeBlocks(jsonDiv);
-                        }
-                    }
-                });
-            });
+        initTimelineExpanders(_container) {
+            // Replaced by document-level delegation in initThreeTierToggles()
         },
 
         // =================================================================
@@ -2760,6 +2749,23 @@ function insightDashboard() {
                 if (odcmIsDebug()) {
                     console.log('ODCM: Three-tier toggle handlers already initialized (using persistent delegation)');
                 }
+            }
+
+            // Add delegated handler for timeline JSON expand buttons (only once)
+            if (!document._odcmJsonExpandInitialized) {
+                document.addEventListener('click', (event) => {
+                    const btn = event.target.closest('.odcm-tl-node__expand');
+                    if (!btn) return;
+                    const expanded = btn.getAttribute('aria-expanded') === 'true';
+                    btn.setAttribute('aria-expanded', String(!expanded));
+                    if (!expanded) {
+                        const jsonDiv = btn.nextElementSibling;
+                        if (jsonDiv && jsonDiv.classList.contains('odcm-tl-node__json')) {
+                            this.highlightCodeBlocks(jsonDiv);
+                        }
+                    }
+                });
+                document._odcmJsonExpandInitialized = true;
             }
 
             // Force re-initialize all existing toggle buttons to ensure proper state
