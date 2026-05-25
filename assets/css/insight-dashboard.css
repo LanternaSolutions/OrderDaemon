@@ -542,7 +542,7 @@
     position: absolute;
     right: 0;
     top: 0;
-    width: 75vw;
+    width: 65vw;
     height: 100%;
     z-index: 20; /* Above content but below WordPress admin elements */
     box-shadow: -5px 0 15px rgba(0,0,0,0.1);
@@ -4960,6 +4960,15 @@ label.odcm-retention-option {
 }
 #odcm-insight-dashboard .odcm-stream-select-all .odcm-select-all-checkbox {
     margin: 0;
+}
+
+/* Dot separators before count and select-all (hidden automatically when element is x-show hidden) */
+.odcm-stream-count::before,
+.odcm-stream-select-all::before {
+    content: '\00B7';
+    color: var(--odcm-muted);
+    margin-right: 6px;
+    font-weight: 400;
 }
 
 /* Event count */
