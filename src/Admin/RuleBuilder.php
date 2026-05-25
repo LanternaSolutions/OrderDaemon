@@ -42,6 +42,18 @@ final class RuleBuilder
         add_action('all_admin_notices', [$this, 'render_page_header']);
         add_action('save_post_odcm_order_rule', [$this, 'save_rule_data'], 10, 3);
 
+        // Expand and highlight the Order Daemon menu when editing a rule
+        $is_rule_screen = static function(): bool {
+            $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+            return $screen && $screen->post_type === 'odcm_order_rule';
+        };
+        add_filter('parent_file', static function(string $parent_file) use ($is_rule_screen): string {
+            return $is_rule_screen() ? 'odcm-insight-dashboard' : $parent_file;
+        });
+        add_filter('submenu_file', static function(string $submenu_file) use ($is_rule_screen): string {
+            return $is_rule_screen() ? 'odcm-rules-list' : $submenu_file;
+        });
+
         // Optional backfill job registration (admin-only context)
         add_action('odcm_rebuild_rule_indexes_job', [\OrderDaemon\CompletionManager\Core\RuleComponents\RuleIndexBuilder::class, 'backfill_all']);
         
