@@ -3765,9 +3765,9 @@ label.odcm-retention-option {
     align-items: stretch;
     transition: grid-template-columns var(--odcm-dur-slow) var(--odcm-ease);
   }
-  .odcm-content-grid[data-filter-collapsed="true"]   { grid-template-columns: 44px 1fr 360px; }
-  .odcm-content-grid[data-detail-collapsed="true"]   { grid-template-columns: 260px 1fr 44px; }
-  .odcm-content-grid[data-filter-collapsed="true"][data-detail-collapsed="true"] { grid-template-columns: 44px 1fr 44px; }
+  .odcm-content-grid[data-filter-collapsed="true"]   { grid-template-columns: 0px 1fr 360px; }
+  .odcm-content-grid[data-detail-collapsed="true"]   { grid-template-columns: 260px 1fr 0px; }
+  .odcm-content-grid[data-filter-collapsed="true"][data-detail-collapsed="true"] { grid-template-columns: 0px 1fr 0px; }
 
   /* Override the old class-based column rules — new design shows detail pane at 360px always.
      These selectors match the old rules exactly (same specificity) but come later, so they win. */
@@ -3777,7 +3777,7 @@ label.odcm-retention-option {
   }
   .odcm-insight-dashboard:not(.filter-pane-visible).details-pane-visible .odcm-content-grid,
   .odcm-insight-dashboard:not(.filter-pane-visible):not(.details-pane-visible) .odcm-content-grid {
-    grid-template-columns: 44px 1fr 360px;
+    grid-template-columns: 0px 1fr 360px;
   }
 
   /* ============================================================
@@ -4460,13 +4460,9 @@ label.odcm-retention-option {
       ID selector gives (1,1,0+) which definitively wins.
    ========================================================================== */
 
-/* Rails must sit in their correct grid areas, not auto-place into row 2 */
-#odcm-insight-dashboard .odcm-pane-rail:not(.odcm-pane-rail--right) { grid-area: filters; }
-#odcm-insight-dashboard .odcm-pane-rail--right                       { grid-area: details; }
-
 /* Desktop (≥1024px): three-column layout with data-attribute collapse control */
 @media (min-width: 1024px) {
-    /* Reset legacy transform hide; display:none handles collapse on desktop */
+    /* Reset legacy transform hide; overflow:hidden on the 0px column handles it */
     #odcm-insight-dashboard .odcm-detail-pane { transform: none !important; }
     #odcm-insight-dashboard .odcm-content-grid[data-detail-collapsed="true"] .odcm-detail-pane {
         display: none !important;
@@ -4484,13 +4480,16 @@ label.odcm-retention-option {
         transition: grid-template-columns 0.3s ease;
     }
     #odcm-insight-dashboard .odcm-content-grid[data-filter-collapsed="true"] {
-        grid-template-columns: 44px 1fr 360px;
+        grid-template-columns: 0px 1fr 360px;
     }
     #odcm-insight-dashboard .odcm-content-grid[data-detail-collapsed="true"] {
-        grid-template-columns: 260px 1fr 44px;
+        grid-template-columns: 260px 1fr 0px;
     }
     #odcm-insight-dashboard .odcm-content-grid[data-filter-collapsed="true"][data-detail-collapsed="true"] {
-        grid-template-columns: 44px 1fr 44px;
+        grid-template-columns: 0px 1fr 0px;
+    }
+    #odcm-insight-dashboard .odcm-content-grid[data-filter-collapsed="true"] .odcm-filter-trigger {
+        display: inline-flex;
     }
 }
 
@@ -4523,6 +4522,12 @@ label.odcm-retention-option {
     background: var(--odcm-surface);
     border-bottom-color: var(--odcm-border);
     color: var(--odcm-ink);
+}
+
+/* Filter pane header: tighter side padding than default 16px for the narrow 260px pane */
+#odcm-insight-dashboard .odcm-filter-pane .odcm-pane-header {
+    padding-left: var(--odcm-space-3);
+    padding-right: var(--odcm-space-3);
 }
 
 /* Pane icon buttons: WP admin generic button rules beat the new design's 0,1,0
@@ -5006,8 +5011,19 @@ label.odcm-retention-option {
 }
 
 /* ==========================================================================
-   FILTER PANE FIX — spacing, scroll ownership, checkbox layout, search icon
+   FILTER PANE FIX — border, spacing, scroll ownership, checkbox layout
    ========================================================================== */
+
+/* Right border: old common rule sets border-left too, making total box wider than
+   the grid column with content-box sizing → right border clips off. Remove left
+   border (screen edge, invisible anyway) and force border-box so width fits exactly. */
+#odcm-insight-dashboard .odcm-filter-pane {
+    box-sizing: border-box;
+    width: 100%;
+    border-left: 0;
+    border-right: 1px solid var(--odcm-border) !important;
+    overflow-x: hidden;
+}
 
 /* Tab-content bridge: stretch to fill pane-body height */
 #odcm-insight-dashboard .odcm-tab-content {
@@ -5017,15 +5033,17 @@ label.odcm-retention-option {
     min-height: 0;
 }
 
-/* Filter form: sole owner of padding and vertical scroll */
+/* Filter form: sole owner of padding and vertical scroll; compact spacing for 260px pane */
 #odcm-insight-dashboard .odcm-filter-form {
-    padding: var(--odcm-space-3);
-    gap: var(--odcm-space-3);
+    padding: var(--odcm-space-2);
+    gap: var(--odcm-space-2);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
+    box-sizing: border-box;
+    width: 100%;
 }
 
 /* Remove old margin-based spacing — form gap handles it */
@@ -5059,18 +5077,22 @@ label.odcm-retention-option {
 }
 
 /* Form elements: force border-box so width:100% + padding never exceeds container */
-#odcm-insight-dashboard .odcm-filter-form input,
+#odcm-insight-dashboard .odcm-filter-form input:not([type="checkbox"]):not([type="radio"]),
 #odcm-insight-dashboard .odcm-filter-form select,
 #odcm-insight-dashboard .odcm-filter-form textarea {
     box-sizing: border-box;
     max-width: 100%;
+    width: 100%;
 }
 
-/* Advanced filter group: flex column so inner groups get consistent gap */
+/* Advanced filter group: flex column, compact gap; border-box + reduced padding */
 #odcm-insight-dashboard .odcm-advanced-filter-group {
     display: flex;
     flex-direction: column;
-    gap: var(--odcm-space-3);
+    gap: var(--odcm-space-2);
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--odcm-space-2);
 }
 
 /* ==========================================================================

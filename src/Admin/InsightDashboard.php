@@ -289,7 +289,7 @@ class InsightDashboard
         // CSS loading validation and emergency fallback styles
         wp_add_inline_script(
             'odcm-insight-dashboard-js',
-            "(function(){try{var r=document.documentElement;var v=getComputedStyle(r).getPropertyValue('--odcm-theme-grey-100');if(!v||v.trim()===''){var s=document.createElement('style');s.setAttribute('data-odcm-inline-fallback','1');s.textContent='/* ODCM minimal fallback */ .odcm-insight-dashboard{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:#222;background:#fff;display:flex;flex-direction:column;height:calc(100vh - 32px);overflow:hidden;} .odcm-insight-dashboard .odcm-unified-header{background:#fff;border-bottom:1px solid #ddd;padding:8px;flex-shrink:0;} .odcm-insight-dashboard .odcm-content-grid{display:grid;grid-template-columns:260px 1fr 360px;grid-template-areas:\"filters stream details\";flex:1;min-height:0;} .odcm-insight-dashboard .odcm-content-grid[data-filter-collapsed]{grid-template-columns:44px 1fr 360px;} .odcm-insight-dashboard .odcm-content-grid[data-detail-collapsed]{grid-template-columns:260px 1fr 44px;} .odcm-insight-dashboard .odcm-filter-pane{grid-area:filters;border-right:1px solid #ddd;background:#fafafa;overflow-y:auto;} .odcm-insight-dashboard .odcm-log-stream{grid-area:stream;overflow-y:auto;} .odcm-insight-dashboard .odcm-detail-pane{grid-area:details;border-left:1px solid #ddd;overflow-y:auto;} @media(max-width:782px){.odcm-insight-dashboard .odcm-content-grid{display:flex;flex-direction:column;} .odcm-insight-dashboard .odcm-filter-pane,.odcm-insight-dashboard .odcm-detail-pane{display:none;}} .odcm-css-warning{border:1px solid #f0c36d;background:#fff8e5;color:#5f3b00;padding:8px;border-radius:4px;margin:8px 0;font-size:13px;} .odcm-badge--error{display:inline-block;background:#dc3545;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;} .odcm-advanced-filter-group input:disabled,.odcm-advanced-filter-group select:disabled{background:#eee;cursor:not-allowed;opacity:.7;}';document.head.appendChild(s);var b=document.createElement('div');b.className='odcm-css-warning';b.textContent='Order Daemon: Some styles failed to load. Using minimal fallback for safe display.';var c=document.getElementById('odcm-insight-dashboard');if(c){c.insertBefore(b,c.firstChild);}document.body.classList.add('odcm-css-fallback-mode');}}catch(e){}})();",
+            "(function(){try{var r=document.documentElement;var v=getComputedStyle(r).getPropertyValue('--odcm-theme-grey-100');if(!v||v.trim()===''){var s=document.createElement('style');s.setAttribute('data-odcm-inline-fallback','1');s.textContent='/* ODCM minimal fallback */ .odcm-insight-dashboard{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:#222;background:#fff;display:flex;flex-direction:column;height:calc(100vh - 32px);overflow:hidden;} .odcm-insight-dashboard .odcm-unified-header{background:#fff;border-bottom:1px solid #ddd;padding:8px;flex-shrink:0;} .odcm-insight-dashboard .odcm-content-grid{display:grid;grid-template-columns:260px 1fr 360px;grid-template-areas:\"filters stream details\";flex:1;min-height:0;} .odcm-insight-dashboard .odcm-content-grid[data-filter-collapsed]{grid-template-columns:0px 1fr 360px;} .odcm-insight-dashboard .odcm-content-grid[data-detail-collapsed]{grid-template-columns:260px 1fr 0px;} .odcm-insight-dashboard .odcm-filter-pane{grid-area:filters;border-right:1px solid #ddd;background:#fafafa;overflow-y:auto;} .odcm-insight-dashboard .odcm-log-stream{grid-area:stream;overflow-y:auto;} .odcm-insight-dashboard .odcm-detail-pane{grid-area:details;border-left:1px solid #ddd;overflow-y:auto;} @media(max-width:782px){.odcm-insight-dashboard .odcm-content-grid{display:flex;flex-direction:column;} .odcm-insight-dashboard .odcm-filter-pane,.odcm-insight-dashboard .odcm-detail-pane{display:none;}} .odcm-css-warning{border:1px solid #f0c36d;background:#fff8e5;color:#5f3b00;padding:8px;border-radius:4px;margin:8px 0;font-size:13px;} .odcm-badge--error{display:inline-block;background:#dc3545;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;} .odcm-advanced-filter-group input:disabled,.odcm-advanced-filter-group select:disabled{background:#eee;cursor:not-allowed;opacity:.7;}';document.head.appendChild(s);var b=document.createElement('div');b.className='odcm-css-warning';b.textContent='Order Daemon: Some styles failed to load. Using minimal fallback for safe display.';var c=document.getElementById('odcm-insight-dashboard');if(c){c.insertBefore(b,c.firstChild);}document.body.classList.add('odcm-css-fallback-mode');}}catch(e){}})();",
             'before'
         );
 
@@ -753,16 +753,6 @@ class InsightDashboard
                         <?php $this->componentRenderers['filter_pane']->renderWithContext($context); ?>
                     </aside>
 
-                    <!-- Filter Rail (shown when filter pane is collapsed) -->
-                    <button class="odcm-pane-rail" data-pane="filter-rail"
-                            <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!filterPaneVisible'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                            <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'openLastOpenedPane()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                            aria-label="<?php echo esc_attr__('admin.insight_dashboard.filters', 'order-daemon'); ?>">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform:rotate(180deg)"><path d="m9 6 6 6-6 6"/></svg>
-                        <span class="odcm-pane-rail__label"><?php echo esc_html__('admin.insight_dashboard.filters', 'order-daemon'); ?></span>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 8v6l-4-2v-4z"/></svg>
-                    </button>
-
                     <!-- Log Stream -->
                     <main class="odcm-log-stream">
                         <?php $this->componentRenderers['log_stream']->renderWithContext($context); ?>
@@ -772,15 +762,6 @@ class InsightDashboard
                     <aside class="odcm-detail-pane" data-pane="detail">
                         <?php $this->componentRenderers['detail_pane']->renderWithContext($context); ?>
                     </aside>
-
-                    <!-- Detail Rail (shown when no log is selected) -->
-                    <button class="odcm-pane-rail odcm-pane-rail--right" data-pane="detail-rail"
-                            <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!selectedLog'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-                            aria-label="<?php echo esc_attr__('admin.insight_dashboard.detail_pane.events_timeline', 'order-daemon'); ?>">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform:rotate(180deg)"><path d="m9 6 6 6-6 6"/></svg>
-                        <span class="odcm-pane-rail__label"><?php echo esc_html__('admin.insight_dashboard.detail_pane.events_timeline', 'order-daemon'); ?></span>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
-                    </button>
 
                 </div>
 
@@ -1881,8 +1862,8 @@ class InsightDashboard
                     <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', 'toggleDetailPaneExpansion()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                     <?php echo DashboardComponentUIToolkit::createAlpineTitleBinding('detailPaneExpanded ? ' . wp_json_encode(esc_attr__('admin.insight_dashboard.detail_pane.contract_details_pane', 'order-daemon')) . ' : ' . wp_json_encode(esc_attr__('admin.insight_dashboard.detail_pane.expand_details_pane', 'order-daemon'))); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                     <?php echo DashboardComponentUIToolkit::createAlpineAttrBinding('aria-pressed', 'detailPaneExpanded.toString()'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!detailPaneExpanded'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>><path d="m15 6-6 6 6 6"/></svg>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('detailPaneExpanded'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>><path d="m9 6 6 6-6 6"/></svg>
+                <span <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('!detailPaneExpanded'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> style="display:contents"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5v14M13 12H5M9 8l-4 4 4 4"/></svg></span>
+                <span <?php echo DashboardComponentUIToolkit::createAlpineShowAttribute('detailPaneExpanded'); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?> style="display:contents"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5v14M11 12h8M15 8l4 4-4 4"/></svg></span>
             </button>
             <h4 class="odcm-pane-header__title"><?php echo esc_html__('admin.insight_dashboard.detail_pane.events_timeline', 'order-daemon'); ?></h4>
             <span class="odcm-pane-header__spacer"></span>
