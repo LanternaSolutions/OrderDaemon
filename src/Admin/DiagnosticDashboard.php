@@ -234,7 +234,7 @@ class DiagnosticDashboard
 
         $chevron = '<svg class="dx__section-toggle" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
         ?>
-        <div class="wrap odcm-scope">
+        <div class="odcm-diagnostics-page odcm-scope">
 
         <!-- Unified brand header -->
         <div class="odcm-unified-header">
@@ -299,48 +299,78 @@ class DiagnosticDashboard
                 <span class="odcm-pill odcm-pill--danger"><?php echo esc_html(sprintf('%d failed', $total_failed)); ?></span>
                 <?php endif; ?>
                 <span class="odcm-pill odcm-pill--success"><?php echo esc_html(sprintf('%d passing', $total_passed)); ?></span>
+                <button class="dx__copy" data-copy-source="hc-copy-text">Copy</button>
               </div>
             </div>
+            <pre id="hc-copy-text" hidden><?php echo esc_html($this->generate_health_checks_copy_text($report)); ?></pre>
             <div class="dx__section-body">
               <?php foreach ($report['categories'] as $cat_name => $cat_data): ?>
-                <?php foreach ($cat_data['tests'] as $test_key => $test): ?>
-                  <?php
-                  $is_warn  = ($test['status'] === 'warning');
-                  $is_fail  = ($test['status'] === 'error' || $test['status'] === 'failed');
-                  $mod      = $is_warn ? ' dx__check--warn' : ($is_fail ? ' dx__check--fail' : '');
-                  $icon     = $is_warn ? '!' : ($is_fail ? '✕' : '✓');
-                  $pill_mod = $is_warn ? 'odcm-pill--warn' : ($is_fail ? 'odcm-pill--danger' : 'odcm-pill--success');
-                  $pill_lbl = $is_warn ? 'warn' : ($is_fail ? 'fail' : 'pass');
-                  $has_detail = !empty($test['message']) && ($is_warn || $is_fail);
-                  ?>
-                  <div class="dx__check<?php echo esc_attr($mod); ?>">
-                    <span class="dx__check-icon"><?php echo esc_html($icon); ?></span>
-                    <div class="dx__check-name">
-                      <?php echo esc_html($test['name']); ?>
-                      <span class="hint"><?php echo esc_html($cat_name); ?></span>
-                    </div>
-                    <span class="odcm-pill <?php echo esc_attr($pill_mod); ?>"><?php echo esc_html($pill_lbl); ?></span>
-                    <span></span>
-                    <?php if ($has_detail): ?>
-                    <div class="dx__check-detail">
-                      <?php echo esc_html($test['message']); ?>
-                      <?php if (!empty($test['recommendations'])): ?>
-                      <div class="fix"><?php echo esc_html(implode(' · ', $test['recommendations'])); ?></div>
+                <?php
+                $cat_passed   = (int) ($cat_data['passed'] ?? 0);
+                $cat_total    = (int) ($cat_data['total'] ?? 0);
+                $cat_warnings = 0;
+                $cat_failures = 0;
+                foreach ($cat_data['tests'] as $t) {
+                    if ($t['status'] === 'warning') $cat_warnings++;
+                    if ($t['status'] === 'error' || $t['status'] === 'failed') $cat_failures++;
+                }
+                $cat_collapsed = ($cat_warnings === 0 && $cat_failures === 0) ? 'true' : 'false';
+                ?>
+                <div class="dx__cat" data-collapsed="<?php echo esc_attr($cat_collapsed); ?>">
+                  <div class="dx__cat-head" data-toggle-cat>
+                    <svg class="dx__cat-toggle" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <span class="dx__cat-title"><?php echo esc_html($cat_name); ?></span>
+                    <div class="dx__cat-meta">
+                      <?php if ($cat_warnings > 0): ?>
+                      <span class="odcm-pill odcm-pill--warn odcm-pill--xs"><span class="odcm-pill__dot"></span><?php echo esc_html($cat_warnings); ?></span>
                       <?php endif; ?>
+                      <?php if ($cat_failures > 0): ?>
+                      <span class="odcm-pill odcm-pill--danger odcm-pill--xs"><?php echo esc_html($cat_failures); ?> failed</span>
+                      <?php endif; ?>
+                      <span class="odcm-pill odcm-pill--success odcm-pill--xs"><?php echo esc_html("$cat_passed / $cat_total"); ?></span>
                     </div>
-                    <?php endif; ?>
                   </div>
-                <?php endforeach; ?>
+                  <div class="dx__cat-body">
+                    <?php foreach ($cat_data['tests'] as $test_key => $test): ?>
+                      <?php
+                      $is_warn       = ($test['status'] === 'warning');
+                      $is_fail       = ($test['status'] === 'error' || $test['status'] === 'failed');
+                      $mod           = $is_warn ? ' dx__check--warn' : ($is_fail ? ' dx__check--fail' : '');
+                      $icon          = $is_warn ? '!' : ($is_fail ? '✕' : '✓');
+                      $pill_mod      = $is_warn ? 'odcm-pill--warn' : ($is_fail ? 'odcm-pill--danger' : 'odcm-pill--success');
+                      $pill_lbl      = $is_warn ? 'warn' : ($is_fail ? 'fail' : 'pass');
+                      $has_verbose   = !empty($test['message']) || !empty($test['recommendations']) || !empty($test['details']);
+                      $collapsed_val = ($is_warn || $is_fail) ? 'false' : 'true';
+                      $expander_svg  = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+                      ?>
+                      <div class="dx__check<?php echo esc_attr($mod); ?>"<?php echo $has_verbose ? ' data-collapsed="' . esc_attr($collapsed_val) . '"' : ''; ?>>
+                        <span class="dx__check-icon"><?php echo esc_html($icon); ?></span>
+                        <div class="dx__check-name"><?php echo esc_html($test['name']); ?></div>
+                        <span class="odcm-pill <?php echo esc_attr($pill_mod); ?>"><?php echo esc_html($pill_lbl); ?></span>
+                        <?php if ($has_verbose): ?>
+                        <button class="dx__check-expander" aria-label="Toggle details" type="button"><?php echo $expander_svg; // phpcs:ignore WordPress.Security.EscapeOutput ?></button>
+                        <?php else: ?>
+                        <span></span>
+                        <?php endif; ?>
+                        <?php if ($has_verbose): ?><div class="dx__check-detail"><?php if (!empty($test['message'])): ?><div class="detail-message"><?php echo esc_html(trim($test['message'])); ?></div><?php endif; ?><?php if (!empty($test['recommendations'])): ?><ul class="detail-recs"><?php foreach ($test['recommendations'] as $rec): ?><li><?php echo esc_html(trim($rec)); ?></li><?php endforeach; ?></ul><?php endif; ?><?php if (!empty($test['details'])): ?><div class="detail-tree"><?php echo wp_kses_post($this->render_nested_details($test['details'])); ?></div><?php endif; ?></div><?php endif; ?>
+                      </div>
+                    <?php endforeach; ?>
+                  </div>
+                </div>
               <?php endforeach; ?>
             </div>
           </section>
 
           <!-- Environment -->
-          <section class="dx__section" data-collapsed="false">
+          <section class="dx__section" data-collapsed="true">
             <div class="dx__section-head" data-toggle-section>
               <?php echo $chevron; // phpcs:ignore WordPress.Security.EscapeOutput ?>
               <h4 class="dx__section-title"><?php echo esc_html__('diagnostics.page.section.environment', 'order-daemon'); ?></h4>
+              <div class="dx__section-meta">
+                <button class="dx__copy" data-copy-source="env-copy-text">Copy</button>
+              </div>
             </div>
+            <pre id="env-copy-text" hidden><?php echo esc_html($this->generate_environment_copy_text($od_version, $wp_version, $php_version, $is_multisite, $theme_name, $wp_debug_on, $site_url, $tz, $wc_active, $wc_version, $hpos_on)); ?></pre>
             <div class="dx__section-body">
 
               <div class="dx__group">
@@ -386,7 +416,7 @@ class DiagnosticDashboard
           </section>
 
           <!-- Debug controls -->
-          <section class="dx__section" data-collapsed="false">
+          <section class="dx__section dx__section--danger" data-collapsed="true">
             <div class="dx__section-head" data-toggle-section>
               <?php echo $chevron; // phpcs:ignore WordPress.Security.EscapeOutput ?>
               <h4 class="dx__section-title"><?php echo esc_html__('diagnostics.page.section.debug_controls', 'order-daemon'); ?></h4>
@@ -423,15 +453,78 @@ class DiagnosticDashboard
           </section>
 
         </div><!-- .dx -->
-        </div><!-- .wrap -->
+        </div><!-- .odcm-diagnostics-page -->
         <script>
         (function(){
+          // Shared clipboard helper with textarea fallback
+          function odcmCopyText(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              return navigator.clipboard.writeText(text);
+            }
+            return new Promise(function(resolve, reject) {
+              var ta = document.createElement('textarea');
+              ta.value = text;
+              ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px';
+              document.body.appendChild(ta);
+              ta.focus(); ta.select();
+              try { document.execCommand('copy') ? resolve() : reject(new Error('execCommand failed')); }
+              catch(e) { reject(e); }
+              document.body.removeChild(ta);
+            });
+          }
+
+          // ODCMToasts wrapper
+          function odcmToast(msg, type) {
+            if (window.ODCMToasts && typeof window.ODCMToasts.show === 'function') {
+              window.ODCMToasts.show(msg, type);
+            }
+          }
+
+          // Section collapse/expand
           document.querySelectorAll('[data-toggle-section]').forEach(function(head) {
             head.addEventListener('click', function() {
               var sect = head.closest('.dx__section');
               sect.setAttribute('data-collapsed', sect.getAttribute('data-collapsed') === 'true' ? 'false' : 'true');
             });
           });
+
+          // Category sub-section collapse/expand
+          document.querySelectorAll('[data-toggle-cat]').forEach(function(head) {
+            head.addEventListener('click', function(e) {
+              if (e.target.closest('[data-copy-source]')) return;
+              var cat = head.closest('.dx__cat');
+              cat.setAttribute('data-collapsed', cat.getAttribute('data-collapsed') === 'true' ? 'false' : 'true');
+            });
+          });
+
+          // Individual check expand/collapse
+          document.querySelectorAll('.dx__check[data-collapsed]').forEach(function(check) {
+            check.addEventListener('click', function(e) {
+              if (e.target.closest('[data-copy-source]')) return;
+              if (e.target.closest('[data-toggle-cat]')) return;
+              check.setAttribute('data-collapsed', check.getAttribute('data-collapsed') === 'true' ? 'false' : 'true');
+            });
+          });
+
+          // Per-section copy buttons
+          document.querySelectorAll('[data-copy-source]').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+              e.stopPropagation();
+              var src = document.getElementById(btn.dataset.copySource);
+              if (!src) return;
+              var orig = btn.textContent;
+              odcmCopyText(src.textContent.trim()).then(function() {
+                btn.textContent = 'Copied!';
+                btn.classList.add('dx__copy--copied');
+                odcmToast('Copied to clipboard', 'success');
+                setTimeout(function() { btn.textContent = orig; btn.classList.remove('dx__copy--copied'); }, 1400);
+              }).catch(function() {
+                odcmToast('Copy failed — try selecting the text manually', 'error');
+              });
+            });
+          });
+
+          // Debug option toggle
           document.querySelectorAll('[data-toggle-option]').forEach(function(btn) {
             btn.addEventListener('click', function() {
               var checked = btn.getAttribute('aria-checked') === 'true';
@@ -442,9 +535,17 @@ class DiagnosticDashboard
               fd.append('nonce',  btn.dataset.nonce);
               fd.append('option', btn.dataset.toggleOption);
               fd.append('value',  newVal ? '1' : '0');
-              fetch(<?php echo wp_json_encode($ajax_url); ?>, { method: 'POST', body: fd, credentials: 'same-origin' });
+              fetch(<?php echo wp_json_encode($ajax_url); ?>, { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(function(r){ return r.json(); })
+                .then(function(d){
+                  if (d.success) {
+                    odcmToast(newVal ? 'Verbose logging enabled' : 'Verbose logging disabled', 'success');
+                  }
+                });
             });
           });
+
+          // Run health check (page reload)
           var runBtn = document.getElementById('odcm-run-health-check');
           if (runBtn) {
             runBtn.addEventListener('click', function() {
@@ -452,9 +553,13 @@ class DiagnosticDashboard
               location.reload();
             });
           }
+
+          // Copy full report
           var copyBtn = document.getElementById('odcm-copy-full-report');
           if (copyBtn) {
             copyBtn.addEventListener('click', function() {
+              var origText = copyBtn.textContent;
+              copyBtn.disabled = true;
               var fd = new FormData();
               fd.append('action', 'odcm_generate_dual_report');
               fd.append('nonce',  copyBtn.dataset.nonce);
@@ -462,11 +567,24 @@ class DiagnosticDashboard
                 .then(function(r){ return r.json(); })
                 .then(function(d){
                   if (d.success && d.data && d.data.report) {
-                    navigator.clipboard.writeText(d.data.report).catch(function(){});
-                    var orig = copyBtn.textContent;
-                    copyBtn.textContent = <?php echo wp_json_encode(__('diagnostics.ui.button.copied', 'order-daemon')); ?>;
-                    setTimeout(function(){ copyBtn.textContent = orig; }, 1400);
+                    odcmCopyText(d.data.report).then(function() {
+                      copyBtn.textContent = <?php echo wp_json_encode(__('diagnostics.ui.button.copied', 'order-daemon')); ?>;
+                      odcmToast('Report copied to clipboard', 'success');
+                      setTimeout(function(){ copyBtn.textContent = origText; copyBtn.disabled = false; }, 1400);
+                    }).catch(function() {
+                      odcmToast('Copy failed — try again', 'error');
+                      copyBtn.textContent = origText;
+                      copyBtn.disabled = false;
+                    });
+                  } else {
+                    odcmToast('Failed to generate report', 'error');
+                    copyBtn.textContent = origText;
+                    copyBtn.disabled = false;
                   }
+                }).catch(function() {
+                  odcmToast('Failed to generate report', 'error');
+                  copyBtn.textContent = origText;
+                  copyBtn.disabled = false;
                 });
             });
           }
@@ -832,17 +950,18 @@ class DiagnosticDashboard
         $plain_text = implode("\n", $lines);
         
                 // Only return content if we have actual data
-                if (trim($plain_text)) {
+                $trimmed = trim($plain_text);
+                if ($trimmed) {
                     // Cache detailed output for better performance
-                    $cache_key = 'odcm_detail_output_' . md5($plain_text);
+                    $cache_key = 'odcm_detail_output_' . md5($trimmed);
                     $cached_output = wp_cache_get($cache_key);
-                    
+
                     if (false === $cached_output && $for_html) {
-                        $cached_output = '<pre><code class="language-bash">' . esc_html($plain_text) . '</code></pre>';
-                        wp_cache_set($cache_key, $cached_output, '', HOUR_IN_SECONDS); // Cache for 1 hour
+                        $cached_output = '<pre><code class="language-bash">' . esc_html($trimmed) . '</code></pre>';
+                        wp_cache_set($cache_key, $cached_output, '', HOUR_IN_SECONDS);
                     }
-                    
-                    return $for_html ? ($cached_output ?: '<pre><code class="language-bash">' . esc_html($plain_text) . '</code></pre>') : $plain_text;
+
+                    return $for_html ? ($cached_output ?: '<pre><code class="language-bash">' . esc_html($trimmed) . '</code></pre>') : $trimmed;
                 }
         
         return $for_html ? '' : '';
@@ -956,6 +1075,105 @@ class DiagnosticDashboard
         $formatted = ucwords($formatted);
         
         return $formatted;
+    }
+
+    /**
+     * Generate plain-text copy content for the Health Checks section.
+     *
+     * @param array $report The diagnostic report from DiagnosticRunner::generate_report()
+     * @return string Plain text suitable for clipboard
+     */
+    private function generate_health_checks_copy_text(array $report): string
+    {
+        $out = "HEALTH CHECKS\n=============\n";
+
+        foreach ($report['categories'] as $cat_name => $cat_data) {
+            foreach ($cat_data['tests'] as $test_key => $test) {
+                $is_fail = ($test['status'] === 'error' || $test['status'] === 'failed');
+                $is_warn = ($test['status'] === 'warning');
+                $icon    = $is_fail ? '✕' : ($is_warn ? '!' : '✓');
+
+                $out .= "\n{$icon} {$test['name']} [{$cat_name}] — {$test['status']}\n";
+
+                if (!empty($test['message'])) {
+                    $out .= trim($test['message']) . "\n";
+                }
+
+                if (!empty($test['recommendations'])) {
+                    $out .= "Recommendations:\n";
+                    foreach ($test['recommendations'] as $rec) {
+                        $out .= "  • " . trim($rec) . "\n";
+                    }
+                }
+
+                if (!empty($test['details'])) {
+                    $details_text = $this->render_nested_details($test['details'], 0, false);
+                    if (trim($details_text)) {
+                        $out .= "Technical details:\n";
+                        $out .= trim($details_text) . "\n";
+                    }
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Generate plain-text copy content for the Environment section.
+     *
+     * @param string $od_version
+     * @param string $wp_version
+     * @param string $php_version
+     * @param string $is_multisite
+     * @param string $theme_name
+     * @param bool   $wp_debug_on
+     * @param string $site_url
+     * @param string $tz
+     * @param bool   $wc_active
+     * @param string $wc_version
+     * @param bool   $hpos_on
+     * @return string Plain text suitable for clipboard
+     */
+    private function generate_environment_copy_text(
+        string $od_version,
+        string $wp_version,
+        string $php_version,
+        string $is_multisite,
+        string $theme_name,
+        bool   $wp_debug_on,
+        string $site_url,
+        string $tz,
+        bool   $wc_active,
+        string $wc_version,
+        bool   $hpos_on
+    ): string {
+        $out  = "ENVIRONMENT\n===========\n";
+
+        $out .= "\nPlugin:\n";
+        $out .= "  order-daemon: v{$od_version}\n";
+        if (defined('ODCM_PLUGIN_FILE')) {
+            $out .= '  install path: ' . plugin_dir_path(ODCM_PLUGIN_FILE) . "\n";
+        }
+
+        $out .= "\nWordPress:\n";
+        $out .= "  wp version:   {$wp_version}\n";
+        $out .= "  multisite:    {$is_multisite}\n";
+        $out .= "  active theme: {$theme_name}\n";
+        $out .= '  wp_debug:     ' . ($wp_debug_on ? 'on' : 'off') . "\n";
+        $out .= "  site_url:     {$site_url}\n";
+        $out .= "  timezone:     {$tz}\n";
+
+        if ($wc_active) {
+            $out .= "\nWooCommerce:\n";
+            $out .= "  woocommerce: {$wc_version}\n";
+            $out .= '  hpos:        ' . ($hpos_on ? 'enabled' : 'disabled') . "\n";
+        }
+
+        $out .= "\nServer:\n";
+        $out .= "  php: {$php_version}\n";
+
+        return $out;
     }
 
     /**
