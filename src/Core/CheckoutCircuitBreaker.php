@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Core;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 // Import helper functions
 require_once __DIR__ . '/../../Includes/functions.php';
 

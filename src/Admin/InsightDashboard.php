@@ -413,11 +413,11 @@ class InsightDashboard
             // Only use $_GET['page'] if we have a verified nonce or it's a direct admin page load
             if ($nonce_verified || !isset($_REQUEST['action'])) {
                 $page = sanitize_key(wp_unslash($_GET['page']));
-                return str_contains($hook_suffix, self::PAGE_SLUG) || $page === self::PAGE_SLUG;
+                return false !== strpos($hook_suffix, self::PAGE_SLUG) || $page === self::PAGE_SLUG;
             }
         }
-        
-        return str_contains($hook_suffix, self::PAGE_SLUG);
+
+        return false !== strpos($hook_suffix, self::PAGE_SLUG);
     }
 
     /**
@@ -874,12 +874,10 @@ class InsightDashboard
                         'all'    => __('admin.insight_dashboard.filters.date_range.all_time', 'order-daemon'),
                     ];
                     foreach ($ranges as $range_key => $range_label) :
-                        $encoded_label = esc_js($range_label);
-                        $encoded_key   = esc_attr($range_key);
                     ?>
                     <button class="odcm-time-range__opt" role="menuitemradio" type="button"
-                            data-range="<?php echo $encoded_key; ?>"
-                            x-on:click="applyDatePreset('<?php echo $encoded_key; ?>'); label = '<?php echo $encoded_label; ?>'; open = false; applyFilters()">
+                            data-range="<?php echo esc_attr($range_key); ?>"
+                            x-on:click="applyDatePreset('<?php echo esc_js($range_key); ?>'); label = '<?php echo esc_js($range_label); ?>'; open = false; applyFilters()">
                         <svg class="odcm-time-range__opt-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-11"/></svg>
                         <span class="odcm-time-range__opt-label"><?php echo esc_html($range_label); ?></span>
                     </button>
@@ -923,7 +921,7 @@ class InsightDashboard
                             <?php echo DashboardComponentUIToolkit::createAlpineClassBinding("{'is-active': autoRefreshEnabled && refreshInterval === {$secs}}"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                             <?php echo DashboardComponentUIToolkit::createAlpineEventBinding('click', "autoRefreshEnabled = true; refreshInterval = {$secs}; open = false"); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
                         <svg class="odcm-refresh__opt-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-11"/></svg>
-                        <span class="odcm-refresh__opt-label"><?php printf(esc_html__('admin.insight_dashboard.logs.refresh_every_n_seconds', 'order-daemon'), $secs); ?></span>
+                        <span class="odcm-refresh__opt-label"><?php echo esc_html(sprintf(__('admin.insight_dashboard.logs.refresh_every_n_seconds', 'order-daemon'), (int) $secs)); ?></span>
                         <span class="odcm-refresh__opt-hint"><?php echo esc_html($secs . 's'); ?></span>
                     </button>
                     <?php endforeach; ?>

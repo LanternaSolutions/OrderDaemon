@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\View\PayloadRenderer;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 /**
  * Payload Component UI Toolkit
  *

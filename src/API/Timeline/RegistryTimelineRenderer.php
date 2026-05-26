@@ -401,7 +401,7 @@ final class RegistryTimelineRenderer implements TimelineRendererInterface
             $label = $section['label'] ?? '';
             $value = $section['value'] ?? '';
 
-            if ('timestamp' === $key || str_contains((string) $label, 'Timestamp')) {
+            if ('timestamp' === $key || false !== strpos((string) $label, 'Timestamp')) {
                 $rawTs = $rawPayload['ts'] ?? time();
                 if (!is_numeric($rawTs)) $rawTs = strtotime((string) $rawTs) ?: time();
                 $rows .= '<dt>' . esc_html($label) . '</dt>';

@@ -360,9 +360,9 @@ class SettingsPage
     {
         if (isset($_GET['page']) && !isset($_REQUEST['action'])) {
             $page = sanitize_key(wp_unslash($_GET['page']));
-            return str_contains($hook_suffix, self::PAGE_SLUG) || $page === self::PAGE_SLUG;
+            return false !== strpos($hook_suffix, self::PAGE_SLUG) || $page === self::PAGE_SLUG;
         }
-        return str_contains($hook_suffix, self::PAGE_SLUG);
+        return false !== strpos($hook_suffix, self::PAGE_SLUG);
     }
 
     private function get_settings(): array

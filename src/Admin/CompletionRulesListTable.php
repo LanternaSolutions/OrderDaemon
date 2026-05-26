@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
 
 // Ensure WP_List_Table is loaded before we try to extend it

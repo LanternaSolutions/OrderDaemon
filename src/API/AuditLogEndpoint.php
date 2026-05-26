@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\API;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use OrderDaemon\CompletionManager\Includes\Odcm_Config;
 use OrderDaemon\CompletionManager\Includes\Utils\DatabaseHelper;
 use OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry;

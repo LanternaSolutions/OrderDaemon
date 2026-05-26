@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace OrderDaemon\CompletionManager\View;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use OrderDaemon\CompletionManager\View\PayloadRenderer\PayloadComponentRenderer;
 use OrderDaemon\CompletionManager\API\Timeline\AdapterRegistry;
 use OrderDaemon\CompletionManager\API\Timeline\GenericEventAdapter;
