@@ -336,9 +336,14 @@ This pushes to the private GitHub (`origin`) only. Nothing is published anywhere
 
 Before bumping the version, **you must update `README.txt`** (the CI will block the release if you don't).
 
-Open [README.txt](README.txt) and add a new entry at the top of the `== Changelog ==` section:
+Open [README.txt](README.txt) and add a new entry at the top of both `== Changelog ==` and `== Upgrade Notice ==`:
 
 ```
+== Upgrade Notice ==
+
+= 1.3.25 =
+One-line benefit summary. This text appears on the orderdaemon.com homepage hero badge.
+
 == Changelog ==
 
 = 1.3.25 =
@@ -350,6 +355,10 @@ Open [README.txt](README.txt) and add a new entry at the top of the `== Changelo
 ```
 
 Also update [changelog.txt](changelog.txt) with the same entry for the full historical record.
+
+**Write the upgrade notice for the homepage.** It is shown verbatim in the hero badge on orderdaemon.com after deploy. Keep it 3–6 words — benefit-oriented, present-tense (e.g. "HPOS support, 6× faster logs").
+
+**Optional — override the badge text:** If the upgrade notice wording isn't right for the homepage, create a `badge_text` file in the repo root with a single line of override text and commit it alongside the version bump. CI will send it to the website instead of the upgrade notice. Delete the file (or leave it blank) after the release so it doesn't carry over to the next one.
 
 ### Step 2 — Run the version bump script
 
@@ -626,6 +635,19 @@ Then visit `orderdaemon.com/get/` and confirm the download starts automatically.
 | `token` | GET | value of `ODCM_WEBHOOK_TOKEN` |
 | `version` | POST form field | e.g. `1.3.25` |
 | `zip` | POST file upload | the plugin zip file |
+| `badge_text` | POST form field | *(optional)* homepage hero badge text override |
+
+### Homepage hero badge
+
+After each deploy the website webhook automatically updates three Elementor dynamic tags on the homepage hero:
+
+| Tag | Source |
+|---|---|
+| Hero Badge Text | `== Upgrade Notice ==` for the released version, or `badge_text` POST field if non-empty |
+| Hero Badge Scope | `free` — set automatically |
+| Hero Badge Version | Version number — set automatically |
+
+The `badge_text` POST field is populated from the `badge_text` file in the repo root (if present and non-empty). See Step 1 above.
 
 ---
 
