@@ -2,7 +2,7 @@
 Contributors: orderdaemon
 Tags: woocommerce, automation, auto complete, digital products, order management
 Requires at least: 5.6
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 7.4
 Stable tag: 1.3.28
 License: GPLv2 or later
