@@ -276,7 +276,7 @@ abstract class DisplayAdapter
             'payment_status', 'rule', 'execution_status', 'change_type', 'explanation',
             'debug_explanation', 'context', 'debug_info', 'captured_event', 'processed_event',
             'result', 'checkout_type', 'transaction_id', 'gateway', 'event_description',
-            'trigger', 'actions_taken'
+            'trigger', 'actions_taken', 'channel', 'source_gateway'
         ];
 
         // Technical fields that should only appear in raw data section

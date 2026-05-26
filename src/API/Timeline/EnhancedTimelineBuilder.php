@@ -53,15 +53,26 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         // Create TimelineEvent from log entry
         $timelineEvent = TimelineEvent::fromLegacyLogEntry($logEntry);
 
+        // Resolve the payload to use for adapter processing.
+        // For wrapper event types (universal_event_processing etc.) this decodes the inner
+        // JSON payload so the correct adapter and its display fields are used.
+        $adapterPayload = $this->resolveAdapterPayload($logEntry);
+
         // Extract display data using adapter
-        $adapter = AdapterRegistry::getAdapterForEvent($timelineEvent->raw_payload);
-        $displayData = $adapter->extractDisplayData($timelineEvent->raw_payload);
+        $adapter = AdapterRegistry::getAdapterForEvent($adapterPayload);
+        $displayData = $adapter->extractDisplayData($adapterPayload);
 
         // Update TimelineEvent with display data
         $this->updateTimelineEventWithDisplayData($timelineEvent, $displayData);
 
+        // For non-debug wrapper events, expose the inner semantic event type
+        if ($logEntry['event_type'] === 'universal_event_processing' ||
+            $logEntry['event_type'] === 'universal_event_processing_error') {
+            $timelineEvent->event_type = $adapterPayload['event_type'] ?? $logEntry['event_type'];
+        }
+
         // Convert TimelineEvent to component format for backward compatibility
-        $component = $this->convertTimelineEventToComponent($timelineEvent, $includeDebug);
+        $component = $this->convertTimelineEventToComponent($timelineEvent, $includeDebug, $adapterPayload);
 
         // If the component is null (filtered out as debug-only), return empty timeline
         if ($component === null) {
@@ -103,15 +114,26 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         $components = [];
 
         // Create TimelineEvents for all entries in the process
+        $resolvedPayloads = [];
         foreach ($processLogEntries as $logEntry) {
             $timelineEvent = TimelineEvent::fromLegacyLogEntry($logEntry);
 
+            // Resolve inner payload for wrapper event types
+            $adapterPayload = $this->resolveAdapterPayload($logEntry);
+            $resolvedPayloads[(int) $logEntry['log_id']] = $adapterPayload;
+
             // Extract display data using adapter
-            $adapter = AdapterRegistry::getAdapterForEvent($timelineEvent->raw_payload);
-            $displayData = $adapter->extractDisplayData($timelineEvent->raw_payload);
+            $adapter = AdapterRegistry::getAdapterForEvent($adapterPayload);
+            $displayData = $adapter->extractDisplayData($adapterPayload);
 
             // Update TimelineEvent with display data
             $this->updateTimelineEventWithDisplayData($timelineEvent, $displayData);
+
+            // For non-debug wrapper events, expose the inner semantic event type
+            if ($logEntry['event_type'] === 'universal_event_processing' ||
+                $logEntry['event_type'] === 'universal_event_processing_error') {
+                $timelineEvent->event_type = $adapterPayload['event_type'] ?? $logEntry['event_type'];
+            }
 
             $timelineEvents[] = $timelineEvent;
         }
@@ -121,7 +143,8 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
 
         // Convert TimelineEvents to components
         foreach ($timelineEvents as $timelineEvent) {
-            $component = $this->convertTimelineEventToComponent($timelineEvent, $includeDebug);
+            $adapterPayload = $resolvedPayloads[$timelineEvent->id] ?? [];
+            $component = $this->convertTimelineEventToComponent($timelineEvent, $includeDebug, $adapterPayload);
             if ($component !== null) {
                 $components[] = $component;
             }
@@ -204,8 +227,10 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
             }
         }
 
-        // Set label and summary
-        $timelineEvent->label = $displayData['display_sections']['event_type']['value'] ?? $timelineEvent->event_type;
+        // Set label and summary — fall back through event_type section → event_description section → event_type string
+        $timelineEvent->label = $displayData['display_sections']['event_type']['value']
+            ?? $displayData['display_sections']['event_description']['value']
+            ?? $timelineEvent->event_type;
         $timelineEvent->summary = $this->generateSummary($timelineEvent);
 
         // Add detail sections
@@ -307,8 +332,11 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
 
     /**
      * Convert TimelineEvent to component format for backward compatibility
+     *
+     * @param array $adapterPayload The resolved adapter payload (decoded inner JSON for wrapper events).
+     *                              Passed through so the renderer receives the real event data, not the DB row.
      */
-    private function convertTimelineEventToComponent(TimelineEvent $timelineEvent, bool $includeDebug): ?array
+    private function convertTimelineEventToComponent(TimelineEvent $timelineEvent, bool $includeDebug, array $adapterPayload = []): ?array
     {
         // Check if this is a debug-only event that should be filtered out
         if (!$includeDebug && $this->isDebugOnlyEvent($timelineEvent)) {
@@ -321,7 +349,7 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
             'label' => $timelineEvent->label,
             'summary' => $timelineEvent->summary,
             'ts' => $timelineEvent->timestamp,
-            'data' => $timelineEvent->raw_payload,
+            'data' => !empty($adapterPayload) ? $adapterPayload : $timelineEvent->raw_payload,
             'display_sections' => $timelineEvent->display_sections,
             'detail_sections' => $timelineEvent->detail_sections,
             'actions_taken' => $timelineEvent->actions_taken,
@@ -345,8 +373,9 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
      */
     private function isDebugOnlyEvent(TimelineEvent $timelineEvent): bool
     {
-        // First check for _universal_event_debug events (always debug-only)
-        if ($timelineEvent->event_type === '_universal_event_debug') {
+        // Always debug-only wrapper types
+        if ($timelineEvent->event_type === '_universal_event_debug' ||
+            $timelineEvent->event_type === 'universal_event_processing_debug') {
             return true;
         }
 
@@ -380,6 +409,68 @@ class EnhancedTimelineBuilder implements TimelineBuilderInterface
         }
 
         return false;
+    }
+
+    /**
+     * Resolve the payload array to pass to adapters for a given log entry.
+     *
+     * For wrapper event types (universal_event_processing and its variants) the meaningful
+     * data lives inside the JSON payload stored in odcm_audit_log_payloads, not in the DB
+     * row columns. This method decodes that JSON and enriches it with component-level data
+     * so every adapter receives the full, correct event picture.
+     *
+     * For all other event types the log entry row is returned unchanged, preserving the
+     * existing behaviour with zero blast radius.
+     */
+    private function resolveAdapterPayload(array $logEntry): array
+    {
+        $outerType = $logEntry['event_type'] ?? '';
+
+        $wrapperTypes = [
+            'universal_event_processing',
+            'universal_event_processing_debug',
+            'universal_event_processing_error',
+        ];
+
+        if (!in_array($outerType, $wrapperTypes, true)) {
+            return $logEntry;
+        }
+
+        $payloadJson = $logEntry['payload'] ?? '';
+        if (empty($payloadJson)) {
+            return $logEntry;
+        }
+
+        $decoded = json_decode($payloadJson, true);
+        if (!is_array($decoded)) {
+            return $logEntry;
+        }
+
+        // For the primary (non-debug) wrapper, merge the primary component's data into the
+        // top level so adapters can find fields like payment_method, checkout_type, etc.
+        // for event types that are not enriched at the top level (e.g. payment_completed).
+        // array_merge order: $decoded wins over component data so top-level fields set by
+        // logBusinessEventToTimeline are preserved.
+        if ($outerType === 'universal_event_processing' &&
+            !empty($decoded['components']) && is_array($decoded['components'])) {
+            $primaryComponent = reset($decoded['components']);
+            if (!empty($primaryComponent['data']) && is_array($primaryComponent['data'])) {
+                $decoded = array_merge($primaryComponent['data'], $decoded);
+            }
+        }
+
+        // Carry over log-entry context that adapters or downstream code may need
+        if (empty($decoded['order_id']) && !empty($logEntry['order_id'])) {
+            $decoded['order_id'] = (int) $logEntry['order_id'];
+        }
+        if (empty($decoded['process_id']) && !empty($logEntry['process_id'])) {
+            $decoded['process_id'] = $logEntry['process_id'];
+        }
+        if (empty($decoded['timestamp']) && !empty($logEntry['timestamp'])) {
+            $decoded['timestamp'] = $logEntry['timestamp'];
+        }
+
+        return $decoded;
     }
 
     /**

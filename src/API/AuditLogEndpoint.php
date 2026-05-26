@@ -2541,13 +2541,23 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
                 }
             }
 
+            // For wrapper event types, surface the inner semantic event type so the
+            // frontend badge shows the real event name instead of 'universal_event_processing'.
+            $display_event_type = $log['event_type'];
+            if ($display_event_type === 'universal_event_processing' && !empty($log['payload'])) {
+                $inner_payload = json_decode($log['payload'], true);
+                if (is_array($inner_payload) && !empty($inner_payload['event_type'])) {
+                    $display_event_type = $inner_payload['event_type'];
+                }
+            }
+
             $formatted_log = [
                 'id' => (int) $log_id,
                 'timestamp' => $log['timestamp'],
                 'status' => $status,
                 'status_type' => $status_type,
                 'summary' => $summary,
-                'event_type' => $log['event_type'],
+                'event_type' => $display_event_type,
             ];
 
             // Add order_id if present
