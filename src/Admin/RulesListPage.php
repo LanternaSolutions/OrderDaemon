@@ -106,9 +106,6 @@ class RulesListPage
               <p class="rl__sub odcm-page-sub"><?php echo esc_html(number_format_i18n($total)); ?> <?php esc_html_e('admin.list_table.rules_count_label', 'order-daemon'); ?></p>
             </div>
             <div class="rl__head-actions">
-              <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=odcm_export_rules'), 'odcm_export_rules')); ?>" class="odcm-btn odcm-btn--ghost odcm-btn--sm">
-                <?php esc_html_e('admin.list_table.action.export', 'order-daemon'); ?>
-              </a>
               <a href="<?php echo esc_url($add_new_url); ?>" class="odcm-btn odcm-btn--primary odcm-btn--sm">
                 + <?php esc_html_e('admin.list_table.action.add_rule', 'order-daemon'); ?>
               </a>
@@ -308,11 +305,11 @@ class RulesListPage
 
     public function handle_bulk(): void
     {
-        check_admin_referer('odcm_bulk_rules', '_wpnonce');
-
         if (!current_user_can('manage_woocommerce')) {
             wp_die(esc_html__('security.no_action_permission', 'order-daemon'));
         }
+
+        check_admin_referer('odcm_bulk_rules', '_wpnonce');
 
         $bulk_action = isset($_POST['bulk_action']) ? sanitize_key($_POST['bulk_action']) : '';
         $rule_ids    = isset($_POST['rule']) ? array_map('absint', (array) $_POST['rule']) : [];

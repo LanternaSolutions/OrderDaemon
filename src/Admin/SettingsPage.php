@@ -345,8 +345,8 @@ class SettingsPage
         $payload_table  = $wpdb->prefix . 'odcm_audit_log_payloads';
 
         // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-        $wpdb->query("TRUNCATE TABLE `{$log_table}`");       // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $wpdb->query("TRUNCATE TABLE `{$payload_table}`");   // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $wpdb->query("DELETE FROM `{$log_table}`");       // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $wpdb->query("DELETE FROM `{$payload_table}`");   // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         // phpcs:enable
 
         wp_send_json_success(['message' => __('admin.settings.ajax.log_cleared', 'order-daemon')]);
