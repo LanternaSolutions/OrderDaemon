@@ -155,6 +155,17 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 
 == Changelog ==
 
+= 1.3.29 =
+* Added: Dedicated Settings page — configure log retention, auto-refresh interval, display theme, and per-page log count from one place
+* Added: Custom Rules List page — search, status filter, bulk activate/deactivate/trash, and per-rule execution stats replace the native WordPress list table
+* Added: Component icons — all rule builder triggers, conditions, and actions now display an icon in the picker and on the canvas
+* Improved: Full admin UI overhaul — new design system with consistent spacing, typography, color tokens, and dark mode across all admin pages
+* Improved: Insight Dashboard — bookmarkable filter URLs, filter pane density, improved dark mode compatibility
+* Improved: Rule Builder — component icon rendering, responsive outer layout, breadcrumb wrapping
+* Improved: Diagnostics page — verbose category sections, left-aligned output, restored detail pane content
+* Fixed: OrderMetaManager cache key queries referenced a non-existent column in wp_options; replaced with md5-based in-memory keys
+* Fixed: Diagnostics page debug console.log calls no longer appear in production browser consoles
+
 = 1.3.28 =
 * Added: Custom webhook connections in Insight Dashboard — configure a slug-based webhook URL with bearer token or HMAC-SHA256 authentication
 * Added: Discount total source option for the Order Amount condition — rules can now compare the order's discount total against a threshold
@@ -168,6 +179,9 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 * Fixed: Gateway adapter validation no longer blocked by missing log method
 
 == Upgrade Notice ==
+
+= 1.3.29 =
+Full admin UI overhaul: new Settings page, custom Rules List, component icons, and dark mode improvements across all admin pages.
 
 = 1.3.28 =
 Adds custom webhook connections, a discount total source option for the Order Amount condition, and site URL change detection.

@@ -134,14 +134,13 @@
          * Handle comprehensive diagnostic results
          */
         handleDiagnosticResults: function(data) {
-            // DEBUG: Log the received data structure
-            console.log('DEBUG handleDiagnosticResults: Received data structure:', {
+            if (odcmIsDebug()) { console.log('DEBUG handleDiagnosticResults: Received data structure:', {
                 hasHtml: !!data.html,
                 htmlLength: data.html ? data.html.length : 0,
                 htmlPreview: data.html ? data.html.substring(0, 200) + '...' : 'No HTML',
                 hasReport: !!data.report,
                 reportCategories: data.report?.categories ? Object.keys(data.report.categories) : 'None'
-            });
+            }); }
             
             // Update progress to completion
             this.updateProgress(100, 8, odcmDiagnostics.strings.testsCompleted);
@@ -255,14 +254,13 @@
         showUnifiedResults: function(html, report, updateTimestamp = true) {
             const container = $('#unified-results');
             
-            // DEBUG: Log HTML content being inserted
-            console.log('DEBUG showUnifiedResults: HTML content details:', {
+            if (odcmIsDebug()) { console.log('DEBUG showUnifiedResults: HTML content details:', {
                 htmlLength: html ? html.length : 0,
                 containsTreeConnectors: html ? html.includes('odcm-detail-tree-connector') : false,
                 containsTechnicalInfo: html ? html.includes('odcm-technical-info') : false,
                 containsDetailItems: html ? html.includes('odcm-detail-item') : false,
                 htmlSnippet: html ? html.substring(0, 500) + '...' : 'No HTML'
-            });
+            }); }
             
             if (updateTimestamp) {
                 const now = new Date();
@@ -284,14 +282,12 @@
                 Prism.highlightAll();
             }
             
-            // DEBUG: Verify DOM insertion worked
-            const insertedContent = resultsContent.html();
-            console.log('DEBUG showUnifiedResults: DOM insertion verification:', {
+            if (odcmIsDebug()) { const insertedContent = resultsContent.html(); console.log('DEBUG showUnifiedResults: DOM insertion verification:', {
                 contentInserted: insertedContent.length > 0,
                 treeConnectorsInDOM: $('.odcm-detail-tree-connector').length,
                 technicalInfoInDOM: $('.odcm-technical-info').length,
                 detailItemsInDOM: $('.odcm-detail-item').length
-            });
+            }); }
             
             container.show();
         },
