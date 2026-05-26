@@ -380,6 +380,8 @@ class OrderMetaManager
      */
     public static function find_order_by_meta(string $meta_key, string $meta_value, array $additional_args = []): ?int
     {
+        global $wpdb;
+
         if (empty($meta_key) || empty($meta_value)) {
             return null;
         }
@@ -387,10 +389,10 @@ class OrderMetaManager
         if (!function_exists('wc_get_orders')) {
             return null;
         }
-        
+
         // Use DatabaseHelper for optimized caching
         $cache_key = DatabaseHelper::get_var(
-            "SELECT cache_key FROM {$wpdb->prefix}options 
+            "SELECT cache_key FROM {$wpdb->prefix}options
              WHERE option_name = %s AND option_value = %s 
              LIMIT 1",
             ['odcm_meta_cache_key', $meta_key . '|' . $meta_value]

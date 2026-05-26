@@ -277,9 +277,11 @@
     --odcm-theme-green-200:   var(--odcm-success-soft);
     --odcm-theme-green-400:   var(--odcm-palette-success-300);
     --odcm-theme-green-700:   var(--odcm-success);
+    --odcm-theme-green-800:   var(--odcm-palette-success-700);
     --odcm-theme-red-200:     var(--odcm-danger-soft);
     --odcm-theme-red-400:     var(--odcm-palette-danger-300);
     --odcm-theme-red-700:     var(--odcm-danger);
+    --odcm-theme-red-800:     var(--odcm-palette-danger-700);
     --odcm-theme-red-900:     var(--odcm-palette-danger-700);
     --odcm-theme-yellow-200:  var(--odcm-warn-soft);
     --odcm-theme-yellow-400:  var(--odcm-palette-warn-300);

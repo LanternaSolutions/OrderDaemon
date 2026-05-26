@@ -109,12 +109,18 @@ class OrderTotalAmountCondition implements ConditionInterface
 
     public function evaluate(WC_Order $order, array $settings): bool
     {
-        $operator = $settings['operator'] ?? 'amount_gt';
+        if (!isset($settings['operator'])) {
+            return false;
+        }
+        $operator = $settings['operator'];
         $amount_source = $settings['amount_source'] ?? 'order_total';
 
         // Get the amount value based on the selected operator
         $amount_field = $operator . '_value';
-        $amount = isset($settings[$amount_field]) ? (float) $settings[$amount_field] : 0.0;
+        if (!isset($settings[$amount_field])) {
+            return false;
+        }
+        $amount = (float) $settings[$amount_field];
         $order_total = $amount_source === 'order_discount'
             ? (float) $order->get_discount_total()
             : (float) $order->get_total();

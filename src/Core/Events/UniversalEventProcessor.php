@@ -3225,10 +3225,12 @@ class UniversalEventProcessor
      * @param string $summary The original summary
      * @return string User-friendly message
      */
-    private function generateUserFriendlyMessage(string $event_type, string $gateway, int $order_id, float $amount, string $currency, string $summary): string
+    private function generateUserFriendlyMessage(string $event_type, string $gateway, ?int $order_id, ?float $amount, ?string $currency, string $summary): string
     {
-        // Format amount with currency symbol
-        $formatted_amount = $this->formatAmount($amount, $currency);
+        // Format amount with currency symbol (only when both are available)
+        $formatted_amount = ($amount !== null && $currency !== null)
+            ? $this->formatAmount($amount, $currency)
+            : '';
 
         // Generate message based on event type and actual payload data
         switch ($event_type) {
