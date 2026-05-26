@@ -547,7 +547,7 @@ class AuditLogEndpoint extends WP_REST_Controller
      *
      * Performs secure batch deletion with transaction support and audit logging
      */
-    public function batch_delete_logs(WP_REST_Request $request): WP_REST_Response
+    public function batch_delete_logs(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         try {
             $log_ids = $request->get_param('log_ids');
@@ -626,7 +626,7 @@ class AuditLogEndpoint extends WP_REST_Controller
      * Uses direct database queries for optimal performance and consistency
      * with the insight dashboard requirements.
      */
-    public function get_logs(WP_REST_Request $request): WP_REST_Response
+    public function get_logs(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         try {
             // Start performance monitoring
@@ -2541,13 +2541,23 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
                 }
             }
 
+            // For wrapper event types, surface the inner semantic event type so the
+            // frontend badge shows the real event name instead of 'universal_event_processing'.
+            $display_event_type = $log['event_type'];
+            if ($display_event_type === 'universal_event_processing' && !empty($log['payload'])) {
+                $inner_payload = json_decode($log['payload'], true);
+                if (is_array($inner_payload) && !empty($inner_payload['event_type'])) {
+                    $display_event_type = $inner_payload['event_type'];
+                }
+            }
+
             $formatted_log = [
                 'id' => (int) $log_id,
                 'timestamp' => $log['timestamp'],
                 'status' => $status,
                 'status_type' => $status_type,
                 'summary' => $summary,
-                'event_type' => $log['event_type'],
+                'event_type' => $display_event_type,
             ];
 
             // Add order_id if present
@@ -2619,10 +2629,9 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
             return new WP_Error('odcm_invalid_table_name', __('core.log_cleanup.invalid_table_name', 'order-daemon'), ['status' => 400]);
         }
 
-        $log_ids = array_map('intval', explode(',', $placeholder_string));
         $valid_ids = DatabaseHelper::get_col(
-            "SELECT log_id FROM `{$logTableName}` WHERE log_id IN (%s)",
-            [implode(',', $log_ids)]
+            "SELECT log_id FROM `{$logTableName}` WHERE log_id IN ($placeholder_string)",
+            $log_ids
         );
         $result = array_map('intval', $valid_ids);
 
@@ -2643,70 +2652,38 @@ if (defined('ODCM_DEBUG') && ODCM_DEBUG && !empty($search)) {
             return 0;
         }
 
-        // Use proper table name escaping
-        $logTableName = esc_sql($wpdb->prefix . 'odcm_audit_log');
-        $payloadTableName = esc_sql($wpdb->prefix . 'odcm_audit_log_payloads');
+        $log_ids      = array_map('intval', $log_ids);
+        $log_table    = $wpdb->prefix . 'odcm_audit_log';
+        $payload_table = $wpdb->prefix . 'odcm_audit_log_payloads';
 
-        // Start transaction
-        DatabaseHelper::query('START TRANSACTION');
-
-        try {
-            // Build safe IN clause for log IDs
-            $log_placeholders = array_fill(0, count($log_ids), '%d');
-            $log_placeholder_string = implode(',', $log_placeholders);
-
-            // Validate table names before using them
-            if (!DatabaseHelper::validate_table_name($logTableName) || !DatabaseHelper::validate_table_name($payloadTableName)) {
-                throw new \Exception('Invalid table names provided for batch deletion');
-            }
-
-            // Get payload IDs to delete using DatabaseHelper for security
-            $payload_ids = DatabaseHelper::get_col(
-                "SELECT DISTINCT payload_id
-                FROM %s
-                WHERE log_id IN (%s) AND payload_id IS NOT NULL",
-                [$logTableName, implode(',', array_map('intval', $log_ids))]
-            );
-
-            // Delete logs using DatabaseHelper for security
-            $deleted = DatabaseHelper::query(
-                "DELETE FROM %s
-                WHERE log_id IN (%s)",
-                [$logTableName, implode(',', array_map('intval', $log_ids))]
-            );
-
-            // Delete orphaned payloads using DatabaseHelper for security
-            if (!empty($payload_ids)) {
-                // Get payloads still in use using DatabaseHelper
-                $used_payloads = DatabaseHelper::get_col(
-                    "SELECT DISTINCT payload_id
-                    FROM %s
-                    WHERE payload_id IN (%s)",
-                    [$logTableName, implode(',', array_map('intval', $payload_ids))]
-                );
-
-                // Calculate orphaned payloads
-                $orphaned_payloads = array_diff($payload_ids, $used_payloads);
-
-                // Delete orphaned payloads using DatabaseHelper
-                if (!empty($orphaned_payloads)) {
-                    DatabaseHelper::query(
-                        "DELETE FROM %s
-                        WHERE payload_id IN (%s)",
-                        [$payloadTableName, implode(',', array_map('intval', $orphaned_payloads))]
-                    );
-                }
-            }
-
-            // Commit transaction
-            DatabaseHelper::query('COMMIT');
-
-            return $deleted;
-        } catch (\Exception $e) {
-            // Rollback transaction
-            DatabaseHelper::query('ROLLBACK');
-            throw $e;
+        if (!DatabaseHelper::validate_table_name(esc_sql($log_table)) || !DatabaseHelper::validate_table_name(esc_sql($payload_table))) {
+            throw new \Exception('Invalid table names provided for batch deletion');
         }
+
+        $ids_in = implode(',', $log_ids);
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $payload_ids = $wpdb->get_col("SELECT DISTINCT payload_id FROM `{$log_table}` WHERE log_id IN ({$ids_in}) AND payload_id IS NOT NULL");
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $deleted = $wpdb->query("DELETE FROM `{$log_table}` WHERE log_id IN ({$ids_in})");
+
+        if (!empty($payload_ids)) {
+            $payload_ids    = array_map('intval', $payload_ids);
+            $payload_ids_in = implode(',', $payload_ids);
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $used_payloads    = $wpdb->get_col("SELECT DISTINCT payload_id FROM `{$log_table}` WHERE payload_id IN ({$payload_ids_in})");
+            $orphaned_payloads = array_diff($payload_ids, array_map('intval', $used_payloads));
+
+            if (!empty($orphaned_payloads)) {
+                $orphaned_in = implode(',', array_map('intval', $orphaned_payloads));
+                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                $wpdb->query("DELETE FROM `{$payload_table}` WHERE payload_id IN ({$orphaned_in})");
+            }
+        }
+
+        return is_int($deleted) ? $deleted : 0;
     }
 
     /**

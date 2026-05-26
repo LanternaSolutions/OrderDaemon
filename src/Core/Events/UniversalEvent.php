@@ -431,7 +431,9 @@ final class UniversalEvent
      */
     private function validateEventType(string $eventType): string
     {
-        $eventType = sanitize_key($eventType);
+        // sanitize_key() strips dots, which breaks hierarchical types like payment.stripe.*
+        // Allow lowercase alphanumeric, dots, underscores, and hyphens.
+        $eventType = preg_replace('/[^a-z0-9._-]/', '', strtolower($eventType));
         if (empty($eventType)) {
             throw new \InvalidArgumentException('Event type is required');
         }

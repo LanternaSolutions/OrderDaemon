@@ -1,173 +1,190 @@
 === Order Daemon for WooCommerce ===
 Contributors: orderdaemon
-Tags: woocommerce, automation, auto complete, digital products, order management
+Tags: woocommerce, orders, automation, order-management, event-log
 Requires at least: 5.6
-Tested up to: 6.9
-Requires PHP: 7.4
+Tested up to: 7.0
 Stable tag: 1.3.28
+Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Automatically complete WooCommerce orders based on rules you define. Built for digital, virtual, and subscription-based stores.
+WooCommerce order automation with WHEN/IF/THEN rules and a live event log. Catch checkout failures before your customers do.
 
 == Description ==
 
-Order Daemon lets you define rules that automatically complete WooCommerce orders when your conditions are met — no manual intervention needed. It is designed for stores selling virtual, downloadable, or digital products where orders don't require physical fulfillment.
+Order Daemon runs in the background of your WooCommerce store, applying automation rules to every order and recording every event to a searchable log. You build the rules. The daemon handles them — and shows you exactly what it did.
 
-If your store sells software, courses, memberships, or any product that doesn't need packing and shipping, you're probably completing orders manually or relying on a payment gateway integration that may or may not work reliably. Order Daemon gives you explicit, auditable control over when and how orders get completed.
+**Three things it does well**
 
-**How it works**
+= 01 · Automate =
 
-You create rules using a visual rule builder. Each rule has:
+Build automation rules using a visual WHEN / IF / THEN builder. No code. Each rule has a trigger (the WooCommerce event that starts evaluation), conditions (the filters that narrow the match), and an action (what executes when all conditions pass). Rules run automatically. There is no limit on how many you can create.
 
-* A **trigger** — the event that starts evaluation (e.g. order moves to Processing)
-* **Conditions** — filters that must all pass (e.g. product type is Virtual, order total > $0)
-* An **action** — what happens when conditions are met (e.g. complete the order)
+Common rules stores use on day one:
 
-Rules run automatically in the background. The Insights Dashboard gives you a full audit log of every rule evaluation and order action taken, so you always know exactly what happened and why.
+* Complete virtual and downloadable orders immediately after payment
+* Auto-complete orders when every item in the cart is digital
+* Complete orders above a threshold amount for verified customers
+* Flag orders stuck in Processing for manual review
 
-**Free version includes**
+= 02 · Observe =
 
-* Unlimited active automation rules
-* Visual rule builder
+Every order event flows into the Insight Dashboard — a live, searchable log stream. Rule executions, status changes, checkout failures, payment events. Every event WooCommerce emits is captured, timestamped, and retained for 30 days.
+
+Click any row to open the full event timeline for that order: every event on a single spine with time deltas, color-coded by severity, with raw event data one click away. Most WooCommerce stores have no visibility into what is actually happening to their orders. Order Daemon gives you a flight recorder.
+
+= 03 · Diagnose =
+
+Checkout failures are logged the moment they occur — before any customer complains. The log stream surfaces payment hiccups, rule conditions that did not match, and orders that stopped moving. You see it first.
+
+**What the free version includes**
+
+* Unlimited automation rules
+* Visual WHEN / IF / THEN rule builder
 * Order processing trigger
-* Product type, product category, and order total conditions
-* Order completion action
-* Full audit log and Insights Dashboard
-* Built-in diagnostics tools
+* Conditions: product type, product category, order total
+* Action: complete the order
+* Full Insight Dashboard — live log stream and per-order event timeline
+* 30-day event log retention
+* Built-in diagnostics and compatibility tools
+* HPOS compatible (High-Performance Order Storage)
 
-**Good for**
+**Order Daemon Pro**
 
-* Digital product and software stores
-* Course and membership platforms
-* SaaS and subscription-based businesses
-* Any store where manual order completion is unnecessary overhead
-* Recovering orders stuck in Processing
-
-**Need more triggers, conditions, and actions?**
-
-[Order Daemon Pro](https://orderdaemon.com/pricing) adds additional rule components, priority support, and advanced automation for high-volume stores.
+[Pro](https://orderdaemon.com/pricing/) adds more triggers, conditions, and actions; rule testing against real past orders without modifying state; webhook connections; WP-CLI; and extended log retention — upgrade when the free rule components are not enough or you need external integrations.
 
 == Installation ==
 
 **Via the WordPress plugin directory**
 
-1. Go to Plugins > Add New in your WordPress admin
+1. Go to Plugins → Add New in your WordPress admin
 2. Search for "Order Daemon"
 3. Click Install Now, then Activate
-4. Go to Order Daemon in your admin menu to create your first rule
+4. Navigate to Order Daemon in your admin menu to create your first rule
 
 **Manual installation**
 
-1. Download the plugin zip file
-2. Go to Plugins > Add New > Upload Plugin
-3. Upload the zip file and activate
-4. Go to Order Daemon in your admin menu to create your first rule
+1. Download the plugin zip
+2. Go to Plugins → Add New → Upload Plugin
+3. Upload and activate
+4. Navigate to Order Daemon to create your first rule
 
 **Requirements**
 
 * WordPress 5.6 or higher
 * WooCommerce 5.0 or higher
 * PHP 7.4 or higher
-* MySQL 5.6 or higher (or MariaDB equivalent)
 
 == Uninstallation ==
 
-When you uninstall the plugin, all data (rules, audit logs, settings) is preserved by default to prevent accidental loss.
-
-To permanently remove all plugin data before uninstalling, add this line to your `wp-config.php`:
+All data (rules, event log, settings) is preserved when you deactivate or delete the plugin — nothing is dropped automatically. To permanently remove all plugin data before uninstalling, add this to `wp-config.php`:
 
 `define('ODCM_REMOVE_ALL_DATA', true);`
 
-Then uninstall the plugin normally. All tables and options will be deleted.
+Then uninstall normally. All tables and options will be removed.
 
 == Frequently Asked Questions ==
 
-= Does Order Daemon work with all payment gateways? =
+= Does this work with physical / shippable products? =
 
-Yes. Order Daemon monitors standard WooCommerce order status changes, so it works with any payment gateway that correctly transitions orders through WooCommerce statuses.
+Yes. The conditions system lets you target any product type, category, or order total, so you can scope rules precisely. Most stores use Order Daemon for virtual and downloadable products, but it works with any order type.
 
-= Will this slow down my site? =
+= Does it work with HPOS (High-Performance Order Storage)? =
 
-No. The plugin runs automation during order processing events only, uses optimized database queries, and has no impact on front-end performance.
+Yes. Order Daemon declares HPOS compatibility and uses WooCommerce's order abstraction layer throughout.
 
-= Can I create multiple rules? =
+= Will it slow down my site? =
 
-Yes. There is no limit on the number of active rules.
+No. Automation rules run during WooCommerce order lifecycle hooks only, not on the front end. The event log uses optimised queries. There is no impact on page load time.
 
-= Is it safe to automate order completion? =
+= Does it work with all payment gateways? =
 
-Yes. Every rule evaluation and action is logged in the audit log. Orders are only completed when all conditions in a rule are satisfied.
+Yes, as long as the gateway transitions orders through standard WooCommerce statuses. The plugin monitors order status changes, not payment gateway internals directly.
 
-= Does it work with physical products? =
+= Is the event log stored locally? =
 
-It can be configured to. The conditions system lets you target any product type or category, so you can scope rules precisely to the products where auto-completion makes sense.
+Yes. All event data is stored in your WordPress database. Nothing is transmitted to external servers. See the External Services section for details about inbound webhook processing.
 
-= Is customer data secure? =
+= What happens to my data if I uninstall? =
 
-Yes. Order Daemon does not transmit any data outside your WordPress installation. All processing and logging happens locally on your server.
+Your data is preserved unless you explicitly set `ODCM_REMOVE_ALL_DATA` in wp-config.php before uninstalling. See the Uninstallation section above.
 
 = Can developers extend the plugin? =
 
-Yes. The plugin exposes hooks and filters for customization. See the [documentation](https://orderdaemon.com/docs) for details.
+Yes. The plugin exposes actions and filters for customisation. See the [documentation](https://orderdaemon.com/docs/) for the full hook reference.
+
+= What is the difference between the free version and Pro? =
+
+The free version includes unlimited rules, the full Insight Dashboard, and the core set of triggers, conditions, and actions. [Pro](https://orderdaemon.com/pricing/) adds more rule components, rule testing, webhook connections, WP-CLI, extended log retention, and priority support.
 
 == Screenshots ==
 
-1. The rule builder — create automation rules using a visual interface with triggers, conditions, and actions.
-2. The Insights Dashboard — view a full audit log of rule evaluations and order actions in real time.
-3. Rule management — enable, disable, and organize all your automation rules from one screen.
+1. The Insight Dashboard — live event log stream showing every rule execution, status change, and checkout failure with severity badges and timestamps.
+2. The rule builder — visual WHEN / IF / THEN interface for creating automation rules without code.
+3. Order event timeline — the full event history for a single order, with time deltas between events and expandable raw event data.
+4. Rule management — enable, disable, and reorder all active rules from one screen.
 
 == Third-Party Libraries ==
 
 This plugin uses the following open-source libraries:
 
-* **Alpine.js** — lightweight JavaScript framework for interactive UI. [alpinejs.dev](https://alpinejs.dev/) — MIT License.
-* **Prism.js** — syntax highlighting for code display. [prismjs.com](https://prismjs.com/) — MIT License.
+* **Alpine.js** — lightweight JavaScript framework for interactive UI components. [alpinejs.dev](https://alpinejs.dev/) · MIT License
+* **Prism.js** — syntax highlighting for raw event data display. [prismjs.com](https://prismjs.com/) · MIT License
 
 == External Services ==
 
-Order Daemon can receive and process webhook notifications from payment gateways. It does not initiate outbound connections unless explicitly verifying a payment notification.
+Order Daemon receives inbound webhook payloads from payment gateways and may send outbound verification requests during payment processing. It does not initiate any other external connections.
 
-**PayPal**
-Receives IPN and webhook payloads (payment status, transaction ID, amount) and may send verification requests back to PayPal servers during PayPal payment processing.
+**PayPal** — receives IPN and webhook payloads (payment status, transaction ID, amount); may send verification requests to PayPal during processing.
 [Terms of Service](https://www.paypal.com/legalhub) | [Privacy Policy](https://www.paypal.com/privacy)
 
-**Stripe**
-Receives webhook payloads with event details when your site receives a Stripe webhook. No data is sent to Stripe by this plugin.
+**Stripe** — receives webhook payloads for event processing. No data is sent to Stripe by this plugin.
 [Terms of Service](https://stripe.com/legal/ssa) | [Privacy Policy](https://stripe.com/privacy)
 
-**Mollie**
-Receives webhook payloads with event details when your site receives a Mollie webhook. No data is sent to Mollie by this plugin.
+**Mollie** — receives webhook payloads. No data is sent outbound by this plugin.
 [Terms of Service](https://www.mollie.com/en/user-agreement) | [Privacy Policy](https://www.mollie.com/en/privacy)
 
-**Square**
-Receives webhook payloads with event details when your site receives a Square webhook. No data is sent to Square by this plugin.
-[Terms of Service](https://squareup.com/us/en/legal/general/ua) | [Privacy Policy](https://squareup.com/us/en/legal/general/privacy-notice)
+**Square** — receives webhook payloads. No data is sent outbound by this plugin.
+[Terms of Service](https://squareup.com/us/en/legal/general/ua) | [Privacy Policy](https://squareup.com/us/en/privacy)
 
-Note: Order Daemon does not connect to Google services. References to Google Tag Manager, Google Analytics, and reCAPTCHA in the diagnostics system are detection patterns only, used to identify potential script conflicts from other plugins or themes.
+Note: References to Google Tag Manager, Google Analytics, and reCAPTCHA in the diagnostics system are detection patterns only, used to identify potential conflicts from other plugins or themes. Order Daemon does not connect to Google services.
 
 == Privacy Policy ==
 
-Order Daemon does not collect, store, or transmit any personal data outside of your WordPress installation. All automation activity is logged locally on your server. The plugin respects WordPress privacy standards and GDPR requirements.
+Order Daemon does not collect, store, or transmit any personal data outside your WordPress installation. All automation activity is logged locally on your server. The plugin respects WordPress privacy standards and GDPR requirements.
 
 == Changelog ==
 
+= 1.3.29 =
+* Added: Dedicated Settings page — configure log retention, auto-refresh interval, display theme, and per-page log count from one place
+* Added: Custom Rules List page — search, status filter, bulk activate/deactivate/trash, and per-rule execution stats replace the native WordPress list table
+* Added: Component icons — all rule builder triggers, conditions, and actions now display an icon in the picker and on the canvas
+* Improved: Full admin UI overhaul — new design system with consistent spacing, typography, color tokens, and dark mode across all admin pages
+* Improved: Insight Dashboard — bookmarkable filter URLs, filter pane density, improved dark mode compatibility
+* Improved: Rule Builder — component icon rendering, responsive outer layout, breadcrumb wrapping
+* Improved: Diagnostics page — verbose category sections, left-aligned output, restored detail pane content
+* Fixed: OrderMetaManager cache key queries referenced a non-existent column in wp_options; replaced with md5-based in-memory keys
+* Fixed: Diagnostics page debug console.log calls no longer appear in production browser consoles
+
 = 1.3.28 =
-* Added: Custom webhook connections in Insight Dashboard — configure a slug-based webhook URL with none, bearer token, or HMAC-SHA256 authentication
+* Added: Custom webhook connections in Insight Dashboard — configure a slug-based webhook URL with bearer token or HMAC-SHA256 authentication
 * Added: Discount total source option for the Order Amount condition — rules can now compare the order's discount total against a threshold
 * Added: Site URL change detection — surfaces an admin notice when the site URL changes, with an Acknowledge button to dismiss
 * Fixed: Timeline event ordering, parent-child hierarchy, and parent_id writing — resolves race conditions and ensures rule execution events nest correctly under their triggering business events
 
 = 1.3.27 =
-* Improved: Rule Builder mobile responsivity — fixed broken responsive breakpoint, enlarged touch targets on mobile, and improved layout on narrow screens
-* Improved: Rule Builder condition component summaries are now more descriptive and extensible
+* Improved: Rule Builder mobile responsivity — fixed broken breakpoint, enlarged touch targets, better narrow-screen layout
+* Improved: Rule Builder condition component summaries are more descriptive and extensible
 * Improved: Insight Dashboard mobile responsivity and several UI improvements
 * Fixed: Gateway adapter validation no longer blocked by missing log method
 
 == Upgrade Notice ==
 
+= 1.3.29 =
+Full admin UI overhaul: new Settings page, custom Rules List, component icons, and dark mode improvements across all admin pages.
+
 = 1.3.28 =
-Adds custom webhook connections and a new discount total source option for the Order Amount condition.
+Adds custom webhook connections, a discount total source option for the Order Amount condition, and site URL change detection.
 
 = 1.3.27 =
 UI and mobile usability improvements for the Rule Builder and Insights Dashboard. Recommended update for all users.

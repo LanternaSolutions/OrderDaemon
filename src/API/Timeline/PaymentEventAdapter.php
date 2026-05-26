@@ -344,10 +344,30 @@ class PaymentEventAdapter extends DisplayAdapter
      */
     private function addCommonPaymentFields(array &$fields, array $payload): void
     {
+        // Source gateway (payment processor identifier from universal event)
+        $sourceGateway = $payload['source_gateway'] ?? $payload['gateway_name'] ?? null;
+        if ($sourceGateway && !isset($fields['payment_method'])) {
+            $fields['source_gateway'] = [
+                'label' => $this->translate('Gateway'),
+                'value' => $this->formatGatewayName($sourceGateway),
+                'section' => 'primary'
+            ];
+        }
+
+        // Channel — how the event was received (webhook, ipn, sdk, manual, system, scheduled)
+        $channel = $payload['channel'] ?? null;
+        if ($channel) {
+            $fields['channel'] = [
+                'label' => $this->translate('Received Via'),
+                'value' => ucfirst($channel),
+                'section' => 'primary'
+            ];
+        }
+
         // Gateway/processor name
-        $gatewayName = $payload['gateway'] ?? 
-                      $payload['processor'] ?? 
-                      $payload['data']['gateway'] ?? 
+        $gatewayName = $payload['gateway'] ??
+                      $payload['processor'] ??
+                      $payload['data']['gateway'] ??
                       $payload['payment_context']['gateway'] ?? null;
 
         if ($gatewayName) {

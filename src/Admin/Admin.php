@@ -69,6 +69,10 @@ class Admin
         // Register admin scripts
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_scripts'], 10);
 
+        // Shared styles + body class for all plugin admin pages (free + pro)
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_plugin_page_base_styles'], 5);
+        add_filter('admin_body_class', [$this, 'add_plugin_page_body_class']);
+
         // Register front-end scripts and styles
         add_action('wp_enqueue_scripts', [$this, 'enqueue_frontend_styles'], 10);
 
@@ -223,6 +227,48 @@ class Admin
      * @param  string $hook_suffix The current admin page hook suffix.
      * @return void
      */
+    /**
+     * Returns true when the current screen belongs to this plugin (free or pro).
+     */
+    private function is_plugin_page(): bool
+    {
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        if (!$screen) return false;
+        // CPT edit / new-post screens
+        if ($screen->post_type === 'odcm_order_rule') return true;
+        $id = $screen->id;
+        // Top-level dashboard page
+        if ($id === 'toplevel_page_odcm-insight-dashboard') return true;
+        // All subpages: WP builds the hook as "{parent-derived-slug}_page_{menu-slug}".
+        // Free subpages use "order-daemon_page_" (derived from the menu title "Order Daemon").
+        // Some pages (e.g. pro extensions) may use "odcm-insight-dashboard_page_" instead.
+        // Matching the shared "_page_odcm-" and "_page_order-daemon-" patterns covers both.
+        return strpos($id, 'order-daemon_page_') !== false
+            || strpos($id, 'odcm-insight-dashboard_page_') !== false;
+    }
+
+    /**
+     * Loads admin.css on every plugin page so the odcm-admin-page body class has its styles.
+     * Individual pages may enqueue it too; WP deduplicates by handle.
+     */
+    public function enqueue_plugin_page_base_styles(): void
+    {
+        if (!$this->is_plugin_page()) return;
+        $version = defined('ODCM_VERSION') ? ODCM_VERSION : '1.0.0';
+        wp_enqueue_style('odcm-admin-styles', ODCM_PLUGIN_URL . 'assets/css/admin.css', [], $version);
+    }
+
+    /**
+     * Adds odcm-admin-page to the body class on every plugin page.
+     */
+    public function add_plugin_page_body_class(string $classes): string
+    {
+        if ($this->is_plugin_page()) {
+            $classes .= ' odcm-admin-page';
+        }
+        return $classes;
+    }
+
     public function enqueue_admin_scripts(string $hook_suffix): void
     {
         // Get the version for the scripts

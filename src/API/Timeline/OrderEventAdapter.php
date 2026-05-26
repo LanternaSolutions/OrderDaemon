@@ -477,6 +477,16 @@ class OrderEventAdapter extends DisplayAdapter
      */
     private function addCommonOrderFields(array &$fields, array $payload): void
     {
+        // Channel — how the triggering event was received (webhook, ipn, sdk, manual, system, scheduled)
+        $channel = $payload['channel'] ?? null;
+        if ($channel) {
+            $fields['channel'] = [
+                'label' => $this->translate('Received Via'),
+                'value' => ucfirst($channel),
+                'section' => 'primary'
+            ];
+        }
+
         // Order ID - only add to detail section if not already in primary section
         $order_id = $this->extractOrderId($payload);
         if ($order_id > 0 && !isset($fields['order_id'])) {

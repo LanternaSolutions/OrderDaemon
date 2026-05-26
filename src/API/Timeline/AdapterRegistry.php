@@ -357,9 +357,6 @@ class AdapterRegistry
             'process_event',
             'lifecycle_event',
             'action_scheduled',
-            // Universal events
-            'universal_event_processing',
-            'universal_event_processing_debug',
             // Rule evaluation events
             'rule_no_match',
         ];

@@ -205,6 +205,9 @@ function insightDashboard() {
                 // Load persistent settings
                 this.loadSettings();
 
+                // URL params override localStorage — must run after loadSettings()
+                this.loadFiltersFromUrl();
+
                 // Initialize network monitoring
                 this.setupNetworkMonitoring();
 
@@ -374,15 +377,19 @@ function insightDashboard() {
          * Set up watchers for dynamic content that needs Prism.js highlighting
          */
         setupPrismWatchers() {
-            // Watch for detail content changes and re-highlight
             this.$watch('detailHtml', () => {
                 this.$nextTick(() => {
                     const detailPane = document.querySelector('.odcm-detail-content');
                     if (detailPane) {
                         this.highlightCodeBlocks(detailPane);
+                        this.initTimelineExpanders(detailPane);
                     }
                 });
             });
+        },
+
+        initTimelineExpanders(_container) {
+            // Replaced by document-level delegation in initThreeTierToggles()
         },
 
         // =================================================================
@@ -921,6 +928,13 @@ function insightDashboard() {
                 const isMobileViewport = window.innerWidth <= 782;
                 this.filterPaneVisible = isMobileViewport ? false : (savedPaneVisible !== null ? savedPaneVisible === 'true' : true);
 
+                // Sync initial data-* grid attributes for new design CSS
+                const grid = this.$el.querySelector('.odcm-content-grid');
+                if (grid) {
+                    if (!this.filterPaneVisible) grid.setAttribute('data-filter-collapsed', 'true');
+                    grid.setAttribute('data-detail-collapsed', 'true'); // no log selected initially
+                }
+
                 // Load settings accordion state
                 const savedAccordionState = localStorage.getItem('odcm_settings_accordion_state');
                 if (savedAccordionState) {
@@ -1016,12 +1030,31 @@ function insightDashboard() {
                 this.saveSettings();
                 if (odcmIsDebug()) { console.log('ODCM: Filter pane visibility changed to:', visible); }
 
+                // Sync data-* attribute for new design CSS column selectors
+                const grid = this.$el.querySelector('.odcm-content-grid');
+                if (grid) {
+                    if (visible) {
+                        grid.removeAttribute('data-filter-collapsed');
+                    } else {
+                        grid.setAttribute('data-filter-collapsed', 'true');
+                    }
+                }
+
                 // Re-measure header bottom after pane state changes (header content may change)
                 requestAnimationFrame(() => this.updateHeaderBottom());
             });
 
             // Re-measure header bottom when detail pane opens/closes (swaps header content)
-            this.$watch('selectedLog', () => {
+            this.$watch('selectedLog', (log) => {
+                // Sync data-* attribute for new design CSS column selectors
+                const grid = this.$el.querySelector('.odcm-content-grid');
+                if (grid) {
+                    if (log) {
+                        grid.removeAttribute('data-detail-collapsed');
+                    } else {
+                        grid.setAttribute('data-detail-collapsed', 'true');
+                    }
+                }
                 requestAnimationFrame(() => this.updateHeaderBottom());
             });
 
@@ -1790,7 +1823,7 @@ function insightDashboard() {
             let timer = null;
             this.debouncedFetchLogs = () => {
                 if (timer) clearTimeout(timer);
-                timer = setTimeout(() => this.fetchLogs(), 300);
+                timer = setTimeout(() => { this.syncFiltersToUrl(); this.fetchLogs(); }, 300);
             };
         },
 
@@ -1799,6 +1832,7 @@ function insightDashboard() {
         // =================================================================
         applyFilters() {
             this.currentPage = 1;
+            this.syncFiltersToUrl();
             this.fetchLogs();
         },
 
@@ -1814,7 +1848,62 @@ function insightDashboard() {
                 include_debug: false
             };
             this.currentPage = 1;
+            this.syncFiltersToUrl();
             this.fetchLogs();
+        },
+
+        syncFiltersToUrl() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const filterKeys = ['search', 'event_type', 'source', 'order_id', 'date_from', 'date_to', 'include_tests', 'include_debug'];
+                filterKeys.forEach(k => params.delete(k));
+
+                const f = this.filters;
+                if (f.search)         params.set('search', f.search);
+                if (f.event_type)     params.set('event_type', f.event_type);
+                if (f.source)         params.set('source', f.source);
+                if (f.order_id)       params.set('order_id', f.order_id);
+                if (f.date_start)     params.set('date_from', f.date_start);
+                if (f.date_end)       params.set('date_to', f.date_end);
+                if (f.include_tests)  params.set('include_tests', '1');
+                if (f.include_debug)  params.set('include_debug', '1');
+
+                const qs = params.toString();
+                history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+            } catch (e) {
+                if (odcmIsDebug()) { console.warn('ODCM: syncFiltersToUrl failed:', e); }
+            }
+        },
+
+        loadFiltersFromUrl() {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                if (params.has('search'))        this.filters.search        = params.get('search');
+                if (params.has('event_type'))    this.filters.event_type    = params.get('event_type');
+                if (params.has('source'))        this.filters.source        = params.get('source');
+                if (params.has('order_id'))      this.filters.order_id      = params.get('order_id');
+                if (params.has('date_from'))     this.filters.date_start    = params.get('date_from');
+                if (params.has('date_to'))       this.filters.date_end      = params.get('date_to');
+                if (params.has('include_tests')) this.filters.include_tests = params.get('include_tests') === '1';
+                if (params.has('include_debug')) this.filters.include_debug = params.get('include_debug') === '1';
+            } catch (e) {
+                if (odcmIsDebug()) { console.warn('ODCM: loadFiltersFromUrl failed:', e); }
+            }
+        },
+
+        applyDatePreset(preset) {
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const toDateStr = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+            const offsets = { '1h': 1/24, '24h': 1, '7d': 7, '30d': 30, '90d': 90 };
+            if (preset === 'all') {
+                this.filters.date_start = '';
+                this.filters.date_end = '';
+            } else if (offsets[preset] !== undefined) {
+                const from = new Date(now.getTime() - offsets[preset] * 86400000);
+                this.filters.date_start = toDateStr(from);
+                this.filters.date_end = toDateStr(now);
+            }
         },
 
         /**
@@ -2706,6 +2795,23 @@ function insightDashboard() {
                 }
             }
 
+            // Add delegated handler for timeline JSON expand buttons (only once)
+            if (!document._odcmJsonExpandInitialized) {
+                document.addEventListener('click', (event) => {
+                    const btn = event.target.closest('.odcm-tl-node__expand');
+                    if (!btn) return;
+                    const expanded = btn.getAttribute('aria-expanded') === 'true';
+                    btn.setAttribute('aria-expanded', String(!expanded));
+                    if (!expanded) {
+                        const jsonDiv = btn.nextElementSibling;
+                        if (jsonDiv && jsonDiv.classList.contains('odcm-tl-node__json')) {
+                            this.highlightCodeBlocks(jsonDiv);
+                        }
+                    }
+                });
+                document._odcmJsonExpandInitialized = true;
+            }
+
             // Force re-initialize all existing toggle buttons to ensure proper state
             this.reinitializeAllToggleButtons();
         },
@@ -2952,7 +3058,7 @@ function insightDashboard() {
                 toggleButton.setAttribute('aria-expanded', 'true');
             } else if (target === 'technical') {
                 toggleButton.textContent = showText.replace('Show', 'Hide');
-                toggleButton.setAttribute('ariaExpanded', 'true');
+                toggleButton.setAttribute('aria-expanded', 'true');
             }
 
             // Add expanded class to component

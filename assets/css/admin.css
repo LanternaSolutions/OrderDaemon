@@ -1322,3 +1322,174 @@ tr.odcm-log-details-row:hover > td {
 .post-type-odcm_order_rule fieldset.inline-edit-col-left label:has(.ptitle) {
     display: block !important;
 }
+
+/* ==========================================================================
+   RULES LIST PAGE (rl__ components)
+   ========================================================================== */
+
+.rl { padding: 28px; }
+.rl__head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.rl__head-text { flex: 1; min-width: 0; }
+.rl__title { font-size: var(--odcm-text-xl); font-weight: 500; letter-spacing: -0.01em; margin: 0 0 4px; color: var(--odcm-ink); }
+.rl__sub { font-size: var(--odcm-text-sm); color: var(--odcm-muted); margin: 0; }
+.rl__head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+@media (max-width: 767px) {
+  .rl__head { gap: 12px; }
+  .rl__head-actions { width: 100%; }
+  .rl__head-actions .odcm-btn { flex: 1; justify-content: center; min-width: 0; }
+}
+.rl__filters { background: var(--odcm-surface); border: 1px solid var(--odcm-border); border-radius: var(--odcm-radius-3); padding: 12px 16px; display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.rl__filters .odcm-input, .rl__filters .odcm-select { width: auto; }
+@media (max-width: 1023px) {
+  .rl__filters > .odcm-input:first-child { flex: 1 1 100% !important; min-width: 0 !important; width: 100% !important; }
+  .rl__filters > .odcm-select { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }
+}
+.rl__table { background: var(--odcm-surface); border: 1px solid var(--odcm-border); border-radius: var(--odcm-radius-3); overflow: hidden; }
+.rl__th, .rl__tr { display: grid; grid-template-columns: 28px 2fr 110px 1.4fr 130px 110px 100px; gap: 14px; padding: 10px 16px; align-items: center; }
+.rl__th { background: var(--odcm-surface-2); border-bottom: 1px solid var(--odcm-border); font-family: var(--odcm-font-mono); font-size: var(--odcm-text-2xs); color: var(--odcm-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+.rl__tr { border-bottom: 1px solid var(--odcm-rule); font-size: var(--odcm-text-sm); color: var(--odcm-ink); }
+.rl__tr:last-child { border-bottom: 0; }
+.rl__tr:hover { background: var(--odcm-surface-2); }
+.rl__name { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rl__name a { color: inherit; text-decoration: none; }
+.rl__name a:hover { text-decoration: underline; }
+.rl__meta { display: contents; }
+.rl__trigger { font-family: var(--odcm-font-mono); font-size: var(--odcm-text-xs); color: var(--odcm-ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.rl__trigger svg, .rl__last svg, .rl__exec svg { color: var(--odcm-muted); flex-shrink: 0; }
+.rl__last { font-family: var(--odcm-font-mono); font-size: var(--odcm-text-2xs); color: var(--odcm-muted); display: inline-flex; align-items: center; gap: 6px; }
+.rl__exec { font-family: var(--odcm-font-mono); font-size: var(--odcm-text-xs); color: var(--odcm-ink-2); text-align: right; display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.rl__actions { display: flex; gap: 6px; justify-content: flex-end; }
+@media (max-width: 1023px) {
+  .rl__th { display: none; }
+  .rl__tr { grid-template-columns: 28px minmax(0, 1fr) auto auto; grid-template-rows: auto auto; grid-template-areas: "chk name status actions" "chk meta meta meta"; column-gap: 12px; row-gap: 6px; padding: 14px 16px; align-items: center; }
+  .rl__tr > input[type="checkbox"] { grid-area: chk; align-self: center; margin: 0; width: 16px; height: 16px; }
+  .rl__name { grid-area: name; font-size: var(--odcm-text-md); align-self: center; }
+  .rl__tr > .odcm-pill { grid-area: status; align-self: center; }
+  .rl__actions { grid-area: actions; align-self: center; }
+  .rl__meta { display: flex; grid-area: meta; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 2px; }
+  .rl__exec { text-align: left; justify-content: flex-start; }
+}
+@media (max-width: 767px) {
+  .rl__tr { grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-rows: auto auto; grid-template-areas: "chk name status" "chk meta actions"; column-gap: 12px; row-gap: 6px; align-items: start; padding: 14px 14px 12px; }
+  .rl__tr > input[type="checkbox"] { grid-area: chk; align-self: start; margin-top: 2px; }
+  .rl__name { grid-area: name; align-self: center; font-size: var(--odcm-text-md); display: block; }
+  .rl__tr > .odcm-pill { grid-area: status; justify-self: end; align-self: center; margin-left: 0; flex-shrink: 0; }
+  .rl__actions { grid-area: actions; justify-self: end; align-self: end; }
+  .rl__meta { display: block; grid-area: meta; font-family: var(--odcm-font-mono); font-size: var(--odcm-text-2xs); color: var(--odcm-muted); line-height: 1.7; padding: 0; gap: 0; align-self: center; }
+  .rl__meta > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .rl__meta > span + span::before { content: '·'; margin: 0 8px 0 4px; color: var(--odcm-muted-2); font-family: var(--odcm-font-sans); }
+  .rl__exec { text-align: left; justify-content: flex-start; }
+}
+
+/* Rules list page body scoping */
+.odcm-rules-page { color: var(--odcm-ink); }
+
+/* ============================================================
+   UNIFIED HEADER (top bar — shared across admin pages)
+   ============================================================ */
+.odcm-scope .odcm-unified-header {
+  position: sticky;
+  top: var(--wp-admin--admin-bar--height, 32px);
+  z-index: 50;
+  background: var(--odcm-surface);
+  border-bottom: 1px solid var(--odcm-border);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: var(--odcm-space-4);
+  row-gap: 2px;
+  padding: 10px var(--odcm-space-6);
+  min-height: var(--odcm-h-topbar);
+}
+.odcm-scope .odcm-unified-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--odcm-ink);
+  flex-shrink: 0;
+}
+.odcm-scope .odcm-unified-header__brand svg { flex-shrink: 0; }
+.odcm-scope .odcm-unified-header__title {
+  font-size: var(--odcm-text-md);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+.odcm-scope .odcm-unified-header__sep {
+  color: var(--odcm-muted-2);
+  font-size: var(--odcm-text-md);
+  user-select: none;
+  white-space: nowrap;
+}
+.odcm-scope .odcm-unified-header__crumb {
+  font-size: var(--odcm-text-md);
+  font-weight: 500;
+  color: var(--odcm-ink-2);
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+.odcm-scope .odcm-unified-header__crumb-group {
+  display: flex;
+  align-items: center;
+  gap: var(--odcm-space-4);
+  white-space: nowrap;
+}
+.odcm-scope .odcm-unified-header__controls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   FULL-WIDTH LAYOUT — strip WP chrome spacing on all plugin pages
+   (mirrors .odcm-is-fullscreen-dashboard rules in insight-dashboard.css)
+   ============================================================ */
+.odcm-admin-page #wpcontent {
+  padding-left: 0 !important;
+}
+.odcm-admin-page #wpbody-content {
+  padding-bottom: 0 !important;
+}
+.odcm-admin-page .wrap {
+  margin: 0 !important;
+}
+/* Mobile: remove WP's 10px padding and allow sticky headers to work */
+@media screen and (max-width: 782px) {
+  .odcm-admin-page #wpwrap {
+    overflow: visible !important;
+  }
+  .odcm-admin-page #wpcontent {
+    padding-left: 0 !important;
+  }
+}
+
+/* ============================================================
+   PAGE BODY — shared content wrapper and title tokens
+   ============================================================ */
+.odcm-admin-page .odcm-page-body {
+  padding: 28px;
+}
+
+.odcm-page-title {
+  font-size: var(--odcm-text-xl);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0 0 4px;
+  color: var(--odcm-ink);
+}
+
+.odcm-page-sub {
+  font-size: var(--odcm-text-sm);
+  color: var(--odcm-muted);
+  margin: 0;
+  max-width: 60ch;
+  line-height: 1.55;
+}
+
+@media screen and (max-width: 782px) {
+  .odcm-admin-page .odcm-page-body {
+    padding: 16px;
+  }
+}

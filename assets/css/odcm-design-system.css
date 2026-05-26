@@ -1,718 +1,1016 @@
-/**
- * Order Daemon Design System - Shared Foundation
- * 
- * Three-tier design system providing consistent styling across all Order Daemon components.
- * This file contains the foundational design tokens and semantic variables used by both
- * the insight dashboard and rule builder components.
- * 
- * Three-Tier Architecture:
- * 1. PRIMITIVES: Raw, context-free values (colors, fonts, spacing)
- * 2. SEMANTICS: Generic, purpose-driven variables (component blueprints)
- * 3. COMPONENTS: CSS classes that apply semantic variables with theme overrides
- * 
- * @package OrderDaemon\CompletionManager
- * @since   2.0.1
+/*!
+ * odcm-design-system.css — Order Daemon foundation
+ *
+ * Tier 1 (palette) + Tier 2 (semantic roles) + Tier 3 base components.
+ * Shared byte-for-byte between OrderDaemon plugin (assets/css/) and
+ * order-daemon-site plugin (assets/css/). Do not edit downstream copies —
+ * regenerate from the design system repo.
+ *
+ * Source: github.com/YakirLantern/design
+ *   brands/order-daemon/                  → palette, type, spacing primitives
+ *   systems/order-daemon-plugin-v1/       → plugin semantic mappings
+ *   systems/order-daemon-web-v1/          → web semantic mappings (shares palette)
+ *
+ * @version 1.0.0
+ * @license Proprietary — Lanterna Solutions
  */
 
 /* ==========================================================================
-   1. TIER 1: PRIMITIVE TOKENS -> Full Theme Palette Section
+   CASCADE LAYERS
    ========================================================================== */
-:root {
-  /* --- Greyscale Palette --- */
-  --odcm-theme-white: #ffffff;
-  --odcm-theme-grey-100: #f8f9fa; /* Lightest */
-  --odcm-theme-grey-200: #e9ecef;
-  --odcm-theme-grey-300: #dee2e6;
-  --odcm-theme-grey-400: #ced4da;
-  --odcm-theme-grey-500: #adb5bd;
-  --odcm-theme-grey-600: #6c757d;
-  --odcm-theme-grey-700: #495057;
-  --odcm-theme-grey-800: #343a40;
-  --odcm-theme-grey-900: #2e1f27; /* Darkest */
 
-  /* --- Theme: Red (Used for Error/Critical) --- */
-  --odcm-theme-red-200: #FBEBED;      /* Light background tint */
-  --odcm-theme-red-400: #f7baba;      /* Mid-tone for status pills */
-  --odcm-theme-red-700: #dc3545;      /* Main accent for borders/headers */
-  --odcm-theme-red-900: #90303b;      /* Critical accent */
+@layer odcm-tokens, odcm-base, odcm-components, odcm-utilities;
 
-  /* --- Theme: Blue (Used for Rule Evaluation) --- */
-  --odcm-theme-blue-200: #DEF4FF;
-  --odcm-theme-blue-400: #80bfe6;
-  --odcm-theme-blue-700: #007cba;
+/* ==========================================================================
+   LAYER 1 — TOKENS (palette + semantic roles, both modes)
+   ========================================================================== */
 
-  /* --- Theme: Green (Used for Success) --- */
-  --odcm-theme-green-200: #E7F9EB;
-  --odcm-theme-green-400: #94d3a2;
-  --odcm-theme-green-700: #29A847;
+@layer odcm-tokens {
 
-  /* --- Theme: Purple (Used for WooCommerce) --- */
-  --odcm-theme-purple-200: #F1ECF9;
-  --odcm-theme-purple-400: #b7a1e0;
-  --odcm-theme-purple-700: #6F42C2;
+  /* --- TIER 1 — BRAND PALETTE PRIMITIVES (from brands/order-daemon/tokens.json) --- */
 
-  /* --- Theme: Yellow (Used for Debug) --- */
-  --odcm-theme-yellow-200: #FEFAEF;
-  --odcm-theme-yellow-400: #fecb9a;
-  --odcm-theme-yellow-700: #F4C95D;
+  :root {
+    /* Blue */
+    --odcm-palette-blue-50:  #E1ECF6;
+    --odcm-palette-blue-100: #D2E3F0;
+    --odcm-palette-blue-200: #8AC0F0;
+    --odcm-palette-blue-300: #6BAEEC;
+    --odcm-palette-blue-400: #4F95D6;
+    --odcm-palette-blue-500: #0F5FA0;
+    --odcm-palette-blue-600: #0C507F;
+    --odcm-palette-blue-700: #0A4368;
 
-  /* --- Theme: Indigo (Used for Performance) --- */
-  --odcm-theme-indigo-200: #F9F7FD;
-  --odcm-theme-indigo-400: #EDE7FA;
-  --odcm-theme-indigo-700: #C1AEEF;
+    /* Warm neutral (light-mode surfaces + ink) */
+    --odcm-palette-warm-0:   #FFFFFF;
+    --odcm-palette-warm-50:  #FAFAF7;
+    --odcm-palette-warm-100: #F4F3EE;
+    --odcm-palette-warm-200: #ECEAE2;
+    --odcm-palette-warm-300: #E5E2D9;
+    --odcm-palette-warm-400: #CDC9BE;
+    --odcm-palette-warm-500: #9A9588;
+    --odcm-palette-warm-600: #7B776D;
+    --odcm-palette-warm-700: #5A574F;
+    --odcm-palette-warm-800: #3A3833;
+    --odcm-palette-warm-900: #14130F;
 
-  /* --- Theme: System Info (Reuses Greyscale) --- */
-  --odcm-theme-system-200: var(--odcm-theme-grey-200);
-  --odcm-theme-system-400: var(--odcm-theme-grey-400);
-  --odcm-theme-system-700: var(--odcm-theme-grey-700);
+    /* Cool neutral (dark-mode surfaces) */
+    --odcm-palette-cool-0:   #ECEAE3;
+    --odcm-palette-cool-100: #C2BFB6;
+    --odcm-palette-cool-200: #9C998F;
+    --odcm-palette-cool-300: #7F7C73;
+    --odcm-palette-cool-400: #5E5C56;
+    --odcm-palette-cool-500: #3D434C;
+    --odcm-palette-cool-600: #2A2F37;
+    --odcm-palette-cool-700: #252A31;
+    --odcm-palette-cool-800: #1D2127;
+    --odcm-palette-cool-850: #161A1F;
+    --odcm-palette-cool-900: #0E1013;
 
-  /* --- Theme: Fallback/Default (Reuses Greyscale) --- */
-  --odcm-theme-default-200: var(--odcm-theme-white); /* No background tint for default */
-  --odcm-theme-default-400: var(--odcm-theme-grey-400);
-  --odcm-theme-default-700: var(--odcm-theme-grey-700); /* Testing with red border */
+    /* Status */
+    --odcm-palette-success-100: #E2EFE2;
+    --odcm-palette-success-300: #7FC894;
+    --odcm-palette-success-700: #2E6F3F;
+    --odcm-palette-warn-100:    #F4E8D2;
+    --odcm-palette-warn-300:    #E5B973;
+    --odcm-palette-warn-700:    #8A5A14;
+    --odcm-palette-danger-100:  #F2DDD9;
+    --odcm-palette-danger-300:  #E69185;
+    --odcm-palette-danger-700:  #A33B33;
 
-  /* --- Font Sizes --- */
-  --odcm-theme-font-size-xs: 11px;
-  --odcm-theme-font-size-sm: 12px;
-  --odcm-theme-font-size-md: 14px;
-  --odcm-theme-font-size-str: 14px;
-  --odcm-theme-font-weight-str: 500;
+    /* Type families */
+    --odcm-font-sans: "Geist", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+    --odcm-font-mono: "Geist Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
 
-  /* --- Spacing --- */
-  --odcm-theme-spacing-xxs: 2px;
-  --odcm-theme-spacing-xs: 4px;
-  --odcm-theme-spacing-sm: 8px;
-  --odcm-theme-spacing-md: 12px;
-  --odcm-theme-spacing-lg: 16px;
-  --odcm-theme-gap-horizontal: 8px;
-  --odcm-theme-gap-vertical: 4px;
+    /* Type sizes */
+    --odcm-text-3xs: 10px;
+    --odcm-text-2xs: 11px;
+    --odcm-text-xs:  12px;
+    --odcm-text-sm:  13px;
+    --odcm-text-md:  14px;
+    --odcm-text-lg:  16px;
+    --odcm-text-xl:  18px;
+    --odcm-text-2xl: 22px;
+    --odcm-text-3xl: 28px;
+    --odcm-text-4xl: 36px;
+    --odcm-text-5xl: 52px;
+    --odcm-text-6xl: 72px;
 
-  /* --- Compact Form Spacing (for dense interfaces) --- */
-  --odcm-compact-spacing-micro: 3px;
-  --odcm-compact-spacing-tight: 6px;
+    /* Spacing */
+    --odcm-space-1:  4px;
+    --odcm-space-2:  8px;
+    --odcm-space-3:  12px;
+    --odcm-space-4:  16px;
+    --odcm-space-5:  20px;
+    --odcm-space-6:  24px;
+    --odcm-space-8:  32px;
+    --odcm-space-10: 40px;
+    --odcm-space-12: 48px;
+    --odcm-space-16: 64px;
+    --odcm-space-20: 80px;
+    --odcm-space-24: 96px;
 
-  /* --- Layout Heights --- */
-  --odcm-theme-wp-admin-bar-height: 32px;
-  --odcm-theme-pane-header-height: 48px;
-  --odcm-theme-mobile-header-height: 56px;
-  --odcm-theme-component-base-max-height: 360px;
-  --odcm-theme-component-max-height: 60vh;
+    /* Radius */
+    --odcm-radius-1:    4px;
+    --odcm-radius-2:    6px;
+    --odcm-radius-3:    8px;
+    --odcm-radius-4:    10px;
+    --odcm-radius-5:    14px;
+    --odcm-radius-6:    18px;
+    --odcm-radius-pill: 999px;
 
-  /* --- Layout Widths --- */
-  --odcm-theme-side-pane-width: 300px;
+    /* Motion */
+    --odcm-ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+    --odcm-dur-fast:   120ms;
+    --odcm-dur-normal: 180ms;
+    --odcm-dur-slow:   280ms;
+  }
 
-  /* --- Key-Value Layout Primitives --- */
-  --odcm-theme-key-value-gap: var(--odcm-theme-gap-horizontal);
-  --odcm-theme-key-value-row-gap: var(--odcm-theme-gap-vertical);
-  --odcm-theme-key-border-color: var(--odcm-theme-grey-400);
-  --odcm-theme-value-bg: var(--odcm-theme-grey-200);
+  /* --- TIER 2 — SEMANTIC ROLES (light defaults at :root) --- */
 
-  /* --- Border Radius --- */
-  --odcm-theme-border-radius: 6px;
+  :root {
+    /* Surfaces */
+    --odcm-bg:            var(--odcm-palette-warm-50);
+    --odcm-bg-hero:       var(--odcm-palette-warm-0);
+    --odcm-surface:       var(--odcm-palette-warm-0);
+    --odcm-surface-2:     var(--odcm-palette-warm-100);
+    --odcm-surface-3:     var(--odcm-palette-warm-200);
+    --odcm-border:        var(--odcm-palette-warm-300);
+    --odcm-border-strong: var(--odcm-palette-warm-400);
+    --odcm-rule:          var(--odcm-palette-warm-200);
 
-  /* --- Shadows --- */
-  --odcm-theme-shadow: inset 0 0 5px 0 rgba(0, 0, 0, 0.25);
+    /* Ink */
+    --odcm-ink:     var(--odcm-palette-warm-900);
+    --odcm-ink-2:   var(--odcm-palette-warm-800);
+    --odcm-ink-3:   var(--odcm-palette-warm-700);
+    --odcm-muted:   var(--odcm-palette-warm-600);
+    --odcm-muted-2: var(--odcm-palette-warm-500);
 
-  /* --- Transitions --- */
-  --odcm-theme-transition: 0.15s ease-in-out;
+    /* Action */
+    --odcm-accent:        var(--odcm-palette-blue-500);
+    --odcm-accent-hover:  var(--odcm-palette-blue-600);
+    --odcm-accent-press:  var(--odcm-palette-blue-700);
+    --odcm-accent-soft:   var(--odcm-palette-blue-50);
+    --odcm-accent-soft-2: var(--odcm-palette-blue-100);
+    --odcm-on-accent:     var(--odcm-palette-warm-0);
+
+    /* Status */
+    --odcm-success:      var(--odcm-palette-success-700);
+    --odcm-success-soft: var(--odcm-palette-success-100);
+    --odcm-warn:         var(--odcm-palette-warn-700);
+    --odcm-warn-soft:    var(--odcm-palette-warn-100);
+    --odcm-danger:       var(--odcm-palette-danger-700);
+    --odcm-danger-soft:  var(--odcm-palette-danger-100);
+
+    /* Shadows */
+    --odcm-shadow-1: 0 1px 2px rgba(20, 19, 15, 0.04), 0 1px 1px rgba(20, 19, 15, 0.03);
+    --odcm-shadow-2: 0 4px 12px rgba(20, 19, 15, 0.06), 0 1px 2px rgba(20, 19, 15, 0.04);
+    --odcm-shadow-3: 0 12px 32px rgba(20, 19, 15, 0.08), 0 2px 6px rgba(20, 19, 15, 0.04);
+
+    /* Density (component heights) */
+    --odcm-h-btn-sm:    28px;
+    --odcm-h-btn-md:    36px;
+    --odcm-h-btn-lg:    44px;
+    --odcm-h-input:     34px;
+    --odcm-h-pill:      22px;
+    --odcm-h-pane-head: 36px;
+    --odcm-h-topbar:    56px;
+
+    color-scheme: light;
+  }
+
+  /* --- TIER 2 — DARK MODE (manual override) --- */
+
+  :root[data-theme="dark"] {
+    --odcm-bg:            var(--odcm-palette-cool-900);
+    --odcm-bg-hero:       var(--odcm-palette-cool-850);
+    --odcm-surface:       var(--odcm-palette-cool-850);
+    --odcm-surface-2:     var(--odcm-palette-cool-800);
+    --odcm-surface-3:     var(--odcm-palette-cool-700);
+    --odcm-border:        var(--odcm-palette-cool-600);
+    --odcm-border-strong: var(--odcm-palette-cool-500);
+    --odcm-rule:          var(--odcm-palette-cool-700);
+
+    --odcm-ink:     var(--odcm-palette-cool-0);
+    --odcm-ink-2:   var(--odcm-palette-cool-100);
+    --odcm-ink-3:   var(--odcm-palette-cool-200);
+    --odcm-muted:   var(--odcm-palette-cool-300);
+    --odcm-muted-2: var(--odcm-palette-cool-400);
+
+    --odcm-accent:        var(--odcm-palette-blue-300);
+    --odcm-accent-hover:  var(--odcm-palette-blue-200);
+    --odcm-accent-press:  var(--odcm-palette-blue-400);
+    --odcm-accent-soft:   rgba(107, 174, 236, 0.14);
+    --odcm-accent-soft-2: rgba(107, 174, 236, 0.22);
+    --odcm-on-accent:     #0A1722;
+
+    --odcm-success:      var(--odcm-palette-success-300);
+    --odcm-success-soft: rgba(127, 200, 148, 0.14);
+    --odcm-warn:         var(--odcm-palette-warn-300);
+    --odcm-warn-soft:    rgba(229, 185, 115, 0.14);
+    --odcm-danger:       var(--odcm-palette-danger-300);
+    --odcm-danger-soft:  rgba(230, 145, 133, 0.14);
+
+    --odcm-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3);
+    --odcm-shadow-2: 0 6px 16px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+    --odcm-shadow-3: 0 14px 36px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+    color-scheme: dark;
+  }
+
+  /* --- TIER 2 — DARK MODE (system preference, no manual override) --- */
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+      --odcm-bg:            var(--odcm-palette-cool-900);
+      --odcm-bg-hero:       var(--odcm-palette-cool-850);
+      --odcm-surface:       var(--odcm-palette-cool-850);
+      --odcm-surface-2:     var(--odcm-palette-cool-800);
+      --odcm-surface-3:     var(--odcm-palette-cool-700);
+      --odcm-border:        var(--odcm-palette-cool-600);
+      --odcm-border-strong: var(--odcm-palette-cool-500);
+      --odcm-rule:          var(--odcm-palette-cool-700);
+
+      --odcm-ink:     var(--odcm-palette-cool-0);
+      --odcm-ink-2:   var(--odcm-palette-cool-100);
+      --odcm-ink-3:   var(--odcm-palette-cool-200);
+      --odcm-muted:   var(--odcm-palette-cool-300);
+      --odcm-muted-2: var(--odcm-palette-cool-400);
+
+      --odcm-accent:        var(--odcm-palette-blue-300);
+      --odcm-accent-hover:  var(--odcm-palette-blue-200);
+      --odcm-accent-press:  var(--odcm-palette-blue-400);
+      --odcm-accent-soft:   rgba(107, 174, 236, 0.14);
+      --odcm-accent-soft-2: rgba(107, 174, 236, 0.22);
+      --odcm-on-accent:     #0A1722;
+
+      --odcm-success:      var(--odcm-palette-success-300);
+      --odcm-success-soft: rgba(127, 200, 148, 0.14);
+      --odcm-warn:         var(--odcm-palette-warn-300);
+      --odcm-warn-soft:    rgba(229, 185, 115, 0.14);
+      --odcm-danger:       var(--odcm-palette-danger-300);
+      --odcm-danger-soft:  rgba(230, 145, 133, 0.14);
+
+      --odcm-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3);
+      --odcm-shadow-2: 0 6px 16px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+      --odcm-shadow-3: 0 14px 36px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+      color-scheme: dark;
+    }
+  }
+
+  /* --- LEGACY ALIASES (adaptive — uses semantic tokens so they switch in dark mode) --- */
+
+  :root {
+    --odcm-theme-white:       var(--odcm-surface);
+    --odcm-theme-grey-100:    var(--odcm-surface-2);
+    --odcm-theme-grey-200:    var(--odcm-rule);
+    --odcm-theme-grey-300:    var(--odcm-border-strong);
+    --odcm-theme-grey-400:    var(--odcm-muted-2);
+    --odcm-theme-grey-500:    var(--odcm-muted);
+    --odcm-theme-grey-600:    var(--odcm-muted);
+    --odcm-theme-grey-700:    var(--odcm-ink-2);
+    --odcm-theme-grey-800:    var(--odcm-ink-2);
+    --odcm-theme-grey-900:    var(--odcm-ink);
+    --odcm-theme-blue-200:    var(--odcm-accent-soft);
+    --odcm-theme-blue-400:    var(--odcm-accent-soft-2);
+    --odcm-theme-blue-700:    var(--odcm-accent);
+    --odcm-theme-green-200:   var(--odcm-success-soft);
+    --odcm-theme-green-400:   var(--odcm-palette-success-300);
+    --odcm-theme-green-700:   var(--odcm-success);
+    --odcm-theme-green-800:   var(--odcm-palette-success-700);
+    --odcm-theme-red-200:     var(--odcm-danger-soft);
+    --odcm-theme-red-400:     var(--odcm-palette-danger-300);
+    --odcm-theme-red-700:     var(--odcm-danger);
+    --odcm-theme-red-800:     var(--odcm-palette-danger-700);
+    --odcm-theme-red-900:     var(--odcm-palette-danger-700);
+    --odcm-theme-yellow-200:  var(--odcm-warn-soft);
+    --odcm-theme-yellow-400:  var(--odcm-palette-warn-300);
+    --odcm-theme-yellow-700:  var(--odcm-warn);
+    --odcm-theme-purple-200:  var(--odcm-surface-2);
+    --odcm-theme-purple-400:  var(--odcm-muted-2);
+    --odcm-theme-purple-700:  var(--odcm-muted);
+    --odcm-theme-indigo-200:  var(--odcm-surface-2);
+    --odcm-theme-indigo-400:  var(--odcm-surface-3);
+    --odcm-theme-indigo-700:  var(--odcm-muted);
+    --odcm-theme-system-200:  var(--odcm-surface-2);
+    --odcm-theme-system-400:  var(--odcm-border);
+    --odcm-theme-system-700:  var(--odcm-ink-2);
+    --odcm-theme-default-200: var(--odcm-surface);
+    --odcm-theme-default-400: var(--odcm-border);
+    --odcm-theme-default-700: var(--odcm-ink-2);
+
+    --odcm-theme-font-size-xs:  var(--odcm-text-2xs);
+    --odcm-theme-font-size-sm:  var(--odcm-text-xs);
+    --odcm-theme-font-size-md:  var(--odcm-text-md);
+    --odcm-theme-font-size-str: var(--odcm-text-md);
+    --odcm-theme-font-weight-str: 500;
+
+    --odcm-theme-spacing-xxs: 2px;
+    --odcm-theme-spacing-xs:  var(--odcm-space-1);
+    --odcm-theme-spacing-sm:  var(--odcm-space-2);
+    --odcm-theme-spacing-md:  var(--odcm-space-3);
+    --odcm-theme-spacing-lg:  var(--odcm-space-4);
+
+    --odcm-theme-border-radius: var(--odcm-radius-2);
+    --odcm-theme-transition:    var(--odcm-dur-fast) var(--odcm-ease);
+
+    /* Component-scoped aliases used by rule-builder.css */
+    --odcm-component-border-width:        1px;
+    --odcm-component-border-color:        var(--odcm-border);
+    --odcm-component-border-radius:       var(--odcm-radius-2);
+    --odcm-component-text-color-body:     var(--odcm-ink);
+    --odcm-component-text-color-header:   var(--odcm-ink);
+    --odcm-component-transition:          background var(--odcm-dur-fast) var(--odcm-ease), border-color var(--odcm-dur-fast) var(--odcm-ease), color var(--odcm-dur-fast) var(--odcm-ease);
+
+    --odcm-form-input-padding:        8px 12px;
+    --odcm-form-input-bg:             var(--odcm-surface);
+    --odcm-form-input-border:         1px solid var(--odcm-border-strong);
+    --odcm-form-input-border-focus:   1px solid var(--odcm-accent);
+    --odcm-form-input-border-radius:  var(--odcm-radius-2);
+
+    --odcm-theme-pane-header-height: 44px;
+    --odcm-compact-spacing-micro:    var(--odcm-space-1);
+    --odcm-compact-spacing-tight:    var(--odcm-space-2);
+
+    /* Icon button tokens (also used by rule-builder.css) */
+    --odcm-icon-button-size:         28px;
+    --odcm-icon-button-padding:      4px;
+    --odcm-icon-button-icon-size:    16px;
+    --odcm-icon-button-color:        var(--odcm-ink-2);
+    --odcm-icon-button-transition:   background var(--odcm-dur-fast) var(--odcm-ease), color var(--odcm-dur-fast) var(--odcm-ease);
+    --odcm-icon-button-focus-outline: 2px solid var(--odcm-accent);
+    --odcm-icon-button-focus-offset:  2px;
+  }
 }
 
 /* ==========================================================================
-   2. TIER 2: SEMANTIC TOKENS (The Component Blueprint)
+   LAYER 2 — BASE (reset, typography, accessibility)
    ========================================================================== */
-:root {
-  /* --- Default Component Blueprint --- */
-  --odcm-component-bg: var(--odcm-theme-grey-100);
-  --odcm-component-border-color: var(--odcm-theme-grey-300);
-  --odcm-component-header-border-color: var(--odcm-component-border-color);
-  --odcm-component-text-color-header: var(--odcm-theme-grey-900);
-  --odcm-component-text-color-body: var(--odcm-theme-grey-800);
-  --odcm-component-padding: var(--odcm-theme-spacing-sm);
-  --odcm-component-margin: var(--odcm-theme-spacing-xs);
-  --odcm-component-border-width: 1px;
-  --odcm-component-border-radius: var(--odcm-theme-border-radius);
-  --odcm-component-section-margin: var(--odcm-theme-spacing-xs);
-  --odcm-component-value-bg: var(--odcm-theme-grey-300);
-  --odcm-component-code-border-color: var(--odcm-theme-grey-300);
-  --odcm-component-transition: all 0.3s ease;
 
-  /* --- Tab System Blueprint --- */
-  --odcm-tab-nav-bg: var(--odcm-theme-grey-100);
-  --odcm-tab-nav-border: 1px solid var(--odcm-component-border-color);
-  --odcm-tab-item-padding: var(--odcm-theme-spacing-md) var(--odcm-theme-spacing-lg);
-  --odcm-tab-item-color: var(--odcm-theme-grey-700);
-  --odcm-tab-item-hover-bg: var(--odcm-theme-grey-200);
-  --odcm-tab-item-hover-color: var(--odcm-theme-blue-700);
-  --odcm-tab-item-active-bg: var(--odcm-theme-white);
-  --odcm-tab-item-active-color: var(--odcm-theme-blue-700);
-  --odcm-tab-item-active-border: 2px solid var(--odcm-theme-blue-700);
+/* Alpine x-cloak — hide elements before Alpine initializes */
+[x-cloak] { display: none !important; }
 
-  /* --- Form Elements Blueprint --- */
-  --odcm-form-input-bg: var(--odcm-theme-white);
-  --odcm-form-input-border: 1px solid var(--odcm-component-border-color);
-  --odcm-form-input-border-focus: 1px solid var(--odcm-theme-blue-700);
-  --odcm-form-input-border-radius: var(--odcm-component-border-radius);
-  --odcm-form-input-padding: var(--odcm-theme-spacing-sm);
-  --odcm-form-label-color: var(--odcm-component-text-color-header);
-  --odcm-form-label-font-weight: var(--odcm-theme-font-weight-str);
-  --odcm-form-label-font-size: var(--odcm-theme-font-size-sm);
+@layer odcm-base {
 
-  /* --- Key-Value Component Blueprint --- */
-  --odcm-key-value-layout: grid;
-  --odcm-key-value-columns: auto 1fr;
-  --odcm-key-value-gap: var(--odcm-theme-key-value-gap);
-  --odcm-key-value-row-gap: var(--odcm-theme-key-value-row-gap);
-  --odcm-key-padding: var(--odcm-theme-spacing-xs);
-  --odcm-key-bg: var(--odcm-theme-grey-300);
-  --odcm-value-border: 1px solid var(--odcm-theme-grey-300);
-  --odcm-value-padding: var(--odcm-theme-spacing-xs);
-  --odcm-section-title-font-size: var(--odcm-theme-font-size-md);
-  --odcm-section-title-font-weight: var(--odcm-theme-font-weight-str);
-  --odcm-section-margin-bottom: var(--odcm-theme-spacing-xs);
+  /* Box sizing + reset */
+  .odcm-scope,
+  .odcm-scope *,
+  .odcm-scope *::before,
+  .odcm-scope *::after { box-sizing: border-box; }
 
-  /* --- Default Status Pill Blueprint --- */
-  --odcm-status-bg: var(--odcm-theme-grey-300);
-  --odcm-status-text-color: var(--odcm-theme-grey-700);
+  /* Default body type when foundation is the root stylesheet (web context).
+     In WP admin, this is overridden by WP core styles — that's fine; only
+     scoped class rules will adopt our type. */
+  body.odcm-body {
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-md);
+    line-height: 1.5;
+    color: var(--odcm-ink);
+    background: var(--odcm-bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
 
-  /* --- Icon Button Blueprint --- */
-  --odcm-icon-button-size: 24px;
-  --odcm-icon-button-padding: 4px;
-  --odcm-icon-button-color: var(--odcm-theme-grey-600);
-  --odcm-icon-button-hover-bg: var(--odcm-theme-grey-300);
-  --odcm-icon-button-hover-color: var(--odcm-theme-blue-700);
-  --odcm-icon-button-focus-outline: 2px solid var(--odcm-theme-blue-700);
-  --odcm-icon-button-focus-offset: 2px;
-  --odcm-icon-button-icon-size: 16px;
-  --odcm-icon-button-transition: all 0.15s ease-in-out;
+  /* Focus-visible — applied globally to anything inside the design system scope */
+  .odcm-scope :focus-visible,
+  .odcm-scope :focus-visible {
+    outline: 2px solid var(--odcm-accent);
+    outline-offset: 2px;
+    border-radius: var(--odcm-radius-1);
+  }
+
+  /* Reduced motion: kill all transitions and animations inside our scope */
+  @media (prefers-reduced-motion: reduce) {
+    .odcm-scope *,
+    .odcm-scope *::before,
+    .odcm-scope *::after {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+
+  /* Selection — uses brand accent tint */
+  .odcm-scope ::selection {
+    background: var(--odcm-accent-soft-2);
+    color: var(--odcm-ink);
+  }
+
+  /* The HTML [hidden] attribute must win over component display rules.
+     Without this, elements with display: flex/grid override the UA's
+     `[hidden] { display: none }` rule and stay visible. */
+  [hidden] { display: none !important; }
 }
 
 /* ==========================================================================
-   3. TIER 3: COMPONENT IMPLEMENTATIONS
+   LAYER 3 — COMPONENTS
    ========================================================================== */
 
-/* Base Icon Button Component - Uses Semantic Tokens */
-.odcm-icon-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: var(--odcm-icon-button-padding);
-    border-radius: var(--odcm-component-border-radius);
-    transition: var(--odcm-icon-button-transition);
-    color: var(--odcm-icon-button-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: var(--odcm-icon-button-size);
-    min-height: var(--odcm-icon-button-size);
-}
+@layer odcm-components {
 
-.odcm-icon-button:hover {
-    background-color: var(--odcm-icon-button-hover-bg);
-    color: var(--odcm-icon-button-hover-color);
-}
-
-.odcm-icon-button:focus {
-    outline: var(--odcm-icon-button-focus-outline);
-    outline-offset: var(--odcm-icon-button-focus-offset);
-}
-
-.odcm-icon-button .dashicons {
-    transition: var(--odcm-icon-button-transition);
-    font-size: var(--odcm-icon-button-icon-size);
-    width: var(--odcm-icon-button-icon-size);
-    height: var(--odcm-icon-button-icon-size);
-}
-
-/* Button Styles - Using Three-Tier System */
-.odcm-button {
+  /* --- BUTTON --- */
+  .odcm-btn {
     display: inline-flex;
-    padding: var(--odcm-theme-spacing-sm) var(--odcm-theme-spacing-md);
-    font-size: var(--odcm-theme-font-size-sm);
-    border-radius: var(--odcm-component-border-radius);
-    background-color: var(--odcm-theme-grey-200);
-    color: var(--odcm-theme-blue-700);
-    border: solid 2px var(--odcm-theme-blue-700);
-    flex-direction: row;
     align-items: center;
-    justify-content: flex-start;
-    gap: 6px;
-    padding: 8px 10px;
-}
-
-.odcm-button:hover {
-    background-color: var(--odcm-theme-blue-700);
-    color: var(--odcm-theme-white);
-    cursor: pointer;
-}
-
-/* Button text spacing */
-.odcm-button-text {
-    margin-left: 4px;
-}
-
-.odcm-button .dashicons,
-.odcm-button .odcm-icon {
-  font-size: 16px;
-  line-height: 1em;
-  width: 1em;
-  height: 1em;
-}
-
-.odcm-button-small {
-    padding: 4px 8px;
-    font-size: var(--odcm-theme-font-size-sm);
-    height: auto;
-    line-height: 1.4;
-}
-
-/* Status Pills - Using Three-Tier System */
-.odcm-status-pill {
-    display: inline-block;
-    padding: 0.25em 0.6em;
-    font-size: var(--odcm-theme-font-size-sm);
-    border-radius: var(--odcm-component-border-radius);
-    background-color: var(--odcm-status-bg);
-    color: var(--odcm-status-text-color);
+    gap: var(--odcm-space-2);
+    height: var(--odcm-h-btn-md);
+    padding: 0 14px;
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-sm);
     font-weight: 500;
-    text-transform: capitalize;
-    margin-left: 8px;
-}
-
-/* Right-aligned status pill container */
-.odcm-component__header-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-}
-
-/* Component header restructuring */
-.odcm-component__header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* Component header with icon integration */
-.odcm-component__header-left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.odcm-component-icon.dashicons {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    color: inherit;
-}
-
-/* Status variants override the semantic status variables */
-.odcm-status-pill--critical {
-    --odcm-status-bg: var(--odcm-theme-red-900);
-    --odcm-status-text-color: var(--odcm-theme-white);
-}
-
-.odcm-status-pill--error {
-    --odcm-status-bg: var(--odcm-theme-red-400);
-    --odcm-status-text-color: var(--odcm-theme-grey-900);
-}
-
-.odcm-status-pill--warning {
-    --odcm-status-bg: var(--odcm-theme-yellow-400);
-    --odcm-status-text-color: var(--odcm-theme-grey-900);
-}
-
-.odcm-status-pill--success {
-    --odcm-status-bg: var(--odcm-theme-green-400);
-    --odcm-status-text-color: var(--odcm-theme-grey-900);
-}
-
-.odcm-status-pill--executed {
-    --odcm-status-bg: var(--odcm-theme-green-400);
-    --odcm-status-text-color: var(--odcm-theme-grey-900);
-}
-
-.odcm-status-pill--notice {
-    --odcm-status-bg: var(--odcm-theme-green-400);
-    --odcm-status-text-color: var(--odcm-theme-grey-900);
-}
-
-.odcm-status-pill--info {
-    --odcm-status-bg: var(--odcm-theme-grey-400);
-    --odcm-status-text-color: var(--odcm-theme-grey-900);
-}
-
-.odcm-status-pill--debug {
-    --odcm-status-bg: var(--odcm-theme-yellow-400);
-    --odcm-status-text-color: var(--odcm-theme-grey-900);
-}
-
-.odcm-status-pill--completed {
-    --odcm-status-bg: var(--odcm-theme-green-400);
-    --odcm-status-text-color: var(--odcm-theme-grey-900);
-}
-
-.odcm-status-pill--pending {
-    --odcm-status-bg: var(--odcm-theme-yellow-400);
-    --odcm-status-text-color: var(--odcm-theme-grey-900);
-}
-
-.odcm-status-pill--skipped {
-    --odcm-status-bg: var(--odcm-theme-grey-400);
-    --odcm-status-text-color: var(--odcm-theme-grey-900);
-}
-
-.odcm-status-pill--woocommerce {
-    --odcm-status-bg: var(--odcm-theme-purple-400);
-    --odcm-status-text-color: var(--odcm-theme-grey-900);
-}
-
-/* ==========================================================================
-   TOAST NOTIFICATION SYSTEM
-   ========================================================================== */
-
-.odcm-toast-container {
-    position: fixed;
-    top: 32px; /* Below WordPress admin bar */
-    right: 20px;
-    z-index: 1000; /* Above content but below WordPress modals */
-    display: flex;
-    flex-direction: column;
-    gap: var(--odcm-theme-spacing-sm);
-    max-width: 400px;
-    pointer-events: none; /* Allow clicks through container */
-}
-
-.odcm-toast {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--odcm-theme-spacing-md);
-    border-radius: var(--odcm-component-border-radius);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    background: var(--odcm-theme-white);
-    border-left: 4px solid var(--odcm-theme-grey-400);
-    pointer-events: auto; /* Re-enable clicks on toast itself */
-    transition: all 0.3s ease;
-    min-width: 250px;
-    max-width: 400px;
-    width: auto;
-    flex-shrink: 0;
-}
-
-.odcm-toast--error {
-    border-left-color: var(--odcm-theme-red-700);
-    background: var(--odcm-theme-red-200);
-}
-
-.odcm-toast--warning {
-    border-left-color: var(--odcm-theme-yellow-700);
-    background: var(--odcm-theme-yellow-200);
-}
-
-.odcm-toast--success {
-    border-left-color: var(--odcm-theme-green-700);
-    background: var(--odcm-theme-green-200);
-}
-
-.odcm-toast--info {
-    border-left-color: var(--odcm-theme-blue-700);
-    background: var(--odcm-theme-blue-200);
-}
-
-.odcm-toast-content {
-    flex: 1;
-    font-size: var(--odcm-theme-font-size-md);
-    color: var(--odcm-component-text-color-body);
-    line-height: 1.4;
-}
-
-.odcm-toast-close {
-    background: none;
-    border: none;
-    font-size: 18px;
-    cursor: pointer;
-    padding: 0;
-    margin-left: var(--odcm-theme-spacing-sm);
-    color: var(--odcm-theme-grey-600);
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--odcm-component-border-radius);
-    transition: var(--odcm-icon-button-transition);
-}
-
-.odcm-toast-close:hover {
-    background-color: var(--odcm-theme-grey-300);
-    color: var(--odcm-theme-grey-900);
-}
-
-.odcm-toast-close:focus {
-    outline: 2px solid var(--odcm-theme-blue-700);
-    outline-offset: 2px;
-}
-
-/* ==========================================================================
-   PREMIUM COMPONENT SYSTEM
-   ========================================================================== */
-
-/* Premium Filter Group */
-.odcm-advanced-filter-group {
-    position: relative;
-    background: var(--odcm-theme-grey-100);
-    border: 1px solid var(--odcm-component-border-color);
-    border-radius: var(--odcm-component-border-radius);
-    padding: var(--odcm-theme-spacing-md);
-    margin: var(--odcm-theme-spacing-md) 0;
-}
-
-.odcm-premium-badge {
-    position: absolute;
-    top: -8px;
-    right: 8px;
-    background: var(--odcm-theme-blue-700);
-    color: var(--odcm-theme-white);
-    padding: 2px 6px;
-    border-radius: var(--odcm-component-border-radius);
-    font-size: var(--odcm-theme-font-size-xs);
-    font-weight: bold;
-    text-transform: uppercase;
-    z-index: 3;
-}
-
-.odcm-advanced-filter-group input:disabled,
-.odcm-advanced-filter-group select:disabled,
-.odcm-advanced-filter-group button:disabled {
-    background: var(--odcm-theme-grey-200);
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-/* Premium Notice */
-.odcm-premium-notice-small {
-    padding: var(--odcm-theme-spacing-md);
-    background: var(--odcm-theme-blue-200);
-    border: 1px solid var(--odcm-theme-blue-700);
-    border-radius: var(--odcm-component-border-radius);
-    margin-bottom: var(--odcm-theme-spacing-md);
-}
-
-.odcm-premium-notice-small p {
-    margin: 0 0 var(--odcm-theme-spacing-sm) 0;
-    font-size: var(--odcm-theme-font-size-sm);
-    color: var(--odcm-theme-grey-700);
-}
-
-.odcm-premium-notice-small a {
-    font-size: var(--odcm-theme-font-size-sm);
-    color: var(--odcm-theme-blue-700);
-    text-decoration: none;
-}
-
-/* Premium Component Styling */
-.odcm-premium-component {
-    position: relative;
-    opacity: 0.7;
-    pointer-events: none;
-}
-
-.odcm-premium-component::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: var(--odcm-component-border-radius);
-    z-index: 1;
-}
-
-.odcm-premium-overlay {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    color: var(--odcm-theme-white);
-    font-size: var(--odcm-theme-font-size-sm);
-    font-weight: bold;
-    z-index: 2;
-    white-space: nowrap;
-}
-
-/* ==========================================================================
-   ACCESSIBILITY ENHANCEMENTS
-   ========================================================================== */
-
-/* Focus indicators */
-.odcm-component input:focus,
-.odcm-component select:focus,
-.odcm-component textarea:focus,
-.odcm-component button:focus {
-    outline: 2px solid var(--odcm-theme-blue-700);
-    outline-offset: 2px;
-}
-
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-    .odcm-component,
-    .odcm-icon-button,
-    .odcm-status-pill {
-        transition: none;
-    }
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: more) {
-    .odcm-component {
-        border-width: 2px;
-    }
-    
-    .odcm-status-pill {
-        border: 1px solid currentColor;
-    }
-}
-
-
-/* Segmented toggle for mutually exclusive options (e.g., Consolidated vs Flat) */
-.odcm-segmented-toggle {
-  display: inline-flex;
-  align-items: stretch;
-  border: 1px solid var(--odcm-theme-grey-300);
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--odcm-theme-white);
-}
-
-/* Place nicely inside header controls */
-.odcm-unified-header-stream .odcm-segmented-toggle {
-  margin-right: 8px;
-}
-
-/* Base segment button reset to avoid WP button styles overshadowing */
-.odcm-segmented-toggle .odcm-segment.button {
-  box-shadow: none !important;
-  border: 0 !important;
-  background: transparent;
-  color: var(--odcm-theme-grey-700);
-  height: 30px;
-  line-height: 28px;
-  padding: 0 10px;
-  border-right: 1px solid var(--odcm-theme-grey-300);
-  border-radius: 0;
-  cursor: pointer;
-  margin: 0 !important; /* ensure buttons appear as a single control with no gaps */
-}
-
-/* Remove divider on last */
-.odcm-segmented-toggle .odcm-segment.button:last-child {
-  border-right: 0;
-}
-
-/* Hover state for inactive */
-.odcm-segmented-toggle .odcm-segment.button:hover {
-  background: var(--odcm-theme-grey-100);
-}
-
-/* Active state (selected) */
-.odcm-segmented-toggle .odcm-segment.button.is-active,
-.odcm-segmented-toggle .odcm-segment.button[aria-pressed="true"] {
-  background: var(--odcm-theme-blue-700);
-  color: #fff;
-  font-weight: 600;
-}
-
-/* Focus state for accessibility */
-.odcm-segmented-toggle .odcm-segment.button:focus-visible {
-  outline: 2px solid var(--odcm-theme-blue-400);
-  outline-offset: -2px; /* keep within the group */
-}
-
-.odcm-binary-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+    letter-spacing: -0.005em;
+    line-height: 1;
+    color: var(--odcm-ink);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--odcm-radius-2);
     cursor: pointer;
     user-select: none;
-    -webkit-user-select: none
-}
+    white-space: nowrap;
+    text-decoration: none;
+    transition:
+      background-color var(--odcm-dur-fast) var(--odcm-ease),
+      border-color var(--odcm-dur-fast) var(--odcm-ease),
+      color var(--odcm-dur-fast) var(--odcm-ease),
+      transform 80ms var(--odcm-ease);
+  }
+  .odcm-btn:active { transform: translateY(0.5px); }
+  .odcm-btn[disabled], .odcm-btn:disabled { opacity: 0.55; cursor: not-allowed; pointer-events: none; }
 
-.odcm-unified-header-stream .odcm-binary-toggle {
-    margin-right: 8px
-}
+  .odcm-btn--primary {
+    background: var(--odcm-accent);
+    color: var(--odcm-on-accent);
+  }
+  .odcm-btn--primary:hover  { background: var(--odcm-accent-hover); }
+  .odcm-btn--primary:active { background: var(--odcm-accent-press); }
 
-.odcm-binary-toggle[role="switch"] {
-    outline: 0
-}
+  .odcm-btn--secondary {
+    background: var(--odcm-surface);
+    color: var(--odcm-ink);
+    border-color: var(--odcm-border-strong);
+  }
+  .odcm-btn--secondary:hover { background: var(--odcm-surface-2); }
 
-.odcm-binary-toggle:focus-visible {
-    outline: 2px solid var(--odcm-theme-blue-400);
-    outline-offset: 2px
-}
+  .odcm-btn--ghost { color: var(--odcm-ink-2); }
+  .odcm-btn--ghost:hover { background: var(--odcm-surface-2); color: var(--odcm-ink); }
 
-.odcm-binary-toggle-label {
-    font-size: 13px;
-    color: var(--odcm-theme-grey-700);
-    opacity: .7;
-    transition: opacity var(--odcm-theme-transition),color var(--odcm-theme-transition);
-    white-space: nowrap
-}
+  .odcm-btn--danger {
+    background: var(--odcm-danger);
+    color: var(--odcm-palette-warm-0);
+  }
+  .odcm-btn--danger:hover { filter: brightness(0.95); }
 
-.odcm-binary-toggle-label.is-active {
-    opacity: 1;
-    color: var(--odcm-theme-grey-900);
-    font-weight: 600
-}
+  .odcm-btn--sm { height: var(--odcm-h-btn-sm); padding: 0 10px; font-size: var(--odcm-text-xs); }
+  .odcm-btn--lg { height: var(--odcm-h-btn-lg); padding: 0 20px; font-size: var(--odcm-text-md); }
 
-.odcm-binary-toggle-track {
+  /* --- PILL --- */
+  .odcm-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--odcm-space-1);
+    height: var(--odcm-h-pill);
+    padding: 0 var(--odcm-space-2);
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    color: var(--odcm-ink-2);
+    background: var(--odcm-surface-2);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-1);
+    white-space: nowrap;
+  }
+  .odcm-pill__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .odcm-pill--success { background: var(--odcm-success-soft); color: var(--odcm-success); border-color: transparent; }
+  .odcm-pill--warn    { background: var(--odcm-warn-soft);    color: var(--odcm-warn);    border-color: transparent; }
+  .odcm-pill--danger  { background: var(--odcm-danger-soft);  color: var(--odcm-danger);  border-color: transparent; }
+  .odcm-pill--info    { background: var(--odcm-accent-soft);  color: var(--odcm-accent);  border-color: transparent; }
+  /* --- INPUT / SELECT --- */
+  .odcm-input,
+  .odcm-select {
+    display: block;
+    width: 100%;
+    height: var(--odcm-h-input);
+    padding: 0 12px;
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-sm);
+    line-height: 1.4;
+    color: var(--odcm-ink);
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border-strong);
+    border-radius: var(--odcm-radius-2);
+    transition:
+      border-color var(--odcm-dur-fast) var(--odcm-ease),
+      box-shadow var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-input::placeholder { color: var(--odcm-muted); }
+  .odcm-input:focus,
+  .odcm-select:focus {
+    outline: none;
+    border-color: var(--odcm-accent);
+    box-shadow: 0 0 0 3px var(--odcm-accent-soft);
+  }
+  .odcm-select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 28px;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--odcm-muted) 50%),
+      linear-gradient(135deg, var(--odcm-muted) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+  .odcm-input[disabled], .odcm-select[disabled] {
+    background: var(--odcm-surface-2); color: var(--odcm-muted); cursor: not-allowed;
+  }
+
+  /* --- CARD --- */
+  .odcm-card {
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-4);
+    box-shadow: var(--odcm-shadow-1);
+  }
+
+  /* --- CALLOUT --- */
+  .odcm-callout {
+    padding: 14px 16px;
+    background: var(--odcm-accent-soft);
+    border-left: 3px solid var(--odcm-accent);
+    border-radius: var(--odcm-radius-2);
+    color: var(--odcm-ink-2);
+    font-size: var(--odcm-text-sm);
+    line-height: 1.55;
+  }
+  .odcm-callout__label {
+    display: block;
+    margin-bottom: 4px;
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--odcm-accent);
+  }
+  .odcm-callout--warn  { background: var(--odcm-warn-soft);   border-left-color: var(--odcm-warn); }
+  .odcm-callout--warn  .odcm-callout__label  { color: var(--odcm-warn); }
+  .odcm-callout--danger{ background: var(--odcm-danger-soft); border-left-color: var(--odcm-danger); }
+  .odcm-callout--danger .odcm-callout__label { color: var(--odcm-danger); }
+  .odcm-callout--success{ background: var(--odcm-success-soft); border-left-color: var(--odcm-success); }
+  .odcm-callout--success .odcm-callout__label { color: var(--odcm-success); }
+
+  /* --- RULE KEYWORD (WHEN / IF / THEN) --- */
+  .odcm-kw {
+    display: inline-block;
+    min-width: 38px;
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--odcm-accent);
+    line-height: 1;
+  }
+
+  /* --- CODE BLOCK --- */
+  .odcm-code {
+    background: var(--odcm-surface-2);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-3);
+    overflow: hidden;
+  }
+  .odcm-code__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: var(--odcm-surface-3);
+    border-bottom: 1px solid var(--odcm-border);
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-2xs);
+    color: var(--odcm-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .odcm-code__lang { margin-left: auto; }
+  .odcm-code__copy {
+    background: transparent;
+    border: 0;
+    padding: 2px 6px;
+    font-family: var(--odcm-font-mono);
+    font-size: 10px;
+    color: var(--odcm-ink-2);
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: var(--odcm-radius-1);
+  }
+  .odcm-code__copy:hover { background: var(--odcm-surface); }
+  .odcm-code__copy--copied { color: var(--odcm-success); }
+  .odcm-code pre {
+    margin: 0;
+    padding: 14px 16px;
+    font-family: var(--odcm-font-mono);
+    font-size: var(--odcm-text-sm);
+    line-height: 1.6;
+    color: var(--odcm-ink-2);
+    overflow: auto;
+    white-space: pre;
+    tab-size: 2;
+  }
+  /* Syntax-highlighting tokens come from Prism.js (loaded separately).
+     Prism's own themes paint .token.* classes in both light and dark.
+     This block only owns the container chrome and the unstyled <pre> base. */
+
+  /* --- SEGMENTED CONTROL --- */
+  .odcm-segmented {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    background: var(--odcm-surface-2);
+    border: 1px solid var(--odcm-border);
+    border-radius: var(--odcm-radius-2);
+    gap: 0;
+  }
+  .odcm-segmented__item {
+    background: transparent;
+    border: 0;
+    padding: 4px 10px;
+    font-family: var(--odcm-font-sans);
+    font-size: var(--odcm-text-xs);
+    font-weight: 400;
+    color: var(--odcm-muted);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color var(--odcm-dur-fast) var(--odcm-ease), color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-segmented__item:hover { color: var(--odcm-ink); }
+  .odcm-segmented__item.is-active,
+  .odcm-segmented__item[aria-pressed="true"] {
+    background: var(--odcm-surface);
+    color: var(--odcm-ink);
+    font-weight: 500;
+    box-shadow: var(--odcm-shadow-1);
+  }
+
+  /* --- BINARY TOGGLE --- */
+  .odcm-toggle {
     position: relative;
-    width: 56px;
-    height: 28px;
-    background: var(--odcm-theme-blue-700);
-    border-radius: 999px;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
-    flex: 0 0 auto
-}
-
-.odcm-binary-toggle .odcm-toggle-slider {
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    background: var(--odcm-border-strong);
+    border: 0;
+    border-radius: var(--odcm-radius-pill);
+    cursor: pointer;
+    transition: background-color var(--odcm-dur-normal) var(--odcm-ease);
+  }
+  .odcm-toggle__thumb {
     position: absolute;
     top: 2px;
     left: 2px;
-    width: 24px;
-    height: 24px;
+    width: 16px;
+    height: 16px;
     background: #fff;
     border-radius: 50%;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    transition: transform var(--odcm-theme-transition),background var(--odcm-theme-transition)
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transition: left var(--odcm-dur-normal) var(--odcm-ease);
+  }
+  .odcm-toggle[aria-checked="true"] { background: var(--odcm-accent); }
+  .odcm-toggle[aria-checked="true"] .odcm-toggle__thumb { left: 18px; }
+
+  /* --- THEME TOGGLE (Auto / Light / Dark) --- */
+  .odcm-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px;
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border-strong);
+    border-radius: var(--odcm-radius-pill);
+    gap: 0;
+  }
+  .odcm-theme-toggle__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 26px;
+    background: transparent;
+    border: 0;
+    border-radius: var(--odcm-radius-pill);
+    color: var(--odcm-muted);
+    cursor: pointer;
+    transition: background-color var(--odcm-dur-fast) var(--odcm-ease), color var(--odcm-dur-fast) var(--odcm-ease);
+  }
+  .odcm-theme-toggle__btn:hover { color: var(--odcm-ink); }
+  .odcm-theme-toggle__btn[aria-pressed="true"] {
+    background: var(--odcm-accent-soft);
+    color: var(--odcm-accent);
+  }
+
+  /* --- TOAST (carried forward, retuned) --- */
+  .odcm-toast-container {
+    position: fixed;
+    top: 40px;
+    right: 20px;
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    gap: var(--odcm-space-2);
+    max-width: 400px;
+    pointer-events: none;
+  }
+  .odcm-toast {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--odcm-space-3);
+    padding: var(--odcm-space-3) var(--odcm-space-4);
+    background: var(--odcm-surface);
+    border: 1px solid var(--odcm-border);
+    border-left: 3px solid var(--odcm-border-strong);
+    border-radius: var(--odcm-radius-3);
+    box-shadow: var(--odcm-shadow-2);
+    color: var(--odcm-ink-2);
+    font-size: var(--odcm-text-sm);
+    line-height: 1.45;
+    pointer-events: auto;
+    min-width: 250px;
+  }
+  .odcm-toast--success {
+    background-color: var(--odcm-success-soft);
+    border-left-color: var(--odcm-success);
+  }
+  .odcm-toast--warning {
+    background-color: var(--odcm-warn-soft);
+    border-left-color: var(--odcm-warn);
+  }
+  .odcm-toast--error {
+    background-color: var(--odcm-danger-soft);
+    border-left-color: var(--odcm-danger);
+  }
+  .odcm-toast--info {
+    background-color: var(--odcm-accent-soft);
+    border-left-color: var(--odcm-accent);
+  }
+  .odcm-toast__close {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    color: var(--odcm-muted);
+    cursor: pointer;
+    border-radius: var(--odcm-radius-1);
+  }
+  .odcm-toast__close:hover { background: var(--odcm-surface-2); color: var(--odcm-ink); }
+
+  /* Dark mode: soft tokens are semi-transparent (14% rgba) — use solid surface instead */
+  :root[data-theme="dark"] .odcm-toast--success,
+  :root[data-theme="dark"] .odcm-toast--warning,
+  :root[data-theme="dark"] .odcm-toast--error,
+  :root[data-theme="dark"] .odcm-toast--info {
+    background-color: var(--odcm-surface-2);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .odcm-toast--success,
+    :root:not([data-theme]) .odcm-toast--warning,
+    :root:not([data-theme]) .odcm-toast--error,
+    :root:not([data-theme]) .odcm-toast--info {
+      background-color: var(--odcm-surface-2);
+    }
+  }
 }
 
-.odcm-binary-toggle .odcm-toggle-slider.is-right {
-    transform: translateX(28px)
+/* ==========================================================================
+   WP ADMIN INTEGRATION
+   Outside @layer so these rules win over WP core's unlayered form/button
+   styles. All values use design-system tokens — dark/light switching is
+   automatic. Scoped to .odcm-scope to avoid bleeding into standard WP UI.
+   ========================================================================== */
+
+/* Page background: replace WP's default #f0f0f1 on any plugin page.
+   Target body so the colour fills the full viewport, not just the content area. */
+body.wp-admin:has(.odcm-scope),
+#wpcontent:has(.odcm-scope),
+#wpbody:has(.odcm-scope) {
+  background: var(--odcm-bg);
 }
 
-.odcm-binary-toggle[aria-checked="true"] .odcm-binary-toggle-track {
-    background: var(--odcm-theme-blue-700)
+.odcm-scope {
+  border: 1px solid var(--odcm-border);
+  min-height: calc(100vh - var(--wp-admin--admin-bar--height, 32px));
+  box-sizing: border-box;
 }
 
-.odcm-binary-toggle[aria-checked="true"] .odcm-toggle-slider {
-    background: #fff
+/* Page header wrapper and metabox wrappers must not force full viewport height */
+#poststuff .odcm-scope,
+.odcm-scope:has(> .odcm-unified-header) {
+  min-height: 0;
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .odcm-binary-toggle-label,.odcm-binary-toggle .odcm-toggle-slider{transition:none}
+/* Rule builder page: content is split across the all_admin_notices header and
+   #poststuff metabox — no single .odcm-scope spans both. Move the page-frame
+   border+height to their shared WP ancestor instead. */
+.post-type-odcm_order_rule #wpbody-content {
+  border: 1px solid var(--odcm-border);
+  min-height: calc(100vh - var(--wp-admin--admin-bar--height, 32px));
+  box-sizing: border-box;
 }
 
-
-/* Override: Keep binary toggle track color constant (no change between states) */
-.odcm-binary-toggle-track{
-    background:var(--odcm-theme-blue-700);
+/* Suppress the redundant border on the page-header scope wrapper since
+   #wpbody-content now provides the outer frame on this page. */
+.post-type-odcm_order_rule .odcm-scope:has(> .odcm-unified-header) {
+  border: none;
 }
 
-.odcm-binary-toggle[aria-checked="true"] .odcm-binary-toggle-track{
-    background:var(--odcm-theme-blue-700);
+/* Inputs & selects --------------------------------------------------------- */
+.odcm-scope .odcm-input,
+.odcm-scope .odcm-select {
+  height: var(--odcm-h-input);
+  padding: 0 12px;
+  font-family: var(--odcm-font-sans);
+  font-size: var(--odcm-text-sm);
+  color: var(--odcm-ink);
+  background: var(--odcm-surface);
+  border: 1px solid var(--odcm-border-strong);
+  border-radius: var(--odcm-radius-2);
+  box-shadow: none;
+  outline: none;
+}
+.odcm-scope .odcm-select,
+.odcm-scope select {
+  color-scheme: inherit;
+}
+.odcm-scope .odcm-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--odcm-muted) 50%),
+    linear-gradient(135deg, var(--odcm-muted) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.odcm-scope .odcm-input:focus,
+.odcm-scope .odcm-select:focus {
+  border-color: var(--odcm-accent);
+  box-shadow: 0 0 0 3px var(--odcm-accent-soft);
+  outline: none;
+}
+.odcm-scope .odcm-input[disabled],
+.odcm-scope .odcm-select[disabled] {
+  background: var(--odcm-surface-2);
+  color: var(--odcm-muted);
+  cursor: not-allowed;
+}
+
+/* Buttons ------------------------------------------------------------------ */
+.odcm-scope .odcm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--odcm-space-2);
+  height: var(--odcm-h-btn-md);
+  padding: 0 14px;
+  font-family: var(--odcm-font-sans);
+  font-size: var(--odcm-text-sm);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1;
+  color: var(--odcm-ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--odcm-radius-2);
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  box-shadow: none;
+  text-shadow: none;
+  user-select: none;
+}
+.odcm-scope .odcm-btn--primary {
+  background: var(--odcm-accent);
+  color: var(--odcm-on-accent);
+}
+.odcm-scope .odcm-btn--primary:hover  { background: var(--odcm-accent-hover); }
+.odcm-scope .odcm-btn--primary:active { background: var(--odcm-accent-press); }
+.odcm-scope .odcm-btn--secondary {
+  background: var(--odcm-surface);
+  color: var(--odcm-ink);
+  border-color: var(--odcm-border-strong);
+}
+.odcm-scope .odcm-btn--secondary:hover { background: var(--odcm-surface-2); }
+.odcm-scope .odcm-btn--ghost { color: var(--odcm-ink-2); }
+.odcm-scope .odcm-btn--ghost:hover { background: var(--odcm-surface-2); color: var(--odcm-ink); }
+.odcm-scope .odcm-btn--danger { background: var(--odcm-danger); color: var(--odcm-on-accent); }
+.odcm-scope .odcm-btn--danger:hover { filter: brightness(0.95); }
+.odcm-scope .odcm-btn--sm { height: var(--odcm-h-btn-sm); padding: 0 10px; font-size: var(--odcm-text-xs); }
+.odcm-scope .odcm-btn--lg { height: var(--odcm-h-btn-lg); padding: 0 20px; font-size: var(--odcm-text-md); }
+.odcm-scope .odcm-btn[disabled],
+.odcm-scope .odcm-btn:disabled { opacity: 0.55; cursor: not-allowed; pointer-events: none; }
+
+/* Checkboxes --------------------------------------------------------------- */
+.odcm-scope input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--odcm-border-strong);
+  border-radius: 3px;
+  background: var(--odcm-surface);
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+  margin: 0;
+  flex-shrink: 0;
+  transition: border-color var(--odcm-dur-fast) var(--odcm-ease), background var(--odcm-dur-fast) var(--odcm-ease);
+}
+.odcm-scope input[type="checkbox"]:checked {
+  background: var(--odcm-accent);
+  border-color: var(--odcm-accent);
+}
+.odcm-scope input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: 2px solid var(--odcm-on-accent);
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+.odcm-scope input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--odcm-accent);
+  outline-offset: 2px;
+}
+.odcm-scope input[type="checkbox"]:indeterminate {
+  background: var(--odcm-accent);
+  border-color: var(--odcm-accent);
+}
+.odcm-scope input[type="checkbox"]:indeterminate::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 6px;
+  width: 8px;
+  height: 2px;
+  background: var(--odcm-on-accent);
+}
+
+/* ==========================================================================
+   WP ADMIN PAGE CHROME — ALL PLUGIN PAGES
+   Scoped via body.wp-admin:has(.odcm-scope) so these only fire on plugin
+   pages that load the design system. Dark/light automatic via tokens.
+   ========================================================================== */
+
+/* Apply design-system text colour to WP content area */
+body.wp-admin:has(.odcm-scope) #wpbody-content {
+  color: var(--odcm-ink);
+}
+
+/* WP admin notices — skin with design-system surface/border tokens */
+body.wp-admin:has(.odcm-scope) .notice,
+body.wp-admin:has(.odcm-scope) div.updated,
+body.wp-admin:has(.odcm-scope) div.error {
+  background: var(--odcm-surface);
+  border-left-color: var(--odcm-accent);
+  color: var(--odcm-ink);
+  box-shadow: none;
+}
+body.wp-admin:has(.odcm-scope) .notice-success { border-left-color: var(--odcm-success); }
+body.wp-admin:has(.odcm-scope) .notice-warning { border-left-color: var(--odcm-warn); }
+body.wp-admin:has(.odcm-scope) .notice-error   { border-left-color: var(--odcm-danger); }
+body.wp-admin:has(.odcm-scope) .notice p,
+body.wp-admin:has(.odcm-scope) .notice-dismiss::before { color: var(--odcm-ink-2); }
+
+/* Screen options / help tab toggle buttons */
+body.wp-admin:has(.odcm-scope) #screen-meta-links .show-settings {
+  background: var(--odcm-surface-2);
+  border-color: var(--odcm-border);
+  color: var(--odcm-ink-2);
+}
+body.wp-admin:has(.odcm-scope) #screen-meta-links .show-settings:hover { color: var(--odcm-ink); }
+
+/* Screen meta panel (screen options dropdown) */
+body.wp-admin:has(.odcm-scope) #screen-meta {
+  background: var(--odcm-surface);
+  border-color: var(--odcm-border);
+  color: var(--odcm-ink);
+}
+
+/* WP .wrap h1 page headings */
+body.wp-admin:has(.odcm-scope) .wrap h1,
+body.wp-admin:has(.odcm-scope) .wrap h1.wp-heading-inline {
+  color: var(--odcm-ink);
+  font-family: var(--odcm-font-sans);
 }

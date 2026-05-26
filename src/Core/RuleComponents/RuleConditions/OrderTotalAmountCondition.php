@@ -29,6 +29,10 @@ class OrderTotalAmountCondition implements ConditionInterface
         return __('rule_component.condition.order_total.description', 'order-daemon');
     }
 
+    public function get_icon(): string
+    {
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>';
+    }
 
     public function get_settings_schema(): ?array
     {
@@ -105,12 +109,18 @@ class OrderTotalAmountCondition implements ConditionInterface
 
     public function evaluate(WC_Order $order, array $settings): bool
     {
-        $operator = $settings['operator'] ?? 'amount_gt';
+        if (!isset($settings['operator'])) {
+            return false;
+        }
+        $operator = $settings['operator'];
         $amount_source = $settings['amount_source'] ?? 'order_total';
 
         // Get the amount value based on the selected operator
         $amount_field = $operator . '_value';
-        $amount = isset($settings[$amount_field]) ? (float) $settings[$amount_field] : 0.0;
+        if (!isset($settings[$amount_field])) {
+            return false;
+        }
+        $amount = (float) $settings[$amount_field];
         $order_total = $amount_source === 'order_discount'
             ? (float) $order->get_discount_total()
             : (float) $order->get_total();

@@ -185,40 +185,23 @@
             element.className = `${this.config.toastClass} ${this.config.toastClass}--${toast.type}`;
             element.setAttribute('role', 'alert');
             element.setAttribute('aria-live', 'assertive');
-            
-            // Force the horizontal layout with flexbox
-            element.style.display = 'flex';
-            element.style.justifyContent = 'space-between';
-            element.style.alignItems = 'center';
-            
-            // Create toast content
+
             const content = document.createElement('div');
             content.className = 'odcm-toast-content';
             content.textContent = toast.message;
-            
-            // Create close button
+
             const closeButton = document.createElement('button');
-            closeButton.className = 'odcm-toast-close';
+            closeButton.className = 'odcm-toast__close';
             closeButton.setAttribute('aria-label', 'Close notification');
             closeButton.innerHTML = '&times;';
             closeButton.onclick = () => this.remove(toast.id);
-            
-            // Assemble toast
+
             element.appendChild(content);
             element.appendChild(closeButton);
-            
-            // Only apply minimal inline styles needed for animation
-            // Let the CSS handle the rest
+
             element.style.opacity = '0';
             element.style.transform = 'translateX(100%)';
-            element.style.transition = 'all 0.3s ease';
-            
-            // Force additional background styling if missing
-            element.style.backgroundColor = this.getBackgroundColorForType(toast.type);
-            element.style.borderLeft = `4px solid ${this.getBorderColorForType(toast.type)}`;
-            element.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-            element.style.borderRadius = '3px';
-            element.style.padding = '12px';
+            element.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
             
             this.container.appendChild(element);
             
@@ -229,40 +212,6 @@
             });
             
             toast.element = element;
-        },
-        
-        /**
-         * Get background color for toast type
-         * 
-         * @param {string} type - Toast type
-         * @returns {string} CSS color value
-         */
-        getBackgroundColorForType(type) {
-            const bgColors = {
-                'success': '#E7F9EB', // --odcm-theme-green-200
-                'error': '#FBEBED',   // --odcm-theme-red-200
-                'warning': '#FEFAEF', // --odcm-theme-yellow-200
-                'info': '#DEF4FF'     // --odcm-theme-blue-200
-            };
-            
-            return bgColors[type] || bgColors.info;
-        },
-        
-        /**
-         * Get border color for toast type
-         * 
-         * @param {string} type - Toast type
-         * @returns {string} CSS color value
-         */
-        getBorderColorForType(type) {
-            const borderColors = {
-                'success': '#29A847', // --odcm-theme-green-700
-                'error': '#dc3545',   // --odcm-theme-red-700
-                'warning': '#F4C95D', // --odcm-theme-yellow-700
-                'info': '#007cba'     // --odcm-theme-blue-700
-            };
-            
-            return borderColors[type] || borderColors.info;
         },
         
         /**

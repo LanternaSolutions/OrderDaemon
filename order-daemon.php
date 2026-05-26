@@ -13,7 +13,7 @@ declare(strict_types=1);
  * Text Domain: order-daemon
  * Domain Path: /languages
  * Requires at least: 5.6
- * Tested up to: 6.9
+ * Tested up to: 7.0
  * Requires PHP: 7.4
  * WC requires at least: 5.0
  * WC tested up to: 8.5

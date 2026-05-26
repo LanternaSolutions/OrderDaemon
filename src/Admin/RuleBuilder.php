@@ -39,7 +39,20 @@ final class RuleBuilder
         add_action('add_meta_boxes', [$this, 'remove_unnecessary_metaboxes']);
         add_action('add_meta_boxes', [$this, 'add_rule_builder_metabox']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
+        add_action('all_admin_notices', [$this, 'render_page_header']);
         add_action('save_post_odcm_order_rule', [$this, 'save_rule_data'], 10, 3);
+
+        // Expand and highlight the Order Daemon menu when editing a rule
+        $is_rule_screen = static function(): bool {
+            $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+            return $screen && $screen->post_type === 'odcm_order_rule';
+        };
+        add_filter('parent_file', static function(string $parent_file) use ($is_rule_screen): string {
+            return $is_rule_screen() ? 'odcm-insight-dashboard' : $parent_file;
+        });
+        add_filter('submenu_file', static function(?string $submenu_file) use ($is_rule_screen): ?string {
+            return $is_rule_screen() ? 'odcm-rules-list' : $submenu_file;
+        });
 
         // Optional backfill job registration (admin-only context)
         add_action('odcm_rebuild_rule_indexes_job', [\OrderDaemon\CompletionManager\Core\RuleComponents\RuleIndexBuilder::class, 'backfill_all']);
@@ -243,20 +256,33 @@ final class RuleBuilder
         }, 10, 2);
 
         // Enqueue design system CSS as foundation
+        $ds_path = defined('ODCM_PLUGIN_DIR') ? ODCM_PLUGIN_DIR . 'assets/css/odcm-design-system.css' : '';
+        $ds_version = (file_exists($ds_path)) ? filemtime($ds_path) : $plugin_version;
         wp_enqueue_style(
             'odcm-design-system',
             $assets_url . 'css/odcm-design-system.css',
             [],
-            $plugin_version
+            $ds_version
         );
 
         // Enqueue modern rule builder CSS with design system dependency
+        $rb_path = defined('ODCM_PLUGIN_DIR') ? ODCM_PLUGIN_DIR . 'assets/css/rule-builder.css' : '';
+        $rb_version = file_exists($rb_path) ? filemtime($rb_path) : $plugin_version;
         wp_enqueue_style(
             'odcm-rule-builder',
             $assets_url . 'css/rule-builder.css',
             ['odcm-design-system'],
-            $plugin_version
+            $rb_version
         );
+
+        // Hide WP-generated heading and screen options on the rule editor
+        wp_add_inline_style('odcm-rule-builder', '
+            .post-type-odcm_order_rule .wrap > .wp-heading-inline,
+            .post-type-odcm_order_rule .wrap > .page-title-action,
+            .post-type-odcm_order_rule hr.wp-header-end { display: none; }
+            .post-type-odcm_order_rule #screen-options-link-wrap,
+            .post-type-odcm_order_rule #screen-options-wrap { display: none !important; }
+        ');
 
         // Enqueue shared toast system
         wp_enqueue_script(
@@ -467,6 +493,7 @@ final class RuleBuilder
                 'id'          => $component->get_id(),
                 'label'       => $component->get_label(),
                 'description' => $component->get_description(),
+                'icon'        => method_exists($component, 'get_icon') ? $component->get_icon() : '',
                 'schema'      => $schema,
                 'accessible'  => $can_use,
                 'state'       => $component_state,
@@ -839,6 +866,35 @@ final class RuleBuilder
      *
      * @param \WP_Post $post The current post object.
      */
+    public function render_page_header(): void
+    {
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        if (!$screen || $screen->post_type !== 'odcm_order_rule' || !in_array($screen->base, ['post', 'post-new'], true)) {
+            return;
+        }
+        $rules_url = admin_url('admin.php?page=odcm-rules-list');
+        ?>
+        <div class="odcm-scope">
+        <div class="odcm-unified-header">
+            <div class="odcm-unified-header__brand">
+                <svg width="22" height="22" viewBox="0 0 128 128" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M115.575 38.0075C116.022 37.9874 116.467 38.0076 116.911 38.0682C117.074 38.4076 117.013 38.7113 116.728 38.9793C110.372 46.5109 104.341 54.2856 98.6351 62.3033C96.4699 65.5014 94.365 68.7407 92.3207 72.0217C91.9153 72.364 91.4499 72.4652 90.9242 72.3254C90.2886 71.689 89.7422 70.9803 89.2849 70.1995C86.957 66.4332 84.6903 62.6269 82.4847 58.7804C82.0502 57.6476 82.4348 57.2225 83.6383 57.5049C84.8632 58.3251 85.9359 59.3171 86.8562 60.4811C88.0448 62.0349 89.2794 63.5533 90.5599 65.0366C90.8192 65.1137 91.062 65.0732 91.2885 64.9151C93.8523 61.257 96.4631 57.6329 99.1209 54.0427C102.193 50.037 105.492 46.2104 109.018 42.563C110.486 41.1616 112.064 39.9062 113.753 38.7971C114.358 38.4955 114.965 38.2322 115.575 38.0075Z"/>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M35.5513 43.3525C42.0969 42.9637 47.8042 44.9275 52.6732 49.2443C55.272 51.6805 57.5994 54.3328 59.6555 57.2011C59.9332 57.5996 60.1558 58.0248 60.3234 58.4767C59.7453 59.6333 59.0167 60.6861 58.1376 61.6351C57.9623 61.73 57.8004 61.7097 57.6519 61.5744C55.3649 57.9691 52.5719 54.7904 49.2731 52.0383C45.2311 48.7875 40.6167 47.3702 35.4299 47.7865C28.6765 48.9939 24.2036 52.8611 22.0117 59.3878C20.1255 67.2545 22.4934 73.4702 29.1154 78.0348C36.2941 81.8873 42.9729 81.1584 49.1517 75.8482C51.201 73.9197 53.1236 71.8747 54.9197 69.7135C57.8808 65.82 60.7952 61.8921 63.6628 57.93C66.5835 53.9957 69.9633 50.4931 73.8023 47.4221C79.2353 43.7409 85.1045 42.85 91.41 44.7495C93.6407 45.4694 95.5633 46.6639 97.178 48.3332C97.8828 49.5333 97.5387 50.0395 96.1458 49.8517C88.3096 45.9676 81.0641 46.818 74.4095 52.4027C71.581 55.1104 68.9702 58.0056 66.5771 61.0885C63.2644 65.6579 59.9047 70.1931 56.4983 74.6941C53.4913 78.5538 49.7472 81.449 45.2659 83.3799C36.2004 86.3776 28.4086 84.4137 21.8902 77.4882C17.7008 72.3713 16.2032 66.5403 17.3973 59.9952C19.2203 52.0575 23.9764 46.7731 31.6655 44.1421C32.9642 43.8115 34.2594 43.5482 35.5513 43.3525Z"/>
+                    <path fill-rule="evenodd" clip-rule="evenodd" d="M103.31 62.6677C103.51 62.6417 103.692 62.6823 103.857 62.7892C104.012 63.0585 104.133 63.3421 104.221 63.6396C104.425 70.9849 101.692 76.9577 96.0244 81.5578C89.3454 85.7966 82.4643 86.1206 75.381 82.5296C70.5663 79.657 66.6198 75.8708 63.5414 71.1713C63.4421 70.7505 63.4827 70.3455 63.6628 69.9565C63.8724 69.8258 64.095 69.8055 64.3307 69.8958C67.5089 73.4036 71.1114 76.3595 75.1381 78.7637C79.4853 81.2028 84.0998 81.9317 88.9813 80.9504C93.9758 79.5176 97.7605 76.5414 100.335 72.0216C101.837 69.3362 102.728 66.4613 103.007 63.3966C103.076 63.1365 103.177 62.8936 103.31 62.6677Z"/>
+                </svg>
+                <span class="odcm-unified-header__title">Order Daemon</span>
+            </div>
+            <span class="odcm-unified-header__sep" aria-hidden="true">/</span>
+            <a class="odcm-unified-header__crumb" href="<?php echo esc_url($rules_url); ?>"><?php echo esc_html__('admin.list_table.page_title', 'order-daemon'); ?></a>
+            <span class="odcm-unified-header__crumb-group">
+                <span class="odcm-unified-header__sep" aria-hidden="true">/</span>
+                <span class="odcm-unified-header__crumb"><?php echo esc_html__('admin.rule_builder.page_title', 'order-daemon'); ?></span>
+            </span>
+        </div>
+        </div>
+        <?php
+    }
+
     public function render_rule_builder(\WP_Post $post): void
     {
         // Only render for completion rule post type
@@ -855,58 +911,57 @@ final class RuleBuilder
         <?php // Nonce for secure save per PR1 requirements
         wp_nonce_field('odcm_save_rule', 'odcm_rule_nonce'); ?>
         
-        <div class="odcm-rule-builder-wrapper" x-data="ruleBuilder()" x-cloak x-init="$watch('rule', value => { document.getElementById('odcm_rule_data_field').value = JSON.stringify(value); })">
-            <!-- Rule Builder Header -->
-            <div class="odcm-rule-builder-header">
-                <h2><?php esc_html_e('admin.rule_builder.page_title', 'order-daemon'); ?></h2>
+        <div class="odcm-rule-builder-wrapper rb odcm-scope" x-data="ruleBuilder()" x-cloak x-init="$watch('rule', value => { document.getElementById('odcm_rule_data_field').value = JSON.stringify(value); })">
+            <!-- Loading State -->
+            <div x-show="loading" class="odcm-loading-state">
+                <div class="odcm-loading-spinner"></div>
+                <p><?php esc_html_e('admin.rule_builder.status.loading_rule_builder', 'order-daemon'); ?></p>
             </div>
 
-            <!-- Rule Builder Content -->
-            <div class="odcm-rule-builder-content">
-                <div id="odcm-rule-builder">
-                    <!-- Loading State -->
-                    <div x-show="loading" class="odcm-loading-state">
-                        <div class="odcm-loading-spinner"></div>
-                        <p><?php esc_html_e('admin.rule_builder.status.loading_rule_builder', 'order-daemon'); ?></p>
-                    </div>
+            <!-- Main Application -->
+            <div x-show="!loading">
+                <!-- Title row -->
+                <div class="rb__title-row">
+                    <h3 class="rb__title"><?php esc_html_e('admin.rule_builder.page_title', 'order-daemon'); ?></h3>
+                </div>
 
-                    <!-- Main Application -->
-                    <div x-show="!loading" class="odcm-rule-builder-app">
+                <!-- Rule body -->
+                <div class="rb__body">
 
                 <!-- WHEN Section (Trigger) -->
-                <div class="odcm-rule-section">
-                    <h3 class="odcm-section-title">
-                        <?php esc_html_e('admin.rule_builder.section.when', 'order-daemon'); ?>
-                        <span class="odcm-section-subtitle"><?php esc_html_e('admin.rule_builder.trigger_section_label', 'order-daemon'); ?></span>
-                    </h3>
+                <div class="rb__section">
+                    <div class="rb__section-head">
+                        <span class="odcm-kw"><?php esc_html_e('admin.rule_builder.section.when', 'order-daemon'); ?></span>
+                        <span class="rb__section-sub"><?php esc_html_e('admin.rule_builder.trigger_section_label', 'order-daemon'); ?></span>
+                        <span class="rb__section-count">· 1 of 1 required</span>
+                    </div>
 
-                    <div x-show="!rule.trigger" class="odcm-empty-state">
-                        <button type="button" 
-                                @click="isAddingTrigger = !isAddingTrigger" 
-                                class="odcm-add-component-button odcm-add-trigger-button">
-                            <span class="odcm-button-icon">+</span>
+                    <div x-show="!rule.trigger">
+                        <button type="button"
+                                @click="isAddingTrigger = !isAddingTrigger"
+                                class="rb__add">
+                            <span class="plus">+</span>
                             <?php esc_html_e('admin.rule_builder.action.add_trigger_description', 'order-daemon'); ?>
                         </button>
                     </div>
 
                     <!-- Trigger Component Row -->
-                    <div x-show="rule.trigger" class="odcm-rule-row" :class="{ 'odcm-expanded': editingTriggerIndex === 0, 'odcm-no-settings': !componentHasSettings('trigger', 0), 'odcm-component-inaccessible': !getComponentDefinition('trigger', rule.trigger?.id)?.accessible }" @click="!getComponentDefinition('trigger', rule.trigger?.id)?.accessible ? null : (componentHasSettings('trigger', 0) && handleRowClick('trigger', 0, $event))">
-                        <div class="odcm-component-summary" x-html="getComponentSummary(rule.trigger, 'trigger', 0)"></div>
-                        <div class="odcm-component-actions">
-                            <button type="button" 
-                                    @click="removeTrigger()" 
-                                    class="odcm-remove-button">
-                                <?php esc_html_e('admin.rule_builder.remove_button', 'order-daemon'); ?>
-                            </button>
+                    <div x-show="rule.trigger" class="rb__row" :data-expanded="editingTriggerIndex === 0 ? 'true' : 'false'">
+                        <div class="rb__row-head" @click="!getComponentDefinition('trigger', rule.trigger?.id)?.accessible ? null : (componentHasSettings('trigger', 0) && handleRowClick('trigger', 0, $event))">
+                            <div class="rb__row-summary" x-html="getComponentSummary(rule.trigger, 'trigger', 0)"></div>
+                            <div class="rb__row-actions">
+                                <button type="button"
+                                        @click.stop="removeTrigger()"
+                                        class="rb__icon-btn rb__icon-btn--danger"
+                                        title="<?php esc_attr_e('admin.rule_builder.remove_button', 'order-daemon'); ?>">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                                </button>
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- Trigger Settings Panel -->
-                    <div x-show="rule.trigger && editingTriggerIndex === 0" 
-                         class="odcm-settings-panel"
-                         :class="{ 'odcm-expanded': editingTriggerIndex === 0 }">
-                        <!-- Trigger Validation Errors -->
-                        <div x-show="triggerValidationErrors.length > 0" class="odcm-validation-errors">
+                        <div class="rb__row-body">
+                            <div class="rb__settings">
+                                <!-- Trigger Validation Errors -->
+                                <div x-show="triggerValidationErrors.length > 0" class="odcm-validation-errors">
                             <template x-for="error in triggerValidationErrors" :key="error">
                                 <div class="odcm-validation-error" x-text="error"></div>
                             </template>
@@ -928,14 +983,14 @@ final class RuleBuilder
                                                         $watch(() => editingTriggerIndex, (v) => { if (v === 0) doInit(); });
                                                     })">
                             <template x-if="Object.keys(fields).length > 0">
-                                <div class="odcm-settings-form">
+                                <div class="rb__settings-form">
                                     <template x-for="(field, fieldKey) in fields" :key="fieldKey">
-                                        <div class="odcm-form-group">
+                                        <div class="rb__field">
                                             <!-- Field Label -->
-                                            <label x-show="field.title" :for="field.id" class="odcm-form-label" x-text="field.title"></label>
+                                            <label x-show="field.title" :for="field.id" class="rb__field-label" x-text="field.title"></label>
                                             
                                             <!-- Field Description -->
-                                            <div x-show="field.description" class="odcm-form-description" x-text="field.description"></div>
+                                            <div x-show="field.description" class="rb__field-help" x-text="field.description"></div>
                                             
                                             <!-- Searchable Checkboxes Widget -->
                                             <template x-if="field.widget === 'searchable_checkboxes'">
@@ -1056,10 +1111,10 @@ final class RuleBuilder
                                             
                                             <!-- Button-style radio group -->
                                             <template x-if="field.widget === 'button_radio_group'">
-                                                <div class="odcm-button-radio-group" role="radiogroup" :aria-labelledby="field.id + '_label'">
+                                                <div class="odcm-segmented" role="radiogroup" :aria-labelledby="field.id + '_label'">
                                                     <template x-for="(label, val) in field.enumOptions" :key="val">
                                                         <button type="button"
-                                                                class="odcm-radio-button"
+                                                                class="odcm-segmented__item"
                                                                 :class="{ 'is-active': (rule.trigger?.settings[field.key] ?? field.value) === val }"
                                                                 :aria-pressed="String((rule.trigger?.settings[field.key] ?? field.value) === val)"
                                                                 @click="updateSetting(field.key, val, 'trigger', 0)"
@@ -1072,7 +1127,7 @@ final class RuleBuilder
                                             <!-- Textarea field -->
                                             <template x-if="field.widget === 'textarea'">
                                                 <textarea :id="field.id"
-                                                          class="odcm-form-textarea"
+                                                          class="odcm-input"
                                                           rows="6"
                                                           :placeholder="field.placeholder || ''"
                                                           :value="field.value"
@@ -1083,7 +1138,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'text'">
                                                 <input type="text"
                                                        :id="field.id"
-                                                       class="odcm-form-input"
+                                                       class="odcm-input"
                                                        :value="field.value"
                                                        :placeholder="field.placeholder || ''"
                                                        @input="updateSetting(field.key, $event.target.value, 'trigger', 0)">
@@ -1108,28 +1163,38 @@ final class RuleBuilder
                                 </div>
                             </template>
                         </div>
-                    </div>
+                            </div><!-- /rb__settings -->
+                        </div><!-- /rb__row-body -->
+                    </div><!-- /rb__row -->
 
                     <!-- Trigger Inline Selector -->
-                    <div x-show="isAddingTrigger" class="odcm-inline-selector" :class="{ 'odcm-expanded': isAddingTrigger }">
-                        <div class="odcm-selector-header">
-                            <input type="text" 
-                                   x-model="triggerSearchTerm" 
-                                   placeholder="<?php esc_attr_e('admin.rule_builder.search.triggers_placeholder', 'order-daemon'); ?>"
-                                   class="odcm-search-input">
-                            <button type="button" 
-                                    @click="isAddingTrigger = false" 
-                                    class="odcm-close-selector">×</button>
+                    <div x-show="isAddingTrigger" class="rb__picker">
+                        <div class="rb__picker-head">
+                            <div style="flex: 1;">
+                                <h4><?php esc_html_e('admin.rule_builder.selector.trigger_title', 'order-daemon'); ?></h4>
+                            </div>
+                            <button type="button" class="odcm-btn odcm-btn--ghost odcm-btn--sm" @click="isAddingTrigger = false">Cancel</button>
                         </div>
-                        <div class="odcm-selector-list">
+                        <div class="rb__picker-search">
+                            <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/></svg></span>
+                            <input type="text"
+                                   x-model="triggerSearchTerm"
+                                   placeholder="<?php esc_attr_e('admin.rule_builder.search.triggers_placeholder', 'order-daemon'); ?>"
+                                   class="odcm-input">
+                        </div>
+                        <div class="rb__picker-list">
                             <template x-for="trigger in filteredTriggers" :key="trigger.id">
-                                <button type="button" 
-                                        @click="selectComponent('trigger', trigger.id)" 
-                                        class="odcm-selector-option">
-                                    <div class="odcm-option-content">
-                                        <div class="odcm-option-title" x-text="trigger.label"></div>
-                                        <div class="odcm-option-description" x-text="trigger.description"></div>
+                                <button type="button"
+                                        @click="selectComponent('trigger', trigger.id)"
+                                        class="rb__picker-item">
+                                    <span class="rb__picker-item-icon" x-html="trigger.icon"></span>
+                                    <div class="rb__picker-item-main">
+                                        <div class="rb__picker-item-head">
+                                            <span class="rb__picker-item-label" x-text="trigger.label"></span>
+                                        </div>
+                                        <span class="rb__picker-item-desc" x-text="trigger.description"></span>
                                     </div>
+                                    <span class="rb__picker-item-chev">→</span>
                                 </button>
                             </template>
                         </div>
@@ -1137,43 +1202,41 @@ final class RuleBuilder
                 </div>
 
                 <!-- IF Section (Conditions) -->
-                <div class="odcm-rule-section">
-                    <h3 class="odcm-section-title">
-                        <?php esc_html_e('admin.rule_builder.section.if', 'order-daemon'); ?>
-                        <span class="odcm-section-subtitle"><?php esc_html_e('admin.rule_builder.conditions_section_label', 'order-daemon'); ?></span>
-                        <span class="odcm-component-count" x-text="`(${rule.conditions.length})`"></span>
-                    </h3>
-
-                    <div x-show="rule.conditions.length === 0" class="odcm-empty-state">
+                <div class="rb__section">
+                    <div class="rb__section-head">
+                        <span class="odcm-kw"><?php esc_html_e('admin.rule_builder.section.if', 'order-daemon'); ?></span>
+                        <span class="rb__section-sub"><?php esc_html_e('admin.rule_builder.conditions_section_label', 'order-daemon'); ?></span>
+                        <span class="rb__section-count" x-text="`· ${rule.conditions.length}`"></span>
                     </div>
 
                     <!-- Conditions List -->
                     <template x-for="(condition, index) in rule.conditions" :key="index">
-                        <div class="odcm-condition-wrapper">
-                            <!-- Condition Row -->
-                            <div class="odcm-rule-row" 
-                                 :class="{ 'odcm-expanded': editingConditionIndex === index, 'odcm-no-settings': !componentHasSettings('condition', index), 'odcm-component-inaccessible': !getComponentDefinition('condition', condition.id)?.accessible }"
-                                 draggable="true"
-                                 @dragstart="startDragCondition(index, $event)"
-                                 @dragover="dragOverCondition(index, $event)"
-                                 @drop="dropCondition(index, $event)"
-                                 @dragend="endDrag()"
-                                 @click="!getComponentDefinition('condition', condition.id)?.accessible ? null : (componentHasSettings('condition', index) && handleRowClick('condition', index, $event))">
-                                <div class="odcm-drag-handle" aria-hidden="true">⋮⋮</div>
-                                <div class="odcm-component-summary" x-html="getComponentSummary(condition, 'condition', index)"></div>
-                                <div class="odcm-component-actions">
-                                    <button type="button" 
-                                            @click="removeCondition(index)" 
-                                            class="odcm-remove-button">
-                                        <?php esc_html_e('admin.rule_builder.remove_button', 'order-daemon'); ?>
+                        <!-- Condition Row (with nested settings) -->
+                        <div class="rb__row"
+                             :data-expanded="editingConditionIndex === index ? 'true' : 'false'"
+                             :data-test-state="$store.odcmTestHighlight?.conditionStates[index] ?? ''"
+                             :data-drag-over="draggedCondition !== null && dragOverIndex === index ? 'true' : 'false'"
+                             draggable="true"
+                             @dragstart="startDragCondition(index, $event)"
+                             @dragover="dragOverCondition(index, $event)"
+                             @drop="dropCondition(index, $event)"
+                             @dragend="endDrag()">
+                            <div class="rb__row-head" @click="!getComponentDefinition('condition', condition.id)?.accessible ? null : (componentHasSettings('condition', index) && handleRowClick('condition', index, $event))">
+                                <span class="drag" aria-hidden="true">⋮⋮</span>
+                                <span class="rb__row-icon" x-html="getComponentDefinition('condition', condition.id)?.icon || ''" aria-hidden="true"></span>
+                                <div class="rb__row-summary" x-html="getComponentSummary(condition, 'condition', index)"></div>
+                                <div class="rb__row-actions">
+                                    <button type="button"
+                                            @click.stop="removeCondition(index)"
+                                            class="rb__icon-btn rb__icon-btn--danger"
+                                            title="<?php esc_attr_e('admin.rule_builder.remove_button', 'order-daemon'); ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
                                     </button>
                                 </div>
                             </div>
 
-                            <!-- Condition Settings Panel -->
-                            <div x-show="editingConditionIndex === index" 
-                                 class="odcm-settings-panel"
-                                 :class="{ 'odcm-expanded': editingConditionIndex === index }">
+                            <div class="rb__row-body">
+                            <div class="rb__settings">
                                 <div x-data="{ 
                                         ...settingsPanel('condition', index),
                                         activeGroup: (rule.conditions[index]?.settings?.comparison_type || getConditionComponent(condition.id)?.schema?.properties?.comparison_type?.default || 'absolute_date'),
@@ -1213,16 +1276,16 @@ final class RuleBuilder
                                         $watch(() => editingConditionIndex, (v) => { if (v === index) doInit(); });
                                         $watch(() => rule.conditions[index]?.settings?.comparison_type, (val) => { if (val) activeGroup = val; });
                                      })">
-                                    <div class="odcm-settings-form">
+                                    <div class="rb__settings-form">
                                         <template x-for="(field, fieldKey) in fields" :key="fieldKey">
-                                            <div class="odcm-form-group" 
+                                            <div class="rb__field" 
                                              x-show="isFieldInActiveGroup(fieldKey)"
                                              :class="field.inlineGroup ? 'odcm-inline-group odcm-inline-group--' + field.inlineGroup : ''">
                                             <!-- Field Label -->
-                                            <label x-show="field.title" :for="field.id" class="odcm-form-label" x-text="field.title"></label>
+                                            <label x-show="field.title" :for="field.id" class="rb__field-label" x-text="field.title"></label>
                                             
                                             <!-- Field Description -->
-                                            <div x-show="field.description" class="odcm-form-description" x-text="field.description"></div>
+                                            <div x-show="field.description" class="rb__field-help" x-text="field.description"></div>
                                             
                                             <!-- Searchable Checkboxes Widget -->
                                             <template x-if="field.widget === 'searchable_checkboxes'">
@@ -1341,10 +1404,10 @@ final class RuleBuilder
                                             
                                             <!-- Button-style radio group -->
                                             <template x-if="field.widget === 'button_radio_group'">
-                                                <div class="odcm-button-radio-group" role="radiogroup" :aria-labelledby="field.id + '_label'">
+                                                <div class="odcm-segmented" role="radiogroup" :aria-labelledby="field.id + '_label'">
                                                     <template x-for="(label, val) in field.enumOptions" :key="val">
                                                         <button type="button"
-                                                                class="odcm-radio-button"
+                                                                class="odcm-segmented__item"
                                                                 :class="{ 'is-active': (rule.conditions[index]?.settings[field.key] ?? field.value) === val }"
                                                                 :aria-pressed="String((rule.conditions[index]?.settings[field.key] ?? field.value) === val)"
                                                                 @click="updateRadioSetting(field.key, val, 'condition', index)"
@@ -1357,7 +1420,7 @@ final class RuleBuilder
                                             <!-- Textarea field -->
                                             <template x-if="field.widget === 'textarea'">
                                                 <textarea :id="field.id"
-                                                          class="odcm-form-textarea"
+                                                          class="odcm-input"
                                                           rows="6"
                                                           :placeholder="field.placeholder || ''"
                                                           :value="field.value"
@@ -1368,7 +1431,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'date_picker'">
                                                 <input type="date"
                                                        :id="field.id"
-                                                       class="odcm-form-input odcm-date-picker"
+                                                       class="odcm-input odcm-date-picker"
                                                        :value="field.value"
                                                        @input="updateSetting(field.key, $event.target.value, 'condition', index)">
                                             </template>
@@ -1377,7 +1440,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'time_picker'">
                                                 <input type="time"
                                                        :id="field.id"
-                                                       class="odcm-form-input odcm-time-picker"
+                                                       class="odcm-input odcm-time-picker"
                                                        :value="field.value"
                                                        @input="updateSetting(field.key, $event.target.value, 'condition', index)">
                                             </template>
@@ -1386,7 +1449,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'number'">
                                                 <input type="number"
                                                        :id="field.id"
-                                                       class="odcm-form-input odcm-number-input"
+                                                       class="odcm-input odcm-number-input"
                                                        :value="field.value"
                                                        :min="field.minimum"
                                                        :max="field.maximum"
@@ -1398,7 +1461,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'text'">
                                                 <input type="text"
                                                        :id="field.id"
-                                                       class="odcm-form-input"
+                                                       class="odcm-input"
                                                        :value="field.value"
                                                        :placeholder="field.placeholder || ''"
                                                        @input="updateSetting(field.key, $event.target.value, 'condition', index)">
@@ -1417,38 +1480,48 @@ final class RuleBuilder
                                     </template>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                            </div><!-- /rb__settings -->
+                        </div><!-- /rb__row-body -->
+                    </div><!-- /rb__row -->
                     </template>
 
                     <!-- Add Condition Button -->
-                    <button type="button" 
-                            @click="isAddingCondition = !isAddingCondition" 
-                            class="odcm-add-component-button odcm-add-condition-button">
-                        <span class="odcm-button-icon">+</span>
-                            <?php esc_html_e('admin.rule_builder.add_condition_button', 'order-daemon'); ?>
+                    <button type="button"
+                            @click="isAddingCondition = !isAddingCondition"
+                            class="rb__add"
+                            x-show="!isAddingCondition">
+                        <span class="plus">+</span>
+                        <?php esc_html_e('admin.rule_builder.add_condition_button', 'order-daemon'); ?>
                     </button>
 
-                    <!-- Condition Inline Selector -->
-                    <div x-show="isAddingCondition" class="odcm-inline-selector" :class="{ 'odcm-expanded': isAddingCondition }">
-                        <div class="odcm-selector-header">
-                            <input type="text" 
-                                   x-model="conditionSearchTerm" 
-                                   placeholder="<?php esc_attr_e('admin.rule_builder.condition_search_placeholder', 'order-daemon'); ?>"
-                                   class="odcm-search-input">
-                            <button type="button" 
-                                    @click="isAddingCondition = false" 
-                                    class="odcm-close-selector">×</button>
+                    <!-- Condition Picker -->
+                    <div x-show="isAddingCondition" class="rb__picker">
+                        <div class="rb__picker-head">
+                            <div style="flex: 1;">
+                                <h4><?php esc_html_e('admin.rule_builder.selector.condition_title', 'order-daemon'); ?></h4>
+                            </div>
+                            <button type="button" class="odcm-btn odcm-btn--ghost odcm-btn--sm" @click="isAddingCondition = false">Cancel</button>
                         </div>
-                        <div class="odcm-selector-list">
+                        <div class="rb__picker-search">
+                            <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/></svg></span>
+                            <input type="text"
+                                   x-model="conditionSearchTerm"
+                                   placeholder="<?php esc_attr_e('admin.rule_builder.condition_search_placeholder', 'order-daemon'); ?>"
+                                   class="odcm-input">
+                        </div>
+                        <div class="rb__picker-list">
                             <template x-for="condition in filteredConditions" :key="condition.id">
-                                <button type="button" 
-                                        @click="selectComponent('condition', condition.id)" 
-                                        class="odcm-selector-option">
-                                    <div class="odcm-option-content">
-                                        <div class="odcm-option-title" x-text="condition.label"></div>
-                                        <div class="odcm-option-description" x-text="condition.description"></div>
+                                <button type="button"
+                                        @click="selectComponent('condition', condition.id)"
+                                        class="rb__picker-item">
+                                    <span class="rb__picker-item-icon" x-html="condition.icon"></span>
+                                    <div class="rb__picker-item-main">
+                                        <div class="rb__picker-item-head">
+                                            <span class="rb__picker-item-label" x-text="condition.label"></span>
+                                        </div>
+                                        <span class="rb__picker-item-desc" x-text="condition.description"></span>
                                     </div>
+                                    <span class="rb__picker-item-chev">→</span>
                                 </button>
                             </template>
                         </div>
@@ -1456,55 +1529,46 @@ final class RuleBuilder
                 </div>
 
                 <!-- THEN Section (Actions) -->
-                <div class="odcm-rule-section">
-                    <h3 class="odcm-section-title">
-                        <?php esc_html_e('admin.rule_builder.section.then', 'order-daemon'); ?>
-                        <span class="odcm-section-subtitle"><?php esc_html_e('admin.rule_builder.actions_section_label', 'order-daemon'); ?></span>
-                    </h3>
+                <div class="rb__section">
+                    <div class="rb__section-head">
+                        <span class="odcm-kw"><?php esc_html_e('admin.rule_builder.section.then', 'order-daemon'); ?></span>
+                        <span class="rb__section-sub"><?php esc_html_e('admin.rule_builder.actions_section_label', 'order-daemon'); ?></span>
+                    </div>
 
-                    <!-- Primary Action Section -->
-                    <div class="odcm-primary-action-section">
-                        <h4 class="odcm-subsection-title"><?php esc_html_e('admin.rule_builder.primary_action_label', 'order-daemon'); ?></h4>
-                        
-                        <div x-show="!rule.primaryAction" class="odcm-empty-state">
-                            <button type="button" 
-                                    @click="isAddingPrimaryAction = !isAddingPrimaryAction" 
-                                    class="odcm-add-component-button odcm-add-primary-action-button">
-                                <span class="odcm-button-icon">+</span>
-                                <?php esc_html_e('admin.rule_builder.action.add_primary_action_description', 'order-daemon'); ?>
-                            </button>
-                        </div>
+                    <!-- Primary Action Row (with nested settings) -->
+                    <div x-show="!rule.primaryAction">
+                        <button type="button"
+                                @click="isAddingPrimaryAction = !isAddingPrimaryAction"
+                                class="rb__add">
+                            <span class="plus">+</span>
+                            <?php esc_html_e('admin.rule_builder.action.add_primary_action_description', 'order-daemon'); ?>
+                        </button>
+                    </div>
 
-                        <!-- Primary Action Row -->
-                        <div x-show="rule.primaryAction" class="odcm-rule-row odcm-primary-action"
-                             :class="{ 'odcm-expanded': editingPrimaryAction, 'odcm-no-settings': !componentHasSettings('primaryAction', 0), 'odcm-component-inaccessible': !getComponentDefinition('primaryAction', rule.primaryAction?.id)?.accessible }"
-                             @click="!getComponentDefinition('primaryAction', rule.primaryAction?.id)?.accessible ? null : (componentHasSettings('primaryAction', 0) && handleRowClick('primaryAction', 0, $event))">
-                            <div class="odcm-component-summary" x-html="getComponentSummary(rule.primaryAction, 'primaryAction', 0)"></div>
-                            <div class="odcm-component-actions">
-                                    <div class="odcm-component-badge odcm-badge-primary">
-                                        <?php esc_html_e('admin.rule_builder.primary_badge', 'order-daemon'); ?>
-                                    </div>
-                                    <button type="button" 
-                                            @click="removePrimaryAction()" 
-                                            class="odcm-remove-button"
-                                            x-show="components.primaryActions && components.primaryActions.length > 1">
-                                        <?php esc_html_e('admin.rule_builder.remove_button', 'order-daemon'); ?>
-                                    </button>
+                    <div x-show="rule.primaryAction" class="rb__row" :data-expanded="editingPrimaryAction ? 'true' : 'false'">
+                        <div class="rb__row-head" @click="!getComponentDefinition('primaryAction', rule.primaryAction?.id)?.accessible ? null : (componentHasSettings('primaryAction', 0) && handleRowClick('primaryAction', 0, $event))">
+                            <div class="rb__row-summary" x-html="getComponentSummary(rule.primaryAction, 'primaryAction', 0)"></div>
+                            <div class="rb__row-actions">
+                                <span class="odcm-pill rb__pill-primary"><?php esc_html_e('admin.rule_builder.primary_badge', 'order-daemon'); ?></span>
+                                <button type="button"
+                                        @click.stop="removePrimaryAction()"
+                                        class="rb__icon-btn rb__icon-btn--danger"
+                                        x-show="components.primaryActions && components.primaryActions.length > 1"
+                                        title="<?php esc_attr_e('admin.rule_builder.remove_button', 'order-daemon'); ?>">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                                </button>
                             </div>
                         </div>
-
-                        <!-- Primary Action Settings Panel -->
-                        <div x-show="rule.primaryAction && editingPrimaryAction" 
-                             class="odcm-settings-panel"
-                             :class="{ 'odcm-expanded': editingPrimaryAction }">
-                            <div x-data="settingsPanel('primaryAction', null)" x-init="initSettings(getPrimaryActionComponent(rule.primaryAction?.id)?.schema, rule.primaryAction?.settings || {})">
+                        <div class="rb__row-body">
+                            <div class="rb__settings">
+                            <div x-data="settingsPanel('primaryAction', null)" x-effect="initSettings(getPrimaryActionComponent(rule.primaryAction?.id)?.schema, rule.primaryAction?.settings || {})">
                                 <template x-for="(field, fieldKey) in fields" :key="fieldKey">
-                                    <div class="odcm-form-group">
+                                    <div class="rb__field">
                                         <!-- Field Label -->
-                                        <label x-show="field.title" :for="field.id" class="odcm-form-label" x-text="field.title"></label>
+                                        <label x-show="field.title" :for="field.id" class="rb__field-label" x-text="field.title"></label>
                                         
                                         <!-- Field Description -->
-                                        <div x-show="field.description" class="odcm-form-description" x-text="field.description"></div>
+                                        <div x-show="field.description" class="rb__field-help" x-text="field.description"></div>
                                         
                                         <!-- Searchable Checkboxes Widget -->
                                         <template x-if="field.widget === 'searchable_checkboxes'">
@@ -1573,7 +1637,7 @@ final class RuleBuilder
                                             <template x-if="field.widget === 'text'">
                                                 <input type="text"
                                                        :id="field.id"
-                                                       class="odcm-form-input"
+                                                       class="odcm-input"
                                                        :value="field.value"
                                                        :placeholder="field.placeholder || ''"
                                                        @input="updateSetting(field.key, $event.target.value, 'primaryAction', null)">
@@ -1590,75 +1654,78 @@ final class RuleBuilder
                                         </template>
                                     </div>
                                 </template>
-                            </div>
-                        </div>
+                            </div><!-- /settingsPanel x-data -->
+                        </div><!-- /rb__settings -->
+                    </div><!-- /rb__row-body -->
+                    </div><!-- /rb__row (primary action) -->
 
-                        <!-- Primary Action Inline Selector -->
-                        <div x-show="isAddingPrimaryAction" class="odcm-inline-selector" :class="{ 'odcm-expanded': isAddingPrimaryAction }">
-                            <div class="odcm-selector-header">
-                                <input type="text" 
-                                       x-model="primaryActionSearchTerm" 
-                                       placeholder="<?php esc_attr_e('admin.rule_builder.search.primary_actions_placeholder', 'order-daemon'); ?>"
-                                       class="odcm-search-input">
-                                <button type="button" 
-                                        @click="isAddingPrimaryAction = false" 
-                                        class="odcm-close-selector">×</button>
+                    <!-- Primary Action Picker -->
+                    <div x-show="isAddingPrimaryAction" class="rb__picker">
+                        <div class="rb__picker-head">
+                            <div style="flex: 1;">
+                                <h4><?php esc_html_e('admin.rule_builder.selector.primary_action_title', 'order-daemon'); ?></h4>
                             </div>
-                            <div class="odcm-selector-list">
-                                <template x-for="action in filteredPrimaryActions" :key="action.id">
-                                <button type="button" 
-                                        @click="selectComponent('primaryAction', action.id)" 
-                                        class="odcm-selector-option">
-                                    <div class="odcm-option-content">
-                                        <div class="odcm-option-title" x-text="action.label"></div>
-                                        <div class="odcm-option-description" x-text="action.description"></div>
+                            <button type="button" class="odcm-btn odcm-btn--ghost odcm-btn--sm" @click="isAddingPrimaryAction = false">Cancel</button>
+                        </div>
+                        <div class="rb__picker-search">
+                            <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/></svg></span>
+                            <input type="text"
+                                   x-model="primaryActionSearchTerm"
+                                   placeholder="<?php esc_attr_e('admin.rule_builder.search.primary_actions_placeholder', 'order-daemon'); ?>"
+                                   class="odcm-input">
+                        </div>
+                        <div class="rb__picker-list">
+                            <template x-for="action in filteredPrimaryActions" :key="action.id">
+                                <button type="button"
+                                        @click="selectComponent('primaryAction', action.id)"
+                                        class="rb__picker-item">
+                                    <span class="rb__picker-item-icon" x-html="action.icon"></span>
+                                    <div class="rb__picker-item-main">
+                                        <div class="rb__picker-item-head">
+                                            <span class="rb__picker-item-label" x-text="action.label"></span>
+                                        </div>
+                                        <span class="rb__picker-item-desc" x-text="action.description"></span>
                                     </div>
+                                    <span class="rb__picker-item-chev">→</span>
                                 </button>
-                                </template>
-                            </div>
+                            </template>
                         </div>
                     </div>
 
-                    <!-- Secondary Actions Section -->
-                    <div class="odcm-secondary-actions-section">
-                        <h4 class="odcm-subsection-title">
-                            <?php esc_html_e('admin.rule_builder.secondary_actions_label', 'order-daemon'); ?>
-                            <span class="odcm-component-count" x-text="`(${rule.secondaryActions.length})`"></span>
-                        </h4>
-
-                        <div x-show="rule.secondaryActions.length === 0" class="odcm-empty-state">
-                        </div>
-
-                        <!-- Secondary Actions List -->
-                        <template x-for="(action, index) in rule.secondaryActions" :key="index">
-                            <div class="odcm-action-wrapper">
-                                <!-- Action Row -->
-                                <div class="odcm-rule-row" 
-                                     :class="{ 'odcm-expanded': editingActionIndex === index, 'odcm-no-settings': !componentHasSettings('action', index), 'odcm-component-inaccessible': !getComponentDefinition('action', action.id)?.accessible }" 
-                                     @click="!getComponentDefinition('action', action.id)?.accessible ? null : (componentHasSettings('action', index) && handleRowClick('action', index, $event))">
-                                    <div class="odcm-drag-handle" aria-hidden="true">⋮⋮</div>
-                                    <div class="odcm-component-summary" x-html="getComponentSummary(action, 'action', index)"></div>
-                                    <div class="odcm-component-actions">
-                                        <button type="button" 
-                                                @click="removeAction(index)" 
-                                                class="odcm-remove-button">
-                                            <?php esc_html_e('admin.rule_builder.remove_button', 'order-daemon'); ?>
-                                        </button>
+                    <!-- Secondary Actions List -->
+                    <template x-for="(action, index) in rule.secondaryActions" :key="index">
+                        <!-- Secondary Action Row (with nested settings) -->
+                        <div class="rb__row"
+                             :data-expanded="editingActionIndex === index ? 'true' : 'false'"
+                             :data-drag-over="draggedAction !== null && dragOverIndex === index ? 'true' : 'false'"
+                             draggable="true"
+                             @dragstart="startDragAction(index, $event)"
+                             @dragover="dragOverAction(index, $event)"
+                             @drop="dropAction(index, $event)"
+                             @dragend="endDrag()">
+                            <div class="rb__row-head" @click="!getComponentDefinition('action', action.id)?.accessible ? null : (componentHasSettings('action', index) && handleRowClick('action', index, $event))">
+                                <span class="drag" aria-hidden="true">⋮⋮</span>
+                                <div class="rb__row-summary" x-html="getComponentSummary(action, 'action', index)"></div>
+                                <div class="rb__row-actions">
+                                    <button type="button"
+                                            @click.stop="removeAction(index)"
+                                            class="rb__icon-btn rb__icon-btn--danger"
+                                            title="<?php esc_attr_e('admin.rule_builder.remove_button', 'order-daemon'); ?>">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                                    </button>
                                     </div>
                                 </div>
 
-                                <!-- Action Settings Panel -->
-                                <div x-show="editingActionIndex === index" 
-                                     class="odcm-settings-panel"
-                                     :class="{ 'odcm-expanded': editingActionIndex === index }">
+                                <div class="rb__row-body">
+                                <div class="rb__settings">
                                     <div x-data="settingsPanel('action', index)" x-init="initSettings(getActionComponent(action.id)?.schema, action.settings || {})">
                                         <template x-for="(field, fieldKey) in fields" :key="fieldKey">
-                                            <div class="odcm-form-group">
+                                            <div class="rb__field">
                                                 <!-- Field Label -->
-                                                <label x-show="field.title" :for="field.id" class="odcm-form-label" x-text="field.title"></label>
+                                                <label x-show="field.title" :for="field.id" class="rb__field-label" x-text="field.title"></label>
                                                 
                                                 <!-- Field Description -->
-                                                <div x-show="field.description" class="odcm-form-description" x-text="field.description"></div>
+                                                <div x-show="field.description" class="rb__field-help" x-text="field.description"></div>
                                                 
                                                 <!-- Searchable Checkboxes Widget -->
                                                 <template x-if="field.widget === 'searchable_checkboxes'">
@@ -1749,10 +1816,10 @@ final class RuleBuilder
 
                                                 <!-- Button-style radio group -->
                                                 <template x-if="field.widget === 'button_radio_group'">
-                                                    <div class="odcm-button-radio-group" role="radiogroup" :aria-labelledby="field.id + '_label'">
+                                                    <div class="odcm-segmented" role="radiogroup" :aria-labelledby="field.id + '_label'">
                                                         <template x-for="(label, val) in field.enumOptions" :key="val">
                                                             <button type="button"
-                                                                    class="odcm-radio-button"
+                                                                    class="odcm-segmented__item"
                                                                     :class="{ 'is-active': (rule.secondaryActions[index]?.settings[field.key] ?? field.value) === val }"
                                                                     :aria-pressed="String((rule.secondaryActions[index]?.settings[field.key] ?? field.value) === val)"
                                                                     @click="updateSetting(field.key, val, 'action', index)"
@@ -1767,7 +1834,7 @@ final class RuleBuilder
                                                 <template x-if="field.widget === 'text'">
                                                     <input type="text"
                                                            :id="field.id"
-                                                           class="odcm-form-input"
+                                                           class="odcm-input"
                                                            :value="field.value"
                                                            :placeholder="field.placeholder || ''"
                                                            @input="updateSetting(field.key, $event.target.value, 'action', index)">
@@ -1775,7 +1842,7 @@ final class RuleBuilder
 
                                                 <template x-if="field.widget === 'textarea'">
                                                     <textarea :id="field.id"
-                                                           class="odcm-form-textarea"
+                                                           class="odcm-input"
                                                            rows="4"
                                                            :placeholder="field.placeholder || ''"
                                                            :value="field.value"
@@ -1796,46 +1863,56 @@ final class RuleBuilder
                                             </div>
                                         </template>
                                     </div>
-                                </div>
-                            </div>
-                        </template>
+                                </div><!-- /rb__settings -->
+                            </div><!-- /rb__row-body -->
+                        </div><!-- /rb__row (secondary action) -->
+                    </template>
 
-                        <!-- Add Secondary Action Button -->
-                        <button type="button" 
-                                @click="isAddingAction = !isAddingAction" 
-                                class="odcm-add-component-button odcm-add-secondary-action-button">
-                            <span class="odcm-button-icon">+</span>
-                                <?php esc_html_e('admin.rule_builder.add_secondary_action_button', 'order-daemon'); ?>
-                        </button>
+                    <!-- Add Secondary Action Button -->
+                    <button type="button"
+                            @click="isAddingAction = !isAddingAction"
+                            class="rb__add"
+                            x-show="!isAddingAction">
+                        <span class="plus">+</span>
+                        <?php esc_html_e('admin.rule_builder.add_secondary_action_button', 'order-daemon'); ?>
+                    </button>
 
-                        <!-- Secondary Action Inline Selector -->
-                        <div x-show="isAddingAction" class="odcm-inline-selector" :class="{ 'odcm-expanded': isAddingAction }">
-                            <div class="odcm-selector-header">
-                                <input type="text" 
-                                       x-model="actionSearchTerm" 
-                                       placeholder="<?php esc_attr_e('admin.rule_builder.search.secondary_actions_placeholder', 'order-daemon'); ?>"
-                                       class="odcm-search-input">
-                                <button type="button" 
-                                        @click="isAddingAction = false" 
-                                        class="odcm-close-selector">×</button>
+                    <!-- Secondary Action Picker -->
+                    <div x-show="isAddingAction" class="rb__picker">
+                        <div class="rb__picker-head">
+                            <div style="flex: 1;">
+                                <h4><?php esc_html_e('admin.rule_builder.selector.secondary_action_title', 'order-daemon'); ?></h4>
                             </div>
-                            <div class="odcm-selector-list">
-                                <template x-for="action in filteredSecondaryActions" :key="action.id">
-                                    <button type="button" 
-                                            @click="selectComponent('action', action.id)" 
-                                            class="odcm-selector-option">
-                                        <div class="odcm-option-content">
-                                            <div class="odcm-option-title" x-text="action.label"></div>
-                                            <div class="odcm-option-description" x-text="action.description"></div>
+                            <button type="button" class="odcm-btn odcm-btn--ghost odcm-btn--sm" @click="isAddingAction = false">Cancel</button>
+                        </div>
+                        <div class="rb__picker-search">
+                            <span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/></svg></span>
+                            <input type="text"
+                                   x-model="actionSearchTerm"
+                                   placeholder="<?php esc_attr_e('admin.rule_builder.search.secondary_actions_placeholder', 'order-daemon'); ?>"
+                                   class="odcm-input">
+                        </div>
+                        <div class="rb__picker-list">
+                            <template x-for="action in filteredSecondaryActions" :key="action.id">
+                                <button type="button"
+                                        @click="selectComponent('action', action.id)"
+                                        class="rb__picker-item">
+                                    <span class="rb__picker-item-icon" x-html="action.icon"></span>
+                                    <div class="rb__picker-item-main">
+                                        <div class="rb__picker-item-head">
+                                            <span class="rb__picker-item-label" x-text="action.label"></span>
                                         </div>
-                                    </button>
-                                </template>
-                            </div>
+                                        <span class="rb__picker-item-desc" x-text="action.description"></span>
+                                    </div>
+                                    <span class="rb__picker-item-chev">→</span>
+                                </button>
+                            </template>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
+                </div><!-- /rb__section (THEN) -->
+                </div><!-- /rb__body -->
+            </div><!-- /app div -->
+        </div><!-- /odcm-rule-builder-wrapper -->
 
         <?php
     }

@@ -58,6 +58,9 @@ class DashboardComponentUIToolkit
             'x-on:click', 'x-on:change', 'x-on:input', 'x-on:submit',
             // Add missing x-bind attributes used in dashboard
             'x-bind:disabled', 'x-bind:title', 'x-bind:key', 'x-bind:min', 'x-bind:max', 'x-bind:checked', 'x-bind:value', 'x-bind:style',
+            'x-bind:aria-expanded', 'x-bind:aria-label', 'x-bind:aria-selected', 'x-bind:aria-controls',
+            'x-on:click.away', 'x-on:keydown.escape', 'x-on:keydown.enter',
+            'x-on:submit.prevent', 'x-on:keydown.enter.prevent',
 
         ];
 
@@ -74,6 +77,7 @@ class DashboardComponentUIToolkit
                     'type' => [],
                     'class' => [],
                     'id' => [],
+                    'title' => [],
                     'data-filter' => [],
                     'data-target' => [],
                 ],
@@ -101,7 +105,19 @@ class DashboardComponentUIToolkit
             'pre' => array_fill_keys($allowed, []),
             'br' => array_fill_keys($allowed, []),
             'hr' => array_fill_keys($allowed, []),
-            'template' => array_fill_keys($allowed, [])
+            'template' => array_fill_keys($allowed, []),
+            'svg' => [
+                'width' => [], 'height' => [], 'viewbox' => [], 'fill' => [], 'stroke' => [],
+                'stroke-width' => [], 'stroke-linecap' => [], 'stroke-linejoin' => [],
+                'aria-hidden' => [], 'class' => [], 'style' => [], 'xmlns' => [],
+            ],
+            'path' => ['d' => [], 'fill' => [], 'stroke' => [], 'stroke-width' => [], 'stroke-linecap' => [], 'stroke-linejoin' => []],
+            'circle' => ['cx' => [], 'cy' => [], 'r' => [], 'fill' => [], 'stroke' => [], 'stroke-width' => []],
+            'rect' => ['x' => [], 'y' => [], 'width' => [], 'height' => [], 'rx' => [], 'ry' => [], 'fill' => [], 'stroke' => []],
+            'line' => ['x1' => [], 'y1' => [], 'x2' => [], 'y2' => [], 'stroke' => [], 'stroke-width' => []],
+            'polyline' => ['points' => [], 'fill' => [], 'stroke' => [], 'stroke-width' => []],
+            'polygon' => ['points' => [], 'fill' => [], 'stroke' => [], 'stroke-width' => []],
+            'g' => ['fill' => [], 'stroke' => [], 'transform' => [], 'class' => []],
         ];
         
         return wp_kses($content, $allowed_html);

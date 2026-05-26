@@ -10,6 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 use OrderDaemon\CompletionManager\Admin\Admin;
 use OrderDaemon\CompletionManager\Admin\DiagnosticDashboard;
 use OrderDaemon\CompletionManager\Admin\InsightDashboard;
+use OrderDaemon\CompletionManager\Admin\SettingsPage;
 use OrderDaemon\CompletionManager\API\AuditLogEndpoint;
 use OrderDaemon\CompletionManager\API\RuleBuilderApiController;
 use OrderDaemon\CompletionManager\API\WebhookController;
@@ -257,6 +258,9 @@ final class Plugin {
 			// Initialize Diagnostic Dashboard
 			$diagnostic_dashboard = new DiagnosticDashboard();
 			$diagnostic_dashboard->init();
+
+			// Initialize Settings page
+			(new SettingsPage())->init();
 
 			// Detect site URL changes and surface an admin notice
 			SiteUrlMonitor::register();

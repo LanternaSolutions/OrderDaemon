@@ -81,6 +81,7 @@ function ruleBuilder() {
         
         // Drag & Drop State
         draggedCondition: null,
+        draggedAction: null,
         dragOverIndex: null,
 
         // Computed Properties for Filtered Components
@@ -1169,15 +1170,12 @@ function ruleBuilder() {
 
         dropCondition(index, event) {
             event.preventDefault();
-            
+
             if (this.draggedCondition !== null && this.draggedCondition !== index) {
-                // Reorder conditions
                 const draggedItem = this.rule.conditions[this.draggedCondition];
                 this.rule.conditions.splice(this.draggedCondition, 1);
-                
-                // Adjust index if dragging from before the drop position
-                const newIndex = this.draggedCondition < index ? index - 1 : index;
-                this.rule.conditions.splice(newIndex, 0, draggedItem);
+                this.rule.conditions.splice(index, 0, draggedItem);
+                this.editingConditionIndex = null;
                 
                 // Rebuild summaries after reordering to realign keys
                 this.rebuildAllSummaries();
@@ -1189,10 +1187,38 @@ function ruleBuilder() {
 
         endDrag() {
             this.draggedCondition = null;
+            this.draggedAction = null;
             this.dragOverIndex = null;
             document.querySelectorAll('.odcm-dragging').forEach(el => {
                 el.classList.remove('odcm-dragging');
             });
+        },
+
+        // Drag & Drop for Secondary Actions
+        startDragAction(index, event) {
+            this.draggedAction = index;
+            event.dataTransfer.effectAllowed = 'move';
+            event.target.classList.add('odcm-dragging');
+        },
+
+        dragOverAction(index, event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            this.dragOverIndex = index;
+        },
+
+        dropAction(index, event) {
+            event.preventDefault();
+
+            if (this.draggedAction !== null && this.draggedAction !== index) {
+                const draggedItem = this.rule.secondaryActions[this.draggedAction];
+                this.rule.secondaryActions.splice(this.draggedAction, 1);
+                this.rule.secondaryActions.splice(index, 0, draggedItem);
+                this.editingActionIndex = null;
+                this.autoSave();
+            }
+
+            this.endDrag();
         },
 
         // Back-compat: No-op method retained to avoid runtime errors from legacy call sites.

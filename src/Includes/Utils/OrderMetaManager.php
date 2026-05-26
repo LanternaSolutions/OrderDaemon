@@ -380,6 +380,8 @@ class OrderMetaManager
      */
     public static function find_order_by_meta(string $meta_key, string $meta_value, array $additional_args = []): ?int
     {
+        global $wpdb;
+
         if (empty($meta_key) || empty($meta_value)) {
             return null;
         }
@@ -387,30 +389,16 @@ class OrderMetaManager
         if (!function_exists('wc_get_orders')) {
             return null;
         }
-        
-        // Use DatabaseHelper for optimized caching
-        $cache_key = DatabaseHelper::get_var(
-            "SELECT cache_key FROM {$wpdb->prefix}options 
-             WHERE option_name = %s AND option_value = %s 
-             LIMIT 1",
-            ['odcm_meta_cache_key', $meta_key . '|' . $meta_value]
-        );
 
-        if ($cache_key) {
-            $cached_result = wp_cache_get($cache_key, 'odcm_meta_cache');
-            if ($cached_result !== false) {
-                return $cached_result;
-            }
+        $cache_key = 'odcm_meta_' . md5($meta_key . '|' . $meta_value);
+
+        $cached_result = wp_cache_get($cache_key, 'odcm_meta_cache');
+        if ($cached_result !== false) {
+            return $cached_result;
         }
 
-        // Check persistent cache for expensive searches using DatabaseHelper
         $should_persist = !isset($additional_args['no_cache']) && strlen($meta_value) > 5;
-        $persist_key = 'odcm_meta_search_' . DatabaseHelper::get_var(
-            "SELECT cache_key FROM {$wpdb->prefix}options 
-             WHERE option_name = %s AND option_value = %s 
-             LIMIT 1",
-            ['odcm_meta_cache_key', $meta_key . '|' . $meta_value]
-        );
+        $persist_key    = 'odcm_meta_search_' . $cache_key;
 
         if ($should_persist && $persist_key) {
             $cached_result = wp_cache_get($persist_key, 'odcm_meta_cache');
@@ -491,29 +479,15 @@ class OrderMetaManager
             return [];
         }
         
-        // Use DatabaseHelper for optimized caching
-        $cache_key = DatabaseHelper::get_var(
-            "SELECT cache_key FROM {$wpdb->prefix}options 
-             WHERE option_name = %s AND option_value = %s 
-             LIMIT 1",
-            ['odcm_meta_cache_key', $meta_key . '|' . $meta_value . '|' . $limit]
-        );
+        $cache_key = 'odcm_multi_meta_' . md5($meta_key . '|' . $meta_value . '|' . $limit);
 
-        if ($cache_key) {
-            $cached_result = wp_cache_get($cache_key, 'odcm_meta_cache');
-            if ($cached_result !== false) {
-                return $cached_result;
-            }
+        $cached_result = wp_cache_get($cache_key, 'odcm_meta_cache');
+        if ($cached_result !== false) {
+            return $cached_result;
         }
 
-        // Check persistent cache for expensive searches
         $should_persist = !isset($additional_args['no_cache']) && strlen($meta_value) > 5 && $limit > 1;
-        $persist_key = 'odcm_multi_meta_search_' . DatabaseHelper::get_var(
-            "SELECT cache_key FROM {$wpdb->prefix}options 
-             WHERE option_name = %s AND option_value = %s 
-             LIMIT 1",
-            ['odcm_meta_cache_key', $meta_key . '|' . $meta_value . '|' . $limit]
-        );
+        $persist_key    = 'odcm_multi_meta_search_' . $cache_key;
 
         if ($should_persist && $persist_key) {
             $cached_result = wp_cache_get($persist_key, 'odcm_meta_cache');
@@ -636,28 +610,14 @@ class OrderMetaManager
             return null;
         }
         
-        // Use DatabaseHelper for optimized caching
-        $cache_key = DatabaseHelper::get_var(
-            "SELECT cache_key FROM {$wpdb->prefix}options 
-             WHERE option_name = %s AND option_value = %s 
-             LIMIT 1",
-            ['odcm_subscription_cache_key', $gateway_subscription_id]
-        );
+        $cache_key = 'odcm_sub_' . md5($gateway_subscription_id);
 
-        if ($cache_key) {
-            $cached_result = wp_cache_get($cache_key, 'odcm_subscription_cache');
-            if ($cached_result !== false) {
-                return $cached_result;
-            }
+        $cached_result = wp_cache_get($cache_key, 'odcm_subscription_cache');
+        if ($cached_result !== false) {
+            return $cached_result;
         }
 
-        // Check persistent cache
-        $persist_key = 'odcm_subscription_' . DatabaseHelper::get_var(
-            "SELECT cache_key FROM {$wpdb->prefix}options 
-             WHERE option_name = %s AND option_value = %s 
-             LIMIT 1",
-            ['odcm_subscription_cache_key', $gateway_subscription_id]
-        );
+        $persist_key = 'odcm_subscription_' . $cache_key;
 
         if ($persist_key) {
             $cached_result = wp_cache_get($persist_key, 'odcm_subscription_cache');
