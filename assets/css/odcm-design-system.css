@@ -810,6 +810,27 @@ body.wp-admin:has(.odcm-scope),
   box-sizing: border-box;
 }
 
+/* Page header wrapper and metabox wrappers must not force full viewport height */
+#poststuff .odcm-scope,
+.odcm-scope:has(> .odcm-unified-header) {
+  min-height: 0;
+}
+
+/* Rule builder page: content is split across the all_admin_notices header and
+   #poststuff metabox — no single .odcm-scope spans both. Move the page-frame
+   border+height to their shared WP ancestor instead. */
+.post-type-odcm_order_rule #wpbody-content {
+  border: 1px solid var(--odcm-border);
+  min-height: calc(100vh - var(--wp-admin--admin-bar--height, 32px));
+  box-sizing: border-box;
+}
+
+/* Suppress the redundant border on the page-header scope wrapper since
+   #wpbody-content now provides the outer frame on this page. */
+.post-type-odcm_order_rule .odcm-scope:has(> .odcm-unified-header) {
+  border: none;
+}
+
 /* Inputs & selects --------------------------------------------------------- */
 .odcm-scope .odcm-input,
 .odcm-scope .odcm-select {
