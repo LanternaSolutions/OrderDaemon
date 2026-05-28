@@ -3,7 +3,7 @@ Contributors: orderdaemon
 Tags: woocommerce, orders, automation, order-management, event-log
 Requires at least: 5.6
 Tested up to: 7.0
-Stable tag: 1.3.29
+Stable tag: 1.3.30
 Requires PHP: 7.4
 WC requires at least: 5.0
 WC tested up to: 8.5
