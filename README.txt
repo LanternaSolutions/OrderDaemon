@@ -157,6 +157,9 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 
 == Changelog ==
 
+= 1.3.30 =
+* Dev: Automated WP/WC compatibility matrix testing integrated into the release pipeline
+
 = 1.3.29 =
 * Added: Dedicated Settings page — configure log retention, auto-refresh interval, display theme, and per-page log count from one place
 * Added: Custom Rules List page — search, status filter, bulk activate/deactivate/trash, and per-rule execution stats replace the native WordPress list table

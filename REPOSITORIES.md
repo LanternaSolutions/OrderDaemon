@@ -155,8 +155,8 @@ The pipeline lives at [.github/workflows/release.yml](.github/workflows/release.
 | Trigger | Jobs that run |
 |---|---|
 | Push to `main` | `mirror_gitlab` (backup to GitLab.com) |
-| Push a version tag (`v1.2.3`) | `package` → `deploy_svn` → `mirror_gitlab` |
-| Manual dispatch (Actions UI) | `push_github_public` (publish to public GitHub) |
+| Push a version tag (`v1.2.3`) | `package` + `compat_check` (parallel) → `repackage` → `deploy_svn` + `update_website` + `publish_public` |
+| Manual dispatch (Actions UI) | `publish_public` (publish to public GitHub) |
 
 ### Job descriptions
 
@@ -165,26 +165,34 @@ The pipeline lives at [.github/workflows/release.yml](.github/workflows/release.
 - Runs `composer install --no-dev` for production-only dependencies
 - Uses `rsync` to copy only plugin files into a staging directory (filtered list)
 - Zips the staging directory into `order-daemon-v1.2.3.zip`
-- Uploads the zip as a workflow artifact (kept 90 days)
+- Uploads the zip as a `plugin-zip` artifact (kept 90 days)
 - Creates a GitHub release with the zip attached
 
-**`deploy_svn`** — Deploys to WordPress.org:
-- Does a sparse SVN checkout of `plugins.svn.wordpress.org/order-daemon` (trunk and assets only)
-- Syncs plugin files into `trunk/` using the same filter as the zip
-- Syncs WP.org directory assets (banners, icons, screenshots) into `svn/assets/`
-- Stages new and deleted files
-- Copies `trunk/` to `tags/1.2.3/`
-- Commits everything in one SVN transaction
+**`compat_check`** — Runs the WP × WC compatibility matrix (runs in parallel with `package`):
+- SSHes to `lanterna-prod-1` using `LANTERNA_PROD_SSH_KEY`, SCPs the zip, runs `odcm-matrix-runner --plugin free --wp-min 5.6 --wc-min 5.0`
+- Tests three WP/WC combinations: floor (min×min), mid (prev-major×prev-major), ceiling (latest×latest)
+- Outputs: `wp_requires`, `wp_tested`, `wc_requires`, `wc_tested`; writes matrix table to job summary
+- **Blocks the release** if any combination fails
+
+**`repackage`** — Patches version headers and uploads the verified artifact (needs `package` + `compat_check`):
+- Patches `Tested up to` and `WC tested up to` inside the zip with verified values (zip surgery — no rebuild)
+- Uploads `plugin-zip-verified` artifact used by all downstream jobs; updates the GitHub release asset
+- Writes the updated headers back to `main` via `OD_PRIVATE_REPOS_PAT` (`[skip ci]` commit)
+
+**`deploy_svn`** — Deploys to WordPress.org (needs `repackage`):
+- Uses `plugin-zip-verified`; patches SVN files with the same verified headers before commit
+- Sparse SVN checkout of trunk and assets, syncs, copies to `tags/1.2.3/`, commits
+
+**`update_website`** — Notifies orderdaemon.com (needs `repackage`):
+- POSTs `plugin-zip-verified` to the webhook with `wp_requires`, `wp_tested`, `wc_requires`, `wc_tested`, `php_requires`
+- Updates `odcm_free_version`, `odcm_free_download_url`, and compat range options on the site
+
+**`publish_public`** — Publishes to the public GitHub (needs `repackage`; manual dispatch: no deps):
+- Uses `git filter-repo` to strip private paths from history; force-pushes to `github.com/LanternaSolutions/OrderDaemon`
 
 **`mirror_gitlab`** — Backs up to GitLab.com:
 - Pushes all branches and tags to `gitlab.com/YakirLanterna/order-daemon`
 - Runs on every push to `main` and on every version tag push
-
-**`push_github_public`** — Publishes to the public GitHub (manual only):
-- Requires typing `publish` in the confirmation prompt in the Actions UI
-- Uses `git filter-repo` to strip `notes/`, `*.bak`, `*.code-workspace` from the full git history
-- Force-pushes the filtered history to `github.com/LanternaSolutions/OrderDaemon`
-- Pushes all version tags
 
 > **Note:** The public GitHub repo has different commit SHAs from the private repo because `filter-repo` rewrites history. This is expected and intentional.
 
@@ -225,6 +233,8 @@ These must be set in:
 | `GITLAB_DEPLOY_KEY` | SSH private key with write access to `gitlab.com/YakirLanterna/order-daemon` |
 | `WEBSITE_WEBHOOK_URL` | `https://orderdaemon.com/` |
 | `WEBSITE_WEBHOOK_TOKEN` | Shared secret — must match `ODCM_WEBHOOK_TOKEN` constant in `wp-config.php` |
+| `LANTERNA_PROD_SSH_KEY` | SSH private key for `root@lanterna-prod-1` — used by `compat_check` to run the matrix runner |
+| `OD_PRIVATE_REPOS_PAT` | GitHub PAT with `contents: write` on this repo — used by `repackage` to write back verified headers to `main` |
 
 > **Important:** GitHub does not allow secret names that start with `GITHUB_`. Use `PUBLIC_DEPLOY_KEY`, not `GITHUB_PUBLIC_DEPLOY_KEY`.
 
@@ -636,6 +646,11 @@ Then visit `orderdaemon.com/get/` and confirm the download starts automatically.
 | `version` | POST form field | e.g. `1.3.25` |
 | `zip` | POST file upload | the plugin zip file |
 | `badge_text` | POST form field | *(optional)* homepage hero badge text override |
+| `wp_requires` | POST form field | Minimum WP version (from compat matrix) |
+| `wp_tested` | POST form field | Maximum tested WP version (from compat matrix) |
+| `wc_requires` | POST form field | Minimum WC version (from compat matrix) |
+| `wc_tested` | POST form field | Maximum tested WC version (from compat matrix) |
+| `php_requires` | POST form field | Minimum PHP version (from `Requires PHP:` in README.txt) |
 
 ### Homepage hero badge
 
