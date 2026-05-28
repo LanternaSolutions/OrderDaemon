@@ -3,7 +3,7 @@ Contributors: orderdaemon
 Tags: woocommerce, orders, automation, order-management, event-log
 Requires at least: 5.6
 Tested up to: 7.0
-Stable tag: 1.3.30
+Stable tag: 1.3.31
 Requires PHP: 7.4
 WC requires at least: 5.0
 WC tested up to: 8.5
@@ -156,6 +156,9 @@ Note: References to Google Tag Manager, Google Analytics, and reCAPTCHA in the d
 Order Daemon does not collect, store, or transmit any personal data outside your WordPress installation. All automation activity is logged locally on your server. The plugin respects WordPress privacy standards and GDPR requirements.
 
 == Changelog ==
+
+= 1.3.31 =
+* Added: Add Order Note action is now available in the free plugin
 
 = 1.3.30 =
 * Dev: Automated WP/WC compatibility matrix testing integrated into the release pipeline
