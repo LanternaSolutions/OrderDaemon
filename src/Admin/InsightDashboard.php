@@ -229,14 +229,6 @@ class InsightDashboard
             true
         );
         
-        // Add defer attribute to Alpine.js script
-        add_filter('script_loader_tag', function($tag, $handle) {
-            if ($handle === 'alpine-js') {
-                return str_replace('<script ', '<script defer ', $tag);
-            }
-            return $tag;
-        }, 10, 2);
-
         // Alpine.js fallback system - enhanced detection and user-friendly error handling
         wp_add_inline_script(
             'alpine-js',
