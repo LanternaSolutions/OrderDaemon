@@ -1,5 +1,8 @@
 == Changelog ==
 
+= 1.3.34 =
+* Fixed: Insight Dashboard loading error caused by Alpine.js defer timing race condition
+
 = 1.3.33 =
 * Fixed: HPOS order meta lookups now use `wc_get_orders()` instead of raw SQL with wrong table and column names — all three lookup methods silently returned empty results on every HPOS store
 * Fixed: Removed phantom `find_order_by_meta_hpos_optimized()` call that threw a fatal Error (caught silently) on every transaction ID lookup for HPOS stores

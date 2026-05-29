@@ -157,6 +157,9 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 
 == Changelog ==
 
+= 1.3.34 =
+* Fixed: Insight Dashboard loading error caused by Alpine.js defer timing race condition
+
 = 1.3.33 =
 * Fixed: HPOS order meta lookups now use `wc_get_orders()` instead of raw SQL with wrong table and column names — all three lookup methods silently returned empty results on every HPOS store
 * Fixed: Removed phantom `find_order_by_meta_hpos_optimized()` call that threw a fatal Error (caught silently) on every transaction ID lookup for HPOS stores
@@ -192,6 +195,9 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 * Fixed: Gateway adapter validation no longer blocked by missing log method
 
 == Upgrade Notice ==
+
+= 1.3.34 =
+Fixes Insight Dashboard loading error.
 
 = 1.3.33 =
 HPOS meta lookups fixed; WC 10.7 ready.
