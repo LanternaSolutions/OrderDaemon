@@ -157,7 +157,7 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 
 == Changelog ==
 
-= 1.3.32 =
+= 1.3.33 =
 * Fixed: HPOS order meta lookups now use `wc_get_orders()` instead of raw SQL with wrong table and column names — all three lookup methods silently returned empty results on every HPOS store
 * Fixed: Removed phantom `find_order_by_meta_hpos_optimized()` call that threw a fatal Error (caught silently) on every transaction ID lookup for HPOS stores
 * Fixed: Direct `get_post_meta()` calls on order and refund IDs in event processing and refund diagnostics replaced with WC CRUD API — correct behaviour for full HPOS mode without compatibility mode
@@ -193,7 +193,7 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 
 == Upgrade Notice ==
 
-= 1.3.32 =
+= 1.3.33 =
 HPOS meta lookups fixed; WC 10.7 ready.
 
 = 1.3.29 =
