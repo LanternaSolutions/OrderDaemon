@@ -368,7 +368,7 @@ Also update [changelog.txt](changelog.txt) with the same entry for the full hist
 
 **Write the upgrade notice for the homepage.** It is shown verbatim in the hero badge on orderdaemon.com after deploy. Keep it 3–6 words — benefit-oriented, present-tense (e.g. "HPOS support, 6× faster logs").
 
-**Optional — override the badge text:** If the upgrade notice wording isn't right for the homepage, create a `badge_text` file in the repo root with a single line of override text and commit it alongside the version bump. CI will send it to the website instead of the upgrade notice. Delete the file (or leave it blank) after the release so it doesn't carry over to the next one.
+**Optional — override the badge text:** A `badge_text` file in the repo root overrides the upgrade notice for the homepage badge. If it exists and is non-empty, CI sends its contents to the website instead of the upgrade notice text. Update it before each release that needs a different badge message; leave it as-is when the previous wording still applies.
 
 ### Step 2 — Run the version bump script
 
