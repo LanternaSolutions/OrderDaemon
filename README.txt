@@ -3,7 +3,7 @@ Contributors: orderdaemon
 Tags: woocommerce, orders, automation, order-management, event-log
 Requires at least: 5.6
 Tested up to: 7.0
-Stable tag: 1.3.31
+Stable tag: 1.3.33
 Requires PHP: 7.4
 WC requires at least: 5.0
 WC tested up to: 10.8.1
@@ -157,6 +157,11 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 
 == Changelog ==
 
+= 1.3.32 =
+* Fixed: HPOS order meta lookups now use `wc_get_orders()` instead of raw SQL with wrong table and column names — all three lookup methods silently returned empty results on every HPOS store
+* Fixed: Removed phantom `find_order_by_meta_hpos_optimized()` call that threw a fatal Error (caught silently) on every transaction ID lookup for HPOS stores
+* Fixed: Direct `get_post_meta()` calls on order and refund IDs in event processing and refund diagnostics replaced with WC CRUD API — correct behaviour for full HPOS mode without compatibility mode
+
 = 1.3.31 =
 * Added: Add Order Note action is now available in the free plugin
 
@@ -187,6 +192,9 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 * Fixed: Gateway adapter validation no longer blocked by missing log method
 
 == Upgrade Notice ==
+
+= 1.3.32 =
+HPOS meta lookups fixed; WC 10.7 ready.
 
 = 1.3.29 =
 Full admin UI overhaul: new Settings page, custom Rules List, component icons, and dark mode improvements across all admin pages.

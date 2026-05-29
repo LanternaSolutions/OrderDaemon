@@ -380,8 +380,6 @@ class OrderMetaManager
      */
     public static function find_order_by_meta(string $meta_key, string $meta_value, array $additional_args = []): ?int
     {
-        global $wpdb;
-
         if (empty($meta_key) || empty($meta_value)) {
             return null;
         }
@@ -410,31 +408,16 @@ class OrderMetaManager
         }
 
         try {
-            // For common transaction ID keys, try HPOS direct query first
-            if (self::is_hpos_enabled() && in_array($meta_key, ['_transaction_id', '_stripe_charge_id', '_paypal_transaction_id'])) {
-                $result = self::find_order_by_meta_hpos_optimized($meta_key, $meta_value, $additional_args);
-                if ($result !== null) {
-                    $meta_search_cache[$cache_key] = $result;
-                    if ($should_persist) {
-                        wp_cache_set($persist_key, $result, '', 15 * MINUTE_IN_SECONDS);
-                    }
-                    return $result;
-                }
-            }
-            
-            // Use DatabaseHelper for optimized direct database queries
-            $wpdb = DatabaseHelper::get_wpdb();
-            $table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_orders' : $wpdb->prefix . 'posts';
-            $meta_table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_ordermeta' : $wpdb->prefix . 'postmeta';
+            $ids = wc_get_orders([
+                'meta_key'   => $meta_key,
+                'meta_value' => $meta_value,
+                'limit'      => 1,
+                'return'     => 'ids',
+                'type'       => 'shop_order',
+                'status'     => 'any',
+            ]);
+            $result = !empty($ids) ? (int) $ids[0] : null;
 
-            $query = "SELECT pm.post_id FROM {$meta_table} pm
-                      JOIN {$table} p ON pm.post_id = p.ID
-                      WHERE pm.meta_key = %s AND pm.meta_value = %s
-                      AND p.post_type = 'shop_order'
-                      LIMIT 1";
-
-            $result = DatabaseHelper::get_var($query, [$meta_key, $meta_value]);
-            
             // Cache the result
             $meta_search_cache[$cache_key] = $result;
             
@@ -499,18 +482,15 @@ class OrderMetaManager
         }
 
         try {
-            // Use DatabaseHelper for optimized direct database queries
-            $wpdb = DatabaseHelper::get_wpdb();
-            $table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_orders' : $wpdb->prefix . 'posts';
-            $meta_table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_ordermeta' : $wpdb->prefix . 'postmeta';
-
-            $query = "SELECT pm.post_id FROM {$meta_table} pm
-                      JOIN {$table} p ON pm.post_id = p.ID
-                      WHERE pm.meta_key = %s AND pm.meta_value = %s
-                      AND p.post_type = 'shop_order'
-                      LIMIT %d";
-
-            $result = DatabaseHelper::get_col($query, [$meta_key, $meta_value, $limit]);
+            $ids = wc_get_orders([
+                'meta_key'   => $meta_key,
+                'meta_value' => $meta_value,
+                'limit'      => $limit,
+                'return'     => 'ids',
+                'type'       => 'shop_order',
+                'status'     => 'any',
+            ]);
+            $result = array_map('intval', $ids ?: []);
 
             // Cache the result
             $multi_meta_search_cache[$cache_key] = $result;
@@ -637,24 +617,19 @@ class OrderMetaManager
 
         foreach ($subscription_meta_keys as $meta_key) {
             try {
-                // Use DatabaseHelper for optimized direct database queries
-                $wpdb = DatabaseHelper::get_wpdb();
-                $table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_orders' : $wpdb->prefix . 'posts';
-                $meta_table = self::is_hpos_enabled() ? $wpdb->prefix . 'wc_ordermeta' : $wpdb->prefix . 'postmeta';
+                $ids = wc_get_orders([
+                    'type'       => 'shop_subscription',
+                    'meta_key'   => $meta_key,
+                    'meta_value' => $gateway_subscription_id,
+                    'limit'      => 1,
+                    'return'     => 'ids',
+                    'status'     => 'any',
+                ]);
 
-                $query = "SELECT pm.post_id FROM {$meta_table} pm
-                          JOIN {$table} p ON pm.post_id = p.ID
-                          WHERE pm.meta_key = %s AND pm.meta_value = %s
-                          AND p.post_type = 'shop_subscription'
-                          LIMIT 1";
-
-                $result = DatabaseHelper::get_var($query, [$meta_key, $gateway_subscription_id]);
-
-                if ($result) {
-                    // Cache the successful result
+                if (!empty($ids)) {
+                    $result = (int) $ids[0];
                     $subscription_cache[$cache_key] = $result;
-                    wp_cache_set($persist_key, $result, '', HOUR_IN_SECONDS); // Longer cache for subscriptions which change less frequently
-
+                    wp_cache_set($persist_key, $result, '', HOUR_IN_SECONDS);
                     return $result;
                 }
             } catch (\Throwable $e) {

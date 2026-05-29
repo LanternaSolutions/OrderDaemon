@@ -79,7 +79,7 @@ final class RefundDeletionDiagnostics
 
         // Refund details
         $m0 = microtime(true);
-        $refunded_by_id = (int) get_post_meta($refund_id, '_refund_user_id', true);
+        $refunded_by_id = (int) $refund->get_meta('_refund_user_id', true);
         $timings['db_meta_ms'] += (microtime(true) - $m0) * 1000.0;
         $reason_raw     = $refund->get_reason();
         $context['refund'] = [
@@ -1618,7 +1618,7 @@ final class RefundDeletionDiagnostics
             'occurredAt' => current_time('c'),
             'rawData' => [
                 'refund_reason' => $refund->get_reason(),
-                'refunded_by' => get_post_meta($refund->get_id(), '_refund_user_id', true),
+                'refunded_by' => $refund->get_meta('_refund_user_id', true),
                 'order_status' => $order->get_status(),
                 'source' => $this->determine_change_source()
             ]

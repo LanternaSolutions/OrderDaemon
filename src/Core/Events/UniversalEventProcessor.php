@@ -1951,7 +1951,7 @@ class UniversalEventProcessor
 
         // Try to get previous status from order meta if available
         $previous_status = null;
-        $order_status_changes = get_post_meta($order->get_id(), '_order_status_history', true);
+        $order_status_changes = $order->get_meta('_order_status_history', true);
 
         if (is_array($order_status_changes) && !empty($order_status_changes)) {
             // Get the most recent status change (excluding the current one)
@@ -3431,7 +3431,7 @@ class UniversalEventProcessor
 
             // Try to get previous status from order history if available
             if ($from_status === null) {
-                $order_status_changes = get_post_meta($context->order->get_id(), '_order_status_history', true);
+                $order_status_changes = $context->order->get_meta('_order_status_history', true);
                 if (is_array($order_status_changes) && !empty($order_status_changes)) {
                     $recent_changes = array_filter($order_status_changes, function($change) use ($current_status) {
                         return isset($change['to']) && $change['to'] !== $current_status;

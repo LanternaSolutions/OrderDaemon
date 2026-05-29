@@ -1,5 +1,10 @@
 == Changelog ==
 
+= 1.3.32 =
+* Fixed: HPOS order meta lookups now use `wc_get_orders()` instead of raw SQL with wrong table and column names — all three lookup methods silently returned empty results on every HPOS store
+* Fixed: Removed phantom `find_order_by_meta_hpos_optimized()` call that threw a fatal Error (caught silently) on every transaction ID lookup for HPOS stores
+* Fixed: Direct `get_post_meta()` calls on order and refund IDs in event processing and refund diagnostics replaced with WC CRUD API — correct behaviour for full HPOS mode without compatibility mode
+
 = 1.3.29 =
 * Added: Dedicated Settings page — configure log retention, auto-refresh interval, display theme, and per-page log count from one place
 * Added: Custom Rules List page — search, status filter, bulk activate/deactivate/trash, and per-rule execution stats replace the native WordPress list table
