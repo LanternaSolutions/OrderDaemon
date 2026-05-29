@@ -1801,6 +1801,12 @@ msgstr ""
 msgid "core.log.event.order_deleted_message"
 msgstr ""
 
+#. translators: %d: The order ID number
+#: /home/yakir/lab/order-daemon/src/Core/RefundDeletionDiagnostics.php:1539
+#, php-format
+msgid "core.log.event.order_deleted_simple"
+msgstr ""
+
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:356
 msgid "core.log.event.order_fully_refunded"
 msgstr ""
@@ -1819,6 +1825,12 @@ msgstr ""
 msgid "core.log.event.order_partially_refunded_message"
 msgstr ""
 
+#. translators: 1: Order ID number, 2: Refund ID number
+#: /home/yakir/lab/order-daemon/src/Core/RefundDeletionDiagnostics.php:1531
+#, php-format
+msgid "core.log.event.order_partially_refunded_simple"
+msgstr ""
+
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:166
 msgid "core.log.event.order_processing_started"
 msgstr ""
@@ -1826,6 +1838,12 @@ msgstr ""
 #. translators: %d: The order ID number
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:168
 msgid "core.log.event.order_processing_started_message"
+msgstr ""
+
+#. translators: 1: Order ID number, 2: Refund ID number
+#: /home/yakir/lab/order-daemon/src/Core/RefundDeletionDiagnostics.php:1545
+#, php-format
+msgid "core.log.event.order_refunded"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:396
@@ -1837,6 +1855,12 @@ msgstr ""
 msgid "core.log.event.order_restored_message"
 msgstr ""
 
+#. translators: %d: The order ID number
+#: /home/yakir/lab/order-daemon/src/Core/RefundDeletionDiagnostics.php:1543
+#, php-format
+msgid "core.log.event.order_restored_simple"
+msgstr ""
+
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:388
 msgid "core.log.event.order_trashed"
 msgstr ""
@@ -1844,6 +1868,12 @@ msgstr ""
 #. translators: 1: Order ID number, 2: User who trashed the order
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:390
 msgid "core.log.event.order_trashed_message"
+msgstr ""
+
+#. translators: %d: The order ID number
+#: /home/yakir/lab/order-daemon/src/Core/RefundDeletionDiagnostics.php:1541
+#, php-format
+msgid "core.log.event.order_trashed_simple"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:461
@@ -1889,6 +1919,12 @@ msgstr ""
 #. translators: 1: Refund ID number, 2: Order ID number, 3: Refund amount
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:366
 msgid "core.log.event.refund_created_message"
+msgstr ""
+
+#. translators: 1: Refund ID number, 2: Order ID number
+#: /home/yakir/lab/order-daemon/src/Core/RefundDeletionDiagnostics.php:1535
+#, php-format
+msgid "core.log.event.refund_created_simple"
 msgstr ""
 
 #: /home/yakir/lab/order-daemon/src/Core/LogRegistries.php:372

@@ -128,13 +128,17 @@ final class Plugin {
     /**
      * Load translations FIRST (before any UI rendering)
      *
-     * WordPress.org automatically loads translations from language packs.
-     * This method only needs to enable JSON translations for JavaScript.
+     * Loads the bundled PHP translation file and enables JSON translations for JavaScript.
      *
      * @since 1.1.23
      */
     public function load_text_domain(): void {
-        
+        load_plugin_textdomain(
+            'order-daemon',
+            false,
+            dirname( plugin_basename( ODCM_PLUGIN_FILE ) ) . '/languages/'
+        );
+
         // Enable JSON translations for JavaScript
         if (function_exists('wp_set_script_translations')) {
             wp_set_script_translations('order-daemon-admin-js', 'order-daemon');

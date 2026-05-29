@@ -1528,21 +1528,21 @@ final class RefundDeletionDiagnostics
     {
         switch ($event_type) {
             case 'order_partially_refunded':
-                return sprintf('core.log.event.order_partially_refunded_simple', $order_id, $refund_id);
+                return sprintf(__('core.log.event.order_partially_refunded_simple', 'order-daemon'), $order_id, $refund_id);
             case 'order_fully_refunded':
-                return sprintf('core.log.event.order_fully_refunded_message', $order_id, $refund_id);
+                return sprintf(__('core.log.event.order_fully_refunded_message', 'order-daemon'), $order_id, $refund_id);
             case 'refund_created':
-                return sprintf('core.log.event.refund_created_simple', $refund_id, $order_id);
+                return sprintf(__('core.log.event.refund_created_simple', 'order-daemon'), $refund_id, $order_id);
             case 'refund_deleted':
-                return sprintf('core.log.event.refund_deleted_message', $refund_id, $order_id);
+                return sprintf(__('core.log.event.refund_deleted_message', 'order-daemon'), $refund_id, $order_id);
             case 'order_deleted':
-                return sprintf('core.log.event.order_deleted_simple', $order_id);
+                return sprintf(__('core.log.event.order_deleted_simple', 'order-daemon'), $order_id);
             case 'order_trashed':
-                return sprintf('core.log.event.order_trashed_simple', $order_id);
+                return sprintf(__('core.log.event.order_trashed_simple', 'order-daemon'), $order_id);
             case 'order_restored':
-                return sprintf('core.log.event.order_restored_simple', $order_id);
+                return sprintf(__('core.log.event.order_restored_simple', 'order-daemon'), $order_id);
             default:
-                return sprintf('core.log.event.order_refunded', $order_id, $refund_id);
+                return sprintf(__('core.log.event.order_refunded', 'order-daemon'), $order_id, $refund_id);
         }
     }
 

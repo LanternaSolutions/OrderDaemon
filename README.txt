@@ -3,7 +3,7 @@ Contributors: orderdaemon
 Tags: woocommerce, orders, automation, order-management, event-log
 Requires at least: 5.6
 Tested up to: 7.0
-Stable tag: 1.3.34
+Stable tag: 1.3.35
 Requires PHP: 7.4
 WC requires at least: 5.0
 WC tested up to: 10.8.1
@@ -157,6 +157,11 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 
 == Changelog ==
 
+= 1.3.35 =
+* Fixed: Insight Dashboard showed raw dot-notation strings (e.g. `core.log.event.order_completed`) instead of English labels — `load_plugin_textdomain()` was never called so the bundled translation file was never loaded
+* Fixed: `RefundDeletionDiagnostics::build_summary()` passed translation keys directly to `sprintf()` without `__()`, so refund and deletion event summaries were never translated regardless of locale
+* Fixed: 6 missing translation entries for `_simple` and `order_refunded` event keys added to `en_US.po`; `.mo` recompiled
+
 = 1.3.34 =
 * Fixed: Insight Dashboard loading error caused by Alpine.js defer timing race condition
 
@@ -195,6 +200,9 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 * Fixed: Gateway adapter validation no longer blocked by missing log method
 
 == Upgrade Notice ==
+
+= 1.3.35 =
+Fixes event translations in audit log.
 
 = 1.3.34 =
 Fixes Insight Dashboard loading error.
