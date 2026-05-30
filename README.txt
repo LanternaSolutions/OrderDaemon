@@ -170,35 +170,6 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 * Fixed: Removed phantom `find_order_by_meta_hpos_optimized()` call that threw a fatal Error (caught silently) on every transaction ID lookup for HPOS stores
 * Fixed: Direct `get_post_meta()` calls on order and refund IDs in event processing and refund diagnostics replaced with WC CRUD API — correct behaviour for full HPOS mode without compatibility mode
 
-= 1.3.31 =
-* Added: Add Order Note action is now available in the free plugin
-
-= 1.3.30 =
-* Dev: Automated WP/WC compatibility matrix testing integrated into the release pipeline
-
-= 1.3.29 =
-* Added: Dedicated Settings page — configure log retention, auto-refresh interval, display theme, and per-page log count from one place
-* Added: Custom Rules List page — search, status filter, bulk activate/deactivate/trash, and per-rule execution stats replace the native WordPress list table
-* Added: Component icons — all rule builder triggers, conditions, and actions now display an icon in the picker and on the canvas
-* Improved: Full admin UI overhaul — new design system with consistent spacing, typography, color tokens, and dark mode across all admin pages
-* Improved: Insight Dashboard — bookmarkable filter URLs, filter pane density, improved dark mode compatibility
-* Improved: Rule Builder — component icon rendering, responsive outer layout, breadcrumb wrapping
-* Improved: Diagnostics page — verbose category sections, left-aligned output, restored detail pane content
-* Fixed: OrderMetaManager cache key queries referenced a non-existent column in wp_options; replaced with md5-based in-memory keys
-* Fixed: Diagnostics page debug console.log calls no longer appear in production browser consoles
-
-= 1.3.28 =
-* Added: Custom webhook connections in Insight Dashboard — configure a slug-based webhook URL with bearer token or HMAC-SHA256 authentication
-* Added: Discount total source option for the Order Amount condition — rules can now compare the order's discount total against a threshold
-* Added: Site URL change detection — surfaces an admin notice when the site URL changes, with an Acknowledge button to dismiss
-* Fixed: Timeline event ordering, parent-child hierarchy, and parent_id writing — resolves race conditions and ensures rule execution events nest correctly under their triggering business events
-
-= 1.3.27 =
-* Improved: Rule Builder mobile responsivity — fixed broken breakpoint, enlarged touch targets, better narrow-screen layout
-* Improved: Rule Builder condition component summaries are more descriptive and extensible
-* Improved: Insight Dashboard mobile responsivity and several UI improvements
-* Fixed: Gateway adapter validation no longer blocked by missing log method
-
 == Upgrade Notice ==
 
 = 1.3.35 =
