@@ -157,6 +157,9 @@ Order Daemon does not collect, store, or transmit any personal data outside your
 
 == Changelog ==
 
+= 1.3.36 =
+* Dev: changelog.txt now included in release zip
+
 = 1.3.35 =
 * Fixed: Insight Dashboard showed raw dot-notation strings (e.g. `core.log.event.order_completed`) instead of English labels — `load_plugin_textdomain()` was never called so the bundled translation file was never loaded
 * Fixed: `RefundDeletionDiagnostics::build_summary()` passed translation keys directly to `sprintf()` without `__()`, so refund and deletion event summaries were never translated regardless of locale
